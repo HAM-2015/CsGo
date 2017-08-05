@@ -1,0 +1,76 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using Go;
+
+namespace GoTest
+{
+    class Program
+    {
+        static shared_strand _strand;
+        static chan<long> _chan1;
+        static nil_chan<long> _chan2;
+        static msg_buff<long> _chan3;
+
+        static async Task Producer1()
+        {
+            while (true)
+            {
+                await generator.chan_push(_chan1, system_tick.get_tick_us());
+                await generator.sleep(300);
+            }
+        }
+
+        static async Task Producer2()
+        {
+            while (true)
+            {
+                await generator.chan_push(_chan2, system_tick.get_tick_us());
+                await generator.sleep(500);
+            }
+        }
+
+        static async Task Producer3()
+        {
+            while (true)
+            {
+                await generator.chan_push(_chan3, system_tick.get_tick_us());
+                await generator.sleep(1000);
+            }
+        }
+
+        static async Task Consumer()
+        {
+            Console.WriteLine("pop chan1 {0}", (await generator.chan_pop(_chan1)).result);
+            Console.WriteLine("pop chan2 {0}", (await generator.chan_pop(_chan2)).result);
+            Console.WriteLine("pop chan3 {0}", (await generator.chan_pop(_chan3)).result);
+            await generator.select_chans(generator.case_read(_chan1, async delegate (long msg)
+            {
+                Console.WriteLine("select chan1 {0}", msg);
+                await generator.sleep(100);
+            }), generator.case_read(_chan2, async delegate (long msg)
+            {
+                Console.WriteLine("select chan2 {0}", msg);
+                await generator.sleep(100);
+            }), generator.case_read(_chan3, async delegate (long msg)
+            {
+                Console.WriteLine("select chan3 {0}", msg);
+                await generator.sleep(100);
+            }));
+        }
+
+        static void Main(string[] args)
+        {
+            _strand = new shared_strand();
+            _chan1 = new chan<long>(_strand, 3);
+            _chan2 = new nil_chan<long>(_strand);
+            _chan3 = new msg_buff<long>(_strand);
+            generator.go(_strand, Producer1);
+            generator.go(_strand, Producer2);
+            generator.go(_strand, Producer3);
+            generator.go(_strand, Consumer).sync_wait();
+        }
+    }
+}
