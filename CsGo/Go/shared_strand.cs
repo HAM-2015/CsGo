@@ -163,7 +163,7 @@ namespace Go
             _waitQueue = new LinkedList<functional.func>();
         }
 
-        protected void run_a_round()
+        protected bool run_a_round1()
         {
             tls_values tlsVal = _runningTls.Value;
             if (null == tlsVal)
@@ -177,7 +177,7 @@ namespace Go
                 if (0 != _pauseState && 0 != Interlocked.CompareExchange(ref _pauseState, 2, 1))
                 {
                     tlsVal.currStrand.RemoveFirst();
-                    return;
+                    return false;
                 }
                 try
                 {
@@ -205,6 +205,12 @@ namespace Go
                 _mutex.ReleaseMutex();
                 tlsVal.currStrand.RemoveFirst();
             }
+            return true;
+        }
+
+        protected void run_a_round()
+        {
+            run_a_round1();
         }
 
         protected virtual void run_task()
@@ -395,8 +401,7 @@ namespace Go
                     _locked = true;
                     _readyQueue.AddLast(action);
                     _mutex.ReleaseMutex();
-                    run_a_round();
-                    return true;
+                    return run_a_round1();
                 }
             }
             else

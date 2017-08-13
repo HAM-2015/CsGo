@@ -289,9 +289,9 @@ namespace Go
             return (new generator()).init(strand, handler, callback, suspendCb).run();
         }
 
-        static public generator delay_go(shared_strand strand, action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
+        static public generator tick_go(shared_strand strand, action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
         {
-            return (new generator()).init(strand, handler, callback, suspendCb).delay_run();
+            return (new generator()).init(strand, handler, callback, suspendCb).tick_run();
         }
 
         static public generator make(string name, shared_strand strand, action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
@@ -319,9 +319,9 @@ namespace Go
             return make(name, strand, handler, callback, suspendCb).run();
         }
 
-        static public generator delay_go(string name, shared_strand strand, action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
+        static public generator tick_go(string name, shared_strand strand, action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
         {
-            return make(name, strand, handler, callback, suspendCb).delay_run();
+            return make(name, strand, handler, callback, suspendCb).tick_run();
         }
 
         static public generator find(string name)
@@ -493,7 +493,7 @@ namespace Go
             {
                 if (-1 == _lockCount)
                 {
-                    delay_run();
+                    tick_run();
                 }
                 else if (!_isRun && !_isStop)
                 {
@@ -504,7 +504,7 @@ namespace Go
             return this;
         }
 
-        public generator delay_run()
+        public generator tick_run()
         {
             _strand.post(delegate ()
             {
@@ -566,7 +566,7 @@ namespace Go
             }
         }
 
-        public void delay_suspend(functional.func cb = null)
+        public void tick_suspend(functional.func cb = null)
         {
             _strand.post(() => _suspend(cb));
         }
@@ -577,7 +577,7 @@ namespace Go
             {
                 if (-1 == _lockCount)
                 {
-                    delay_suspend(cb);
+                    tick_suspend(cb);
                 }
                 else
                 {
@@ -638,7 +638,7 @@ namespace Go
             }
         }
 
-        public void delay_resume(functional.func cb = null)
+        public void tick_resume(functional.func cb = null)
         {
             _strand.post(() => _resume(cb));
         }
@@ -649,7 +649,7 @@ namespace Go
             {
                 if (-1 == _lockCount)
                 {
-                    delay_resume(cb);
+                    tick_resume(cb);
                 }
                 else
                 {
@@ -1810,6 +1810,16 @@ namespace Go
             return chan.make_select_reader(handler, errHandler);
         }
 
+        static public select_chan_base case_write<T>(channel<T> chan, functional.func_res<T> msg, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+        {
+            return chan.make_select_writer(msg, handler, errHandler);
+        }
+
+        static public select_chan_base case_write<T>(channel<T> chan, async_result_wrap<T> msg, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+        {
+            return chan.make_select_writer(msg, handler, errHandler);
+        }
+
         static public select_chan_base case_write<T>(channel<T> chan, T msg, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
         {
             return chan.make_select_writer(msg, handler, errHandler);
@@ -1828,6 +1838,16 @@ namespace Go
         static public select_chan_base case_read<R, T>(csp_chan<R, T> chan, functional.func_res<Task, csp_chan<R, T>.csp_result, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler)
         {
             return chan.make_select_reader(handler, errHandler);
+        }
+
+        static public select_chan_base case_write<R, T>(csp_chan<R, T> chan, functional.func_res<T> msg, functional.func_res<Task, R> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+        {
+            return chan.make_select_writer(msg, handler, errHandler);
+        }
+
+        static public select_chan_base case_write<R, T>(csp_chan<R, T> chan, async_result_wrap<T> msg, functional.func_res<Task, R> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+        {
+            return chan.make_select_writer(msg, handler, errHandler);
         }
 
         static public select_chan_base case_write<R, T>(csp_chan<R, T> chan, T msg, functional.func_res<Task, R> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
@@ -2015,6 +2035,21 @@ namespace Go
         {
             generator this_ = self;
             await this_.async_wait(() => mtx.unlock_upgrade(this_._id, this_.async_result()));
+        }
+
+        static public async Task condition_wait(condition_variable conVar, mutex_base mutex)
+        {
+            generator this_ = self;
+            await this_.async_wait(() => conVar.wait(this_._id, mutex, this_.async_result()));
+        }
+
+        static public async Task<bool> condition_timed_wait(int ms, condition_variable conVar, mutex_base mutex)
+        {
+            generator this_ = self;
+            return chan_async_state.async_ok == await this_.wait_result(delegate (async_result_wrap<chan_async_state> res)
+            {
+                conVar.timed_wait(this_._id, ms, mutex, this_.async_result(res));
+            });
         }
 
         static public async Task send_strand(shared_strand strand, functional.func handler)
@@ -2613,9 +2648,9 @@ namespace Go
                 return make(strand, handler, callback, suspendCb).run();
             }
 
-            static new public child delay_go(shared_strand strand, action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
+            static new public child tick_go(shared_strand strand, action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
             {
-                return make(strand, handler, callback, suspendCb).delay_run();
+                return make(strand, handler, callback, suspendCb).tick_run();
             }
 
             public LinkedListNode<child> node
@@ -2635,9 +2670,9 @@ namespace Go
                 return (child)base.run();
             }
 
-            public new child delay_run()
+            public new child tick_run()
             {
-                return (child)base.delay_run();
+                return (child)base.tick_run();
             }
 
             public void delay_stop(functional.func cb)
@@ -2763,9 +2798,9 @@ namespace Go
                 return make(strand, handler, callback, suspendCb).run();
             }
 
-            public child delay_go(shared_strand strand, action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
+            public child tick_go(shared_strand strand, action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
             {
-                return make(strand, handler, callback, suspendCb).delay_run();
+                return make(strand, handler, callback, suspendCb).tick_run();
             }
 
             public child make(action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
@@ -2778,9 +2813,9 @@ namespace Go
                 return go(_parent._strand, handler, callback, suspendCb);
             }
 
-            public child delay_go(action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
+            public child tick_go(action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
             {
-                return delay_go(_parent._strand, handler, callback, suspendCb);
+                return tick_go(_parent._strand, handler, callback, suspendCb);
             }
 
             public void ignore_suspend(bool igonre = true)

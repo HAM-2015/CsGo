@@ -124,7 +124,7 @@ namespace Go
         public class select_chan_writer : select_chan_base
         {
             public channel<T> _chan;
-            public T _msg;
+            public functional.func_res<T> _msg;
             public functional.func_res<Task> _handler;
             public functional.func_res<Task<bool>, chan_async_state> _errHandler;
 
@@ -156,7 +156,7 @@ namespace Go
                         {
                             cb(id, state);
                         }
-                    }, ntfSign, _msg);
+                    }, ntfSign, _msg());
                 });
                 select_chan_state chanState = new select_chan_state();
                 if (chan_async_state.async_ok == result)
@@ -241,7 +241,7 @@ namespace Go
             return sel;
         }
 
-        public select_chan_base make_select_writer(T msg, functional.func_res<Task> handler)
+        public select_chan_base make_select_writer(functional.func_res<T> msg, functional.func_res<Task> handler)
         {
             select_chan_writer sel = new select_chan_writer();
             sel._chan = this;
@@ -250,7 +250,7 @@ namespace Go
             return sel;
         }
 
-        public select_chan_base make_select_writer(T msg, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler)
+        public select_chan_base make_select_writer(functional.func_res<T> msg, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler)
         {
             select_chan_writer sel = new select_chan_writer();
             sel._chan = this;
@@ -258,6 +258,26 @@ namespace Go
             sel._handler = handler;
             sel._errHandler = errHandler;
             return sel;
+        }
+
+        public select_chan_base make_select_writer(async_result_wrap<T> msg, functional.func_res<Task> handler)
+        {
+            return make_select_writer(() => msg.value_1, handler);
+        }
+
+        public select_chan_base make_select_writer(async_result_wrap<T> msg, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler)
+        {
+            return make_select_writer(() => msg.value_1, handler, errHandler);
+        }
+
+        public select_chan_base make_select_writer(T msg, functional.func_res<Task> handler)
+        {
+            return make_select_writer(() => msg, handler);
+        }
+
+        public select_chan_base make_select_writer(T msg, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler)
+        {
+            return make_select_writer(() => msg, handler, errHandler);
         }
 
         public virtual void pop(functional.same_func ntf, broadcast_chan_token token)
@@ -2232,7 +2252,7 @@ namespace Go
         public class select_csp_writer : select_chan_base
         {
             public csp_chan<R, T> _chan;
-            public T _msg;
+            public functional.func_res<T> _msg;
             public functional.func_res<Task, R> _handler;
             public functional.func_res<Task<bool>, chan_async_state> _errHandler;
 
@@ -2265,7 +2285,7 @@ namespace Go
                         {
                             cb(id, state);
                         }
-                    }, ntfSign, _msg);
+                    }, ntfSign, _msg());
                 });
                 select_chan_state chanState = new select_chan_state();
                 if (chan_async_state.async_ok == result.state)
@@ -2335,7 +2355,7 @@ namespace Go
             return sel;
         }
 
-        public select_chan_base make_select_writer(T msg, functional.func_res<Task, R> handler)
+        public select_chan_base make_select_writer(functional.func_res<T> msg, functional.func_res<Task, R> handler)
         {
             select_csp_writer sel = new select_csp_writer();
             sel._chan = this;
@@ -2344,7 +2364,7 @@ namespace Go
             return sel;
         }
 
-        public select_chan_base make_select_writer(T msg, functional.func_res<Task, R> handler, functional.func_res<Task<bool>, chan_async_state> errHandler)
+        public select_chan_base make_select_writer(functional.func_res<T> msg, functional.func_res<Task, R> handler, functional.func_res<Task<bool>, chan_async_state> errHandler)
         {
             select_csp_writer sel = new select_csp_writer();
             sel._chan = this;
@@ -2352,6 +2372,26 @@ namespace Go
             sel._handler = handler;
             sel._errHandler = errHandler;
             return sel;
+        }
+
+        public select_chan_base make_select_writer(async_result_wrap<T> msg, functional.func_res<Task, R> handler)
+        {
+            return make_select_writer(() => msg.value_1, handler);
+        }
+
+        public select_chan_base make_select_writer(async_result_wrap<T> msg, functional.func_res<Task, R> handler, functional.func_res<Task<bool>, chan_async_state> errHandler)
+        {
+            return make_select_writer(() => msg.value_1, handler, errHandler);
+        }
+
+        public select_chan_base make_select_writer(T msg, functional.func_res<Task, R> handler)
+        {
+            return make_select_writer(() => msg, handler);
+        }
+
+        public select_chan_base make_select_writer(T msg, functional.func_res<Task, R> handler, functional.func_res<Task<bool>, chan_async_state> errHandler)
+        {
+            return make_select_writer(() => msg, handler, errHandler);
         }
 
         public override chan_type type()

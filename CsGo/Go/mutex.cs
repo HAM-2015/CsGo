@@ -470,4 +470,85 @@ namespace Go
             unlock_shared(id, () => Lock(id, ntf));
         }
     }
+
+    public class condition_variable
+    {
+        shared_strand _strand;
+        LinkedList<functional.func> _waitQueue;
+
+        public condition_variable(shared_strand strand)
+        {
+            _strand = strand;
+            _waitQueue = new LinkedList<functional.func>();
+        }
+
+        public void wait(long id, mutex_base mutex, functional.func ntf)
+        {
+            _strand.distribute(delegate ()
+            {
+                _waitQueue.AddLast(delegate ()
+                {
+                    mutex.Lock(id, ntf);
+                });
+            });
+        }
+
+        public void timed_wait(long id, int ms, mutex_base mutex, functional.func<chan_async_state> ntf)
+        {
+            _strand.distribute(delegate ()
+            {
+                if (ms > 0)
+                {
+                    async_timer timer = new async_timer(_strand);
+                    LinkedListNode<functional.func> node = _waitQueue.AddLast(delegate ()
+                    {
+                        timer.cancel();
+                        mutex.Lock(id, delegate ()
+                        {
+                            ntf(chan_async_state.async_ok);
+                        });
+                    });
+                    timer.timeout(ms, delegate ()
+                    {
+                        _waitQueue.Remove(node);
+                        ntf(chan_async_state.async_overtime);
+                    });
+                }
+                else
+                {
+                    ntf(chan_async_state.async_overtime);
+                }
+            });
+        }
+
+        public void notify_one()
+        {
+            _strand.distribute(delegate ()
+            {
+                if (_waitQueue.Count > 0)
+                {
+                    functional.func ntf = _waitQueue.First.Value;
+                    _waitQueue.RemoveFirst();
+                    ntf();
+                }
+            });
+        }
+
+        public void notify_all()
+        {
+            _strand.distribute(delegate ()
+            {
+                if (_waitQueue.Count > 0)
+                {
+                    LinkedList<functional.func> waitQueue = _waitQueue;
+                    _waitQueue = new LinkedList<functional.func>();
+                    while (waitQueue.Count > 0)
+                    {
+                        waitQueue.First.Value.Invoke();
+                        waitQueue.RemoveFirst();
+                    }
+                }
+            });
+        }
+    }
 }
