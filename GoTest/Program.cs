@@ -10,9 +10,9 @@ namespace GoTest
     class Program
     {
         static shared_strand _strand;
-        static chan<long> _chan1;
-        static nil_chan<long> _chan2;
-        static msg_buff<long> _chan3;
+        static channel<long> _chan1;
+        static channel<long> _chan2;
+        static channel<long> _chan3;
 
         static async Task Producer1()
         {
@@ -27,7 +27,7 @@ namespace GoTest
         {
             while (true)
             {
-                await generator.chan_push(_chan2, system_tick.get_tick_us());
+                await generator.chan_pop(_chan2);
                 await generator.sleep(500);
             }
         }
@@ -44,29 +44,32 @@ namespace GoTest
         static async Task Consumer()
         {
             Console.WriteLine("pop chan1 {0}", (await generator.chan_pop(_chan1)).result);
-            Console.WriteLine("pop chan2 {0}", (await generator.chan_pop(_chan2)).result);
+            Console.WriteLine("push chan2 {0}", await generator.chan_push(_chan2, system_tick.get_tick_us()));
             Console.WriteLine("pop chan3 {0}", (await generator.chan_pop(_chan3)).result);
-            await generator.select_chans(generator.case_read(_chan1, async delegate (long msg)
+            while (true)
             {
-                Console.WriteLine("select chan1 {0}", msg);
-                await generator.sleep(100);
-            }), generator.case_read(_chan2, async delegate (long msg)
-            {
-                Console.WriteLine("select chan2 {0}", msg);
-                await generator.sleep(100);
-            }), generator.case_read(_chan3, async delegate (long msg)
-            {
-                Console.WriteLine("select chan3 {0}", msg);
-                await generator.sleep(100);
-            }));
+                await generator.select_chans_once(generator.case_read(_chan1, async delegate (long msg)
+                {
+                    Console.WriteLine("select read chan1 {0}", msg);
+                    await generator.sleep(100);
+                }), generator.case_write(_chan2, system_tick.get_tick_us(), async delegate ()
+                {
+                    Console.WriteLine("select write chan2");
+                    await generator.sleep(100);
+                }), generator.case_read(_chan3, async delegate (long msg)
+                {
+                    Console.WriteLine("select read chan3 {0}", msg);
+                    await generator.sleep(100);
+                }));
+            }
         }
 
         static void Main(string[] args)
         {
             _strand = new shared_strand();
-            _chan1 = new chan<long>(_strand, 3);
-            _chan2 = new nil_chan<long>(_strand);
-            _chan3 = new msg_buff<long>(_strand);
+            _chan1 = channel<long>.make(_strand, 3);
+            _chan2 = channel<long>.make(_strand, 0);
+            _chan3 = channel<long>.make(_strand, -1);
             generator.go(_strand, Producer1);
             generator.go(_strand, Producer2);
             generator.go(_strand, Producer3);

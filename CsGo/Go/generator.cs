@@ -1690,7 +1690,9 @@ namespace Go
             int count = chans.Count();
             for (int i = 0; i < count; i++)
             {
-                chans[i].begin((int id, chan_async_state state) => selectId.post(id), i);
+                int id = i;
+                chans[i].ntfSign._selectOnce = false;
+                chans[i].begin(() => selectId.post(id));
             }
             try
             {
@@ -1702,7 +1704,7 @@ namespace Go
                         continue;
                     }
                     count--;
-                    select_chan_state selState = await chans[sel.result].invoke((int id, chan_async_state state) => selectId.post(id), sel.result);
+                    select_chan_state selState = await chans[sel.result].invoke(() => selectId.post(sel.result));
                     if (selState.nextRound)
                     {
                         count++;
@@ -1731,8 +1733,11 @@ namespace Go
             msg_buff<int> selectId = new msg_buff<int>(this_._strand);
             for (int i = 0; i < chans.Count(); i++)
             {
-                chans[i].begin((int id, chan_async_state state) => selectId.post(id), i);
+                int id = i;
+                chans[i].ntfSign._selectOnce = true;
+                chans[i].begin(() => selectId.post(id));
             }
+            bool selected = false;
             try
             {
                 select_chan_state selState = null;
@@ -1743,18 +1748,31 @@ namespace Go
                     {
                         continue;
                     }
-                    selState = await chans[sel.result].invoke((int id, chan_async_state state) => selectId.post(id), sel.result);
+                    selState = await chans[sel.result].invoke(() => selectId.post(sel.result), async delegate(select_chan_base selectedChan)
+                    {
+                        for (int i = 0; i < chans.Count(); i++)
+                        {
+                            if (selectedChan != chans[i])
+                            {
+                                await chans[i].end();
+                            }
+                        }
+                        selected = true;
+                    });
                 } while (selState.failed);
             }
             catch (stop_select_exception) { }
             finally
             {
-                lock_stop();
-                for (int i = 0; i < chans.Count(); i++)
+                if (!selected)
                 {
-                    await chans[i].end();
+                    lock_stop();
+                    for (int i = 0; i < chans.Count(); i++)
+                    {
+                        await chans[i].end();
+                    }
+                    unlock_stop();
                 }
-                unlock_stop();
             }
         }
 
@@ -1762,12 +1780,14 @@ namespace Go
         {
             generator this_ = self;
             msg_buff<int> selectId = new msg_buff<int>(this_._strand);
-            async_timer timer = new async_timer(this_._strand);
-            timer.timeout(ms, () => selectId.push(functional.any_handler, -1));
+            this_._timer.timeout(ms, () => selectId.push(functional.any_handler, -1));
             for (int i = 0; i < chans.Count(); i++)
             {
-                chans[i].begin((int id, chan_async_state state) => selectId.post(id), i);
+                int id = i;
+                chans[i].ntfSign._selectOnce = true;
+                chans[i].begin(() => selectId.post(id));
             }
+            bool selected = false;
             try
             {
                 while (true)
@@ -1779,7 +1799,18 @@ namespace Go
                         {
                             continue;
                         }
-                        select_chan_state selState = await chans[sel.result].invoke((int id, chan_async_state state) => selectId.post(id), sel.result);
+                        select_chan_state selState = await chans[sel.result].invoke(() => selectId.post(sel.result), async delegate (select_chan_base selectedChan)
+                        {
+                            this_._timer.cancel();
+                            for (int i = 0; i < chans.Count(); i++)
+                            {
+                                if (selectedChan != chans[i])
+                                {
+                                    await chans[i].end();
+                                }
+                            }
+                            selected = true;
+                        });
                         if (!selState.failed)
                         {
                             break;
@@ -1787,6 +1818,11 @@ namespace Go
                     }
                     else
                     {
+                        for (int i = 0; i < chans.Count(); i++)
+                        {
+                            await chans[i].end();
+                        }
+                        selected = true;
                         await timedHandler();
                         break;
                     }
@@ -1795,13 +1831,16 @@ namespace Go
             catch (stop_select_exception) { }
             finally
             {
-                timer.cancel();
-                lock_stop();
-                for (int i = 0; i < chans.Count(); i++)
+                if (!selected)
                 {
-                    await chans[i].end();
+                    this_._timer.cancel();
+                    lock_stop();
+                    for (int i = 0; i < chans.Count(); i++)
+                    {
+                        await chans[i].end();
+                    }
+                    unlock_stop();
                 }
-                unlock_stop();
             }
         }
 
