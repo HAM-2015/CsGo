@@ -1686,25 +1686,24 @@ namespace Go
         static public async Task select_chans(params select_chan_base[] chans)
         {
             generator this_ = self;
-            msg_buff<int> selectId = new msg_buff<int>(this_._strand);
-            int count = chans.Count();
-            for (int i = 0; i < count; i++)
+            msg_buff<select_chan_base> selectChans = new msg_buff<select_chan_base>(this_._strand);
+            foreach (select_chan_base chan in chans)
             {
-                int id = i;
-                chans[i].ntfSign._selectOnce = false;
-                chans[i].begin(() => selectId.post(id));
+                chan.ntfSign._selectOnce = false;
+                chan.begin(() => selectChans.post(chan));
             }
             try
             {
+                int count = chans.Count();
                 while (true)
                 {
-                    chan_pop_wrap<int> sel = await chan_pop(selectId);
-                    if (chans[sel.result].disabled())
+                    select_chan_base selectedChan = (await chan_pop(selectChans)).result;
+                    if (selectedChan.disabled())
                     {
                         continue;
                     }
                     count--;
-                    select_chan_state selState = await chans[sel.result].invoke(() => selectId.post(sel.result));
+                    select_chan_state selState = await selectedChan.invoke(() => selectChans.post(selectedChan));
                     if (selState.nextRound)
                     {
                         count++;
@@ -1719,9 +1718,9 @@ namespace Go
             finally
             {
                 lock_stop();
-                for (int i = 0; i < chans.Count(); i++)
+                foreach (select_chan_base chan in chans)
                 {
-                    await chans[i].end();
+                    await chan.end();
                 }
                 unlock_stop();
             }
@@ -1730,12 +1729,11 @@ namespace Go
         static public async Task select_chans_once(params select_chan_base[] chans)
         {
             generator this_ = self;
-            msg_buff<int> selectId = new msg_buff<int>(this_._strand);
-            for (int i = 0; i < chans.Count(); i++)
+            msg_buff<select_chan_base> selectChans = new msg_buff<select_chan_base>(this_._strand);
+            foreach (select_chan_base chan in chans)
             {
-                int id = i;
-                chans[i].ntfSign._selectOnce = true;
-                chans[i].begin(() => selectId.post(id));
+                chan.ntfSign._selectOnce = true;
+                chan.begin(() => selectChans.post(chan));
             }
             bool selected = false;
             try
@@ -1743,18 +1741,18 @@ namespace Go
                 select_chan_state selState = null;
                 do
                 {
-                    chan_pop_wrap<int> sel = await chan_pop(selectId);
-                    if (chans[sel.result].disabled())
+                    select_chan_base selectedChan = (await chan_pop(selectChans)).result;
+                    if (selectedChan.disabled())
                     {
                         continue;
                     }
-                    selState = await chans[sel.result].invoke(() => selectId.post(sel.result), async delegate(select_chan_base selectedChan)
+                    selState = await selectedChan.invoke(() => selectChans.post(selectedChan), async delegate()
                     {
-                        for (int i = 0; i < chans.Count(); i++)
+                        foreach (select_chan_base chan in chans)
                         {
-                            if (selectedChan != chans[i])
+                            if (selectedChan != chan)
                             {
-                                await chans[i].end();
+                                await chan.end();
                             }
                         }
                         selected = true;
@@ -1767,9 +1765,9 @@ namespace Go
                 if (!selected)
                 {
                     lock_stop();
-                    for (int i = 0; i < chans.Count(); i++)
+                    foreach (select_chan_base chan in chans)
                     {
-                        await chans[i].end();
+                        await chan.end();
                     }
                     unlock_stop();
                 }
@@ -1779,34 +1777,33 @@ namespace Go
         static public async Task timed_select_chans(int ms, functional.func_res<Task> timedHandler, params select_chan_base[] chans)
         {
             generator this_ = self;
-            msg_buff<int> selectId = new msg_buff<int>(this_._strand);
-            this_._timer.timeout(ms, () => selectId.push(functional.any_handler, -1));
-            for (int i = 0; i < chans.Count(); i++)
+            msg_buff<select_chan_base> selectChans = new msg_buff<select_chan_base>(this_._strand);
+            this_._timer.timeout(ms, () => selectChans.post(null));
+            foreach (select_chan_base chan in chans)
             {
-                int id = i;
-                chans[i].ntfSign._selectOnce = true;
-                chans[i].begin(() => selectId.post(id));
+                chan.ntfSign._selectOnce = true;
+                chan.begin(() => selectChans.post(chan));
             }
             bool selected = false;
             try
             {
                 while (true)
                 {
-                    chan_pop_wrap<int> sel = await chan_pop(selectId);
-                    if (-1 != sel.result)
+                    select_chan_base selectedChan = (await chan_pop(selectChans)).result;
+                    if (null != selectedChan)
                     {
-                        if (chans[sel.result].disabled())
+                        if (selectedChan.disabled())
                         {
                             continue;
                         }
-                        select_chan_state selState = await chans[sel.result].invoke(() => selectId.post(sel.result), async delegate (select_chan_base selectedChan)
+                        select_chan_state selState = await selectedChan.invoke(() => selectChans.post(selectedChan), async delegate ()
                         {
                             this_._timer.cancel();
-                            for (int i = 0; i < chans.Count(); i++)
+                            foreach (select_chan_base chan in chans)
                             {
-                                if (selectedChan != chans[i])
+                                if (selectedChan != chan)
                                 {
-                                    await chans[i].end();
+                                    await chan.end();
                                 }
                             }
                             selected = true;
@@ -1818,9 +1815,9 @@ namespace Go
                     }
                     else
                     {
-                        for (int i = 0; i < chans.Count(); i++)
+                        foreach (select_chan_base chan in chans)
                         {
-                            await chans[i].end();
+                            await chan.end();
                         }
                         selected = true;
                         await timedHandler();
@@ -1835,9 +1832,9 @@ namespace Go
                 {
                     this_._timer.cancel();
                     lock_stop();
-                    for (int i = 0; i < chans.Count(); i++)
+                    foreach (select_chan_base chan in chans)
                     {
-                        await chans[i].end();
+                        await chan.end();
                     }
                     unlock_stop();
                 }

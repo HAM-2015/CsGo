@@ -43,41 +43,6 @@ namespace Go
         static public readonly same_func any_handler = (object[] args) => { };
         static public readonly Action nil_action = () => { };
 
-        private static same_func _wrap(same_func handler, params object[] bindArgs)
-        {
-            return delegate (object[] args)
-            {
-                for (int i = 0, j = 0; i < bindArgs.Count(); i++)
-                {
-                    if (functional._ == bindArgs[i])
-                    {
-                        bindArgs[i] = args[j++];
-                    }
-                }
-                handler(bindArgs);
-            };
-        }
-
-        private static same_func<R> _wrap_res<R>(same_func<R> handler, params object[] bindArgs)
-        {
-            return delegate (object[] args)
-            {
-                for (int i = 0, j = 0; i < bindArgs.Count(); i++)
-                {
-                    if (functional._ == bindArgs[i])
-                    {
-                        bindArgs[i] = args[j++];
-                    }
-                }
-                return handler(bindArgs);
-            };
-        }
-
-        public static object[] wrap_params(params object[] args)
-        {
-            return args;
-        }
-
         public static func cast(same_func handler)
         {
             return () => handler();
@@ -118,7 +83,7 @@ namespace Go
             return (object[] args) => handler((T1)args[0], (T2)args[1], (T3)args[2]);
         }
 
-        public static func_res<R> cast_res<R>(same_func<R> handler)
+        public static func_res<R> cast<R>(same_func<R> handler)
         {
             return () => handler();
         }
@@ -158,44 +123,62 @@ namespace Go
             return (object[] args) => handler((T1)args[0], (T2)args[1], (T3)args[2]);
         }
 
-        public static same_func bind(func handler)
-        {
-            return (object[] args) => handler.DynamicInvoke(args);
-        }
-
         public static same_func bind<P1, T1>(func<P1> handler, T1 p1)
         {
-            return _wrap((object[] args) => handler.DynamicInvoke(args), p1);
+            return delegate (object[] args)
+            {
+                handler((P1)(functional._ == (object)p1 ? args[0] : p1));
+            };
         }
 
         public static same_func bind<P1, P2, T1, T2>(func<P1, P2> handler, T1 p1, T2 p2)
         {
-            return _wrap((object[] args) => handler.DynamicInvoke(args), p1, p2);
+            return delegate (object[] args)
+            {
+                int i = 0;
+                handler((P1)(functional._ == (object)p1 ? args[i++] : p1),
+                    (P2)(functional._ == (object)p2 ? args[i++] : p2));
+            };
         }
 
         public static same_func bind<P1, P2, P3, T1, T2, T3>(func<P1, P2, P3> handler, T1 p1, T2 p2, T3 p3)
         {
-            return _wrap((object[] args) => handler.DynamicInvoke(args), p1, p2, p3);
-        }
-
-        public static same_func<R> bind<R>(func_res<R> handler)
-        {
-            return (object[] args) => (R)handler.DynamicInvoke(args);
+            return delegate (object[] args)
+            {
+                int i = 0;
+                handler((P1)(functional._ == (object)p1 ? args[i++] : p1),
+                    (P2)(functional._ == (object)p2 ? args[i++] : p2),
+                    (P3)(functional._ == (object)p3 ? args[i++] : p3));
+            };
         }
 
         public static same_func<R> bind<R, P1, T1>(func_res<R, P1> handler, T1 p1)
         {
-            return _wrap_res((object[] args) => (R)handler.DynamicInvoke(args), p1);
+            return delegate (object[] args)
+            {
+                return handler((P1)(functional._ == (object)p1 ? args[0] : p1));
+            };
         }
 
         public static same_func<R> bind<R, P1, P2, T1, T2>(func_res<R, P1, P2> handler, T1 p1, T2 p2)
         {
-            return _wrap_res((object[] args) => (R)handler.DynamicInvoke(args), p1, p2);
+            return delegate (object[] args)
+            {
+                int i = 0;
+                return handler((P1)(functional._ == (object)p1 ? args[i++] : p1),
+                    (P2)(functional._ == (object)p2 ? args[i++] : p2));
+            };
         }
 
         public static same_func<R> bind<R, P1, P2, P3, T1, T2, T3>(func_res<R, P1, P2, P3> handler, T1 p1, T2 p2, T3 p3)
         {
-            return _wrap_res((object[] args) => (R)handler.DynamicInvoke(args), p1, p2, p3);
+            return delegate (object[] args)
+            {
+                int i = 0;
+                return handler((P1)(functional._ == (object)p1 ? args[i++] : p1),
+                    (P2)(functional._ == (object)p2 ? args[i++] : p2),
+                    (P3)(functional._ == (object)p3 ? args[i++] : p3));
+            };
         }
 
         public static void catch_invoke(func handler)

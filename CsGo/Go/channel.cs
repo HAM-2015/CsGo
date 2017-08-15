@@ -45,7 +45,7 @@ namespace Go
         public chan_notify_sign ntfSign = new chan_notify_sign();
         public bool disabled() { return ntfSign._disable; }
         public abstract void begin(functional.func ntf);
-        public abstract Task<select_chan_state> invoke(functional.func nextNtf, functional.func_res<Task, select_chan_base> stepOne = null);
+        public abstract Task<select_chan_state> invoke(functional.func nextNtf, functional.func_res<Task> stepOne = null);
         public abstract Task end();
     }
 
@@ -70,7 +70,7 @@ namespace Go
                 }, ntfSign);
             }
 
-            public override async Task<select_chan_state> invoke(functional.func nextNtf, functional.func_res<Task, select_chan_base> stepOne)
+            public override async Task<select_chan_state> invoke(functional.func nextNtf, functional.func_res<Task> stepOne)
             {
                 generator self = generator.self;
                 chan_pop_wrap<T> result = null;
@@ -94,7 +94,7 @@ namespace Go
                 {
                     if (null != stepOne)
                     {
-                        await stepOne(this);
+                        await stepOne();
                     }
                     await _handler(result.result);
                 }
@@ -145,7 +145,7 @@ namespace Go
                 }, ntfSign);
             }
 
-            public override async Task<select_chan_state> invoke(functional.func nextNtf, functional.func_res<Task, select_chan_base> stepOne)
+            public override async Task<select_chan_state> invoke(functional.func nextNtf, functional.func_res<Task> stepOne)
             {
                 generator self = generator.self;
                 chan_async_state result = chan_async_state.async_undefined;
@@ -168,7 +168,7 @@ namespace Go
                 {
                     if (null != stepOne)
                     {
-                        await stepOne(this);
+                        await stepOne();
                     }
                     await _handler();
                 }
@@ -2237,7 +2237,7 @@ namespace Go
                 }, ntfSign);
             }
 
-            public override async Task<select_chan_state> invoke(functional.func nextNtf, functional.func_res<Task, select_chan_base> stepOne)
+            public override async Task<select_chan_state> invoke(functional.func nextNtf, functional.func_res<Task> stepOne)
             {
                 generator self = generator.self;
                 csp_wait_wrap<R, T> result = null;
@@ -2261,7 +2261,7 @@ namespace Go
                 {
                     if (null != stepOne)
                     {
-                        await stepOne(this);
+                        await stepOne();
                     }
                     await _handler(result.result, result.msg);
                 }
@@ -2312,7 +2312,7 @@ namespace Go
                 }, ntfSign);
             }
 
-            public override async Task<select_chan_state> invoke(functional.func nextNtf, functional.func_res<Task, select_chan_base> stepOne)
+            public override async Task<select_chan_state> invoke(functional.func nextNtf, functional.func_res<Task> stepOne)
             {
                 generator self = generator.self;
                 csp_invoke_wrap<R> result = null;
@@ -2336,7 +2336,7 @@ namespace Go
                 {
                     if (null != stepOne)
                     {
-                        await stepOne(this);
+                        await stepOne();
                     }
                     await _handler(result.result);
                 }
