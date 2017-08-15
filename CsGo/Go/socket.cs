@@ -118,23 +118,23 @@ namespace Go
             async_write_same(buffs, cb);
         }
 
-        void _async_read(int length, int currTotal, ArraySegment<byte> buff, functional.func<socket_result> cb)
+        void _async_read(int currTotal, ArraySegment<byte> buff, functional.func<socket_result> cb)
         {
             async_read_same(buff, delegate (socket_result res)
             {
                 if (res.ok)
                 {
                     currTotal += res.s;
-                    if (length == currTotal)
+                    if (buff.Count == currTotal)
                     {
                         socket_result result = new socket_result();
-                        result.s = length;
+                        result.s = currTotal;
                         result.ok = true;
                         cb(result);
                     }
                     else
                     {
-                        _async_read(length, currTotal, new ArraySegment<byte>(buff.Array, buff.Offset + res.s, buff. Count - res.s), cb);
+                        _async_read(currTotal, new ArraySegment<byte>(buff.Array, buff.Offset + res.s, buff.Count - res.s), cb);
                     }
                 }
                 else
@@ -146,28 +146,24 @@ namespace Go
             });
         }
 
-        void _async_read(int length, int currTotal, IList<ArraySegment<byte>> buffs, functional.func<socket_result> cb)
+        void _async_read(int index, int currTotal, IList<ArraySegment<byte>> buffs, functional.func<socket_result> cb)
         {
-            async_read(buffs[0], delegate (socket_result res)
+            async_read(buffs[index], delegate (socket_result res)
             {
                 if (res.ok)
                 {
+                    index++;
                     currTotal += res.s;
-                    if (length == currTotal)
+                    if (index == buffs.Count)
                     {
                         socket_result result = new socket_result();
-                        result.s = length;
+                        result.s = currTotal;
                         result.ok = true;
                         cb(result);
                     }
                     else
                     {
-                        List<ArraySegment<byte>> newBuffs = new List<ArraySegment<byte>>();
-                        for (int i = 1; i < buffs.Count; i++)
-                        {
-                            newBuffs.Add(buffs[i]);
-                        }
-                        _async_read(length, currTotal, newBuffs, cb);
+                        _async_read(index, currTotal, buffs, cb);
                     }
                 }
                 else
@@ -181,36 +177,31 @@ namespace Go
 
         public void async_read(ArraySegment<byte> buff, functional.func<socket_result> cb)
         {
-            _async_read(buff.Count, 0, buff, cb);
+            _async_read(0, buff, cb);
         }
 
         public void async_read(IList<ArraySegment<byte>> buffs, functional.func<socket_result> cb)
         {
-            int length = 0;
-            foreach (ArraySegment<byte> ele in buffs)
-            {
-                length += ele.Count;
-            }
-            _async_read(length, 0, buffs, cb);
+            _async_read(0, 0, buffs, cb);
         }
         
-        void _async_write(int length, int currTotal, ArraySegment<byte> buff, functional.func<socket_result> cb)
+        void _async_write(int currTotal, ArraySegment<byte> buff, functional.func<socket_result> cb)
         {
             async_write_same(buff, delegate (socket_result res)
             {
                 if (res.ok)
                 {
                     currTotal += res.s;
-                    if (length == currTotal)
+                    if (buff.Count == currTotal)
                     {
                         socket_result result = new socket_result();
-                        result.s = length;
+                        result.s = buff.Count;
                         result.ok = true;
                         cb(result);
                     }
                     else
                     {
-                        _async_write(length, currTotal, new ArraySegment<byte>(buff.Array, buff.Offset + res.s, buff.Count - res.s), cb);
+                        _async_write(currTotal, new ArraySegment<byte>(buff.Array, buff.Offset + res.s, buff.Count - res.s), cb);
                     }
                 }
                 else
@@ -222,28 +213,24 @@ namespace Go
             });
         }
 
-        void _async_write(int length, int currTotal, IList<ArraySegment<byte>> buffs, functional.func<socket_result> cb)
+        void _async_write(int index, int currTotal, IList<ArraySegment<byte>> buffs, functional.func<socket_result> cb)
         {
-            async_write(buffs[0], delegate (socket_result res)
+            async_write(buffs[index], delegate (socket_result res)
             {
                 if (res.ok)
                 {
+                    index++;
                     currTotal += res.s;
-                    if (length == currTotal)
+                    if (index == buffs.Count)
                     {
                         socket_result result = new socket_result();
-                        result.s = length;
+                        result.s = currTotal;
                         result.ok = true;
                         cb(result);
                     }
                     else
                     {
-                        List<ArraySegment<byte>> newBuffs = new List<ArraySegment<byte>>();
-                        for (int i = 1; i < buffs.Count; i++)
-                        {
-                            newBuffs.Add(buffs[i]);
-                        }
-                        _async_write(length, currTotal, newBuffs, cb);
+                        _async_write(index, currTotal, buffs, cb);
                     }
                 }
                 else
@@ -257,17 +244,12 @@ namespace Go
 
         public void async_write(ArraySegment<byte> buff, functional.func<socket_result> cb)
         {
-            _async_write(buff.Count, 0, buff, cb);
+            _async_write(0, buff, cb);
         }
 
         public void async_write(IList<ArraySegment<byte>> buffs, functional.func<socket_result> cb)
         {
-            int length = 0;
-            foreach (ArraySegment<byte> ele in buffs)
-            {
-                length += ele.Count;
-            }
-            _async_write(length, 0, buffs, cb);
+            _async_write(0, 0, buffs, cb);
         }
 
         public async Task<socket_result> connect(string ip, int port)
@@ -400,6 +382,31 @@ namespace Go
             _socket = new SerialPort();
         }
 
+        public socket_serial(string portName)
+        {
+            _socket = new SerialPort(portName);
+        }
+
+        public socket_serial(string portName, int baudRate)
+        {
+            _socket = new SerialPort(portName, baudRate);
+        }
+
+        public socket_serial(string portName, int baudRate, Parity parity)
+        {
+            _socket = new SerialPort(portName, baudRate, parity);
+        }
+
+        public socket_serial(string portName, int baudRate, Parity parity, int dataBits)
+        {
+            _socket = new SerialPort(portName, baudRate, parity, dataBits);
+        }
+
+        public socket_serial(string portName, int baudRate, Parity parity, int dataBits, StopBits stopBits)
+        {
+            _socket = new SerialPort(portName, baudRate, parity, dataBits, stopBits);
+        }
+
         public string portName
         {
             get
@@ -460,6 +467,17 @@ namespace Go
             }
         }
 
+        public bool open()
+        {
+            try
+            {
+                _socket.Open();
+                return true;
+            }
+            catch (System.Exception) { }
+            return false;
+        }
+
         public void close()
         {
             try
@@ -468,29 +486,58 @@ namespace Go
             }
             catch (System.Exception) { }
         }
+        
+        public void async_read_same(ArraySegment<byte> buff, functional.func<int> cb)
+        {
+            try
+            {
+                _socket.BaseStream.BeginRead(buff.Array, buff.Offset, buff.Count, delegate (IAsyncResult ar)
+                {
+                    try
+                    {
+                        cb(_socket.BaseStream.EndRead(ar));
+                    }
+                    catch (System.Exception) { cb(0); }
+                }, null);
+            }
+            catch (System.Exception) { cb(0); }
+        }
+
+        void _async_read(int currTotal, ArraySegment<byte> buff, functional.func<int> cb)
+        {
+            async_read_same(buff, delegate (int s)
+            {
+                if (0 != s)
+                {
+                    currTotal += s;
+                    if (buff.Count == currTotal)
+                    {
+                        cb(currTotal);
+                    }
+                    else
+                    {
+                        _async_read(currTotal, new ArraySegment<byte>(buff.Array, buff.Offset + s, buff.Count - s), cb);
+                    }
+                }
+                else
+                {
+                    cb(currTotal);
+                }
+            });
+        }
 
         public void async_read(ArraySegment<byte> buff, functional.func<int> cb)
         {
-            Task.Run(delegate ()
-            {
-                try
-                {
-                    int s = _socket.Read(buff.Array, buff.Offset, buff.Count);
-                    cb(s);
-                }
-                catch (System.Exception) { cb(-1); }
-            });
+            _async_read(0, buff, cb);
         }
 
         public void async_read_line(functional.func<string> cb)
         {
             Task.Run(delegate ()
             {
-                socket_result res = new socket_result();
                 try
                 {
-                    string s = _socket.ReadLine();
-                    cb(s);
+                    cb(_socket.ReadLine());
                 }
                 catch (System.Exception) { cb(null); }
             });
@@ -500,11 +547,9 @@ namespace Go
         {
             Task.Run(delegate ()
             {
-                socket_result res = new socket_result();
                 try
                 {
-                    string s = _socket.ReadExisting();
-                    cb(s);
+                    cb(_socket.ReadExisting());
                 }
                 catch (System.Exception) { cb(null); }
             });
@@ -516,8 +561,7 @@ namespace Go
             {
                 try
                 {
-                    int s = _socket.ReadByte();
-                    cb(s);
+                    cb(_socket.ReadByte());
                 }
                 catch (System.Exception) { cb(-1); }
             });
@@ -525,23 +569,25 @@ namespace Go
 
         public void async_write(ArraySegment<byte> buff, functional.func<bool> cb)
         {
-            Task.Run(delegate ()
+            try
             {
-                socket_result res = new socket_result();
-                try
+                _socket.BaseStream.BeginWrite(buff.Array, buff.Offset, buff.Count, delegate (IAsyncResult ar)
                 {
-                    _socket.Write(buff.Array, buff.Offset, buff.Count);
-                    cb(true);
-                }
-                catch (System.Exception) { cb(false); }
-            });
+                    try
+                    {
+                        _socket.BaseStream.EndWrite(ar);
+                        cb(true);
+                    }
+                    catch (System.Exception) { cb(false); }
+                }, null);
+            }
+            catch (System.Exception) { cb(false); }
         }
 
         public void async_write(string str, functional.func<bool> cb)
         {
             Task.Run(delegate ()
             {
-                socket_result res = new socket_result();
                 try
                 {
                     _socket.Write(str);
@@ -555,7 +601,6 @@ namespace Go
         {
             Task.Run(delegate ()
             {
-                socket_result res = new socket_result();
                 try
                 {
                     _socket.WriteLine(str);
@@ -563,6 +608,12 @@ namespace Go
                 }
                 catch (System.Exception) { cb(false); }
             });
+        }
+
+        public async Task<int> read_same(ArraySegment<byte> buff)
+        {
+            generator host = generator.self;
+            return await host.wait_result((async_result_wrap<int> res) => async_read_same(buff, host.async_result(res)));
         }
 
         public async Task<int> read(ArraySegment<byte> buff)
