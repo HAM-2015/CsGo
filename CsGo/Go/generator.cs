@@ -220,6 +220,11 @@ namespace Go
             }
         }
 
+        class type_hash<T>
+        {
+            public static readonly int code = Interlocked.Increment(ref _hashCount);
+        }
+
         class mail_pck
         {
             public object mailbox;
@@ -248,13 +253,14 @@ namespace Go
         LinkedList<call_stack_info> _callStack;
 #endif
 
+        static int _hashCount = 0;
         static long _idCount = 0;
         static Task _nilTask = new Task(functional.nil_action);
         static ReaderWriterLockSlim _nameMutex = new ReaderWriterLockSlim();
         static SortedList<string, generator> _nameGens = new SortedList<string, generator>();
         static static_init _init = new static_init();
 
-        SortedList<Type, mail_pck> _chanMap;
+        SortedList<long, mail_pck> _chanMap;
         functional.func<bool> _suspendCb;
         LinkedList<children> _children;
         mutli_callback _multiCb;
@@ -2525,49 +2531,54 @@ namespace Go
         }
 #endif
 
-        static public msg_buff<T> self_mailbox<T>()
+        static long calc_hash<T>(int id)
+        {
+            return (long)id << 32 | (uint)type_hash<T>.code;
+        }
+
+        static public msg_buff<T> self_mailbox<T>(int id = 0)
         {
             generator this_ = self;
             if (null == this_._chanMap)
             {
-                this_._chanMap = new SortedList<Type, mail_pck>();
+                this_._chanMap = new SortedList<long, mail_pck>();
             }
             mail_pck mb = null;
-            if (!this_._chanMap.TryGetValue(typeof(msg_buff<T>), out mb))
+            if (!this_._chanMap.TryGetValue(calc_hash<T>(id), out mb))
             {
                 mb = new mail_pck(new msg_buff<T>(this_._strand));
-                this_._chanMap.Add(typeof(msg_buff<T>), mb);
+                this_._chanMap.Add(calc_hash<T>(id), mb);
             }
             return (msg_buff<T>)mb.mailbox;
         }
 
-        public void get_mailbox<T>(functional.func<msg_buff<T>> cb)
+        public void get_mailbox<T>(functional.func<msg_buff<T>> cb, int id = 0)
         {
             _strand.distribute(delegate ()
             {
                 if (null == _chanMap)
                 {
-                    _chanMap = new SortedList<Type, mail_pck>();
+                    _chanMap = new SortedList<long, mail_pck>();
                 }
                 mail_pck mb = null;
-                if (!_chanMap.TryGetValue(typeof(msg_buff<T>), out mb))
+                if (!_chanMap.TryGetValue(calc_hash<T>(id), out mb))
                 {
                     mb = new mail_pck(new msg_buff<T>(_strand));
-                    _chanMap.Add(typeof(msg_buff<T>), mb);
+                    _chanMap.Add(calc_hash<T>(id), mb);
                 }
                 functional.catch_invoke(cb, (msg_buff<T>)mb.mailbox);
             });
         }
 
-        public async Task<msg_buff<T>> get_mailbox<T>()
+        public async Task<msg_buff<T>> get_mailbox<T>(int id = 0)
         {
             generator host_ = self;
             async_result_wrap<msg_buff<T>> res = new async_result_wrap<msg_buff<T>>();
-            await host_.async_wait(() => get_mailbox(host_.async_result(res)));
+            await host_.async_wait(() => get_mailbox(host_.async_result(res), id));
             return res.value_1;
         }
 
-        static public async Task agent_mail<T>(child agentChild, bool selectMode = true)
+        static public async Task agent_mail<T>(child agentChild, int id = 0, bool selectMode = true)
         {
             generator this_ = self;
             if (null == this_._agentMap)
@@ -2576,13 +2587,13 @@ namespace Go
             }
             if (null == this_._chanMap)
             {
-                this_._chanMap = new SortedList<Type, mail_pck>();
+                this_._chanMap = new SortedList<long, mail_pck>();
             }
             mail_pck mb = null;
-            if (!this_._chanMap.TryGetValue(typeof(msg_buff<T>), out mb))
+            if (!this_._chanMap.TryGetValue(calc_hash<T>(id), out mb))
             {
                 mb = new mail_pck(new msg_buff<T>(this_._strand));
-                this_._chanMap.Add(typeof(msg_buff<T>), mb);
+                this_._chanMap.Add(calc_hash<T>(id), mb);
             }
             else if (null != mb.agentAction)
             {
@@ -2618,12 +2629,12 @@ namespace Go
             });
         }
 
-        static public async Task agent_stop<T>()
+        static public async Task agent_stop<T>(int id = 0)
         {
             generator this_ = self;
             mail_pck mb = null;
             if (null != this_._agentMap && null != this_._chanMap &&
-                this_._chanMap.TryGetValue(typeof(msg_buff<T>), out mb) && null != mb.agentAction)
+                this_._chanMap.TryGetValue(calc_hash<T>(id), out mb) && null != mb.agentAction)
             {
                 await mb.agentAction.stop();
                 mb.agentAction = null;
