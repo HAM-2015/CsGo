@@ -62,8 +62,7 @@ namespace Go
             {
                 _chan.append_pop_notify(delegate (object[] args)
                 {
-                    chan_async_state state = (chan_async_state)args[0];
-                    if (chan_async_state.async_fail != state)
+                    if (chan_async_state.async_fail != (chan_async_state)args[0])
                     {
                         ntf();
                     }
@@ -76,14 +75,13 @@ namespace Go
                 chan_pop_wrap<T> result = null;
                 await self.async_wait(delegate ()
                 {
-                    _chan.try_pop_and_append_notify(self.async_callback(delegate (object[] args)
+                    _chan.try_pop_and_append_notify(self.async_same_callback(delegate (object[] args)
                     {
                         chan_async_state state = (chan_async_state)args[0];
                         result = chan_async_state.async_ok == state ? new chan_pop_wrap<T>(state, (T)args[1]) : new chan_pop_wrap<T>(state);
                     }), delegate (object[] args)
                     {
-                        chan_async_state state = (chan_async_state)args[0];
-                        if (chan_async_state.async_fail != state)
+                        if (chan_async_state.async_fail != (chan_async_state)args[0])
                         {
                             nextNtf();
                         }
@@ -122,7 +120,7 @@ namespace Go
             {
                 generator self = generator.self;
                 ntfSign._disable = true;
-                await self.async_wait(() => _chan.remove_pop_notify(self.async_callback(), ntfSign));
+                await self.async_wait(() => _chan.remove_pop_notify(self.async_same_callback(), ntfSign));
             }
         }
 
@@ -137,8 +135,7 @@ namespace Go
             {
                 _chan.append_push_notify(delegate (object[] args)
                 {
-                    chan_async_state state = (chan_async_state)args[0];
-                    if (chan_async_state.async_fail != state)
+                    if (chan_async_state.async_fail != (chan_async_state)args[0])
                     {
                         ntf();
                     }
@@ -151,13 +148,12 @@ namespace Go
                 chan_async_state result = chan_async_state.async_undefined;
                 await self.async_wait(delegate ()
                 {
-                    _chan.try_push_and_append_notify(self.async_callback(delegate (object[] args)
+                    _chan.try_push_and_append_notify(self.async_same_callback(delegate (object[] args)
                     {
                         result = (chan_async_state)args[0];
                     }), delegate (object[] args)
                     {
-                        chan_async_state state = (chan_async_state)args[0];
-                        if (chan_async_state.async_fail != state)
+                        if (chan_async_state.async_fail != (chan_async_state)args[0])
                         {
                             nextNtf();
                         }
@@ -196,7 +192,7 @@ namespace Go
             {
                 generator self = generator.self;
                 ntfSign._disable = true;
-                await self.async_wait(() => _chan.remove_push_notify(self.async_callback(), ntfSign));
+                await self.async_wait(() => _chan.remove_push_notify(self.async_same_callback(), ntfSign));
             }
         }
 
@@ -2229,8 +2225,7 @@ namespace Go
             {
                 _chan.append_pop_notify(delegate (object[] args)
                 {
-                    chan_async_state state = (chan_async_state)args[0];
-                    if (chan_async_state.async_fail != state)
+                    if (chan_async_state.async_fail != (chan_async_state)args[0])
                     {
                         ntf();
                     }
@@ -2243,14 +2238,13 @@ namespace Go
                 csp_wait_wrap<R, T> result = null;
                 await self.async_wait(delegate ()
                 {
-                    _chan.try_pop_and_append_notify(self.async_callback(delegate (object[] args)
+                    _chan.try_pop_and_append_notify(self.async_same_callback(delegate (object[] args)
                     {
                         chan_async_state state = (chan_async_state)args[0];
                         result = chan_async_state.async_ok == state ? new csp_wait_wrap<R, T>(state, (csp_chan<R, T>.csp_result)(args[1]), (T)args[2]) : new csp_wait_wrap<R, T>(state);
                     }), delegate (object[] args)
                     {
-                        chan_async_state state = (chan_async_state)args[0];
-                        if (chan_async_state.async_fail != state)
+                        if (chan_async_state.async_fail != (chan_async_state)args[0])
                         {
                             nextNtf();
                         }
@@ -2289,7 +2283,7 @@ namespace Go
             {
                 generator self = generator.self;
                 ntfSign._disable = true;
-                await self.async_wait(() => _chan.remove_pop_notify(self.async_callback(), ntfSign));
+                await self.async_wait(() => _chan.remove_pop_notify(self.async_same_callback(), ntfSign));
             }
         }
 
@@ -2304,8 +2298,7 @@ namespace Go
             {
                 _chan.append_push_notify(delegate (object[] args)
                 {
-                    chan_async_state state = (chan_async_state)args[0];
-                    if (chan_async_state.async_fail != state)
+                    if (chan_async_state.async_fail != (chan_async_state)args[0])
                     {
                         ntf();
                     }
@@ -2318,14 +2311,13 @@ namespace Go
                 csp_invoke_wrap<R> result = null;
                 await self.async_wait(delegate ()
                 {
-                    _chan.try_push_and_append_notify(self.async_callback(delegate (object[] args)
+                    _chan.try_push_and_append_notify(self.async_same_callback(delegate (object[] args)
                     {
                         chan_async_state state = (chan_async_state)args[0];
                         result = chan_async_state.async_ok == state ? new csp_invoke_wrap<R>(state, (R)args[1]) : new csp_invoke_wrap<R>(state);
                     }), delegate (object[] args)
                     {
-                        chan_async_state state = (chan_async_state)args[0];
-                        if (chan_async_state.async_fail != state)
+                        if (chan_async_state.async_fail != (chan_async_state)args[0])
                         {
                             nextNtf();
                         }
@@ -2364,7 +2356,7 @@ namespace Go
             {
                 generator self = generator.self;
                 ntfSign._disable = true;
-                await self.async_wait(() => _chan.remove_push_notify(self.async_callback(), ntfSign));
+                await self.async_wait(() => _chan.remove_push_notify(self.async_same_callback(), ntfSign));
             }
         }
 

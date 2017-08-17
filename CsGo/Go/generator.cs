@@ -812,7 +812,7 @@ namespace Go
             return res.value_1;
         }
 
-        public functional.same_func async_callback()
+        public functional.same_func async_same_callback()
         {
             newCbPuller();
             bool beginQuit = _beginQuit;
@@ -822,7 +822,7 @@ namespace Go
             };
         }
 
-        public functional.same_func async_callback(functional.same_func handler)
+        public functional.same_func async_same_callback(functional.same_func handler)
         {
             newCbPuller();
             bool beginQuit = _beginQuit;
@@ -833,7 +833,7 @@ namespace Go
             };
         }
 
-        public functional.func async_callback2(functional.func handler)
+        public functional.func async_callback(functional.func handler)
         {
             newCbPuller();
             bool beginQuit = _beginQuit;
@@ -844,7 +844,7 @@ namespace Go
             };
         }
 
-        public functional.func<T1> async_callback2<T1>(functional.func<T1> handler)
+        public functional.func<T1> async_callback<T1>(functional.func<T1> handler)
         {
             newCbPuller();
             bool beginQuit = _beginQuit;
@@ -855,7 +855,7 @@ namespace Go
             };
         }
 
-        public functional.func<T1, T2> async_callback2<T1, T2>(functional.func<T1, T2> handler)
+        public functional.func<T1, T2> async_callback<T1, T2>(functional.func<T1, T2> handler)
         {
             newCbPuller();
             bool beginQuit = _beginQuit;
@@ -866,7 +866,7 @@ namespace Go
             };
         }
 
-        public functional.func<T1, T2, T3> async_callback2<T1, T2, T3>(functional.func<T1, T2, T3> handler)
+        public functional.func<T1, T2, T3> async_callback<T1, T2, T3>(functional.func<T1, T2, T3> handler)
         {
             newCbPuller();
             bool beginQuit = _beginQuit;
@@ -877,7 +877,7 @@ namespace Go
             };
         }
 
-        public functional.same_func safe_async_callback()
+        public functional.same_func safe_async_same_callback()
         {
             mutli_callback multiCb = newMultiCbPuller();
             bool beginQuit = _beginQuit;
@@ -893,7 +893,7 @@ namespace Go
             };
         }
 
-        public functional.same_func safe_async_callback(functional.same_func handler)
+        public functional.same_func safe_async_same_callback(functional.same_func handler)
         {
             mutli_callback multiCb = newMultiCbPuller();
             bool beginQuit = _beginQuit;
@@ -910,7 +910,7 @@ namespace Go
             };
         }
 
-        public functional.func safe_async_callback2(functional.func handler)
+        public functional.func safe_async_callback(functional.func handler)
         {
             mutli_callback multiCb = newMultiCbPuller();
             bool beginQuit = _beginQuit;
@@ -927,7 +927,7 @@ namespace Go
             };
         }
 
-        public functional.func<T1> safe_async_callback2<T1>(functional.func<T1> handler)
+        public functional.func<T1> safe_async_callback<T1>(functional.func<T1> handler)
         {
             mutli_callback multiCb = newMultiCbPuller();
             bool beginQuit = _beginQuit;
@@ -944,7 +944,7 @@ namespace Go
             };
         }
 
-        public functional.func<T1, T2> safe_async_callback2<T1, T2>(functional.func<T1, T2> handler)
+        public functional.func<T1, T2> safe_async_callback<T1, T2>(functional.func<T1, T2> handler)
         {
             mutli_callback multiCb = newMultiCbPuller();
             bool beginQuit = _beginQuit;
@@ -961,7 +961,7 @@ namespace Go
             };
         }
 
-        public functional.func<T1, T2, T3> safe_async_callback2<T1, T2, T3>(functional.func<T1, T2, T3> handler)
+        public functional.func<T1, T2, T3> safe_async_callback<T1, T2, T3>(functional.func<T1, T2, T3> handler)
         {
             mutli_callback multiCb = newMultiCbPuller();
             bool beginQuit = _beginQuit;
@@ -1463,7 +1463,7 @@ namespace Go
             chan_async_state result = chan_async_state.async_undefined;
             await this_.async_wait(delegate ()
             {
-                chan.push(this_.async_callback(delegate (object[] args)
+                chan.push(this_.async_same_callback(delegate (object[] args)
                 {
                     result = (chan_async_state)args[0];
                 }), p);
@@ -1482,7 +1482,7 @@ namespace Go
             chan_pop_wrap<T> result = null;
             await this_.async_wait(delegate ()
             {
-                chan.pop(this_.async_callback(delegate (object[] args)
+                chan.pop(this_.async_same_callback(delegate (object[] args)
                 {
                     chan_async_state state = (chan_async_state)args[0];
                     result = chan_async_state.async_ok == state ? new chan_pop_wrap<T>(state, (T)args[1]) : new chan_pop_wrap<T>(state);
@@ -1497,7 +1497,7 @@ namespace Go
             chan_async_state result = chan_async_state.async_undefined;
             await this_.async_wait(delegate ()
             {
-                chan.try_push(this_.async_callback(delegate (object[] args)
+                chan.try_push(this_.async_same_callback(delegate (object[] args)
                 {
                     result = (chan_async_state)args[0];
                 }), p);
@@ -1516,7 +1516,7 @@ namespace Go
             chan_pop_wrap<T> result = null;
             await this_.async_wait(delegate ()
             {
-                chan.try_pop(this_.async_callback(delegate (object[] args)
+                chan.try_pop(this_.async_same_callback(delegate (object[] args)
                 {
                     chan_async_state state = (chan_async_state)args[0];
                     result = chan_async_state.async_ok == state ? new chan_pop_wrap<T>(state, (T)args[1]) : new chan_pop_wrap<T>(state);
@@ -1531,7 +1531,7 @@ namespace Go
             chan_async_state result = chan_async_state.async_undefined;
             await this_.async_wait(delegate ()
             {
-                chan.timed_push(ms, this_.async_callback(delegate (object[] args)
+                chan.timed_push(ms, this_.async_same_callback(delegate (object[] args)
                 {
                     result = (chan_async_state)args[0];
                 }), p);
@@ -1550,7 +1550,7 @@ namespace Go
             chan_pop_wrap<T> result = null;
             await this_.async_wait(delegate ()
             {
-                chan.timed_pop(ms, this_.async_callback(delegate (object[] args)
+                chan.timed_pop(ms, this_.async_same_callback(delegate (object[] args)
                 {
                     chan_async_state state = (chan_async_state)args[0];
                     result = chan_async_state.async_ok == state ? new chan_pop_wrap<T>(state, (T)args[1]) : new chan_pop_wrap<T>(state);
@@ -1565,7 +1565,7 @@ namespace Go
             csp_invoke_wrap<R> result = null;
             await this_.async_wait(delegate ()
             {
-                chan.push(this_.async_callback(delegate(object[] args)
+                chan.push(this_.async_same_callback(delegate(object[] args)
                 {
                     chan_async_state state = (chan_async_state)args[0];
                     result = chan_async_state.async_ok == state ? new csp_invoke_wrap<R>(state, (R)args[1]) : new csp_invoke_wrap<R>(state);
@@ -1580,7 +1580,7 @@ namespace Go
             csp_wait_wrap<R, T> result = null;
             await this_.async_wait(delegate ()
             {
-                chan.pop(this_.async_callback(delegate(object[] args)
+                chan.pop(this_.async_same_callback(delegate(object[] args)
                 {
                     chan_async_state state = (chan_async_state)args[0];
                     result = chan_async_state.async_ok == state ? new csp_wait_wrap<R, T>(state, (csp_chan<R, T>.csp_result)(args[1]), (T)args[2]) : new csp_wait_wrap<R, T>(state);
@@ -1605,7 +1605,7 @@ namespace Go
             csp_invoke_wrap<R> result = null;
             await this_.async_wait(delegate ()
             {
-                chan.try_push(this_.async_callback(delegate (object[] args)
+                chan.try_push(this_.async_same_callback(delegate (object[] args)
                 {
                     chan_async_state state = (chan_async_state)args[0];
                     result = chan_async_state.async_ok == state ? new csp_invoke_wrap<R>(state, (R)args[1]) : new csp_invoke_wrap<R>(state);
@@ -1620,7 +1620,7 @@ namespace Go
             csp_wait_wrap<R, T> result = null;
             await this_.async_wait(delegate ()
             {
-                chan.try_pop(this_.async_callback(delegate (object[] args)
+                chan.try_pop(this_.async_same_callback(delegate (object[] args)
                 {
                     chan_async_state state = (chan_async_state)args[0];
                     result = chan_async_state.async_ok == state ? new csp_wait_wrap<R, T>(state, (csp_chan<R, T>.csp_result)(args[1]), (T)args[2]) : new csp_wait_wrap<R, T>(state);
@@ -1645,7 +1645,7 @@ namespace Go
             csp_invoke_wrap<R> result = null;
             await this_.async_wait(delegate ()
             {
-                chan.timed_push(ms, this_.async_callback(delegate (object[] args)
+                chan.timed_push(ms, this_.async_same_callback(delegate (object[] args)
                 {
                     chan_async_state state = (chan_async_state)args[0];
                     result = chan_async_state.async_ok == state ? new csp_invoke_wrap<R>(state, (R)args[1]) : new csp_invoke_wrap<R>(state);
@@ -1660,7 +1660,7 @@ namespace Go
             csp_wait_wrap<R, T> result = null;
             await this_.async_wait(delegate ()
             {
-                chan.timed_pop(ms, this_.async_callback(delegate (object[] args)
+                chan.timed_pop(ms, this_.async_same_callback(delegate (object[] args)
                 {
                     chan_async_state state = (chan_async_state)args[0];
                     result = chan_async_state.async_ok == state ? new csp_wait_wrap<R, T>(state, (csp_chan<R, T>.csp_result)(args[1]), (T)args[2]) : new csp_wait_wrap<R, T>(state);
@@ -1900,13 +1900,13 @@ namespace Go
         static public async Task close_chan<T>(channel<T> chan)
         {
             generator this_ = self;
-            await this_.async_wait(() => chan.close(this_.async_callback()));
+            await this_.async_wait(() => chan.close(this_.async_same_callback()));
         }
 
         static public async Task cancel_chan<T>(channel<T> chan)
         {
             generator this_ = self;
-            await this_.async_wait(() => chan.cancel(this_.async_callback()));
+            await this_.async_wait(() => chan.cancel(this_.async_same_callback()));
         }
 
         static public async Task mutex_lock(mutex_base mtx)
@@ -2104,7 +2104,7 @@ namespace Go
             else
             {
                 System.Exception hasExcep = null;
-                await this_.async_wait(() => strand.post(this_.async_callback2(delegate ()
+                await this_.async_wait(() => strand.post(this_.async_callback(delegate ()
                 {
                     try
                     {
@@ -2133,7 +2133,7 @@ namespace Go
             {
                 delay_result<R> res = null;
                 System.Exception hasExcep = null;
-                await this_.async_wait(() => strand.post(this_.async_callback2(delegate ()
+                await this_.async_wait(() => strand.post(this_.async_callback(delegate ()
                 {
                     try
                     {
@@ -2213,7 +2213,7 @@ namespace Go
             }
             generator this_ = self;
             System.Exception hasExcep = null;
-            await this_.async_wait(() => post_control(ctrl, this_.async_callback2(delegate ()
+            await this_.async_wait(() => post_control(ctrl, this_.async_callback(delegate ()
             {
                 try
                 {
@@ -2239,7 +2239,7 @@ namespace Go
             generator this_ = self;
             delay_result<R> res = null;
             System.Exception hasExcep = null;
-            await this_.async_wait(() => post_control(ctrl, this_.async_callback2(delegate ()
+            await this_.async_wait(() => post_control(ctrl, this_.async_callback(delegate ()
             {
                 try
                 {
@@ -2296,7 +2296,7 @@ namespace Go
         {
             generator this_ = self;
             System.Exception hasExcep = null;
-            functional.func cb = this_.async_callback2(delegate ()
+            functional.func cb = this_.async_callback(delegate ()
             {
                 try
                 {
@@ -2319,7 +2319,7 @@ namespace Go
             generator this_ = self;
             delay_result<R> res = null;
             System.Exception hasExcep = null;
-            functional.func cb = this_.async_callback2(delegate ()
+            functional.func cb = this_.async_callback(delegate ()
             {
                 try
                 {
