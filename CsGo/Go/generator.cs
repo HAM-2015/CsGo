@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Runtime.CompilerServices;
 using System.Diagnostics;
 using System.Windows.Forms;
 
@@ -236,6 +237,51 @@ namespace Go
             }
         }
 
+        class pull_task : INotifyCompletion
+        {
+            bool _completed = false;
+            Action _continuation;
+
+            public pull_task GetAwaiter()
+            {
+                return this;
+            }
+
+            public void GetResult()
+            {
+            }
+
+            public void OnCompleted(Action continuation)
+            {
+                _continuation = continuation;
+            }
+
+            public bool IsCompleted
+            {
+                get
+                {
+                    return _completed;
+                }
+            }
+
+            public bool is_awaiting()
+            {
+                return null != _continuation;
+            }
+
+            public void new_task()
+            {
+                _completed = false;
+                _continuation = null;
+            }
+
+            public void complete()
+            {
+                _completed = true;
+                _continuation?.Invoke();
+            }
+        }
+
 #if DEBUG
         public class call_stack_info
         {
@@ -265,10 +311,10 @@ namespace Go
         LinkedList<children> _children;
         mutli_callback _multiCb;
         shared_strand _strand;
+        pull_task _pullTask;
         children _agentMap;
         async_timer _timer;
         object _selfValue;
-        Task _pullTask;
         Task _syncNtf;
         string _name;
         long _id;
@@ -408,8 +454,8 @@ namespace Go
             _lastTm = 0;
             _strand = strand;
             _suspendCb = suspendCb;
+            _pullTask = new pull_task();
             _syncNtf = new Task(functional.nil_action);
-            _pullTask = new Task(functional.nil_action);
             _timer = new async_timer(_strand);
             _strand.hold_work();
             _strand.distribute(async delegate ()
@@ -454,12 +500,16 @@ namespace Go
             {
                 _hasBlock = true;
             }
+            else if (!_pullTask.is_awaiting())
+            {
+                _pullTask.complete();
+            }
             else
             {
                 tls_values tlsVal = shared_strand._runningTls.Value;
                 generator oldGen = tlsVal.self;
                 tlsVal.self = this;
-                _pullTask.RunSynchronously();
+                _pullTask.complete();
                 tlsVal.self = oldGen;
             }
         }
@@ -471,24 +521,13 @@ namespace Go
                 no_check_next();
             }
         }
-
-        void newCbPuller()
+        
+        mutli_callback new_multi_task()
         {
-#if DEBUG
-            Trace.Assert(this == self, "running is not self!!!");
-#endif
-            _pullTask = new Task(functional.nil_action);
-        }
-
-        mutli_callback newMultiCbPuller()
-        {
-#if DEBUG
-            Trace.Assert(this == self, "running is not self!!!");
-#endif
-            if (null == _pullTask)
+            if (null == _multiCb)
             {
-                _pullTask = new Task(functional.nil_action);
                 _multiCb = new mutli_callback();
+                _pullTask.new_task();
             }
             return _multiCb;
         }
@@ -670,7 +709,7 @@ namespace Go
             if (0 == _lockCount)
             {
                 _isSuspend = false;
-                if (null == _pullTask)
+                if (_pullTask.IsCompleted)
                 {
                     _beginQuit = true;
                     _suspendCb = null;
@@ -731,7 +770,7 @@ namespace Go
         static public async Task hold()
         {
             generator this_ = self;
-            this_.newCbPuller();
+            this_._pullTask.new_task();
             await this_.async_wait();
         }
 
@@ -745,7 +784,7 @@ namespace Go
                 if (this_._isSuspend)
                 {
                     this_._hasBlock = true;
-                    this_._pullTask = new Task(functional.nil_action);
+                    this_._pullTask.new_task();
                     await this_.async_wait();
                 }
             }
@@ -788,7 +827,6 @@ namespace Go
         public async Task async_wait()
         {
             await _pullTask;
-            _pullTask = null;
             _multiCb = null;
             if (!_beginQuit && 0 == _lockCount && _isForce)
             {
@@ -814,7 +852,7 @@ namespace Go
 
         public functional.same_func async_same_callback()
         {
-            newCbPuller();
+            _pullTask.new_task();
             bool beginQuit = _beginQuit;
             return delegate (object[] args)
             {
@@ -824,7 +862,7 @@ namespace Go
 
         public functional.same_func async_same_callback(functional.same_func handler)
         {
-            newCbPuller();
+            _pullTask.new_task();
             bool beginQuit = _beginQuit;
             return delegate (object[] args)
             {
@@ -835,7 +873,7 @@ namespace Go
 
         public functional.func async_callback(functional.func handler)
         {
-            newCbPuller();
+            _pullTask.new_task();
             bool beginQuit = _beginQuit;
             return delegate ()
             {
@@ -846,7 +884,7 @@ namespace Go
 
         public functional.func<T1> async_callback<T1>(functional.func<T1> handler)
         {
-            newCbPuller();
+            _pullTask.new_task();
             bool beginQuit = _beginQuit;
             return delegate (T1 p1)
             {
@@ -857,7 +895,7 @@ namespace Go
 
         public functional.func<T1, T2> async_callback<T1, T2>(functional.func<T1, T2> handler)
         {
-            newCbPuller();
+            _pullTask.new_task();
             bool beginQuit = _beginQuit;
             return delegate (T1 p1, T2 p2)
             {
@@ -868,7 +906,7 @@ namespace Go
 
         public functional.func<T1, T2, T3> async_callback<T1, T2, T3>(functional.func<T1, T2, T3> handler)
         {
-            newCbPuller();
+            _pullTask.new_task();
             bool beginQuit = _beginQuit;
             return delegate (T1 p1, T2 p2, T3 p3)
             {
@@ -879,7 +917,7 @@ namespace Go
 
         public functional.same_func safe_async_same_callback()
         {
-            mutli_callback multiCb = newMultiCbPuller();
+            mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
             return delegate (object[] args)
             {
@@ -895,7 +933,7 @@ namespace Go
 
         public functional.same_func safe_async_same_callback(functional.same_func handler)
         {
-            mutli_callback multiCb = newMultiCbPuller();
+            mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
             return delegate (object[] args)
             {
@@ -912,7 +950,7 @@ namespace Go
 
         public functional.func safe_async_callback(functional.func handler)
         {
-            mutli_callback multiCb = newMultiCbPuller();
+            mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
             return delegate ()
             {
@@ -929,7 +967,7 @@ namespace Go
 
         public functional.func<T1> safe_async_callback<T1>(functional.func<T1> handler)
         {
-            mutli_callback multiCb = newMultiCbPuller();
+            mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
             return delegate (T1 p1)
             {
@@ -946,7 +984,7 @@ namespace Go
 
         public functional.func<T1, T2> safe_async_callback<T1, T2>(functional.func<T1, T2> handler)
         {
-            mutli_callback multiCb = newMultiCbPuller();
+            mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
             return delegate (T1 p1, T2 p2)
             {
@@ -963,7 +1001,7 @@ namespace Go
 
         public functional.func<T1, T2, T3> safe_async_callback<T1, T2, T3>(functional.func<T1, T2, T3> handler)
         {
-            mutli_callback multiCb = newMultiCbPuller();
+            mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
             return delegate (T1 p1, T2 p2, T3 p3)
             {
@@ -980,14 +1018,14 @@ namespace Go
 
         public functional.func async_result()
         {
-            newCbPuller();
+            _pullTask.new_task();
             bool beginQuit = _beginQuit;
             return () => _strand.distribute(() => next(beginQuit));
         }
 
         public functional.func<T1> async_result<T1>(async_result_wrap<T1> res)
         {
-            newCbPuller();
+            _pullTask.new_task();
             bool beginQuit = _beginQuit;
             return delegate (T1 p1)
             {
@@ -998,7 +1036,7 @@ namespace Go
 
         public functional.func<T1, T2> async_result<T1, T2>(async_result_wrap<T1, T2> res)
         {
-            newCbPuller();
+            _pullTask.new_task();
             bool beginQuit = _beginQuit;
             return delegate (T1 p1, T2 p2)
             {
@@ -1010,7 +1048,7 @@ namespace Go
 
         public functional.func<T1, T2, T3> async_result<T1, T2, T3>(async_result_wrap<T1, T2, T3> res)
         {
-            newCbPuller();
+            _pullTask.new_task();
             bool beginQuit = _beginQuit;
             return delegate (T1 p1, T2 p2, T3 p3)
             {
@@ -1038,7 +1076,7 @@ namespace Go
 
         public functional.func safe_async_result()
         {
-            mutli_callback multiCb = newMultiCbPuller();
+            mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
             return delegate ()
             {
@@ -1054,7 +1092,7 @@ namespace Go
 
         public functional.func<T1> safe_async_result<T1>(async_result_wrap<T1> res)
         {
-            mutli_callback multiCb = newMultiCbPuller();
+            mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
             return delegate (T1 p1)
             {
@@ -1071,7 +1109,7 @@ namespace Go
 
         public functional.func<T1, T2> safe_async_result<T1, T2>(async_result_wrap<T1, T2> res)
         {
-            mutli_callback multiCb = newMultiCbPuller();
+            mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
             return delegate (T1 p1, T2 p2)
             {
@@ -1089,7 +1127,7 @@ namespace Go
 
         public functional.func<T1, T2, T3> safe_async_result<T1, T2, T3>(async_result_wrap<T1, T2, T3> res)
         {
-            mutli_callback multiCb = newMultiCbPuller();
+            mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
             return delegate (T1 p1, T2 p2, T3 p3)
             {
@@ -1123,7 +1161,7 @@ namespace Go
 
         public functional.func timed_async_result(int ms, functional.func timedHandler = null)
         {
-            mutli_callback multiCb = newMultiCbPuller();
+            mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
             _timer.timeout(ms, delegate ()
             {
@@ -1151,7 +1189,7 @@ namespace Go
 
         public functional.func<T1> timed_async_result<T1>(int ms, async_result_wrap<T1> res, functional.func timedHandler = null)
         {
-            mutli_callback multiCb = newMultiCbPuller();
+            mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
             _timer.timeout(ms, delegate ()
             {
@@ -1180,7 +1218,7 @@ namespace Go
 
         public functional.func<T1, T2> timed_async_result<T1, T2>(int ms, async_result_wrap<T1, T2> res, functional.func timedHandler = null)
         {
-            mutli_callback multiCb = newMultiCbPuller();
+            mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
             _timer.timeout(ms, delegate ()
             {
@@ -1210,7 +1248,7 @@ namespace Go
 
         public functional.func<T1, T2, T3> timed_async_result<T1, T2, T3>(int ms, async_result_wrap<T1, T2, T3> res, functional.func timedHandler = null)
         {
-            mutli_callback multiCb = newMultiCbPuller();
+            mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
             _timer.timeout(ms, delegate ()
             {
@@ -1241,7 +1279,7 @@ namespace Go
         
         public functional.func timed_async_result2(int ms, functional.func timedHandler = null)
         {
-            mutli_callback multiCb = newMultiCbPuller();
+            mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
             _timer.timeout(ms, delegate ()
             {
@@ -1266,7 +1304,7 @@ namespace Go
 
         public functional.func<T1> timed_async_result2<T1>(int ms, async_result_wrap<T1> res, functional.func timedHandler = null)
         {
-            mutli_callback multiCb = newMultiCbPuller();
+            mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
             _timer.timeout(ms, delegate ()
             {
@@ -1292,7 +1330,7 @@ namespace Go
 
         public functional.func<T1, T2> timed_async_result2<T1, T2>(int ms, async_result_wrap<T1, T2> res, functional.func timedHandler = null)
         {
-            mutli_callback multiCb = newMultiCbPuller();
+            mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
             _timer.timeout(ms, delegate ()
             {
@@ -1319,7 +1357,7 @@ namespace Go
 
         public functional.func<T1, T2, T3> timed_async_result2<T1, T2, T3>(int ms, async_result_wrap<T1, T2, T3> res, functional.func timedHandler = null)
         {
-            mutli_callback multiCb = newMultiCbPuller();
+            mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
             _timer.timeout(ms, delegate ()
             {
@@ -1381,7 +1419,8 @@ namespace Go
             {
                 generator this_ = self;
                 this_._lastTm = ms;
-                await this_.async_wait(() => this_._timer.timeout(ms, this_.async_result()));
+                this_._timer.timeout(ms, this_.async_result());
+                await this_.async_wait();
                 this_._lastTm = 0;
             }
             else if (ms < 0)
@@ -1397,13 +1436,15 @@ namespace Go
         static public async Task deadline(long ms)
         {
             generator this_ = self;
-            await this_.async_wait(() => this_._timer.deadline(ms, this_.async_result()));
+            this_._timer.deadline(ms, this_.async_result());
+            await this_.async_wait();
         }
 
         static public async Task yield()
         {
             generator this_ = self;
-            await this_.async_wait(() => this_._strand.post(this_.async_result()));
+            this_._strand.post(this_.async_result());
+            await this_.async_wait();
         }
 
         static public generator self

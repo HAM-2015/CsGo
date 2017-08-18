@@ -19,12 +19,14 @@ namespace Go
     {
         int _work;
         int _waiting;
+        volatile bool _runSign;
         LinkedList<functional.func> _opQueue;
 
         public work_service()
         {
             _work = 0;
             _waiting = 0;
+            _runSign = true;
             _opQueue = new LinkedList<functional.func>();
         }
 
@@ -43,7 +45,7 @@ namespace Go
         public bool run_one()
         {
             Monitor.Enter(this);
-            if (0 != _opQueue.Count)
+            if (_runSign && 0 != _opQueue.Count)
             {
                 functional.func handler = _opQueue.First();
                 _opQueue.RemoveFirst();
@@ -58,7 +60,7 @@ namespace Go
         public long run()
         {
             long count = 0;
-            while (true)
+            while (_runSign)
             {
                 Monitor.Enter(this);
                 if (0 != _opQueue.Count)
@@ -80,6 +82,16 @@ namespace Go
                 }
             }
             return count;
+        }
+
+        public void stop()
+        {
+            _runSign = false;
+        }
+
+        public void reset()
+        {
+            _runSign = true;
         }
 
         public void hold_work()
@@ -114,13 +126,19 @@ namespace Go
 
         public void run(int threads = 1)
         {
+            _service.reset();
             _service.hold_work();
             _runThreads = new Thread[threads];
             for (int i = 0; i < threads; ++i)
             {
-                _runThreads[i] = new Thread(() => _service.run());
+                _runThreads[i] = new Thread(run_thread);
                 _runThreads[i].Start();
             }
+        }
+
+        void run_thread()
+        {
+            _service.run();
         }
 
         public void stop()
@@ -131,6 +149,12 @@ namespace Go
                 thread.Join();
             }
             _runThreads = null;
+        }
+
+        public void force_stop()
+        {
+            _service.stop();
+            stop();
         }
 
         public int threads()
