@@ -1918,9 +1918,14 @@ namespace Go
             return chan.make_select_reader(handler, errHandler, token);
         }
 
-        static public select_chan_base case_read<R, T>(csp_chan<R, T> chan, functional.func_res<Task, csp_chan<R, T>.csp_result, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler)
+        static public select_chan_base case_read<R, T>(csp_chan<R, T> chan, functional.func_res<Task, csp_chan<R, T>.csp_result, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
         {
             return chan.make_select_reader(handler, errHandler);
+        }
+
+        static public select_chan_base case_read<R, T>(csp_chan<R, T> chan, functional.func_res<Task<R>, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+        {
+            return chan.make_select_reader(async (csp_chan<R, T>.csp_result res, T msg) => res.return_(await handler(msg)), errHandler);
         }
 
         static public select_chan_base case_write<R, T>(csp_chan<R, T> chan, functional.func_res<T> msg, functional.func_res<Task, R> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
