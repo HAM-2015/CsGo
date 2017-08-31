@@ -190,14 +190,9 @@ namespace Go
             msg = p;
         }
 
-        public void return_(R res)
+        public void complete(R res)
         {
-            result.return_(res);
-        }
-
-        public void return_()
-        {
-            result.return_();
+            result.complete(res);
         }
     }
 
@@ -1635,7 +1630,18 @@ namespace Go
             csp_wait_wrap<R, T> result = await csp_wait(chan);
             if (chan_async_state.async_ok == result.state)
             {
-                result.result.return_(await handler(result.msg));
+                result.complete(await handler(result.msg));
+            }
+            return result.state;
+        }
+
+        static public async Task<chan_async_state> csp_wait<void_type, T>(csp_chan<void_type, T> chan, functional.func_res<Task, T> handler)
+        {
+            csp_wait_wrap<void_type, T> result = await csp_wait(chan);
+            if (chan_async_state.async_ok == result.state)
+            {
+                await handler(result.msg);
+                result.complete(default_value<void_type>.value);
             }
             return result.state;
         }
@@ -1675,7 +1681,18 @@ namespace Go
             csp_wait_wrap<R, T> result = await csp_try_wait(chan);
             if (chan_async_state.async_ok == result.state)
             {
-                result.result.return_(await handler(result.msg));
+                result.complete(await handler(result.msg));
+            }
+            return result.state;
+        }
+
+        static public async Task<chan_async_state> csp_try_wait<void_type, T>(csp_chan<void_type, T> chan, functional.func_res<Task, T> handler)
+        {
+            csp_wait_wrap<void_type, T> result = await csp_try_wait(chan);
+            if (chan_async_state.async_ok == result.state)
+            {
+                await handler(result.msg);
+                result.complete(default_value<void_type>.value);
             }
             return result.state;
         }
@@ -1715,7 +1732,18 @@ namespace Go
             csp_wait_wrap<R, T> result = await csp_timed_wait(ms, chan);
             if (chan_async_state.async_ok == result.state)
             {
-                result.result.return_(await handler(result.msg));
+                result.complete(await handler(result.msg));
+            }
+            return result.state;
+        }
+
+        static public async Task<chan_async_state> csp_timed_wait<void_type, T>(int ms, csp_chan<void_type, T> chan, functional.func_res<Task, T> handler)
+        {
+            csp_wait_wrap<void_type, T> result = await csp_timed_wait(ms, chan);
+            if (chan_async_state.async_ok == result.state)
+            {
+                await handler(result.msg);
+                result.complete(default_value<void_type>.value);
             }
             return result.state;
         }
@@ -1925,7 +1953,12 @@ namespace Go
 
         static public select_chan_base case_read<R, T>(csp_chan<R, T> chan, functional.func_res<Task<R>, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
         {
-            return chan.make_select_reader(async (csp_chan<R, T>.csp_result res, T msg) => res.return_(await handler(msg)), errHandler);
+            return chan.make_select_reader(async (csp_chan<R, T>.csp_result res, T msg) => res.complete(await handler(msg)), errHandler);
+        }
+
+        static public select_chan_base case_read<void_type, T>(csp_chan<void_type, T> chan, functional.func_res<Task, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+        {
+            return chan.make_select_reader(async (csp_chan<void_type, T>.csp_result res, T msg) => { await handler(msg); res.complete(default_value<void_type>.value); }, errHandler);
         }
 
         static public select_chan_base case_write<R, T>(csp_chan<R, T> chan, functional.func_res<T> msg, functional.func_res<Task, R> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
@@ -3047,17 +3080,15 @@ namespace Go
 #endif
                 if (0 != _children.Count)
                 {
-                    bool overtime = false;
                     async_result_wrap<child> res = new async_result_wrap<child>();
-                    functional.func<child> ntf = _parent.timed_async_result2(ms, res, () => overtime = true);
+                    functional.func<child> ntf = _parent.timed_async_result(ms, res);
                     foreach (child ele in _children)
                     {
                         ele.append_stop_callback(() => ntf(ele));
                     }
                     await _parent.async_wait();
-                    if (!overtime)
+                    if (null != res.value_1)
                     {
-                        await _parent.async_wait();
                         _children.Remove(res.value_1.node);
                         res.value_1.node = null;
                         check_remove_node();

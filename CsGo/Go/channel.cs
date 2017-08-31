@@ -2202,15 +2202,9 @@ namespace Go
                 _notify = notify;
             }
 
-            public void return_(R res)
+            public void complete(R res)
             {
                 _notify.invoke(chan_async_state.async_ok, res);
-                _notify = null;
-            }
-
-            public void return_()
-            {
-                _notify.invoke(chan_async_state.async_ok);
                 _notify = null;
             }
         }

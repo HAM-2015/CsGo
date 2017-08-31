@@ -8,7 +8,7 @@ using System.Diagnostics;
 namespace Go
 {
     public class placeholder { }
-    public class void_type { public static void_type val = new void_type(); }
+    public class void_type { }
 
     public class delay_result<T>
     {
