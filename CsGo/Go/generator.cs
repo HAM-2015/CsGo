@@ -731,7 +731,7 @@ namespace Go
 
         public void stop()
         {
-            _strand.distribute(delegate ()
+            if (_strand.running_in_this_thread())
             {
                 if (-1 == _lockCount)
                 {
@@ -741,7 +741,11 @@ namespace Go
                 {
                     _stop();
                 }
-            });
+            }
+            else
+            {
+                delay_stop();
+            }
         }
 
         public bool is_force()
