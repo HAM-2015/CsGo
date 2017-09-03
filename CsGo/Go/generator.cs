@@ -2823,7 +2823,7 @@ namespace Go
 
             public void stop(functional.func cb)
             {
-                _strand.distribute(delegate ()
+                if (_strand.running_in_this_thread())
                 {
                     if (-1 == _lockCount)
                     {
@@ -2838,7 +2838,11 @@ namespace Go
                     {
                         cb();
                     }
-                });
+                }
+                else
+                {
+                    delay_stop(cb);
+                }
             }
 
             public void append_stop_callback(functional.func cb)
