@@ -239,7 +239,7 @@ namespace Go
 
         public functional.func wrap_default()
         {
-            return () => post(default_value<T>.value);
+            return () => post(default(T));
         }
 
         public select_chan_base make_select_reader(functional.func_res<Task, T> handler)
@@ -394,7 +394,7 @@ namespace Go
 
         public override T First()
         {
-            return default_value<T>.value;
+            return default(T);
         }
 
         public override void RemoveFirst()

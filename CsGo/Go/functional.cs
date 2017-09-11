@@ -20,11 +20,6 @@ namespace Go
         }
     }
 
-    public class default_value<T>
-    {
-        static public readonly T value = default(T);
-    }
-
     public class functional
     {
         public static readonly placeholder _ = new placeholder();

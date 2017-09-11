@@ -33,7 +33,7 @@ namespace Go
 
         public void clear()
         {
-            p1 = default_value<T1>.value;
+            p1 = default(T1);
         }
     }
 
@@ -56,8 +56,8 @@ namespace Go
 
         public void clear()
         {
-            p1 = default_value<T1>.value;
-            p2 = default_value<T2>.value;
+            p1 = default(T1);
+            p2 = default(T2);
         }
     }
 
@@ -87,9 +87,9 @@ namespace Go
 
         public void clear()
         {
-            p1 = default_value<T1>.value;
-            p2 = default_value<T2>.value;
-            p3 = default_value<T3>.value;
+            p1 = default(T1);
+            p2 = default(T2);
+            p3 = default(T3);
         }
     }
 
@@ -1645,7 +1645,7 @@ namespace Go
             if (chan_async_state.async_ok == result.state)
             {
                 await handler(result.msg);
-                result.complete(default_value<void_type>.value);
+                result.complete(default(void_type));
             }
             return result.state;
         }
@@ -1696,7 +1696,7 @@ namespace Go
             if (chan_async_state.async_ok == result.state)
             {
                 await handler(result.msg);
-                result.complete(default_value<void_type>.value);
+                result.complete(default(void_type));
             }
             return result.state;
         }
@@ -1747,7 +1747,7 @@ namespace Go
             if (chan_async_state.async_ok == result.state)
             {
                 await handler(result.msg);
-                result.complete(default_value<void_type>.value);
+                result.complete(default(void_type));
             }
             return result.state;
         }
@@ -1962,7 +1962,7 @@ namespace Go
 
         static public select_chan_base case_read<void_type, T>(csp_chan<void_type, T> chan, functional.func_res<Task, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
         {
-            return chan.make_select_reader(async (csp_chan<void_type, T>.csp_result res, T msg) => { await handler(msg); res.complete(default_value<void_type>.value); }, errHandler);
+            return chan.make_select_reader(async (csp_chan<void_type, T>.csp_result res, T msg) => { await handler(msg); res.complete(default(void_type)); }, errHandler);
         }
 
         static public select_chan_base case_write<R, T>(csp_chan<R, T> chan, functional.func_res<T> msg, functional.func_res<Task, R> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
@@ -2214,13 +2214,13 @@ namespace Go
             }
             else
             {
-                delay_result<R> res = null;
+                R res = default(R);
                 System.Exception hasExcep = null;
                 await this_.async_wait(() => strand.post(this_.async_callback(delegate ()
                 {
                     try
                     {
-                        res = new delay_result<R>(handler());
+                        res = handler();
                     }
                     catch (System.Exception ec)
                     {
@@ -2231,7 +2231,7 @@ namespace Go
                 {
                     throw hasExcep;
                 }
-                return res.value;
+                return res;
             }
         }
 
@@ -2249,9 +2249,9 @@ namespace Go
         {
             return async delegate ()
             {
-                delay_result<R> res = null;
-                await send_strand(strand, () => res = new delay_result<R>(handler()));
-                return res.value;
+                R res = default(R);
+                await send_strand(strand, () => res = handler());
+                return res;
             };
         }
 
@@ -2259,9 +2259,9 @@ namespace Go
         {
             return async delegate (T p)
             {
-                delay_result<R> res = null;
-                await send_strand(strand, () => res = new delay_result<R>(handler(p)));
-                return res.value;
+                R res = default(R);
+                await send_strand(strand, () => res = handler(p));
+                return res;
             };
         }
         
@@ -2320,13 +2320,13 @@ namespace Go
                 return handler();
             }
             generator this_ = self;
-            delay_result<R> res = null;
+            R res = default(R);
             System.Exception hasExcep = null;
             await this_.async_wait(() => post_control(ctrl, this_.async_callback(delegate ()
             {
                 try
                 {
-                    res = new delay_result<R>(handler());
+                    res = handler();
                 }
                 catch (System.Exception ec)
                 {
@@ -2337,7 +2337,7 @@ namespace Go
             {
                 throw hasExcep;
             }
-            return res.value;
+            return res;
         }
 
         static public functional.func wrap_post_control(Control ctrl, functional.func handler)
@@ -2359,9 +2359,9 @@ namespace Go
         {
             return async delegate ()
             {
-                delay_result<R> res = null;
-                await send_control(ctrl, () => res = new delay_result<R>(handler()));
-                return res.value;
+                R res = default(R);
+                await send_control(ctrl, () => res = handler());
+                return res;
             };
         }
 
@@ -2369,9 +2369,9 @@ namespace Go
         {
             return async delegate (T p)
             {
-                delay_result<R> res = null;
-                await send_control(ctrl, () => res = new delay_result<R>(handler(p)));
-                return res.value;
+                R res = default(R);
+                await send_control(ctrl, () => res = handler(p));
+                return res;
             };
         }
 
@@ -2400,13 +2400,13 @@ namespace Go
         static public async Task<R> send_task<R>(functional.func_res<R> handler)
         {
             generator this_ = self;
-            delay_result<R> res = null;
+            R res = default(R);
             System.Exception hasExcep = null;
             functional.func cb = this_.async_callback(delegate ()
             {
                 try
                 {
-                    res = new delay_result<R>(handler());
+                    res = handler();
                 }
                 catch (System.Exception ec)
                 {
@@ -2418,7 +2418,7 @@ namespace Go
             {
                 throw hasExcep;
             }
-            return res.value;
+            return res;
         }
 
         static public functional.func_res<Task> wrap_send_task(functional.func handler)
@@ -2435,9 +2435,9 @@ namespace Go
         {
             return async delegate ()
             {
-                delay_result<R> res = null;
-                await send_task(() => res = new delay_result<R>(handler()));
-                return res.value;
+                R res = default(R);
+                await send_task(() => res = handler());
+                return res;
             };
         }
 
@@ -2445,9 +2445,9 @@ namespace Go
         {
             return async delegate (T p)
             {
-                delay_result<R> res = null;
-                await send_task(() => res = new delay_result<R>(handler(p)));
-                return res.value;
+                R res = default(R);
+                await send_task(() => res = handler(p));
+                return res;
             };
         }
 
@@ -2486,9 +2486,9 @@ namespace Go
         {
             return async delegate ()
             {
-                delay_result<R> res = null;
-                await send_async_queue(queue, strand, async () => res = new delay_result<R>(await action()));
-                return res.value;
+                R res = default(R);
+                await send_async_queue(queue, strand, async () => res = await action());
+                return res;
             };
         }
 
@@ -2496,9 +2496,9 @@ namespace Go
         {
             return async delegate (T p)
             {
-                delay_result<R> res = null;
-                await send_async_queue(queue, strand, async () => res = new delay_result<R>(await action(p)));
-                return res.value;
+                R res = default(R);
+                await send_async_queue(queue, strand, async () => res = await action(p));
+                return res;
             };
         }
 
@@ -2537,9 +2537,9 @@ namespace Go
         {
             return async delegate ()
             {
-                delay_result<R> res = null;
-                await send_async_strand(queue, async () => res = new delay_result<R>(await action()));
-                return res.value;
+                R res = default(R);
+                await send_async_strand(queue, async () => res = await action());
+                return res;
             };
         }
 
@@ -2547,9 +2547,9 @@ namespace Go
         {
             return async delegate (T p)
             {
-                delay_result<R> res = null;
-                await send_async_strand(queue, async () => res = new delay_result<R>(await action(p)));
-                return res.value;
+                R res = default(R);
+                await send_async_strand(queue, async () => res = await action(p));
+                return res;
             };
         }
 
@@ -2593,15 +2593,15 @@ namespace Go
         static public async Task<R> depth_call<R>(shared_strand strand, functional.func_res<Task<R>> handler)
         {
             generator this_ = self;
-            delay_result<R> res = null;
+            R res = default(R);
 #if DEBUG
             up_stack_frame(this_._callStack, 2);
-            await lock_stop(async () => await this_.async_wait(() => (new generator()).init(strand, async () => res = new delay_result<R>(await handler()), this_.async_result(), null, this_._callStack).run()));
+            await lock_stop(async () => await this_.async_wait(() => (new generator()).init(strand, async () => res = await handler(), this_.async_result(), null, this_._callStack).run()));
             this_._callStack.RemoveFirst();
 #else
-            await lock_stop(async () => await this_.async_wait(() => go(strand, async () => res = new delay_result<R>(await handler()), this_.async_result(), null)));
+            await lock_stop(async () => await this_.async_wait(() => go(strand, async () => res = await handler(), this_.async_result(), null)));
 #endif
-            return res.value;
+            return res;
         }
 
 #if DEBUG
