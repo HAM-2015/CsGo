@@ -164,7 +164,7 @@ namespace Go
             }
         }
 
-        public void interval(int ms, functional.func handler)
+        public void interval(int ms, functional.func handler, bool immed = false)
         {
 #if DEBUG
             Trace.Assert(_strand.running_in_this_thread() && null == _timer && null != handler);
@@ -175,6 +175,10 @@ namespace Go
             _timerCount++;
             _beginTick = system_tick.get_tick_ms();
             begin_timer(_beginTick, ms, ms);
+            if (immed)
+            {
+                handler();
+            }
         }
 
         public bool restart()
