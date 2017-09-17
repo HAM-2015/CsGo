@@ -266,12 +266,18 @@ namespace Go
 
             public void new_task()
             {
+#if DEBUG
+                Trace.Assert(_completed, "不对称的推入操作!");
+#endif
                 _completed = false;
                 _continuation = null;
             }
 
             public void complete()
             {
+#if DEBUG
+                Trace.Assert(!_completed, "不对称的拉取操作!");
+#endif
                 _completed = true;
                 _continuation?.Invoke();
             }
@@ -711,7 +717,7 @@ namespace Go
                     _timer.cancel();
                     throw stop_exception.val;
                 }
-                else
+                else if (_pullTask.is_awaiting())
                 {
                     next(!_beginQuit);
                 }
