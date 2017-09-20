@@ -2971,13 +2971,13 @@ namespace Go
                 if (!_ignoreSuspend && 0 != _children.Count)
                 {
                     int count = _children.Count;
-                    functional.func suspendCb = delegate ()
+                    functional.func suspendCb = _parent._strand.wrap(delegate ()
                     {
                         if (0 == --count)
                         {
                             cb();
                         }
-                    };
+                    });
                     child[] tempChildren = new child[_children.Count];
                     _children.CopyTo(tempChildren, 0);
                     foreach (child ele in tempChildren)
