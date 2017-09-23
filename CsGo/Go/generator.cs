@@ -721,6 +721,10 @@ namespace Go
                 {
                     next(!_beginQuit);
                 }
+                else
+                {
+                    delay_stop();
+                }
             }
         }
 
