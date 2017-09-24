@@ -235,6 +235,7 @@ namespace Go
         class pull_task : INotifyCompletion
         {
             bool _completed = false;
+            bool _activated = false;
             Action _continuation;
 
             public pull_task GetAwaiter()
@@ -264,12 +265,23 @@ namespace Go
                 return null != _continuation;
             }
 
+            public bool is_activated()
+            {
+                return _activated;
+            }
+
+            public void activated()
+            {
+                _activated = true;
+            }
+
             public void new_task()
             {
 #if DEBUG
                 Trace.Assert(_completed, "不对称的推入操作!");
 #endif
                 _completed = false;
+                _activated = false;
                 _continuation = null;
             }
 
@@ -710,7 +722,7 @@ namespace Go
             if (0 == _lockCount)
             {
                 _isSuspend = false;
-                if (_pullTask.IsCompleted)
+                if (_pullTask.is_activated())
                 {
                     _beginQuit = true;
                     _suspendCb = null;
@@ -837,6 +849,7 @@ namespace Go
         {
             await _pullTask;
             _multiCb = null;
+            _pullTask.activated();
             if (!_beginQuit && 0 == _lockCount && _isForce)
             {
                 _beginQuit = true;
