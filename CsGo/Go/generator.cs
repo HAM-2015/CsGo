@@ -265,14 +265,16 @@ namespace Go
                 return null != _continuation;
             }
 
-            public bool is_activated()
+            public bool activated
             {
-                return _activated;
-            }
-
-            public void activated()
-            {
-                _activated = true;
+                get
+                {
+                    return _activated;
+                }
+                set
+                {
+                    _activated = value;
+                }
             }
 
             public void new_task()
@@ -282,7 +284,6 @@ namespace Go
 #endif
                 _completed = false;
                 _activated = false;
-                _continuation = null;
             }
 
             public void complete()
@@ -291,7 +292,9 @@ namespace Go
                 Trace.Assert(!_completed, "不对称的拉取操作!");
 #endif
                 _completed = true;
-                _continuation?.Invoke();
+                Action continuation = _continuation;
+                _continuation = null;
+                continuation?.Invoke();
             }
         }
 
@@ -521,9 +524,20 @@ namespace Go
             {
                 tls_values tlsVal = shared_strand._runningTls.Value;
                 generator oldGen = tlsVal.self;
-                tlsVal.self = this;
-                _pullTask.complete();
-                tlsVal.self = oldGen;
+                if (null == oldGen || !oldGen._pullTask.activated)
+                {
+                    tlsVal.self = this;
+                    _pullTask.complete();
+                    tlsVal.self = oldGen;
+                }
+                else
+                {
+                    oldGen._pullTask.activated = false;
+                    tlsVal.self = this;
+                    _pullTask.complete();
+                    tlsVal.self = oldGen;
+                    oldGen._pullTask.activated = true;
+                }
             }
         }
 
@@ -722,7 +736,7 @@ namespace Go
             if (0 == _lockCount)
             {
                 _isSuspend = false;
-                if (_pullTask.is_activated())
+                if (_pullTask.activated)
                 {
                     _beginQuit = true;
                     _suspendCb = null;
@@ -811,6 +825,13 @@ namespace Go
             }
         }
 
+        static public async Task halt_self()
+        {
+            generator this_ = self;
+            this_.stop();
+            await nil_wait();
+        }
+
         static public void lock_stop()
         {
             generator this_ = self;
@@ -849,7 +870,7 @@ namespace Go
         {
             await _pullTask;
             _multiCb = null;
-            _pullTask.activated();
+            _pullTask.activated = true;
             if (!_beginQuit && 0 == _lockCount && _isForce)
             {
                 _beginQuit = true;
