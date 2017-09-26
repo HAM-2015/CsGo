@@ -286,6 +286,14 @@ namespace Go
                 _activated = false;
             }
 
+            public void ahead_complete()
+            {
+#if DEBUG
+                Trace.Assert(!_completed, "不对称的拉取操作!");
+#endif
+                _completed = true;
+            }
+
             public void complete()
             {
 #if DEBUG
@@ -294,7 +302,7 @@ namespace Go
                 _completed = true;
                 Action continuation = _continuation;
                 _continuation = null;
-                continuation?.Invoke();
+                continuation();
             }
         }
 
@@ -518,7 +526,7 @@ namespace Go
             }
             else if (!_pullTask.is_awaiting())
             {
-                _pullTask.complete();
+                _pullTask.ahead_complete();
             }
             else
             {
