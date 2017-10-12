@@ -37,6 +37,17 @@ namespace Go
 
         public mutex(shared_strand strand)
         {
+            init(strand);
+        }
+
+        public mutex()
+        {
+            shared_strand strand = generator.self_strand();
+            init(null != strand ? strand : new shared_strand());
+        }
+
+        private void init(shared_strand strand)
+        {
             _strand = strand;
             _waitQueue = new LinkedList<wait_node>();
             _lockID = 0;
@@ -174,6 +185,17 @@ namespace Go
         SortedList<long, shared_count> _sharedMap;
 
         public shared_mutex(shared_strand strand)
+        {
+            init(strand);
+        }
+
+        public shared_mutex()
+        {
+            shared_strand strand = generator.self_strand();
+            init(null != strand ? strand : new shared_strand());
+        }
+
+        private void init(shared_strand strand)
         {
             _upgradeMutex = new mutex(strand);
             _waitQueue = new LinkedList<wait_node>();
@@ -477,6 +499,18 @@ namespace Go
         LinkedList<functional.func> _waitQueue;
 
         public condition_variable(shared_strand strand)
+        {
+            _strand = strand;
+            _waitQueue = new LinkedList<functional.func>();
+        }
+
+        public condition_variable()
+        {
+            shared_strand strand = generator.self_strand();
+            init(null != strand ? strand : new shared_strand());
+        }
+
+        private void init(shared_strand strand)
         {
             _strand = strand;
             _waitQueue = new LinkedList<functional.func>();

@@ -422,6 +422,17 @@ namespace Go
 
         public msg_buff(shared_strand strand)
         {
+            init(strand);
+        }
+
+        public msg_buff()
+        {
+            shared_strand strand = generator.self_strand();
+            init(null != strand ? strand : new shared_strand());
+        }
+
+        private void init(shared_strand strand)
+        {
             _strand = strand;
             _closed = false;
             _msgBuff = typeof(T) == typeof(void_type) ? (MsgQueue_<T>)new VoidMsgQueue_<T>() : new NoVoidMsgQueue_<T>();
@@ -742,6 +753,17 @@ namespace Go
         bool _closed;
 
         public chan(shared_strand strand, int len)
+        {
+            init(strand, len);
+        }
+
+        public chan(int len)
+        {
+            shared_strand strand = generator.self_strand();
+            init(null != strand ? strand : new shared_strand(), len);
+        }
+
+        private void init(shared_strand strand, int len)
         {
             _strand = strand;
             _buffer = typeof(T) == typeof(void_type) ? (MsgQueue_<T>)new VoidMsgQueue_<T>() : new NoVoidMsgQueue_<T>();
@@ -1216,6 +1238,17 @@ namespace Go
         bool _closed;
 
         public nil_chan(shared_strand strand)
+        {
+            init(strand);
+        }
+
+        public nil_chan()
+        {
+            shared_strand strand = generator.self_strand();
+            init(null != strand ? strand : new shared_strand());
+        }
+
+        private void init(shared_strand strand)
         {
             _strand = strand;
             _pushWait = new LinkedList<functional.func<chan_async_state>>();
@@ -1783,6 +1816,17 @@ namespace Go
         bool _closed;
 
         public broadcast_chan(shared_strand strand)
+        {
+            init(strand);
+        }
+
+        public broadcast_chan()
+        {
+            shared_strand strand = generator.self_strand();
+            init(null != strand ? strand : new shared_strand());
+        }
+
+        private void init(shared_strand strand)
         {
             _strand = strand;
             _popWait = new LinkedList<functional.func<chan_async_state>>();
@@ -2363,6 +2407,17 @@ namespace Go
         bool _closed;
 
         public csp_chan(shared_strand strand)
+        {
+            init(strand);
+        }
+
+        public csp_chan()
+        {
+            shared_strand strand = generator.self_strand();
+            init(null != strand ? strand : new shared_strand());
+        }
+
+        private void init(shared_strand strand)
         {
             _strand = strand;
             _has = false;

@@ -557,6 +557,16 @@ namespace Go
             }
         }
         
+        void quit_next()
+        {
+            next(true);
+        }
+
+        void no_quit_next()
+        {
+            next(false);
+        }
+
         mutli_callback new_multi_task()
         {
             if (null == _multiCb)
@@ -708,7 +718,7 @@ namespace Go
                     }
                     else if (0 != _lastTm)
                     {
-                        _timer.timeout(_lastTm, () => next(false));
+                        _timer.timeout(_lastTm, no_check_next);
                     }
                 }
             }
@@ -738,7 +748,7 @@ namespace Go
             });
         }
 
-        protected void _stop()
+        private void _stop()
         {
             _isForce = true;
             if (0 == _lockCount)
@@ -794,6 +804,9 @@ namespace Go
 
         public bool is_force()
         {
+#if DEBUG
+            Trace.Assert(_isStop, "不正确的 is_force 调用，generator 还没有结束");
+#endif
             return _isForce;
         }
 
@@ -907,7 +920,7 @@ namespace Go
             bool beginQuit = _beginQuit;
             return delegate (object[] args)
             {
-                _strand.distribute(() => next(beginQuit));
+                _strand.distribute(beginQuit ? (functional.func)quit_next : no_check_next);
             };
         }
 
@@ -918,7 +931,7 @@ namespace Go
             return delegate (object[] args)
             {
                 handler(args);
-                _strand.distribute(() => next(beginQuit));
+                _strand.distribute(beginQuit ? (functional.func)quit_next : no_check_next);
             };
         }
 
@@ -929,7 +942,7 @@ namespace Go
             return delegate ()
             {
                 handler();
-                _strand.distribute(() => next(beginQuit));
+                _strand.distribute(beginQuit ? (functional.func)quit_next : no_check_next);
             };
         }
 
@@ -940,7 +953,7 @@ namespace Go
             return delegate (T1 p1)
             {
                 handler(p1);
-                _strand.distribute(() => next(beginQuit));
+                _strand.distribute(beginQuit ? (functional.func)quit_next : no_check_next);
             };
         }
 
@@ -951,7 +964,7 @@ namespace Go
             return delegate (T1 p1, T2 p2)
             {
                 handler(p1, p2);
-                _strand.distribute(() => next(beginQuit));
+                _strand.distribute(beginQuit ? (functional.func)quit_next : no_check_next);
             };
         }
 
@@ -962,7 +975,7 @@ namespace Go
             return delegate (T1 p1, T2 p2, T3 p3)
             {
                 handler(p1, p2, p3);
-                _strand.distribute(() => next(beginQuit));
+                _strand.distribute(beginQuit ? (functional.func)quit_next : no_check_next);
             };
         }
 
@@ -1071,7 +1084,7 @@ namespace Go
         {
             _pullTask.new_task();
             bool beginQuit = _beginQuit;
-            return () => _strand.distribute(() => next(beginQuit));
+            return () => _strand.distribute(beginQuit ? (functional.func)quit_next : no_check_next);
         }
 
         public functional.func<T1> async_result<T1>(async_result_wrap<T1> res)
@@ -1081,7 +1094,7 @@ namespace Go
             return delegate (T1 p1)
             {
                 res.value_1 = p1;
-                _strand.distribute(() => next(beginQuit));
+                _strand.distribute(beginQuit ? (functional.func)quit_next : no_check_next);
             };
         }
 
@@ -1093,7 +1106,7 @@ namespace Go
             {
                 res.value_1 = p1;
                 res.value_2 = p2;
-                _strand.distribute(() => next(beginQuit));
+                _strand.distribute(beginQuit ? (functional.func)quit_next : no_check_next);
             };
         }
 
@@ -1106,7 +1119,7 @@ namespace Go
                 res.value_1 = p1;
                 res.value_2 = p2;
                 res.value_3 = p3;
-                _strand.distribute(() => next(beginQuit));
+                _strand.distribute(beginQuit ? (functional.func)quit_next : no_check_next);
             };
         }
 
@@ -1513,7 +1526,8 @@ namespace Go
 
         static public shared_strand self_strand()
         {
-            return self._strand;
+            generator this_ = self;
+            return null != this_ ? this_._strand : null;
         }
 
         public shared_strand strand
@@ -1526,7 +1540,8 @@ namespace Go
 
         static public long self_id()
         {
-            return self._id;
+            generator this_ = self;
+            return null != this_ ? this_._id : 0;
         }
 
         public long id
@@ -2603,6 +2618,45 @@ namespace Go
                 await send_async_strand(queue, async () => res = await action(p));
                 return res;
             };
+        }
+
+        static public async Task wait_task(Task task)
+        {
+            if (!task.IsCompleted)
+            {
+                generator this_ = self;
+                await this_.async_wait(delegate ()
+                {
+                    functional.func continuation = this_.async_result();
+                    task.GetAwaiter().OnCompleted(() => continuation());
+                });
+            }
+        }
+
+        static public async Task<bool> timed_wait_task(int ms, Task task)
+        {
+            if (!task.IsCompleted)
+            {
+                bool overtime = false;
+                generator this_ = self;
+                await this_.async_wait(delegate ()
+                {
+                    functional.func continuation = this_.timed_async_result2(ms, () => overtime = true);
+                    task.GetAwaiter().OnCompleted(() => continuation());
+                });
+                return !overtime;
+            }
+            return true;
+        }
+
+        static public async Task wait_other(generator other)
+        {
+            await wait_task(other._syncNtf);
+        }
+
+        static public async Task<bool> timed_wait_other(int ms, generator other)
+        {
+            return await timed_wait_task(ms, other._syncNtf);
         }
 
         static public async Task call(action handler)
