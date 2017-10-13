@@ -341,6 +341,7 @@ namespace Go
         object _selfValue;
         Task _syncNtf;
         string _name;
+        long _yieldCount;
         long _id;
         int _lockCount;
         int _lastTm;
@@ -476,6 +477,7 @@ namespace Go
             _beginQuit = false;
             _lockCount = -1;
             _lastTm = 0;
+            _yieldCount = 0;
             _strand = strand;
             _suspendCb = suspendCb;
             _pullTask = new pull_task();
@@ -708,8 +710,9 @@ namespace Go
             if (!_isStop && !_beginQuit && _isSuspend)
             {
                 _isSuspend = false;
+                long lastYieldCount = _yieldCount;
                 _resume_cb(cb);
-                if (!_isStop && !_beginQuit && !_isSuspend)
+                if (lastYieldCount == _yieldCount && !_isStop && !_beginQuit && !_isSuspend)
                 {
                     if (_hasBlock)
                     {
@@ -883,13 +886,33 @@ namespace Go
         static public async Task lock_stop(functional.func_res<Task> handler)
         {
             lock_stop();
-            await handler();
-            unlock_stop();
+            try
+            {
+                await handler();
+            }
+            finally
+            {
+                unlock_stop();
+            }
+        }
+
+        static public async Task<R> lock_stop<R>(functional.func_res<Task<R>> handler)
+        {
+            lock_stop();
+            try
+            {
+                return await handler();
+            }
+            finally
+            {
+                unlock_stop();
+            }
         }
 
         public async Task async_wait()
         {
             await _pullTask;
+            _yieldCount++;
             _multiCb = null;
             _pullTask.activated = true;
             if (!_beginQuit && 0 == _lockCount && _isForce)
@@ -1085,6 +1108,13 @@ namespace Go
             _pullTask.new_task();
             bool beginQuit = _beginQuit;
             return () => _strand.distribute(beginQuit ? (functional.func)quit_next : no_check_next);
+        }
+
+        private functional.func _async_result()
+        {
+            _pullTask.new_task();
+            bool beginQuit = _beginQuit;
+            return () => (beginQuit ? (functional.func)quit_next : no_check_next)();
         }
 
         public functional.func<T1> async_result<T1>(async_result_wrap<T1> res)
@@ -1483,7 +1513,7 @@ namespace Go
             {
                 generator this_ = self;
                 this_._lastTm = ms;
-                this_._timer.timeout(ms, this_.async_result());
+                this_._timer.timeout(ms, this_._async_result());
                 await this_.async_wait();
                 this_._lastTm = 0;
             }
@@ -1500,14 +1530,14 @@ namespace Go
         static public async Task deadline(long ms)
         {
             generator this_ = self;
-            this_._timer.deadline(ms, this_.async_result());
+            this_._timer.deadline(ms, this_._async_result());
             await this_.async_wait();
         }
 
         static public async Task yield()
         {
             generator this_ = self;
-            this_._strand.post(this_.async_result());
+            this_._strand.post(this_._async_result());
             await this_.async_wait();
         }
 
@@ -1550,6 +1580,17 @@ namespace Go
             {
                 return _id;
             }
+        }
+
+        public long yield_count()
+        {
+            return _yieldCount;
+        }
+
+        static public long self_count()
+        {
+            generator this_ = self;
+            return this_._yieldCount;
         }
 
         static public async Task suspend_other(generator otherGen)
@@ -3110,6 +3151,29 @@ namespace Go
                 }
             }
 
+            public async Task stop(params child[] gens)
+            {
+#if DEBUG
+                Trace.Assert(self == _parent, "此 children 不属于当前 generator");
+#endif
+                if (0 != gens.Count())
+                {
+                    msg_buff<child> waitStop = new msg_buff<child>(_parent._strand);
+                    foreach (child ele in gens)
+                    {
+                        ele.stop(() => waitStop.post(ele));
+                    }
+                    int count = gens.Count();
+                    while (0 != count--)
+                    {
+                        child gen = (await chan_pop(waitStop)).result;
+                        _children.Remove(gen.node);
+                        gen.node = null;
+                    }
+                    check_remove_node();
+                }
+            }
+
             public async Task wait(child gen)
             {
 #if DEBUG
@@ -3120,6 +3184,29 @@ namespace Go
                     await _parent.async_wait(() => gen.append_stop_callback(_parent.async_result()));
                     _children.Remove(gen.node);
                     gen.node = null;
+                    check_remove_node();
+                }
+            }
+
+            public async Task wait(params child[] gens)
+            {
+#if DEBUG
+                Trace.Assert(self == _parent, "此 children 不属于当前 generator");
+#endif
+                if (0 != gens.Count())
+                {
+                    msg_buff<child> waitStop = new msg_buff<child>(_parent._strand);
+                    foreach (child ele in gens)
+                    {
+                        ele.append_stop_callback(() => waitStop.post(ele));
+                    }
+                    int count = gens.Count();
+                    while (0 != count--)
+                    {
+                        child gen = (await chan_pop(waitStop)).result;
+                        _children.Remove(gen.node);
+                        gen.node = null;
+                    }
                     check_remove_node();
                 }
             }
