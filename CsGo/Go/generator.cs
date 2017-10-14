@@ -912,8 +912,9 @@ namespace Go
         public async Task async_wait()
         {
             await _pullTask;
-            _yieldCount++;
             _multiCb = null;
+            _lastTm = 0;
+            _yieldCount++;
             _pullTask.activated = true;
             if (!_beginQuit && 0 == _lockCount && _isForce)
             {
@@ -943,7 +944,7 @@ namespace Go
             bool beginQuit = _beginQuit;
             return delegate (object[] args)
             {
-                _strand.distribute(beginQuit ? (functional.func)quit_next : no_check_next);
+                _strand.distribute(beginQuit ? (functional.func)quit_next : no_quit_next);
             };
         }
 
@@ -954,7 +955,7 @@ namespace Go
             return delegate (object[] args)
             {
                 handler(args);
-                _strand.distribute(beginQuit ? (functional.func)quit_next : no_check_next);
+                _strand.distribute(beginQuit ? (functional.func)quit_next : no_quit_next);
             };
         }
 
@@ -965,7 +966,7 @@ namespace Go
             return delegate ()
             {
                 handler();
-                _strand.distribute(beginQuit ? (functional.func)quit_next : no_check_next);
+                _strand.distribute(beginQuit ? (functional.func)quit_next : no_quit_next);
             };
         }
 
@@ -976,7 +977,7 @@ namespace Go
             return delegate (T1 p1)
             {
                 handler(p1);
-                _strand.distribute(beginQuit ? (functional.func)quit_next : no_check_next);
+                _strand.distribute(beginQuit ? (functional.func)quit_next : no_quit_next);
             };
         }
 
@@ -987,7 +988,7 @@ namespace Go
             return delegate (T1 p1, T2 p2)
             {
                 handler(p1, p2);
-                _strand.distribute(beginQuit ? (functional.func)quit_next : no_check_next);
+                _strand.distribute(beginQuit ? (functional.func)quit_next : no_quit_next);
             };
         }
 
@@ -998,7 +999,7 @@ namespace Go
             return delegate (T1 p1, T2 p2, T3 p3)
             {
                 handler(p1, p2, p3);
-                _strand.distribute(beginQuit ? (functional.func)quit_next : no_check_next);
+                _strand.distribute(beginQuit ? (functional.func)quit_next : no_quit_next);
             };
         }
 
@@ -1107,14 +1108,14 @@ namespace Go
         {
             _pullTask.new_task();
             bool beginQuit = _beginQuit;
-            return () => _strand.distribute(beginQuit ? (functional.func)quit_next : no_check_next);
+            return () => _strand.distribute(beginQuit ? (functional.func)quit_next : no_quit_next);
         }
 
         private functional.func _async_result()
         {
             _pullTask.new_task();
             bool beginQuit = _beginQuit;
-            return () => (beginQuit ? (functional.func)quit_next : no_check_next)();
+            return () => (beginQuit ? (functional.func)quit_next : no_quit_next)();
         }
 
         public functional.func<T1> async_result<T1>(async_result_wrap<T1> res)
@@ -1124,7 +1125,7 @@ namespace Go
             return delegate (T1 p1)
             {
                 res.value_1 = p1;
-                _strand.distribute(beginQuit ? (functional.func)quit_next : no_check_next);
+                _strand.distribute(beginQuit ? (functional.func)quit_next : no_quit_next);
             };
         }
 
@@ -1136,7 +1137,7 @@ namespace Go
             {
                 res.value_1 = p1;
                 res.value_2 = p2;
-                _strand.distribute(beginQuit ? (functional.func)quit_next : no_check_next);
+                _strand.distribute(beginQuit ? (functional.func)quit_next : no_quit_next);
             };
         }
 
@@ -1149,7 +1150,7 @@ namespace Go
                 res.value_1 = p1;
                 res.value_2 = p2;
                 res.value_3 = p3;
-                _strand.distribute(beginQuit ? (functional.func)quit_next : no_check_next);
+                _strand.distribute(beginQuit ? (functional.func)quit_next : no_quit_next);
             };
         }
 
@@ -1507,38 +1508,37 @@ namespace Go
             return timed_async_result2(ms, async_result_ignore_wrap<T1, T2, T3>.value, timedHandler);
         }
 
-        static public async Task sleep(int ms)
+        static public Task sleep(int ms)
         {
             if (ms > 0)
             {
                 generator this_ = self;
                 this_._lastTm = ms;
                 this_._timer.timeout(ms, this_._async_result());
-                await this_.async_wait();
-                this_._lastTm = 0;
+                return this_.async_wait();
             }
             else if (ms < 0)
             {
-                await hold();
+                return hold();
             }
             else
             {
-                await yield();
+                return yield();
             }
         }
 
-        static public async Task deadline(long ms)
+        static public Task deadline(long ms)
         {
             generator this_ = self;
             this_._timer.deadline(ms, this_._async_result());
-            await this_.async_wait();
+            return this_.async_wait();
         }
 
-        static public async Task yield()
+        static public Task yield()
         {
             generator this_ = self;
             this_._strand.post(this_._async_result());
-            await this_.async_wait();
+            return this_.async_wait();
         }
 
         static public generator self
@@ -2345,12 +2345,12 @@ namespace Go
 
         static public functional.func_res<Task> wrap_send_strand(shared_strand strand, functional.func handler)
         {
-            return async () => await send_strand(strand, handler);
+            return () => send_strand(strand, handler);
         }
 
         static public functional.func_res<Task, T> wrap_send_strand<T>(shared_strand strand, functional.func<T> handler)
         {
-            return async (T p) => await send_strand(strand, () => handler(p));
+            return (T p) => send_strand(strand, () => handler(p));
         }
 
         static public functional.func_res<Task<R>> wrap_send_strand<R>(shared_strand strand, functional.func_res<R> handler)
@@ -2455,12 +2455,12 @@ namespace Go
 
         static public functional.func_res<Task> wrap_send_control(Control ctrl, functional.func handler)
         {
-            return async () => await send_control(ctrl, handler);
+            return () => send_control(ctrl, handler);
         }
 
         static public functional.func_res<Task, T> wrap_send_control<T>(Control ctrl, functional.func<T> handler)
         {
-            return async (T p) => await send_control(ctrl, () => handler(p));
+            return (T p) => send_control(ctrl, () => handler(p));
         }
 
         static public functional.func_res<Task<R>> wrap_send_control<R>(Control ctrl, functional.func_res<R> handler)
@@ -2531,12 +2531,12 @@ namespace Go
 
         static public functional.func_res<Task> wrap_send_task(functional.func handler)
         {
-            return async () => await send_task(handler);
+            return () => send_task(handler);
         }
 
         static public functional.func_res<Task, T> wrap_send_task<T>(functional.func<T> handler)
         {
-            return async (T p) => await send_task(() => handler(p));
+            return (T p) => send_task(() => handler(p));
         }
 
         static public functional.func_res<Task<R>> wrap_send_task<R>(functional.func_res<R> handler)
@@ -2582,12 +2582,12 @@ namespace Go
 
         static public functional.func_res<Task> wrap_send_async_queue(async_queue queue, shared_strand strand, generator.action action)
         {
-            return async () => await send_async_queue(queue, strand, action);
+            return () => send_async_queue(queue, strand, action);
         }
 
         static public functional.func_res<Task, T> wrap_send_async_queue<T>(async_queue queue, shared_strand strand, functional.func_res<Task, T> action)
         {
-            return async (T p) => await send_async_queue(queue, strand, async () => await action(p));
+            return (T p) => send_async_queue(queue, strand, () => action(p));
         }
 
         static public functional.func_res<Task<R>> wrap_send_async_queue<R>(async_queue queue, shared_strand strand, functional.func_res<Task<R>> action)
@@ -2633,12 +2633,12 @@ namespace Go
 
         static public functional.func_res<Task> wrap_send_async_strand(async_strand queue, generator.action action)
         {
-            return async () => await send_async_strand(queue, action);
+            return () => send_async_strand(queue, action);
         }
 
         static public functional.func_res<Task, T> wrap_send_async_strand<T>(async_strand queue, functional.func_res<Task, T> action)
         {
-            return async (T p) => await send_async_strand(queue, async () => await action(p));
+            return (T p) => send_async_strand(queue, () => action(p));
         }
 
         static public functional.func_res<Task<R>> wrap_send_async_strand<R>(async_strand queue, functional.func_res<Task<R>> action)
@@ -2730,10 +2730,10 @@ namespace Go
             generator this_ = self;
 #if DEBUG
             up_stack_frame(this_._callStack, 2);
-            await lock_stop(async () => await this_.async_wait(() => (new generator()).init(strand, handler, this_.async_result(), null, this_._callStack).run()));
+            await lock_stop(() => this_.async_wait(() => (new generator()).init(strand, handler, this_.async_result(), null, this_._callStack).run()));
             this_._callStack.RemoveFirst();
 #else
-            await lock_stop(async () => await this_.async_wait(() => go(strand, handler, this_.async_result())));
+            await lock_stop(() => this_.async_wait(() => go(strand, handler, this_.async_result())));
 #endif
         }
 
@@ -2743,10 +2743,10 @@ namespace Go
             R res = default(R);
 #if DEBUG
             up_stack_frame(this_._callStack, 2);
-            await lock_stop(async () => await this_.async_wait(() => (new generator()).init(strand, async () => res = await handler(), this_.async_result(), null, this_._callStack).run()));
+            await lock_stop(() => this_.async_wait(() => (new generator()).init(strand, async () => res = await handler(), this_.async_result(), null, this_._callStack).run()));
             this_._callStack.RemoveFirst();
 #else
-            await lock_stop(async () => await this_.async_wait(() => go(strand, async () => res = await handler(), this_.async_result(), null)));
+            await lock_stop(() => this_.async_wait(() => go(strand, async () => res = await handler(), this_.async_result(), null)));
 #endif
             return res;
         }
