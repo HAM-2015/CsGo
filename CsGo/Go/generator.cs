@@ -138,57 +138,23 @@ namespace Go
         }
     }
 
-    public class chan_pop_wrap<T>
+    public struct chan_pop_wrap<T>
     {
-        public readonly chan_async_state state;
-        public readonly T result;
-
-        public chan_pop_wrap(chan_async_state st)
-        {
-            state = st;
-        }
-
-        public chan_pop_wrap(chan_async_state st, T res)
-        {
-            state = st;
-            result = res;
-        }
+        public chan_async_state state;
+        public T result;
     }
 
-    public class csp_invoke_wrap<T>
+    public struct csp_invoke_wrap<T>
     {
-        public readonly chan_async_state state;
-        public readonly T result;
-
-        public csp_invoke_wrap(chan_async_state st)
-        {
-            state = st;
-        }
-
-        public csp_invoke_wrap(chan_async_state st, T res)
-        {
-            state = st;
-            result = res;
-        }
+        public chan_async_state state;
+        public T result;
     }
 
-    public class csp_wait_wrap<R, T>
+    public struct csp_wait_wrap<R, T>
     {
-        public readonly csp_chan<R, T>.csp_result result;
-        public readonly chan_async_state state;
-        public readonly T msg;
-
-        public csp_wait_wrap(chan_async_state st)
-        {
-            state = st;
-        }
-
-        public csp_wait_wrap(chan_async_state st, csp_chan<R, T>.csp_result res, T p)
-        {
-            state = st;
-            result = res;
-            msg = p;
-        }
+        public csp_chan<R, T>.csp_result result;
+        public chan_async_state state;
+        public T msg;
 
         public void complete(R res)
         {
@@ -553,7 +519,7 @@ namespace Go
 
         void next(bool beginQuit)
         {
-            if (!_isStop && (!_beginQuit || beginQuit))
+            if (!_isStop && _beginQuit == beginQuit)
             {
                 no_check_next();
             }
@@ -717,7 +683,7 @@ namespace Go
                     if (_hasBlock)
                     {
                         _hasBlock = false;
-                        next(false);
+                        no_quit_next();
                     }
                     else if (0 != _lastTm)
                     {
@@ -766,7 +732,7 @@ namespace Go
                 }
                 else if (_pullTask.is_awaiting())
                 {
-                    next(!_beginQuit);
+                    no_quit_next();
                 }
                 else
                 {
@@ -826,14 +792,14 @@ namespace Go
             return _syncNtf.IsCompleted;
         }
 
-        static public async Task hold()
+        static public Task hold()
         {
             generator this_ = self;
             this_._pullTask.new_task();
-            await this_.async_wait();
+            return this_.async_wait();
         }
 
-        static public async Task pause_self()
+        static public Task pause_self()
         {
             generator this_ = self;
             if (!this_._beginQuit)
@@ -844,16 +810,17 @@ namespace Go
                 {
                     this_._hasBlock = true;
                     this_._pullTask.new_task();
-                    await this_.async_wait();
+                    return this_.async_wait();
                 }
             }
+            return nil_wait();
         }
 
-        static public async Task halt_self()
+        static public Task halt_self()
         {
             generator this_ = self;
             this_.stop();
-            await nil_wait();
+            return nil_wait();
         }
 
         static public void lock_stop()
@@ -925,10 +892,10 @@ namespace Go
             }
         }
 
-        public async Task async_wait(functional.func handler)
+        public Task async_wait(functional.func handler)
         {
             handler();
-            await async_wait();
+            return async_wait();
         }
 
         public async Task<R> wait_result<R>(functional.func<async_result_wrap<R>> handler)
@@ -1027,7 +994,7 @@ namespace Go
             {
                 _strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && (!_beginQuit || beginQuit))
+                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
                         handler(args);
                         no_check_next();
@@ -1044,7 +1011,7 @@ namespace Go
             {
                 _strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && (!_beginQuit || beginQuit))
+                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
                         handler();
                         no_check_next();
@@ -1061,7 +1028,7 @@ namespace Go
             {
                 _strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && (!_beginQuit || beginQuit))
+                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
                         handler(p1);
                         no_check_next();
@@ -1078,7 +1045,7 @@ namespace Go
             {
                 _strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && (!_beginQuit || beginQuit))
+                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
                         handler(p1, p2);
                         no_check_next();
@@ -1095,7 +1062,7 @@ namespace Go
             {
                 _strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && (!_beginQuit || beginQuit))
+                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
                         handler(p1, p2, p3);
                         no_check_next();
@@ -1193,7 +1160,7 @@ namespace Go
             {
                 _strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && (!_beginQuit || beginQuit))
+                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
                         res.value_1 = p1;
                         no_check_next();
@@ -1210,7 +1177,7 @@ namespace Go
             {
                 _strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && (!_beginQuit || beginQuit))
+                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
                         res.value_1 = p1;
                         res.value_2 = p2;
@@ -1228,7 +1195,7 @@ namespace Go
             {
                 _strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && (!_beginQuit || beginQuit))
+                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
                         res.value_1 = p1;
                         res.value_2 = p2;
@@ -1273,7 +1240,7 @@ namespace Go
             {
                 _strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && (!_beginQuit || beginQuit))
+                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
                         _timer.cancel();
                         no_check_next();
@@ -1301,7 +1268,7 @@ namespace Go
             {
                 _strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && (!_beginQuit || beginQuit))
+                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
                         _timer.cancel();
                         res.value_1 = p1;
@@ -1330,7 +1297,7 @@ namespace Go
             {
                 _strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && (!_beginQuit || beginQuit))
+                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
                         _timer.cancel();
                         res.value_1 = p1;
@@ -1360,7 +1327,7 @@ namespace Go
             {
                 _strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && (!_beginQuit || beginQuit))
+                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
                         _timer.cancel();
                         res.value_1 = p1;
@@ -1388,7 +1355,7 @@ namespace Go
             {
                 _strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && (!_beginQuit || beginQuit))
+                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
                         _timer.cancel();
                         no_check_next();
@@ -1413,7 +1380,7 @@ namespace Go
             {
                 _strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && (!_beginQuit || beginQuit))
+                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
                         _timer.cancel();
                         res.value_1 = p1;
@@ -1439,7 +1406,7 @@ namespace Go
             {
                 _strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && (!_beginQuit || beginQuit))
+                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
                         _timer.cancel();
                         res.value_1 = p1;
@@ -1466,7 +1433,7 @@ namespace Go
             {
                 _strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && (!_beginQuit || beginQuit))
+                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
                         _timer.cancel();
                         res.value_1 = p1;
@@ -1593,16 +1560,16 @@ namespace Go
             return this_._yieldCount;
         }
 
-        static public async Task suspend_other(generator otherGen)
+        static public Task suspend_other(generator otherGen)
         {
             generator this_ = self;
-            await this_.async_wait(() => otherGen.suspend(this_.async_result()));
+            return this_.async_wait(() => otherGen.suspend(this_.async_result()));
         }
 
-        static public async Task resume_other(generator otherGen)
+        static public Task resume_other(generator otherGen)
         {
             generator this_ = self;
-            await this_.async_wait(() => otherGen.resume(this_.async_result()));
+            return this_.async_wait(() => otherGen.resume(this_.async_result()));
         }
 
         static public async Task<chan_async_state> chan_push<T>(channel<T> chan, T p)
@@ -1619,21 +1586,24 @@ namespace Go
             return result;
         }
 
-        static public async Task<chan_pop_wrap<T>> chan_pop<T>(channel<T> chan)
+        static public Task<chan_pop_wrap<T>> chan_pop<T>(channel<T> chan)
         {
-            return await chan_pop(chan, broadcast_chan_token._defToken);
+            return chan_pop(chan, broadcast_chan_token._defToken);
         }
 
         static public async Task<chan_pop_wrap<T>> chan_pop<T>(channel<T> chan, broadcast_chan_token token)
         {
             generator this_ = self;
-            chan_pop_wrap<T> result = null;
+            chan_pop_wrap<T> result = default(chan_pop_wrap<T>);
             await this_.async_wait(delegate ()
             {
                 chan.pop(this_.async_same_callback(delegate (object[] args)
                 {
-                    chan_async_state state = (chan_async_state)args[0];
-                    result = chan_async_state.async_ok == state ? new chan_pop_wrap<T>(state, (T)args[1]) : new chan_pop_wrap<T>(state);
+                    result.state = (chan_async_state)args[0];
+                    if (chan_async_state.async_ok == result.state)
+                    {
+                        result.result = (T)args[1];
+                    }
                 }), token);
             });
             return result;
@@ -1653,21 +1623,24 @@ namespace Go
             return result;
         }
 
-        static public async Task<chan_pop_wrap<T>> chan_try_pop<T>(channel<T> chan)
+        static public Task<chan_pop_wrap<T>> chan_try_pop<T>(channel<T> chan)
         {
-            return await chan_try_pop(chan, broadcast_chan_token._defToken);
+            return chan_try_pop(chan, broadcast_chan_token._defToken);
         }
 
         static public async Task<chan_pop_wrap<T>> chan_try_pop<T>(channel<T> chan, broadcast_chan_token token)
         {
             generator this_ = self;
-            chan_pop_wrap<T> result = null;
+            chan_pop_wrap<T> result = default(chan_pop_wrap<T>);
             await this_.async_wait(delegate ()
             {
                 chan.try_pop(this_.async_same_callback(delegate (object[] args)
                 {
-                    chan_async_state state = (chan_async_state)args[0];
-                    result = chan_async_state.async_ok == state ? new chan_pop_wrap<T>(state, (T)args[1]) : new chan_pop_wrap<T>(state);
+                    result.state = (chan_async_state)args[0];
+                    if (chan_async_state.async_ok == result.state)
+                    {
+                        result.result = (T)args[1];
+                    }
                 }), token);
             });
             return result;
@@ -1687,21 +1660,24 @@ namespace Go
             return result;
         }
 
-        static public async Task<chan_pop_wrap<T>> chan_timed_pop<T>(int ms, channel<T> chan)
+        static public Task<chan_pop_wrap<T>> chan_timed_pop<T>(int ms, channel<T> chan)
         {
-            return await chan_timed_pop(ms, chan, broadcast_chan_token._defToken);
+            return chan_timed_pop(ms, chan, broadcast_chan_token._defToken);
         }
 
         static public async Task<chan_pop_wrap<T>> chan_timed_pop<T>(int ms, channel<T> chan, broadcast_chan_token token)
         {
             generator this_ = self;
-            chan_pop_wrap<T> result = null;
+            chan_pop_wrap<T> result = default(chan_pop_wrap<T>);
             await this_.async_wait(delegate ()
             {
                 chan.timed_pop(ms, this_.async_same_callback(delegate (object[] args)
                 {
-                    chan_async_state state = (chan_async_state)args[0];
-                    result = chan_async_state.async_ok == state ? new chan_pop_wrap<T>(state, (T)args[1]) : new chan_pop_wrap<T>(state);
+                    result.state = (chan_async_state)args[0];
+                    if (chan_async_state.async_ok == result.state)
+                    {
+                        result.result = (T)args[1];
+                    }
                 }), token);
             });
             return result;
@@ -1710,13 +1686,16 @@ namespace Go
         static public async Task<csp_invoke_wrap<R>> csp_invoke<R, T>(csp_chan<R, T> chan, T p)
         {
             generator this_ = self;
-            csp_invoke_wrap<R> result = null;
+            csp_invoke_wrap<R> result = default(csp_invoke_wrap<R>);
             await this_.async_wait(delegate ()
             {
                 chan.push(this_.async_same_callback(delegate(object[] args)
                 {
-                    chan_async_state state = (chan_async_state)args[0];
-                    result = chan_async_state.async_ok == state ? new csp_invoke_wrap<R>(state, (R)args[1]) : new csp_invoke_wrap<R>(state);
+                    result.state = (chan_async_state)args[0];
+                    if (chan_async_state.async_ok == result.state)
+                    {
+                        result.result = (R)args[1];
+                    }
                 }), p);
             });
             return result;
@@ -1725,13 +1704,17 @@ namespace Go
         static public async Task<csp_wait_wrap<R, T>> csp_wait<R, T>(csp_chan<R, T> chan)
         {
             generator this_ = self;
-            csp_wait_wrap<R, T> result = null;
+            csp_wait_wrap<R, T> result = default(csp_wait_wrap<R, T>);
             await this_.async_wait(delegate ()
             {
                 chan.pop(this_.async_same_callback(delegate(object[] args)
                 {
-                    chan_async_state state = (chan_async_state)args[0];
-                    result = chan_async_state.async_ok == state ? new csp_wait_wrap<R, T>(state, (csp_chan<R, T>.csp_result)(args[1]), (T)args[2]) : new csp_wait_wrap<R, T>(state);
+                    result.state = (chan_async_state)args[0];
+                    if (chan_async_state.async_ok == result.state)
+                    {
+                        result.result = (csp_chan<R, T>.csp_result)(args[1]);
+                        result.msg = (T)args[2];
+                    }
                 }));
             });
             return result;
@@ -1761,13 +1744,16 @@ namespace Go
         static public async Task<csp_invoke_wrap<R>> csp_try_invoke<R, T>(csp_chan<R, T> chan, T p)
         {
             generator this_ = self;
-            csp_invoke_wrap<R> result = null;
+            csp_invoke_wrap<R> result = default(csp_invoke_wrap<R>);
             await this_.async_wait(delegate ()
             {
                 chan.try_push(this_.async_same_callback(delegate (object[] args)
                 {
-                    chan_async_state state = (chan_async_state)args[0];
-                    result = chan_async_state.async_ok == state ? new csp_invoke_wrap<R>(state, (R)args[1]) : new csp_invoke_wrap<R>(state);
+                    result.state = (chan_async_state)args[0];
+                    if (chan_async_state.async_ok == result.state)
+                    {
+                        result.result = (R)args[1];
+                    }
                 }), p);
             });
             return result;
@@ -1776,13 +1762,17 @@ namespace Go
         static public async Task<csp_wait_wrap<R, T>> csp_try_wait<R, T>(csp_chan<R, T> chan)
         {
             generator this_ = self;
-            csp_wait_wrap<R, T> result = null;
+            csp_wait_wrap<R, T> result = default(csp_wait_wrap<R, T>);
             await this_.async_wait(delegate ()
             {
                 chan.try_pop(this_.async_same_callback(delegate (object[] args)
                 {
-                    chan_async_state state = (chan_async_state)args[0];
-                    result = chan_async_state.async_ok == state ? new csp_wait_wrap<R, T>(state, (csp_chan<R, T>.csp_result)(args[1]), (T)args[2]) : new csp_wait_wrap<R, T>(state);
+                    result.state = (chan_async_state)args[0];
+                    if (chan_async_state.async_ok == result.state)
+                    {
+                        result.result = (csp_chan<R, T>.csp_result)(args[1]);
+                        result.msg = (T)args[2];
+                    }
                 }));
             });
             return result;
@@ -1812,13 +1802,16 @@ namespace Go
         static public async Task<csp_invoke_wrap<R>> csp_timed_invoke<R, T>(int ms, csp_chan<R, T> chan, T p)
         {
             generator this_ = self;
-            csp_invoke_wrap<R> result = null;
+            csp_invoke_wrap<R> result = default(csp_invoke_wrap<R>);
             await this_.async_wait(delegate ()
             {
                 chan.timed_push(ms, this_.async_same_callback(delegate (object[] args)
                 {
-                    chan_async_state state = (chan_async_state)args[0];
-                    result = chan_async_state.async_ok == state ? new csp_invoke_wrap<R>(state, (R)args[1]) : new csp_invoke_wrap<R>(state);
+                    result.state = (chan_async_state)args[0];
+                    if (chan_async_state.async_ok == result.state)
+                    {
+                        result.result = (R)args[1];
+                    }
                 }), p);
             });
             return result;
@@ -1827,13 +1820,17 @@ namespace Go
         static public async Task<csp_wait_wrap<R, T>> csp_timed_wait<R, T>(int ms, csp_chan<R, T> chan)
         {
             generator this_ = self;
-            csp_wait_wrap<R, T> result = null;
+            csp_wait_wrap<R, T> result = default(csp_wait_wrap<R, T>);
             await this_.async_wait(delegate ()
             {
                 chan.timed_pop(ms, this_.async_same_callback(delegate (object[] args)
                 {
-                    chan_async_state state = (chan_async_state)args[0];
-                    result = chan_async_state.async_ok == state ? new csp_wait_wrap<R, T>(state, (csp_chan<R, T>.csp_result)(args[1]), (T)args[2]) : new csp_wait_wrap<R, T>(state);
+                    result.state = (chan_async_state)args[0];
+                    if (chan_async_state.async_ok == result.state)
+                    {
+                        result.result = (csp_chan<R, T>.csp_result)(args[1]);
+                        result.msg = (T)args[2];
+                    }
                 }));
             });
             return result;
@@ -1877,7 +1874,8 @@ namespace Go
             foreach (select_chan_base chan in chans)
             {
                 chan.ntfSign._selectOnce = false;
-                chan.begin(() => selectChans.post(chan));
+                chan.nextSelect = selectChans;
+                chan.begin();
             }
             try
             {
@@ -1890,7 +1888,7 @@ namespace Go
                         continue;
                     }
                     count--;
-                    select_chan_state selState = await selectedChan.invoke(() => selectChans.post(selectedChan));
+                    select_chan_state selState = await selectedChan.invoke();
                     if (selState.nextRound)
                     {
                         count++;
@@ -1920,12 +1918,13 @@ namespace Go
             foreach (select_chan_base chan in chans)
             {
                 chan.ntfSign._selectOnce = true;
-                chan.begin(() => selectChans.post(chan));
+                chan.nextSelect = selectChans;
+                chan.begin();
             }
             bool selected = false;
             try
             {
-                select_chan_state selState = null;
+                select_chan_state selState = default(select_chan_state);
                 do
                 {
                     select_chan_base selectedChan = (await chan_pop(selectChans)).result;
@@ -1933,7 +1932,7 @@ namespace Go
                     {
                         continue;
                     }
-                    selState = await selectedChan.invoke(() => selectChans.post(selectedChan), async delegate()
+                    selState = await selectedChan.invoke(async delegate()
                     {
                         foreach (select_chan_base chan in chans)
                         {
@@ -1969,7 +1968,8 @@ namespace Go
             foreach (select_chan_base chan in chans)
             {
                 chan.ntfSign._selectOnce = true;
-                chan.begin(() => selectChans.post(chan));
+                chan.nextSelect = selectChans;
+                chan.begin();
             }
             bool selected = false;
             try
@@ -1983,7 +1983,7 @@ namespace Go
                         {
                             continue;
                         }
-                        select_chan_state selState = await selectedChan.invoke(() => selectChans.post(selectedChan), async delegate ()
+                        select_chan_state selState = await selectedChan.invoke(async delegate ()
                         {
                             this_._timer.cancel();
                             foreach (select_chan_base chan in chans)
@@ -2088,29 +2088,48 @@ namespace Go
             return chan.make_select_writer(msg, handler, errHandler);
         }
 
-        static public async Task close_chan<T>(channel<T> chan)
+        static public Task close_chan<T>(channel<T> chan)
         {
             generator this_ = self;
-            await this_.async_wait(() => chan.close(this_.async_same_callback()));
+            return this_.async_wait(() => chan.close(this_.async_same_callback()));
         }
 
-        static public async Task cancel_chan<T>(channel<T> chan)
+        static public Task cancel_chan<T>(channel<T> chan)
         {
             generator this_ = self;
-            await this_.async_wait(() => chan.cancel(this_.async_same_callback()));
+            return this_.async_wait(() => chan.cancel(this_.async_same_callback()));
         }
 
-        static public async Task mutex_lock(mutex_base mtx)
+        static public Task mutex_lock(mutex_base mtx)
         {
             generator this_ = self;
-            await this_.async_wait(() => mtx.Lock(this_._id, this_.async_result()));
+            return this_.async_wait(() => mtx.Lock(this_._id, this_.async_result()));
         }
 
         static public async Task mutex_lock(mutex_base mtx, functional.func_res<Task> handler)
         {
             await mutex_lock(mtx);
-            await handler();
-            await mutex_unlock(mtx);
+            try
+            {
+                await handler();
+            }
+            finally
+            {
+                await mutex_unlock(mtx);
+            }
+        }
+
+        static public async Task<R> mutex_lock<R>(mutex_base mtx, functional.func_res<Task<R>> handler)
+        {
+            await mutex_lock(mtx);
+            try
+            {
+                return await handler();
+            }
+            finally
+            {
+                await mutex_unlock(mtx);
+            }
         }
 
         static public async Task<bool> mutex_try_lock(mutex_base mtx)
@@ -2126,8 +2145,14 @@ namespace Go
         {
             if (await mutex_try_lock(mtx))
             {
-                await handler();
-                await mutex_unlock(mtx);
+                try
+                {
+                    await handler();
+                }
+                finally
+                {
+                    await mutex_unlock(mtx);
+                }
                 return true;
             }
             return false;
@@ -2146,56 +2171,119 @@ namespace Go
         {
             if (await mutex_timed_lock(ms, mtx))
             {
-                await handler();
-                await mutex_unlock(mtx);
+                try
+                {
+                    await handler();
+                }
+                finally
+                {
+                    await mutex_unlock(mtx);
+                }
                 return true;
             }
             return false;
         }
 
-        static public async Task mutex_unlock(mutex_base mtx)
+        static public Task mutex_unlock(mutex_base mtx)
         {
             generator this_ = self;
-            await this_.async_wait(() => mtx.unlock(this_._id, this_.async_result()));
+            return this_.async_wait(() => mtx.unlock(this_._id, this_.async_result()));
         }
 
-        static public async Task mutex_lock_shared(shared_mutex mtx)
+        static public Task mutex_lock_shared(shared_mutex mtx)
         {
             generator this_ = self;
-            await this_.async_wait(() => mtx.lock_shared(this_._id, this_.async_result()));
+            return this_.async_wait(() => mtx.lock_shared(this_._id, this_.async_result()));
         }
 
         static public async Task mutex_lock_shared(shared_mutex mtx, functional.func_res<Task> handler)
         {
             await mutex_lock_shared(mtx);
-            await handler();
-            await mutex_unlock_shared(mtx);
+            try
+            {
+                await handler();
+            }
+            finally
+            {
+                await mutex_unlock_shared(mtx);
+            }
         }
 
-        static public async Task mutex_lock_pess_shared(shared_mutex mtx)
+        static public async Task<R> mutex_lock_shared<R>(shared_mutex mtx, functional.func_res<Task<R>> handler)
+        {
+            await mutex_lock_shared(mtx);
+            try
+            {
+                return await handler();
+            }
+            finally
+            {
+                await mutex_unlock_shared(mtx);
+            }
+        }
+
+        static public Task mutex_lock_pess_shared(shared_mutex mtx)
         {
             generator this_ = self;
-            await this_.async_wait(() => mtx.lock_pess_shared(this_._id, this_.async_result()));
+            return this_.async_wait(() => mtx.lock_pess_shared(this_._id, this_.async_result()));
         }
 
         static public async Task mutex_lock_pess_shared(shared_mutex mtx, functional.func_res<Task> handler)
         {
             await mutex_lock_pess_shared(mtx);
-            await handler();
-            await mutex_unlock_shared(mtx);
+            try
+            {
+                await handler();
+            }
+            finally
+            {
+                await mutex_unlock_shared(mtx);
+            }
         }
 
-        static public async Task mutex_lock_upgrade(shared_mutex mtx)
+        static public async Task<R> mutex_lock_pess_shared<R>(shared_mutex mtx, functional.func_res<Task<R>> handler)
+        {
+            await mutex_lock_pess_shared(mtx);
+            try
+            {
+                return await handler();
+            }
+            finally
+            {
+                await mutex_unlock_shared(mtx);
+            }
+        }
+
+        static public Task mutex_lock_upgrade(shared_mutex mtx)
         {
             generator this_ = self;
-            await this_.async_wait(() => mtx.lock_upgrade(this_._id, this_.async_result()));
+            return this_.async_wait(() => mtx.lock_upgrade(this_._id, this_.async_result()));
         }
 
         static public async Task mutex_lock_upgrade(shared_mutex mtx, functional.func_res<Task> handler)
         {
             await mutex_lock_upgrade(mtx);
-            await handler();
-            await mutex_unlock_upgrade(mtx);
+            try
+            {
+                await handler();
+            }
+            finally
+            {
+                await mutex_unlock_upgrade(mtx);
+            }
+        }
+
+        static public async Task<R> mutex_lock_upgrade<R>(shared_mutex mtx, functional.func_res<Task<R>> handler)
+        {
+            await mutex_lock_upgrade(mtx);
+            try
+            {
+                return await handler();
+            }
+            finally
+            {
+                await mutex_unlock_upgrade(mtx);
+            }
         }
 
         static public async Task<bool> mutex_try_lock_shared(shared_mutex mtx)
@@ -2211,8 +2299,14 @@ namespace Go
         {
             if (await mutex_try_lock_shared(mtx))
             {
-                await handler();
-                await mutex_unlock_shared(mtx);
+                try
+                {
+                    await handler();
+                }
+                finally
+                {
+                    await mutex_unlock_shared(mtx);
+                }
                 return true;
             }
             return false;
@@ -2231,8 +2325,14 @@ namespace Go
         {
             if (await mutex_try_lock_upgrade(mtx))
             {
-                await handler();
-                await mutex_unlock_upgrade(mtx);
+                try
+                {
+                    await handler();
+                }
+                finally
+                {
+                    await mutex_unlock_upgrade(mtx);
+                }
                 return true;
             }
             return false;
@@ -2251,29 +2351,35 @@ namespace Go
         {
             if (await mutex_timed_lock_shared(ms, mtx))
             {
-                await handler();
-                await mutex_unlock_shared(mtx);
+                try
+                {
+                    await handler();
+                }
+                finally
+                {
+                    await mutex_unlock_shared(mtx);
+                }
                 return true;
             }
             return false;
         }
 
-        static public async Task mutex_unlock_shared(shared_mutex mtx)
+        static public Task mutex_unlock_shared(shared_mutex mtx)
         {
             generator this_ = self;
-            await this_.async_wait(() => mtx.unlock_shared(this_._id, this_.async_result()));
+            return this_.async_wait(() => mtx.unlock_shared(this_._id, this_.async_result()));
         }
 
-        static public async Task mutex_unlock_upgrade(shared_mutex mtx)
+        static public Task mutex_unlock_upgrade(shared_mutex mtx)
         {
             generator this_ = self;
-            await this_.async_wait(() => mtx.unlock_upgrade(this_._id, this_.async_result()));
+            return this_.async_wait(() => mtx.unlock_upgrade(this_._id, this_.async_result()));
         }
 
-        static public async Task condition_wait(condition_variable conVar, mutex_base mutex)
+        static public Task condition_wait(condition_variable conVar, mutex_base mutex)
         {
             generator this_ = self;
-            await this_.async_wait(() => conVar.wait(this_._id, mutex, this_.async_result()));
+            return this_.async_wait(() => conVar.wait(this_._id, mutex, this_.async_result()));
         }
 
         static public async Task<bool> condition_timed_wait(int ms, condition_variable conVar, mutex_base mutex)
@@ -2661,17 +2767,18 @@ namespace Go
             };
         }
 
-        static public async Task wait_task(Task task)
+        static public Task wait_task(Task task)
         {
             if (!task.IsCompleted)
             {
                 generator this_ = self;
-                await this_.async_wait(delegate ()
+                return this_.async_wait(delegate ()
                 {
                     functional.func continuation = this_.async_result();
                     task.GetAwaiter().OnCompleted(() => continuation());
                 });
             }
+            return nil_wait();
         }
 
         static public async Task<bool> timed_wait_task(int ms, Task task)
@@ -2690,14 +2797,14 @@ namespace Go
             return true;
         }
 
-        static public async Task wait_other(generator other)
+        static public Task wait_other(generator other)
         {
-            await wait_task(other._syncNtf);
+            return wait_task(other._syncNtf);
         }
 
-        static public async Task<bool> timed_wait_other(int ms, generator other)
+        static public Task<bool> timed_wait_other(int ms, generator other)
         {
-            return await timed_wait_task(ms, other._syncNtf);
+            return timed_wait_task(ms, other._syncNtf);
         }
 
         static public async Task call(action handler)
@@ -3007,16 +3114,16 @@ namespace Go
                 });
             }
 
-            public new async Task stop()
+            public new Task stop()
             {
                 generator parent = self;
-                await parent.async_wait(() => stop(parent.async_result()));
+                return parent.async_wait(() => stop(parent.async_result()));
             }
 
-            public async Task wait()
+            public Task wait()
             {
                 generator parent = self;
-                await parent.async_wait(() => append_stop_callback(parent.async_result()));
+                return parent.async_wait(() => append_stop_callback(parent.async_result()));
             }
 
             public async Task<bool> timed_wait(int ms)
