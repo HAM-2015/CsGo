@@ -74,23 +74,21 @@ namespace Go
             {
                 generator self = generator.self;
                 chan_pop_wrap<T> result = default(chan_pop_wrap<T>);
-                await self.async_wait(delegate ()
+                _chan.try_pop_and_append_notify(self.async_same_callback(delegate (object[] args)
                 {
-                    _chan.try_pop_and_append_notify(self.async_same_callback(delegate (object[] args)
+                    result.state = (chan_async_state)args[0];
+                    if (chan_async_state.async_ok == result.state)
                     {
-                        result.state = (chan_async_state)args[0];
-                        if (chan_async_state.async_ok == result.state)
-                        {
-                            result.result = (T)args[1];
-                        }
-                    }), delegate (object[] args)
+                        result.result = (T)args[1];
+                    }
+                }), delegate (object[] args)
+                {
+                    if (chan_async_state.async_fail != (chan_async_state)args[0])
                     {
-                        if (chan_async_state.async_fail != (chan_async_state)args[0])
-                        {
-                            nextSelect.post(this);
-                        }
-                    }, ntfSign, _token);
-                });
+                        nextSelect.post(this);
+                    }
+                }, ntfSign, _token);
+                await self.async_wait();
                 select_chan_state chanState;
                 chanState.failed = false;
                 chanState.nextRound = true;
@@ -122,11 +120,12 @@ namespace Go
                 return chanState;
             }
 
-            public override async Task end()
+            public override Task end()
             {
                 generator self = generator.self;
                 ntfSign._disable = true;
-                await self.async_wait(() => _chan.remove_pop_notify(self.async_same_callback(), ntfSign));
+                _chan.remove_pop_notify(self.async_same_callback(), ntfSign);
+                return self.async_wait();
             }
         }
 
@@ -152,19 +151,17 @@ namespace Go
             {
                 generator self = generator.self;
                 chan_async_state result = chan_async_state.async_undefined;
-                await self.async_wait(delegate ()
+                _chan.try_push_and_append_notify(self.async_same_callback(delegate (object[] args)
                 {
-                    _chan.try_push_and_append_notify(self.async_same_callback(delegate (object[] args)
+                    result = (chan_async_state)args[0];
+                }), delegate (object[] args)
+                {
+                    if (chan_async_state.async_fail != (chan_async_state)args[0])
                     {
-                        result = (chan_async_state)args[0];
-                    }), delegate (object[] args)
-                    {
-                        if (chan_async_state.async_fail != (chan_async_state)args[0])
-                        {
-                            nextSelect.post(this);
-                        }
-                    }, ntfSign, _msg());
-                });
+                        nextSelect.post(this);
+                    }
+                }, ntfSign, _msg());
+                await self.async_wait();
                 select_chan_state chanState;
                 chanState.failed = false;
                 chanState.nextRound = true;
@@ -196,11 +193,12 @@ namespace Go
                 return chanState;
             }
 
-            public override async Task end()
+            public override Task end()
             {
                 generator self = generator.self;
                 ntfSign._disable = true;
-                await self.async_wait(() => _chan.remove_push_notify(self.async_same_callback(), ntfSign));
+                _chan.remove_push_notify(self.async_same_callback(), ntfSign);
+                return self.async_wait();
             }
         }
 
@@ -233,6 +231,12 @@ namespace Go
                 return new chan<T>(strand, len);
             }
             return new msg_buff<T>(strand);
+        }
+
+        static public channel<T> make(int len)
+        {
+            shared_strand strand = generator.self_strand();
+            return make(null != strand ? strand : new shared_strand(), len);
         }
 
         public void post(T msg)
@@ -2258,24 +2262,22 @@ namespace Go
             {
                 generator self = generator.self;
                 csp_wait_wrap<R, T> result = default(csp_wait_wrap<R, T>);
-                await self.async_wait(delegate ()
+                _chan.try_pop_and_append_notify(self.async_same_callback(delegate (object[] args)
                 {
-                    _chan.try_pop_and_append_notify(self.async_same_callback(delegate (object[] args)
+                    result.state = (chan_async_state)args[0];
+                    if (chan_async_state.async_ok == result.state)
                     {
-                        result.state = (chan_async_state)args[0];
-                        if (chan_async_state.async_ok == result.state)
-                        {
-                            result.result = (csp_chan<R, T>.csp_result)(args[1]);
-                            result.msg = (T)args[2];
-                        }
-                    }), delegate (object[] args)
+                        result.result = (csp_chan<R, T>.csp_result)(args[1]);
+                        result.msg = (T)args[2];
+                    }
+                }), delegate (object[] args)
+                {
+                    if (chan_async_state.async_fail != (chan_async_state)args[0])
                     {
-                        if (chan_async_state.async_fail != (chan_async_state)args[0])
-                        {
-                            nextSelect.post(this);
-                        }
-                    }, ntfSign);
-                });
+                        nextSelect.post(this);
+                    }
+                }, ntfSign);
+                await self.async_wait();
                 select_chan_state chanState;
                 chanState.failed = false;
                 chanState.nextRound = true;
@@ -2307,11 +2309,12 @@ namespace Go
                 return chanState;
             }
 
-            public override async Task end()
+            public override Task end()
             {
                 generator self = generator.self;
                 ntfSign._disable = true;
-                await self.async_wait(() => _chan.remove_pop_notify(self.async_same_callback(), ntfSign));
+                _chan.remove_pop_notify(self.async_same_callback(), ntfSign);
+                return self.async_wait();
             }
         }
 
@@ -2337,23 +2340,21 @@ namespace Go
             {
                 generator self = generator.self;
                 csp_invoke_wrap<R> result = default(csp_invoke_wrap<R>);
-                await self.async_wait(delegate ()
+                _chan.try_push_and_append_notify(self.async_same_callback(delegate (object[] args)
                 {
-                    _chan.try_push_and_append_notify(self.async_same_callback(delegate (object[] args)
+                    result.state = (chan_async_state)args[0];
+                    if (chan_async_state.async_ok == result.state)
                     {
-                        result.state = (chan_async_state)args[0];
-                        if (chan_async_state.async_ok == result.state)
-                        {
-                            result.result = (R)args[1];
-                        }
-                    }), delegate (object[] args)
+                        result.result = (R)args[1];
+                    }
+                }), delegate (object[] args)
+                {
+                    if (chan_async_state.async_fail != (chan_async_state)args[0])
                     {
-                        if (chan_async_state.async_fail != (chan_async_state)args[0])
-                        {
-                            nextSelect.post(this);
-                        }
-                    }, ntfSign, _msg());
-                });
+                        nextSelect.post(this);
+                    }
+                }, ntfSign, _msg());
+                await self.async_wait();
                 select_chan_state chanState;
                 chanState.failed = false;
                 chanState.nextRound = true;
@@ -2385,11 +2386,12 @@ namespace Go
                 return chanState;
             }
 
-            public override async Task end()
+            public override Task end()
             {
                 generator self = generator.self;
                 ntfSign._disable = true;
-                await self.async_wait(() => _chan.remove_push_notify(self.async_same_callback(), ntfSign));
+                _chan.remove_push_notify(self.async_same_callback(), ntfSign);
+                return self.async_wait();
             }
         }
 

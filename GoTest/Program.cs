@@ -13,6 +13,7 @@ namespace GoTest
         static channel<long> _chan1;
         static channel<long> _chan2;
         static channel<long> _chan3;
+        static csp_chan<long, long> _csp;
 
         static async Task Producer1()
         {
@@ -41,6 +42,16 @@ namespace GoTest
             }
         }
 
+        static async Task Producer4()
+        {
+            while (true)
+            {
+                long res = (await generator.csp_invoke(_csp, system_tick.get_tick_us())).result;
+                Console.WriteLine("csp return {0}", res);
+                await generator.sleep(1000);
+            }
+        }
+
         static async Task Consumer()
         {
             Console.WriteLine("pop chan1 {0}", (await generator.chan_pop(_chan1)).result);
@@ -60,6 +71,11 @@ namespace GoTest
                 {
                     Console.WriteLine("select read chan3 {0}", msg);
                     await generator.sleep(100);
+                }), generator.case_read(_csp, async delegate (long msg)
+                {
+                    Console.WriteLine("select csp delay {0}", system_tick.get_tick_us() - msg);
+                    await generator.sleep(100);
+                    return system_tick.get_tick_us();
                 }));
             }
         }
@@ -70,9 +86,11 @@ namespace GoTest
             _chan1 = channel<long>.make(_strand, 3);
             _chan2 = channel<long>.make(_strand, 0);
             _chan3 = channel<long>.make(_strand, -1);
+            _csp = new csp_chan<long, long>(_strand);
             generator.go(_strand, Producer1);
             generator.go(_strand, Producer2);
             generator.go(_strand, Producer3);
+            generator.go(_strand, Producer4);
             generator.go(_strand, Consumer).sync_wait();
         }
     }
