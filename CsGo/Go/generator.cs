@@ -310,9 +310,11 @@ namespace Go
         long _yieldCount;
         long _id;
         int _lockCount;
+        int _lockSuspendCount;
         int _lastTm;
         bool _beginQuit;
         bool _isSuspend;
+        bool _holdSuspend;
         bool _hasBlock;
         bool _isForce;
         bool _isStop;
@@ -439,9 +441,11 @@ namespace Go
             _isStop = false;
             _isRun = false;
             _isSuspend = false;
+            _holdSuspend = false;
             _hasBlock = false;
             _beginQuit = false;
             _lockCount = -1;
+            _lockSuspendCount = 0;
             _lastTm = 0;
             _yieldCount = 0;
             _strand = strand;
@@ -575,7 +579,7 @@ namespace Go
             return this;
         }
 
-        private void _suspend_cb(functional.func cb = null)
+        private void _suspend_cb(bool isSuspend, functional.func cb = null, bool canSuspendCb = true)
         {
             if (null != _children && 0 != _children.Count)
             {
@@ -584,7 +588,7 @@ namespace Go
                 {
                     if (0 == --count)
                     {
-                        functional.catch_invoke(_suspendCb, true);
+                        functional.catch_invoke(canSuspendCb ? _suspendCb : null, isSuspend);
                         functional.catch_invoke(cb);
                     }
                 };
@@ -592,12 +596,12 @@ namespace Go
                 _children.CopyTo(tempChildren, 0);
                 foreach (children ele in tempChildren)
                 {
-                    ele.suspend(true, suspendCb);
+                    ele.suspend(isSuspend, suspendCb);
                 }
             }
             else
             {
-                functional.catch_invoke(_suspendCb, true);
+                functional.catch_invoke(canSuspendCb ? _suspendCb : null, isSuspend);
                 functional.catch_invoke(cb);
             }
         }
@@ -606,17 +610,25 @@ namespace Go
         {
             if (!_isStop && !_beginQuit && !_isSuspend)
             {
-                _isSuspend = true;
-                if (0 != _lastTm)
+                if (0 == _lockSuspendCount)
                 {
-                    _lastTm -= (int)(system_tick.get_tick_ms() - _timer.cancel());
-                    if (_lastTm <= 0)
+                    _isSuspend = true;
+                    if (0 != _lastTm)
                     {
-                        _lastTm = 0;
-                        _hasBlock = true;
+                        _lastTm -= (int)(system_tick.get_tick_ms() - _timer.cancel());
+                        if (_lastTm <= 0)
+                        {
+                            _lastTm = 0;
+                            _hasBlock = true;
+                        }
                     }
+                    _suspend_cb(true, cb);
                 }
-                _suspend_cb(cb);
+                else
+                {
+                    _holdSuspend = true;
+                    _suspend_cb(true, cb, false);
+                }
             }
             else
             {
@@ -644,51 +656,32 @@ namespace Go
             });
         }
 
-        private void _resume_cb(functional.func cb = null)
-        {
-            if (null != _children && 0 != _children.Count)
-            {
-                int count = _children.Count;
-                functional.func resumeCb = delegate ()
-                {
-                    if (0 == --count)
-                    {
-                        functional.catch_invoke(_suspendCb, false);
-                        functional.catch_invoke(cb);
-                    }
-                };
-                children[] tempChildren = new children[_children.Count];
-                _children.CopyTo(tempChildren, 0);
-                foreach (children ele in tempChildren)
-                {
-                    ele.suspend(false, resumeCb);
-                }
-            }
-            else
-            {
-                functional.catch_invoke(_suspendCb, false);
-                functional.catch_invoke(cb);
-            }
-        }
-
         private void _resume(functional.func cb = null)
         {
-            if (!_isStop && !_beginQuit && _isSuspend)
+            if (!_isStop && !_beginQuit)
             {
-                _isSuspend = false;
-                long lastYieldCount = _yieldCount;
-                _resume_cb(cb);
-                if (lastYieldCount == _yieldCount && !_isStop && !_beginQuit && !_isSuspend)
+                if (_isSuspend)
                 {
-                    if (_hasBlock)
+                    _isSuspend = false;
+                    long lastYieldCount = _yieldCount;
+                    _suspend_cb(false, cb);
+                    if (lastYieldCount == _yieldCount && !_isStop && !_beginQuit && !_isSuspend)
                     {
-                        _hasBlock = false;
-                        no_quit_next();
+                        if (_hasBlock)
+                        {
+                            _hasBlock = false;
+                            no_quit_next();
+                        }
+                        else if (0 != _lastTm)
+                        {
+                            _timer.timeout(_lastTm, no_check_next);
+                        }
                     }
-                    else if (0 != _lastTm)
-                    {
-                        _timer.timeout(_lastTm, no_check_next);
-                    }
+                }
+                else
+                {
+                    _holdSuspend = false;
+                    _suspend_cb(false, cb, false);
                 }
             }
             else
@@ -725,6 +718,8 @@ namespace Go
                 _isSuspend = false;
                 if (_pullTask.activated)
                 {
+                    _lockSuspendCount = 0;
+                    _holdSuspend = false;
                     _beginQuit = true;
                     _suspendCb = null;
                     _timer.cancel();
@@ -804,13 +799,20 @@ namespace Go
             generator this_ = self;
             if (!this_._beginQuit)
             {
-                this_._isSuspend = true;
-                this_._suspend_cb();
-                if (this_._isSuspend)
+                if (0 == this_._lockSuspendCount)
                 {
-                    this_._hasBlock = true;
-                    this_._pullTask.new_task();
-                    return this_.async_wait();
+                    this_._isSuspend = true;
+                    this_._suspend_cb(true);
+                    if (this_._isSuspend)
+                    {
+                        this_._hasBlock = true;
+                        this_._pullTask.new_task();
+                        return this_.async_wait();
+                    }
+                }
+                else
+                {
+                    this_._holdSuspend = true;
                 }
             }
             return nil_wait();
@@ -843,6 +845,8 @@ namespace Go
 #endif
             if (!this_._beginQuit && 0 == --this_._lockCount && this_._isForce)
             {
+                this_._lockSuspendCount = 0;
+                this_._holdSuspend = false;
                 this_._beginQuit = true;
                 this_._suspendCb = null;
                 this_._timer.cancel();
@@ -876,6 +880,65 @@ namespace Go
             }
         }
 
+        static public void lock_suspend()
+        {
+            generator this_ = self;
+            if (!this_._beginQuit)
+            {
+                this_._lockSuspendCount++;
+            }
+        }
+
+        static public Task unlock_suspend()
+        {
+            generator this_ = self;
+#if DEBUG
+            if (!this_._beginQuit)
+            {
+                Trace.Assert(this_._lockSuspendCount > 0, "unlock_suspend 不匹配");
+            }
+#endif
+            if (!this_._beginQuit && 0 == --this_._lockSuspendCount && this_._holdSuspend)
+            {
+                this_._holdSuspend = false;
+                this_._isSuspend = true;
+                this_._suspend_cb(true);
+                if (this_._isSuspend)
+                {
+                    this_._hasBlock = true;
+                    this_._pullTask.new_task();
+                    return this_.async_wait();
+                }
+            }
+            return nil_wait();
+        }
+
+        static public async Task lock_suspend(functional.func_res<Task> handler)
+        {
+            lock_suspend();
+            try
+            {
+                await handler();
+            }
+            finally
+            {
+                await unlock_suspend();
+            }
+        }
+
+        static public async Task<R> lock_suspend<R>(functional.func_res<Task<R>> handler)
+        {
+            lock_suspend();
+            try
+            {
+                return await handler();
+            }
+            finally
+            {
+                await unlock_suspend();
+            }
+        }
+
         public async Task async_wait()
         {
             await _pullTask;
@@ -885,6 +948,8 @@ namespace Go
             _pullTask.activated = true;
             if (!_beginQuit && 0 == _lockCount && _isForce)
             {
+                _lockSuspendCount = 0;
+                _holdSuspend = false;
                 _beginQuit = true;
                 _suspendCb = null;
                 _timer.cancel();
@@ -2867,6 +2932,86 @@ namespace Go
             handler(this_.safe_async_result(res));
             await this_.async_wait();
             return res;
+        }
+
+        static public async Task<bool> timed_async_call(int ms, functional.func<functional.func> handler, functional.func timedHandler = null)
+        {
+            generator this_ = self;
+            bool overtime = false;
+            if (null == timedHandler)
+            {
+                handler(this_.timed_async_result2(ms, () => overtime = true));
+            }
+            else
+            {
+                handler(this_.timed_async_result(ms, delegate ()
+                {
+                    overtime = true;
+                    timedHandler();
+                }));
+            }
+            await this_.async_wait();
+            return !overtime;
+        }
+
+        static public async Task<bool> timed_async_call<R>(int ms, async_result_wrap<R> res, functional.func<functional.func<R>> handler, functional.func timedHandler = null)
+        {
+            generator this_ = self;
+            bool overtime = false;
+            if (null == timedHandler)
+            {
+                handler(this_.timed_async_result2(ms, res, () => overtime = true));
+            }
+            else
+            {
+                handler(this_.timed_async_result(ms, res, delegate ()
+                {
+                    overtime = true;
+                    timedHandler();
+                }));
+            }
+            await this_.async_wait();
+            return !overtime;
+        }
+
+        static public async Task<bool> timed_async_call<R1, R2>(int ms, async_result_wrap<R1, R2> res, functional.func<functional.func<R1, R2>> handler, functional.func timedHandler = null)
+        {
+            generator this_ = self;
+            bool overtime = false;
+            if (null == timedHandler)
+            {
+                handler(this_.timed_async_result2(ms, res, () => overtime = true));
+            }
+            else
+            {
+                handler(this_.timed_async_result(ms, res, delegate ()
+                {
+                    overtime = true;
+                    timedHandler();
+                }));
+            }
+            await this_.async_wait();
+            return !overtime;
+        }
+
+        static public async Task<bool> timed_async_call<R1, R2, R3>(int ms, async_result_wrap<R1, R2, R3> res, functional.func<functional.func<R1, R2, R3>> handler, functional.func timedHandler = null)
+        {
+            generator this_ = self;
+            bool overtime = false;
+            if (null == timedHandler)
+            {
+                handler(this_.timed_async_result2(ms, res, () => overtime = true));
+            }
+            else
+            {
+                handler(this_.timed_async_result(ms, res, delegate ()
+                {
+                    overtime = true;
+                    timedHandler();
+                }));
+            }
+            await this_.async_wait();
+            return !overtime;
         }
 #if DEBUG
         static public async Task call(action handler)
