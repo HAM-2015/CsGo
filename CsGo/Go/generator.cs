@@ -383,23 +383,6 @@ namespace Go
             return _name;
         }
 
-        static public action wrap_children(functional.func_res<Task, children> handler)
-        {
-            return async delegate ()
-            {
-                children children = new children();
-                try
-                {
-                    await handler(children);
-                }
-                catch (stop_exception)
-                {
-                    await children.stop();
-                    throw;
-                }
-            };
-        }
-
 #if DEBUG
         static void up_stack_frame(LinkedList<call_stack_info> callStack, int offset = 0, int count = 1)
         {
@@ -461,10 +444,23 @@ namespace Go
                     _lockCount = 0;
                     await async_wait();
                     await handler();
+                    if (null != _children)
+                    {
+                        while (0 != _children.Count)
+                        {
+                            await _children.First.Value.wait_all();
+                        }
+                    }
                 }
                 catch (stop_exception)
                 {
                     _timer.cancel();
+                    if (null != _children && 0 != _children.Count)
+                    {
+                        children[] childs = new children[_children.Count];
+                        _children.CopyTo(childs, 0);
+                        await children.stop(childs);
+                    }
                 }
                 catch (System.Exception ec)
                 {
@@ -3583,6 +3579,34 @@ namespace Go
                         gen.node = null;
                     }
                     check_remove_node();
+                }
+            }
+
+            static public async Task stop(params children[] childrens)
+            {
+                if (0 != childrens.Count())
+                {
+                    generator self = generator.self;
+                    msg_buff<Tuple<children, child>> waitStop = new msg_buff<Tuple<children, child>>(self._strand);
+                    int count = 0;
+                    foreach (children childs in childrens)
+                    {
+#if DEBUG
+                        Trace.Assert(self == childs._parent, "此 children 不属于当前 generator");
+#endif
+                        foreach (child ele in childs._children)
+                        {
+                            count++;
+                            ele.stop(() => waitStop.post(new Tuple<children, child>(childs, ele)));
+                        }
+                    }
+                    for (int i = 0; i < count; i++)
+                    {
+                        Tuple<children, child> oneRes = (await chan_pop(waitStop)).result;
+                        oneRes.Item1._children.Remove(oneRes.Item2.node);
+                        oneRes.Item2.node = null;
+                        oneRes.Item1.check_remove_node();
+                    }
                 }
             }
 
