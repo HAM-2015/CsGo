@@ -446,6 +446,10 @@ namespace Go
                     await handler();
                     if (null != _children)
                     {
+                        if (null != _agentMap)
+                        {
+                            await _agentMap.stop();
+                        }
                         while (0 != _children.Count)
                         {
                             await _children.First.Value.wait_all();
@@ -3281,7 +3285,7 @@ namespace Go
             return res.value_1;
         }
 
-        static public async Task agent_mail<T>(child agentChild, int id = 0, bool selectMode = true)
+        static public async Task agent_mail<T>(child agentChild, int id = 0)
         {
             generator this_ = self;
             if (null == this_._agentMap)
@@ -3300,34 +3304,45 @@ namespace Go
             }
             else if (null != mb.agentAction)
             {
-                await mb.agentAction.stop();
+                await this_._agentMap.stop(mb.agentAction);
             }
             mb.agentAction = this_._agentMap.go(async delegate ()
             {
                 msg_buff<T> childMb = await agentChild.get_mailbox<T>();
                 msg_buff<T> selfMb = (msg_buff<T>)mb.mailbox;
-                if (selectMode)
-                {
-                    await select_chans(case_read(selfMb, delegate (T msg)
-                    {
-                        childMb.post(msg);
-                        return nil_wait();
-                    }));
-                }
-                else
+                chan_notify_sign ntfSign = new chan_notify_sign();
+                generator self = generator.self;
+                try
                 {
                     while (true)
                     {
-                        chan_pop_wrap<T> res = await chan_pop(selfMb);
-                        if (chan_async_state.async_ok == res.state)
+                        selfMb.append_pop_notify(self.async_same_callback(), ntfSign);
+                        await self.async_wait();
+                        try
                         {
-                            childMb.post(res.result);
+                            lock_suspend();
+                            lock_stop();
+                            chan_pop_wrap<T> popRes = await chan_try_pop(selfMb);
+                            if (chan_async_state.async_ok == popRes.state)
+                            {
+                                popRes.state = await chan_push(childMb, popRes.result);
+                            }
+                            if (chan_async_state.async_closed == popRes.state)
+                            {
+                                break;
+                            }
                         }
-                        else
+                        finally
                         {
-                            break;
+                            unlock_stop();
+                            await unlock_suspend();
                         }
                     }
+                }
+                catch (stop_exception)
+                {
+                    selfMb.remove_pop_notify(self.async_same_callback(), ntfSign);
+                    await self.async_wait();
                 }
             });
         }
@@ -3339,7 +3354,7 @@ namespace Go
             if (null != this_._agentMap && null != this_._chanMap &&
                 this_._chanMap.TryGetValue(calc_hash<T>(id), out mb) && null != mb.agentAction)
             {
-                await mb.agentAction.stop();
+                await this_._agentMap.stop(mb.agentAction);
                 mb.agentAction = null;
             }
         }

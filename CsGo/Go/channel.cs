@@ -30,7 +30,6 @@ namespace Go
     {
         public LinkedListNode<functional.func<chan_async_state>> _ntfNode;
         public bool _selectOnce = false;
-        public bool _nodeEffect = false;
         public bool _disable = false;
     }
 
@@ -641,10 +640,9 @@ namespace Go
                 {
                     ntfSign._ntfNode = _waitQueue.AddLast(delegate (chan_async_state state)
                     {
-                        ntfSign._nodeEffect = false;
+                        ntfSign._ntfNode = null;
                         ntf(state);
                     });
-                    ntfSign._nodeEffect = true;
                 }
             });
         }
@@ -686,11 +684,11 @@ namespace Go
                     ntf(chan_async_state.async_closed);
                     return;
                 }
-                bool effect = ntfSign._nodeEffect;
-                ntfSign._nodeEffect = false;
+                bool effect = null != ntfSign._ntfNode;
                 if (effect)
                 {
                     _waitQueue.Remove(ntfSign._ntfNode);
+                    ntfSign._ntfNode = null;
                 }
                 if (0 != _msgBuff.Count() && 0 != _waitQueue.Count())
                 {
@@ -1074,10 +1072,9 @@ namespace Go
                 {
                     ntfSign._ntfNode = _popWait.AddLast(delegate (chan_async_state state)
                     {
-                        ntfSign._nodeEffect = false;
+                        ntfSign._ntfNode = null;
                         ntf(state);
                     });
-                    ntfSign._nodeEffect = true;
                 }
             });
         }
@@ -1124,11 +1121,11 @@ namespace Go
                     ntf(chan_async_state.async_closed);
                     return;
                 }
-                bool effect = ntfSign._nodeEffect;
-                ntfSign._nodeEffect = false;
+                bool effect = null != ntfSign._ntfNode;
                 if (effect)
                 {
                     _popWait.Remove(ntfSign._ntfNode);
+                    ntfSign._ntfNode = null;
                 }
                 if (0 != _buffer.Count() && 0 != _popWait.Count())
                 {
@@ -1157,10 +1154,9 @@ namespace Go
                 {
                     ntfSign._ntfNode = _pushWait.AddLast(delegate (chan_async_state state)
                     {
-                        ntfSign._nodeEffect = false;
+                        ntfSign._ntfNode = null;
                         ntf(state);
                     });
-                    ntfSign._nodeEffect = true;
                 }
             });
         }
@@ -1207,11 +1203,11 @@ namespace Go
                     ntf(chan_async_state.async_closed);
                     return;
                 }
-                bool effect = ntfSign._nodeEffect;
-                ntfSign._nodeEffect = false;
+                bool effect = null != ntfSign._ntfNode;
                 if (effect)
                 {
                     _pushWait.Remove(ntfSign._ntfNode);
+                    ntfSign._ntfNode = null;
                 }
                 if (_buffer.Count() != _length && 0 != _pushWait.Count)
                 {
@@ -1612,10 +1608,9 @@ namespace Go
                 {
                     ntfSign._ntfNode = _popWait.AddLast(delegate (chan_async_state state)
                     {
-                        ntfSign._nodeEffect = false;
+                        ntfSign._ntfNode = null;
                         ntf(state);
                     });
-                    ntfSign._nodeEffect = true;
                     if (0 != _pushWait.Count)
                     {
                         functional.func<chan_async_state> pushNtf = _pushWait.First.Value;
@@ -1666,11 +1661,11 @@ namespace Go
                     ntf(chan_async_state.async_closed);
                     return;
                 }
-                bool effect = ntfSign._nodeEffect;
-                ntfSign._nodeEffect = false;
+                bool effect = null != ntfSign._ntfNode;
                 if (effect)
                 {
                     _popWait.Remove(ntfSign._ntfNode);
+                    ntfSign._ntfNode = null;
                 }
                 if (_has)
                 {
@@ -1709,10 +1704,9 @@ namespace Go
                 {
                     ntfSign._ntfNode = _pushWait.AddLast(delegate (chan_async_state state)
                     {
-                        ntfSign._nodeEffect = false;
+                        ntfSign._ntfNode = null;
                         ntf(state);
                     });
-                    ntfSign._nodeEffect = true;
                 }
             });
         }
@@ -1768,11 +1762,11 @@ namespace Go
                     ntf(chan_async_state.async_closed);
                     return;
                 }
-                bool effect = ntfSign._nodeEffect;
-                ntfSign._nodeEffect = false;
+                bool effect = null != ntfSign._ntfNode;
                 if (effect)
                 {
                     _pushWait.Remove(ntfSign._ntfNode);
+                    ntfSign._ntfNode = null;
                 }
                 if (!_has && 0 != _pushWait.Count)
                 {
@@ -2085,10 +2079,9 @@ namespace Go
             }
             ntfSign._ntfNode = _popWait.AddLast(delegate (chan_async_state state)
             {
-                ntfSign._nodeEffect = false;
+                ntfSign._ntfNode = null;
                 ntf(state);
             });
-            ntfSign._nodeEffect = true;
             return false;
         }
 
@@ -2127,11 +2120,11 @@ namespace Go
                     ntf(chan_async_state.async_closed);
                     return;
                 }
-                bool effect = ntfSign._nodeEffect;
-                ntfSign._nodeEffect = false;
+                bool effect = null != ntfSign._ntfNode;
                 if (effect)
                 {
                     _popWait.Remove(ntfSign._ntfNode);
+                    ntfSign._ntfNode = null;
                 }
                 if (_has)
                 {
@@ -2801,10 +2794,9 @@ namespace Go
                 {
                     ntfSign._ntfNode = _waitQueue.AddLast(delegate (chan_async_state state)
                     {
-                        ntfSign._nodeEffect = false;
+                        ntfSign._ntfNode = null;
                         ntf(state);
                     });
-                    ntfSign._nodeEffect = true;
                     if (0 != _sendQueue.Count)
                     {
                         functional.func<chan_async_state> sendNtf = _sendQueue.First.Value;
@@ -2859,11 +2851,11 @@ namespace Go
                     ntf(chan_async_state.async_closed);
                     return;
                 }
-                bool effect = ntfSign._nodeEffect;
-                ntfSign._nodeEffect = false;
+                bool effect = null != ntfSign._ntfNode;
                 if (effect)
                 {
                     _waitQueue.Remove(ntfSign._ntfNode);
+                    ntfSign._ntfNode = null;
                 }
                 if (_has)
                 {
@@ -2908,10 +2900,9 @@ namespace Go
                 {
                     ntfSign._ntfNode = _sendQueue.AddLast(delegate (chan_async_state state)
                     {
-                        ntfSign._nodeEffect = false;
+                        ntfSign._ntfNode = null;
                         ntf(state);
                     });
-                    ntfSign._nodeEffect = true;
                 }
             });
         }
@@ -2957,11 +2948,11 @@ namespace Go
                     ntf(chan_async_state.async_closed);
                     return;
                 }
-                bool effect = ntfSign._nodeEffect;
-                ntfSign._nodeEffect = false;
+                bool effect = null != ntfSign._ntfNode;
                 if (effect)
                 {
                     _sendQueue.Remove(ntfSign._ntfNode);
+                    ntfSign._ntfNode = null;
                 }
                 if (!_has && 0 != _sendQueue.Count)
                 {
