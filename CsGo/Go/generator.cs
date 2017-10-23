@@ -300,7 +300,6 @@ namespace Go
         functional.func<bool> _suspendCb;
         LinkedList<children> _children;
         mutli_callback _multiCb;
-        shared_strand _strand;
         pull_task _pullTask;
         children _agentMap;
         async_timer _timer;
@@ -431,13 +430,12 @@ namespace Go
             _lockSuspendCount = 0;
             _lastTm = 0;
             _yieldCount = 0;
-            _strand = strand;
             _suspendCb = suspendCb;
             _pullTask = new pull_task();
             _syncNtf = new Task(functional.nil_action);
-            _timer = new async_timer(_strand);
-            _strand.hold_work();
-            _strand.distribute(async delegate ()
+            _timer = new async_timer(strand);
+            strand.hold_work();
+            strand.distribute(async delegate ()
             {
                 try
                 {
@@ -485,7 +483,7 @@ namespace Go
                 _suspendCb = null;
                 functional.catch_invoke(callback);
                 _syncNtf.RunSynchronously();
-                _strand.release_work();
+                strand.release_work();
             });
             return this;
         }
@@ -502,20 +500,19 @@ namespace Go
             }
             else
             {
-                tls_values tlsVal = shared_strand._runningTls.Value;
-                generator oldGen = tlsVal.self;
+                generator oldGen = strand.currSelf;
                 if (null == oldGen || !oldGen._pullTask.activated)
                 {
-                    tlsVal.self = this;
+                    strand.currSelf = this;
                     _pullTask.complete();
-                    tlsVal.self = oldGen;
+                    strand.currSelf = oldGen;
                 }
                 else
                 {
                     oldGen._pullTask.activated = false;
-                    tlsVal.self = this;
+                    strand.currSelf = this;
                     _pullTask.complete();
-                    tlsVal.self = oldGen;
+                    strand.currSelf = oldGen;
                     oldGen._pullTask.activated = true;
                 }
             }
@@ -551,7 +548,7 @@ namespace Go
 
         public generator run()
         {
-            _strand.distribute(delegate ()
+            strand.distribute(delegate ()
             {
                 if (-1 == _lockCount)
                 {
@@ -568,7 +565,7 @@ namespace Go
 
         public generator tick_run()
         {
-            _strand.post(delegate ()
+            strand.post(delegate ()
             {
                 if (!_isRun && !_isStop)
                 {
@@ -638,12 +635,12 @@ namespace Go
 
         public void tick_suspend(functional.func cb = null)
         {
-            _strand.post(() => _suspend(cb));
+            strand.post(() => _suspend(cb));
         }
 
         public void suspend(functional.func cb = null)
         {
-            _strand.distribute(delegate ()
+            strand.distribute(delegate ()
             {
                 if (-1 == _lockCount)
                 {
@@ -692,12 +689,12 @@ namespace Go
 
         public void tick_resume(functional.func cb = null)
         {
-            _strand.post(() => _resume(cb));
+            strand.post(() => _resume(cb));
         }
 
         public void resume(functional.func cb = null)
         {
-            _strand.distribute(delegate ()
+            strand.distribute(delegate ()
             {
                 if (-1 == _lockCount)
                 {
@@ -738,7 +735,7 @@ namespace Go
 
         public void delay_stop()
         {
-            _strand.post(delegate ()
+            strand.post(delegate ()
             {
                 if (!_isStop)
                 {
@@ -749,7 +746,7 @@ namespace Go
 
         public void stop()
         {
-            if (_strand.running_in_this_thread())
+            if (strand.running_in_this_thread())
             {
                 if (-1 == _lockCount)
                 {
@@ -777,7 +774,7 @@ namespace Go
         public void sync_wait()
         {
 #if DEBUG
-            Trace.Assert(_strand.wait_safe(), "不安全的 sync_wait 调用");
+            Trace.Assert(strand.wait_safe(), "不安全的 sync_wait 调用");
 #endif
             _syncNtf.Wait();
         }
@@ -977,7 +974,7 @@ namespace Go
             bool beginQuit = _beginQuit;
             return delegate (object[] args)
             {
-                _strand.distribute(beginQuit ? (functional.func)quit_next : no_quit_next);
+                strand.distribute(beginQuit ? (functional.func)quit_next : no_quit_next);
             };
         }
 
@@ -988,7 +985,7 @@ namespace Go
             return delegate (object[] args)
             {
                 handler(args);
-                _strand.distribute(beginQuit ? (functional.func)quit_next : no_quit_next);
+                strand.distribute(beginQuit ? (functional.func)quit_next : no_quit_next);
             };
         }
 
@@ -999,7 +996,7 @@ namespace Go
             return delegate ()
             {
                 handler();
-                _strand.distribute(beginQuit ? (functional.func)quit_next : no_quit_next);
+                strand.distribute(beginQuit ? (functional.func)quit_next : no_quit_next);
             };
         }
 
@@ -1010,7 +1007,7 @@ namespace Go
             return delegate (T1 p1)
             {
                 handler(p1);
-                _strand.distribute(beginQuit ? (functional.func)quit_next : no_quit_next);
+                strand.distribute(beginQuit ? (functional.func)quit_next : no_quit_next);
             };
         }
 
@@ -1021,7 +1018,7 @@ namespace Go
             return delegate (T1 p1, T2 p2)
             {
                 handler(p1, p2);
-                _strand.distribute(beginQuit ? (functional.func)quit_next : no_quit_next);
+                strand.distribute(beginQuit ? (functional.func)quit_next : no_quit_next);
             };
         }
 
@@ -1032,7 +1029,7 @@ namespace Go
             return delegate (T1 p1, T2 p2, T3 p3)
             {
                 handler(p1, p2, p3);
-                _strand.distribute(beginQuit ? (functional.func)quit_next : no_quit_next);
+                strand.distribute(beginQuit ? (functional.func)quit_next : no_quit_next);
             };
         }
 
@@ -1042,7 +1039,7 @@ namespace Go
             bool beginQuit = _beginQuit;
             return delegate (object[] args)
             {
-                _strand.distribute(delegate ()
+                strand.distribute(delegate ()
                 {
                     if (!multiCb.check())
                     {
@@ -1058,7 +1055,7 @@ namespace Go
             bool beginQuit = _beginQuit;
             return delegate (object[] args)
             {
-                _strand.distribute(delegate ()
+                strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
@@ -1075,7 +1072,7 @@ namespace Go
             bool beginQuit = _beginQuit;
             return delegate ()
             {
-                _strand.distribute(delegate ()
+                strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
@@ -1092,7 +1089,7 @@ namespace Go
             bool beginQuit = _beginQuit;
             return delegate (T1 p1)
             {
-                _strand.distribute(delegate ()
+                strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
@@ -1109,7 +1106,7 @@ namespace Go
             bool beginQuit = _beginQuit;
             return delegate (T1 p1, T2 p2)
             {
-                _strand.distribute(delegate ()
+                strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
@@ -1126,7 +1123,7 @@ namespace Go
             bool beginQuit = _beginQuit;
             return delegate (T1 p1, T2 p2, T3 p3)
             {
-                _strand.distribute(delegate ()
+                strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
@@ -1141,7 +1138,7 @@ namespace Go
         {
             _pullTask.new_task();
             bool beginQuit = _beginQuit;
-            return () => _strand.distribute(beginQuit ? (functional.func)quit_next : no_quit_next);
+            return () => strand.distribute(beginQuit ? (functional.func)quit_next : no_quit_next);
         }
 
         private functional.func _async_result()
@@ -1158,7 +1155,7 @@ namespace Go
             return delegate (T1 p1)
             {
                 res.value_1 = p1;
-                _strand.distribute(beginQuit ? (functional.func)quit_next : no_quit_next);
+                strand.distribute(beginQuit ? (functional.func)quit_next : no_quit_next);
             };
         }
 
@@ -1170,7 +1167,7 @@ namespace Go
             {
                 res.value_1 = p1;
                 res.value_2 = p2;
-                _strand.distribute(beginQuit ? (functional.func)quit_next : no_quit_next);
+                strand.distribute(beginQuit ? (functional.func)quit_next : no_quit_next);
             };
         }
 
@@ -1183,7 +1180,7 @@ namespace Go
                 res.value_1 = p1;
                 res.value_2 = p2;
                 res.value_3 = p3;
-                _strand.distribute(beginQuit ? (functional.func)quit_next : no_quit_next);
+                strand.distribute(beginQuit ? (functional.func)quit_next : no_quit_next);
             };
         }
 
@@ -1208,7 +1205,7 @@ namespace Go
             bool beginQuit = _beginQuit;
             return delegate ()
             {
-                _strand.distribute(delegate ()
+                strand.distribute(delegate ()
                 {
                     if (!multiCb.check())
                     {
@@ -1224,7 +1221,7 @@ namespace Go
             bool beginQuit = _beginQuit;
             return delegate (T1 p1)
             {
-                _strand.distribute(delegate ()
+                strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
@@ -1241,7 +1238,7 @@ namespace Go
             bool beginQuit = _beginQuit;
             return delegate (T1 p1, T2 p2)
             {
-                _strand.distribute(delegate ()
+                strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
@@ -1259,7 +1256,7 @@ namespace Go
             bool beginQuit = _beginQuit;
             return delegate (T1 p1, T2 p2, T3 p3)
             {
-                _strand.distribute(delegate ()
+                strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
@@ -1304,7 +1301,7 @@ namespace Go
             });
             return delegate ()
             {
-                _strand.distribute(delegate ()
+                strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
@@ -1332,7 +1329,7 @@ namespace Go
             });
             return delegate (T1 p1)
             {
-                _strand.distribute(delegate ()
+                strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
@@ -1361,7 +1358,7 @@ namespace Go
             });
             return delegate (T1 p1, T2 p2)
             {
-                _strand.distribute(delegate ()
+                strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
@@ -1391,7 +1388,7 @@ namespace Go
             });
             return delegate (T1 p1, T2 p2, T3 p3)
             {
-                _strand.distribute(delegate ()
+                strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
@@ -1419,7 +1416,7 @@ namespace Go
             });
             return delegate ()
             {
-                _strand.distribute(delegate ()
+                strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
@@ -1444,7 +1441,7 @@ namespace Go
             });
             return delegate (T1 p1)
             {
-                _strand.distribute(delegate ()
+                strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
@@ -1470,7 +1467,7 @@ namespace Go
             });
             return delegate (T1 p1, T2 p2)
             {
-                _strand.distribute(delegate ()
+                strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
@@ -1497,7 +1494,7 @@ namespace Go
             });
             return delegate (T1 p1, T2 p2, T3 p3)
             {
-                _strand.distribute(delegate ()
+                strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
@@ -1570,7 +1567,7 @@ namespace Go
         static public Task yield()
         {
             generator this_ = self;
-            this_._strand.post(this_._async_result());
+            this_.strand.post(this_._async_result());
             return this_.async_wait();
         }
 
@@ -1578,10 +1575,10 @@ namespace Go
         {
             get
             {
-                tls_values tlsVal = shared_strand._runningTls.Value;
-                if (null != tlsVal)
+                shared_strand currStrand = shared_strand.top_strand();
+                if (null != currStrand)
                 {
-                    return tlsVal.self;
+                    return currStrand.currSelf;
                 }
                 return null;
             }
@@ -1590,14 +1587,14 @@ namespace Go
         static public shared_strand self_strand()
         {
             generator this_ = self;
-            return null != this_ ? this_._strand : null;
+            return null != this_ ? this_.strand : null;
         }
 
         public shared_strand strand
         {
             get
             {
-                return _strand;
+                return _timer.self_strand();
             }
         }
 
@@ -2008,7 +2005,7 @@ namespace Go
         static public async Task select_chans(params select_chan_base[] chans)
         {
             generator this_ = self;
-            msg_buff<select_chan_base> selectChans = new msg_buff<select_chan_base>(this_._strand);
+            msg_buff<select_chan_base> selectChans = new msg_buff<select_chan_base>(this_.strand);
             foreach (select_chan_base chan in chans)
             {
                 chan.ntfSign._selectOnce = false;
@@ -2052,7 +2049,7 @@ namespace Go
         static public async Task select_chans_once(params select_chan_base[] chans)
         {
             generator this_ = self;
-            msg_buff<select_chan_base> selectChans = new msg_buff<select_chan_base>(this_._strand);
+            msg_buff<select_chan_base> selectChans = new msg_buff<select_chan_base>(this_.strand);
             foreach (select_chan_base chan in chans)
             {
                 chan.ntfSign._selectOnce = true;
@@ -2101,7 +2098,7 @@ namespace Go
         static public async Task timed_select_chans(int ms, functional.func_res<Task> timedHandler, params select_chan_base[] chans)
         {
             generator this_ = self;
-            msg_buff<select_chan_base> selectChans = new msg_buff<select_chan_base>(this_._strand);
+            msg_buff<select_chan_base> selectChans = new msg_buff<select_chan_base>(this_.strand);
             this_._timer.timeout(ms, () => selectChans.post(null));
             foreach (select_chan_base chan in chans)
             {
@@ -2594,7 +2591,7 @@ namespace Go
         static public async Task send_strand(shared_strand strand, functional.func handler)
         {
             generator this_ = self;
-            if (this_._strand == strand)
+            if (this_.strand == strand)
             {
                 handler();
             }
@@ -2623,7 +2620,7 @@ namespace Go
         static public async Task<R> send_strand<R>(shared_strand strand, functional.func_res<R> handler)
         {
             generator this_ = self;
-            if (this_._strand == strand)
+            if (this_.strand == strand)
             {
                 return handler();
             }
@@ -2809,7 +2806,7 @@ namespace Go
                 {
                     hasExcep = ec;
                 }
-                this_._strand.post(beginQuit ? (functional.func)this_.quit_next : this_.no_quit_next);
+                this_.strand.post(beginQuit ? (functional.func)this_.quit_next : this_.no_quit_next);
             });
             await this_.async_wait();
             if (null != hasExcep)
@@ -2835,7 +2832,7 @@ namespace Go
                 {
                     hasExcep = ec;
                 }
-                this_._strand.post(beginQuit ? (functional.func)this_.quit_next : this_.no_quit_next);
+                this_.strand.post(beginQuit ? (functional.func)this_.quit_next : this_.no_quit_next);
             });
             await this_.async_wait();
             if (null != hasExcep)
@@ -3252,7 +3249,7 @@ namespace Go
             mail_pck mb = null;
             if (!this_._chanMap.TryGetValue(calc_hash<T>(id), out mb))
             {
-                mb = new mail_pck(new msg_buff<T>(this_._strand));
+                mb = new mail_pck(new msg_buff<T>(this_.strand));
                 this_._chanMap.Add(calc_hash<T>(id), mb);
             }
             return (msg_buff<T>)mb.mailbox;
@@ -3260,7 +3257,7 @@ namespace Go
 
         public void get_mailbox<T>(functional.func<msg_buff<T>> cb, int id = 0)
         {
-            _strand.distribute(delegate ()
+            strand.distribute(delegate ()
             {
                 if (null == _chanMap)
                 {
@@ -3269,7 +3266,7 @@ namespace Go
                 mail_pck mb = null;
                 if (!_chanMap.TryGetValue(calc_hash<T>(id), out mb))
                 {
-                    mb = new mail_pck(new msg_buff<T>(_strand));
+                    mb = new mail_pck(new msg_buff<T>(strand));
                     _chanMap.Add(calc_hash<T>(id), mb);
                 }
                 functional.catch_invoke(cb, (msg_buff<T>)mb.mailbox);
@@ -3299,7 +3296,7 @@ namespace Go
             mail_pck mb = null;
             if (!this_._chanMap.TryGetValue(calc_hash<T>(id), out mb))
             {
-                mb = new mail_pck(new msg_buff<T>(this_._strand));
+                mb = new mail_pck(new msg_buff<T>(this_.strand));
                 this_._chanMap.Add(calc_hash<T>(id), mb);
             }
             else if (null != mb.agentAction)
@@ -3442,7 +3439,7 @@ namespace Go
 
             public void delay_stop(functional.func cb)
             {
-                _strand.post(delegate ()
+                strand.post(delegate ()
                 {
                     if (!_isStop)
                     {
@@ -3458,7 +3455,7 @@ namespace Go
 
             public void stop(functional.func cb)
             {
-                if (_strand.running_in_this_thread())
+                if (strand.running_in_this_thread())
                 {
                     if (-1 == _lockCount)
                     {
@@ -3482,7 +3479,7 @@ namespace Go
 
             public void append_stop_callback(functional.func cb)
             {
-                _strand.distribute(delegate ()
+                strand.distribute(delegate ()
                 {
                     if (!_isStop)
                     {
@@ -3577,17 +3574,17 @@ namespace Go
 
             public child make(action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
             {
-                return make(_parent._strand, handler, callback, suspendCb);
+                return make(_parent.strand, handler, callback, suspendCb);
             }
 
             public child go(action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
             {
-                return go(_parent._strand, handler, callback, suspendCb);
+                return go(_parent.strand, handler, callback, suspendCb);
             }
 
             public child tick_go(action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
             {
-                return tick_go(_parent._strand, handler, callback, suspendCb);
+                return tick_go(_parent.strand, handler, callback, suspendCb);
             }
 
             public void ignore_suspend(bool igonre = true)
@@ -3603,7 +3600,7 @@ namespace Go
                 if (!_ignoreSuspend && 0 != _children.Count)
                 {
                     int count = _children.Count;
-                    functional.func suspendCb = _parent._strand.wrap(delegate ()
+                    functional.func suspendCb = _parent.strand.wrap(delegate ()
                     {
                         if (0 == --count)
                         {
@@ -3704,7 +3701,7 @@ namespace Go
                 int count = 0;
                 if (0 != gens.Count())
                 {
-                    msg_buff<child> waitStop = new msg_buff<child>(_parent._strand);
+                    msg_buff<child> waitStop = new msg_buff<child>(_parent.strand);
                     foreach (child ele in gens)
                     {
                         if (null != ele.node)
@@ -3753,7 +3750,7 @@ namespace Go
                 int count = 0;
                 if (0 != gens.Count())
                 {
-                    msg_buff<child> waitStop = new msg_buff<child>(_parent._strand);
+                    msg_buff<child> waitStop = new msg_buff<child>(_parent.strand);
                     foreach (child ele in gens)
                     {
                         if (null != ele.node)
@@ -3804,7 +3801,7 @@ namespace Go
 #endif
                 if (0 != _children.Count)
                 {
-                    msg_buff<child> waitStop = new msg_buff<child>(_parent._strand);
+                    msg_buff<child> waitStop = new msg_buff<child>(_parent.strand);
                     foreach (child ele in _children)
                     {
                         ele.stop(() => waitStop.post(ele));
@@ -3824,7 +3821,7 @@ namespace Go
                 if (0 != childrens.Count())
                 {
                     generator self = generator.self;
-                    msg_buff<Tuple<children, child>> waitStop = new msg_buff<Tuple<children, child>>(self._strand);
+                    msg_buff<Tuple<children, child>> waitStop = new msg_buff<Tuple<children, child>>(self.strand);
                     int count = 0;
                     foreach (children childs in childrens)
                     {
@@ -3901,7 +3898,7 @@ namespace Go
 #endif
                 if (0 != _children.Count)
                 {
-                    msg_buff<child> waitStop = new msg_buff<child>(_parent._strand);
+                    msg_buff<child> waitStop = new msg_buff<child>(_parent.strand);
                     foreach (child ele in _children)
                     {
                         ele.append_stop_callback(() => waitStop.post(ele));
@@ -3971,15 +3968,13 @@ namespace Go
 
     public class async_strand
     {
-        shared_strand _strand;
         msg_buff<generator.action> _queue;
         generator _runGen;
 
         public async_strand(shared_strand strand)
         {
-            _strand = strand;
-            _queue = new msg_buff<generator.action>(_strand);
-            _runGen = generator.go(_strand, async delegate ()
+            _queue = new msg_buff<generator.action>(strand);
+            _runGen = generator.go(strand, async delegate ()
             {
                 while (true)
                 {
@@ -4020,49 +4015,6 @@ namespace Go
         public void stop()
         {
             _runGen.stop();
-        }
-    }
-
-    public class check_tasks
-    {
-        int _count;
-        shared_strand _strand;
-        functional.func _callback;
-
-        public check_tasks(shared_strand strand, functional.func cb)
-        {
-            _count = 0;
-            _strand = strand;
-            _callback = cb;
-        }
-
-        public functional.func wrap_check()
-        {
-#if DEBUG
-            Trace.Assert(_strand.thread_safe(), "check_tasks::wrap_check");
-#endif
-            _count++;
-            mutli_callback multiCb = new mutli_callback();
-            return _strand.wrap(delegate ()
-            {
-                if (!multiCb.check() && 0 == --_count)
-                {
-                    _callback();
-                }
-            });
-        }
-
-        public check_tasks make_child()
-        {
-            return make_child(_strand);
-        }
-
-        public check_tasks make_child(shared_strand strand)
-        {
-#if DEBUG
-            Trace.Assert(_strand.thread_safe(), "check_tasks::make_child");
-#endif
-            return new check_tasks(strand, wrap_check());
         }
     }
 }

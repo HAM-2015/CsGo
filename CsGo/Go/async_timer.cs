@@ -91,6 +91,11 @@ namespace Go
             _onTopCall = false;
         }
 
+        public shared_strand self_strand()
+        {
+            return _strand;
+        }
+
         private void begin_timer(long tick, long dueTime, int period)
         {
             if (null == _timer)

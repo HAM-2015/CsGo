@@ -9,12 +9,6 @@ using System.Windows.Forms;
 
 namespace Go
 {
-    public class tls_values
-    {
-        public readonly LinkedList<shared_strand> currStrand = new LinkedList<shared_strand>();
-        public generator self = null;
-    }
-
     public class work_service
     {
         int _work;
@@ -170,8 +164,9 @@ namespace Go
 
     public class shared_strand
     {
-        public static readonly ThreadLocal<tls_values> _runningTls = new ThreadLocal<tls_values>();
+        public static readonly ThreadLocal<LinkedList<shared_strand>> _currStrand = new ThreadLocal<LinkedList<shared_strand>>();
 
+        public generator currSelf = null;
         protected volatile bool _locked;
         protected volatile int _pauseState;
         protected Mutex _mutex;
@@ -189,18 +184,18 @@ namespace Go
 
         protected bool run_a_round1()
         {
-            tls_values tlsVal = _runningTls.Value;
-            if (null == tlsVal)
+            LinkedList<shared_strand> currStrand = _currStrand.Value;
+            if (null == currStrand)
             {
-                tlsVal = new tls_values();
-                _runningTls.Value = tlsVal;
+                currStrand = new LinkedList<shared_strand>();
+                _currStrand.Value = currStrand;
             }
-            tlsVal.currStrand.AddFirst(this);
+            currStrand.AddFirst(this);
             while (0 != _readyQueue.Count)
             {
                 if (0 != _pauseState && 0 != Interlocked.CompareExchange(ref _pauseState, 2, 1))
                 {
-                    tlsVal.currStrand.RemoveFirst();
+                    currStrand.RemoveFirst();
                     return false;
                 }
                 try
@@ -220,14 +215,14 @@ namespace Go
                 _readyQueue = _waitQueue;
                 _waitQueue = t;
                 _mutex.ReleaseMutex();
-                tlsVal.currStrand.RemoveFirst();
+                currStrand.RemoveFirst();
                 run_task();
             }
             else
             {
                 _locked = false;
                 _mutex.ReleaseMutex();
-                tlsVal.currStrand.RemoveFirst();
+                currStrand.RemoveFirst();
             }
             return true;
         }
@@ -285,16 +280,16 @@ namespace Go
 
         public bool running_in_this_thread()
         {
-            tls_values tlsVal = _runningTls.Value;
-            return null != tlsVal && null != tlsVal.currStrand.Find(this);
+            LinkedList<shared_strand> currStrand = _currStrand.Value;
+            return null != currStrand && null != currStrand.Find(this);
         }
 
         static public shared_strand top_strand()
         {
-            tls_values tlsVal = _runningTls.Value;
-            if (null != tlsVal && 0 != tlsVal.currStrand.Count)
+            LinkedList<shared_strand> currStrand = _currStrand.Value;
+            if (null != currStrand && 0 != currStrand.Count)
             {
-                return tlsVal.currStrand.First.Value;
+                return currStrand.First.Value;
             }
             return null;
         }
