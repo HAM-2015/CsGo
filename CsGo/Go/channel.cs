@@ -244,14 +244,54 @@ namespace Go
             push(functional.any_handler, msg);
         }
 
+        public void try_post(T msg)
+        {
+            try_push(functional.any_handler, msg);
+        }
+
+        public void timed_post(int ms, T msg)
+        {
+            timed_push(ms, functional.any_handler, msg);
+        }
+
         public functional.func<T> wrap()
         {
             return (T p) => post(p);
         }
 
+        public functional.func<T> wrap_try()
+        {
+            return (T p) => try_post(p);
+        }
+
+        public functional.func<int, T> wrap_timed()
+        {
+            return (int ms, T p) => timed_post(ms, p);
+        }
+
+        public functional.func<T> wrap_timed(int ms)
+        {
+            return (T p) => timed_post(ms, p);
+        }
+
         public functional.func wrap_default()
         {
             return () => post(default(T));
+        }
+
+        public functional.func wrap_try_default()
+        {
+            return () => try_post(default(T));
+        }
+
+        public functional.func<int> wrap_timed_default()
+        {
+            return (int ms) => timed_post(ms, default(T));
+        }
+
+        public functional.func wrap_timed_default(int ms)
+        {
+            return () => timed_post(ms, default(T));
         }
 
         public select_chan_base make_select_reader(functional.func_res<Task, T> handler)

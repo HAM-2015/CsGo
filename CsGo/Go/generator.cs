@@ -1648,6 +1648,11 @@ namespace Go
             return result;
         }
 
+        static public Task<chan_async_state> chan_push(channel<void_type> chan)
+        {
+            return chan_push(chan, default(void_type));
+        }
+
         static public Task<chan_pop_wrap<T>> chan_pop<T>(channel<T> chan)
         {
             return chan_pop(chan, broadcast_chan_token._defToken);
@@ -1681,6 +1686,11 @@ namespace Go
             return result;
         }
 
+        static public Task<chan_async_state> chan_try_push(channel<void_type> chan)
+        {
+            return chan_try_push(chan, default(void_type));
+        }
+
         static public Task<chan_pop_wrap<T>> chan_try_pop<T>(channel<T> chan)
         {
             return chan_try_pop(chan, broadcast_chan_token._defToken);
@@ -1712,6 +1722,11 @@ namespace Go
             }), p);
             await this_.async_wait();
             return result;
+        }
+
+        static public Task<chan_async_state> chan_timed_push(int ms, channel<void_type> chan)
+        {
+            return chan_timed_push(ms, chan, default(void_type));
         }
 
         static public Task<chan_pop_wrap<T>> chan_timed_pop<T>(int ms, channel<T> chan)
@@ -1751,6 +1766,11 @@ namespace Go
             return result;
         }
 
+        static public Task<csp_invoke_wrap<R>> csp_invoke<R>(csp_chan<R, void_type> chan)
+        {
+            return csp_invoke(chan, default(void_type));
+        }
+
         static public async Task<csp_wait_wrap<R, T>> csp_wait<R, T>(csp_chan<R, T> chan)
         {
             generator this_ = self;
@@ -1778,13 +1798,34 @@ namespace Go
             return result.state;
         }
 
-        static public async Task<chan_async_state> csp_wait<R, T>(csp_chan<R, T> chan, functional.func_res<Task, T> handler)
+        static public async Task<chan_async_state> csp_wait<R>(csp_chan<R, void_type> chan, functional.func_res<Task<R>> handler)
         {
-            csp_wait_wrap<R, T> result = await csp_wait(chan);
+            csp_wait_wrap<R, void_type> result = await csp_wait(chan);
+            if (chan_async_state.async_ok == result.state)
+            {
+                result.complete(await handler());
+            }
+            return result.state;
+        }
+
+        static public async Task<chan_async_state> csp_wait<T>(csp_chan<void_type, T> chan, functional.func_res<Task, T> handler)
+        {
+            csp_wait_wrap<void_type, T> result = await csp_wait(chan);
             if (chan_async_state.async_ok == result.state)
             {
                 await handler(result.msg);
-                result.complete(default(R));
+                result.complete(default(void_type));
+            }
+            return result.state;
+        }
+
+        static public async Task<chan_async_state> csp_wait(csp_chan<void_type, void_type> chan, functional.func_res<Task> handler)
+        {
+            csp_wait_wrap<void_type, void_type> result = await csp_wait(chan);
+            if (chan_async_state.async_ok == result.state)
+            {
+                await handler();
+                result.complete(default(void_type));
             }
             return result.state;
         }
@@ -1803,6 +1844,11 @@ namespace Go
             }), p);
             await this_.async_wait();
             return result;
+        }
+
+        static public Task<csp_invoke_wrap<R>> csp_try_invoke<R>(csp_chan<R, void_type> chan)
+        {
+            return csp_try_invoke(chan, default(void_type));
         }
 
         static public async Task<csp_wait_wrap<R, T>> csp_try_wait<R, T>(csp_chan<R, T> chan)
@@ -1832,13 +1878,35 @@ namespace Go
             return result.state;
         }
 
-        static public async Task<chan_async_state> csp_try_wait<R, T>(csp_chan<R, T> chan, functional.func_res<Task, T> handler)
+        static public async Task<chan_async_state> csp_try_wait<R>(csp_chan<R, void_type> chan, functional.func_res<Task> handler)
         {
-            csp_wait_wrap<R, T> result = await csp_try_wait(chan);
+            csp_wait_wrap<R, void_type> result = await csp_try_wait(chan);
+            if (chan_async_state.async_ok == result.state)
+            {
+                await handler();
+                result.complete(default(R));
+            }
+            return result.state;
+        }
+
+        static public async Task<chan_async_state> csp_try_wait<T>(csp_chan<void_type, T> chan, functional.func_res<Task, T> handler)
+        {
+            csp_wait_wrap<void_type, T> result = await csp_try_wait(chan);
             if (chan_async_state.async_ok == result.state)
             {
                 await handler(result.msg);
-                result.complete(default(R));
+                result.complete(default(void_type));
+            }
+            return result.state;
+        }
+
+        static public async Task<chan_async_state> csp_try_wait(csp_chan<void_type, void_type> chan, functional.func_res<Task> handler)
+        {
+            csp_wait_wrap<void_type, void_type> result = await csp_try_wait(chan);
+            if (chan_async_state.async_ok == result.state)
+            {
+                await handler();
+                result.complete(default(void_type));
             }
             return result.state;
         }
@@ -1857,6 +1925,11 @@ namespace Go
             }), p);
             await this_.async_wait();
             return result;
+        }
+
+        static public Task<csp_invoke_wrap<R>> csp_timed_invoke<R>(int ms, csp_chan<R, void_type> chan)
+        {
+            return csp_timed_invoke(ms, chan, default(void_type));
         }
 
         static public async Task<csp_wait_wrap<R, T>> csp_timed_wait<R, T>(int ms, csp_chan<R, T> chan)
@@ -1886,13 +1959,34 @@ namespace Go
             return result.state;
         }
 
-        static public async Task<chan_async_state> csp_timed_wait<R, T>(int ms, csp_chan<R, T> chan, functional.func_res<Task, T> handler)
+        static public async Task<chan_async_state> csp_timed_wait<R>(int ms, csp_chan<R, void_type> chan, functional.func_res<Task<R>> handler)
         {
-            csp_wait_wrap<R, T> result = await csp_timed_wait(ms, chan);
+            csp_wait_wrap<R, void_type> result = await csp_timed_wait(ms, chan);
+            if (chan_async_state.async_ok == result.state)
+            {
+                result.complete(await handler());
+            }
+            return result.state;
+        }
+
+        static public async Task<chan_async_state> csp_timed_wait<T>(int ms, csp_chan<void_type, T> chan, functional.func_res<Task, T> handler)
+        {
+            csp_wait_wrap<void_type, T> result = await csp_timed_wait(ms, chan);
             if (chan_async_state.async_ok == result.state)
             {
                 await handler(result.msg);
-                result.complete(default(R));
+                result.complete(default(void_type));
+            }
+            return result.state;
+        }
+
+        static public async Task<chan_async_state> csp_timed_wait(int ms, csp_chan<void_type, void_type> chan, functional.func_res<Task> handler)
+        {
+            csp_wait_wrap<void_type, void_type> result = await csp_timed_wait(ms, chan);
+            if (chan_async_state.async_ok == result.state)
+            {
+                await handler();
+                result.complete(default(void_type));
             }
             return result.state;
         }
@@ -2070,6 +2164,11 @@ namespace Go
             return chan.make_select_reader(handler, errHandler);
         }
 
+        static public select_chan_base case_read(channel<void_type> chan, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+        {
+            return chan.make_select_reader((void_type _) => handler(), errHandler);
+        }
+
         static public select_chan_base case_write<T>(channel<T> chan, functional.func_res<T> msg, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
         {
             return chan.make_select_writer(msg, handler, errHandler);
@@ -2085,6 +2184,11 @@ namespace Go
             return chan.make_select_writer(msg, handler, errHandler);
         }
 
+        static public select_chan_base case_write(channel<void_type> chan, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+        {
+            return chan.make_select_writer(default(void_type), handler, errHandler);
+        }
+
         static public select_chan_base case_read<T>(broadcast_chan<T> chan, functional.func_res<Task, T> handler, broadcast_chan_token token)
         {
             return chan.make_select_reader(handler, token);
@@ -2093,6 +2197,16 @@ namespace Go
         static public select_chan_base case_read<T>(broadcast_chan<T> chan, functional.func_res<Task, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler, broadcast_chan_token token)
         {
             return chan.make_select_reader(handler, errHandler, token);
+        }
+
+        static public select_chan_base case_read(broadcast_chan<void_type> chan, functional.func_res<Task> handler, broadcast_chan_token token)
+        {
+            return chan.make_select_reader((void_type _) => handler(), token);
+        }
+
+        static public select_chan_base case_read(broadcast_chan<void_type> chan, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler, broadcast_chan_token token)
+        {
+            return chan.make_select_reader((void_type _) => handler(), errHandler, token);
         }
 
         static public select_chan_base case_read<R, T>(csp_chan<R, T> chan, functional.func_res<Task, csp_chan<R, T>.csp_result, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
@@ -2105,9 +2219,19 @@ namespace Go
             return chan.make_select_reader(async (csp_chan<R, T>.csp_result res, T msg) => res.complete(await handler(msg)), errHandler);
         }
 
-        static public select_chan_base case_read<R, T>(csp_chan<R, T> chan, functional.func_res<Task, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+        static public select_chan_base case_read<R>(csp_chan<R, void_type> chan, functional.func_res<Task<R>> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
         {
-            return chan.make_select_reader(async (csp_chan<R, T>.csp_result res, T msg) => { await handler(msg); res.complete(default(R)); }, errHandler);
+            return chan.make_select_reader(async (csp_chan<R, void_type>.csp_result res, void_type _) => res.complete(await handler()), errHandler);
+        }
+
+        static public select_chan_base case_read<T>(csp_chan<void_type, T> chan, functional.func_res<Task, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+        {
+            return chan.make_select_reader(async (csp_chan<void_type, T>.csp_result res, T msg) => { await handler(msg); res.complete(default(void_type)); }, errHandler);
+        }
+
+        static public select_chan_base case_read(csp_chan<void_type, void_type> chan, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+        {
+            return chan.make_select_reader(async (csp_chan<void_type, void_type>.csp_result res, void_type _) => { await handler(); res.complete(default(void_type)); }, errHandler);
         }
 
         static public select_chan_base case_write<R, T>(csp_chan<R, T> chan, functional.func_res<T> msg, functional.func_res<Task, R> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
@@ -2123,6 +2247,31 @@ namespace Go
         static public select_chan_base case_write<R, T>(csp_chan<R, T> chan, T msg, functional.func_res<Task, R> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
         {
             return chan.make_select_writer(msg, handler, errHandler);
+        }
+
+        static public select_chan_base case_write<R>(csp_chan<R, void_type> chan, functional.func_res<Task, R> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+        {
+            return chan.make_select_writer(default(void_type), handler, errHandler);
+        }
+
+        static public select_chan_base case_write<T>(csp_chan<void_type, T> chan, functional.func_res<T> msg, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+        {
+            return chan.make_select_writer(msg, (void_type _) => handler(), errHandler);
+        }
+
+        static public select_chan_base case_write<T>(csp_chan<void_type, T> chan, async_result_wrap<T> msg, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+        {
+            return chan.make_select_writer(msg, (void_type _) => handler(), errHandler);
+        }
+
+        static public select_chan_base case_write<T>(csp_chan<void_type, T> chan, T msg, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+        {
+            return chan.make_select_writer(msg, (void_type _) => handler(), errHandler);
+        }
+
+        static public select_chan_base case_write(csp_chan<void_type, void_type> chan, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+        {
+            return chan.make_select_writer(default(void_type), (void_type _) => handler(), errHandler);
         }
 
         static public Task close_chan<T>(channel<T> chan)
@@ -3464,10 +3613,61 @@ namespace Go
                 return _children.Count;
             }
 
-            public async Task stop(child gen)
+            public int discard(params child[] gens)
             {
 #if DEBUG
                 Trace.Assert(self == _parent, "此 children 不属于当前 generator");
+#endif
+                int count = 0;
+                if (0 != gens.Count())
+                {
+                    foreach (child ele in gens)
+                    {
+                        if (null != ele.node)
+                        {
+#if DEBUG
+                            Trace.Assert(ele.node.List == _children, "此 child 不属于当前 children");
+#endif
+                            count++;
+                            _children.Remove(ele.node);
+                            ele.node = null;
+                        }
+                    }
+                    check_remove_node();
+                }
+                return count;
+            }
+
+            static public int discard(params children[] childrens)
+            {
+                int count = 0;
+                if (0 != childrens.Count())
+                {
+#if DEBUG
+                    generator self = generator.self;
+#endif
+                    foreach (children childs in childrens)
+                    {
+#if DEBUG
+                        Trace.Assert(self == childs._parent, "此 children 不属于当前 generator");
+#endif
+                        foreach (child ele in childs._children)
+                        {
+                            count++;
+                            childs._children.Remove(ele.node);
+                            ele.node = null;
+                            childs.check_remove_node();
+                        }
+                    }
+                }
+                return count;
+            }
+
+            public async Task<bool> stop(child gen)
+            {
+#if DEBUG
+                Trace.Assert(self == _parent, "此 children 不属于当前 generator");
+                Trace.Assert(null == gen.node || gen.node.List == _children, "此 child 不属于当前 children");
 #endif
                 if (null != gen.node)
                 {
@@ -3476,23 +3676,32 @@ namespace Go
                     _children.Remove(gen.node);
                     gen.node = null;
                     check_remove_node();
+                    return true;
                 }
+                return false;
             }
 
-            public async Task stop(params child[] gens)
+            public async Task<int> stop(params child[] gens)
             {
 #if DEBUG
                 Trace.Assert(self == _parent, "此 children 不属于当前 generator");
 #endif
+                int count = 0;
                 if (0 != gens.Count())
                 {
                     msg_buff<child> waitStop = new msg_buff<child>(_parent._strand);
                     foreach (child ele in gens)
                     {
-                        ele.stop(() => waitStop.post(ele));
+                        if (null != ele.node)
+                        {
+#if DEBUG
+                            Trace.Assert(ele.node.List == _children, "此 child 不属于当前 children");
+#endif
+                            count++;
+                            ele.stop(() => waitStop.post(ele));
+                        }
                     }
-                    int count = gens.Count();
-                    while (0 != count--)
+                    for (int i = 0; i < count; i++)
                     {
                         child gen = (await chan_pop(waitStop)).result;
                         _children.Remove(gen.node);
@@ -3500,12 +3709,14 @@ namespace Go
                     }
                     check_remove_node();
                 }
+                return count;
             }
 
-            public async Task wait(child gen)
+            public async Task<bool> wait(child gen)
             {
 #if DEBUG
                 Trace.Assert(self == _parent, "此 children 不属于当前 generator");
+                Trace.Assert(null == gen.node || gen.node.List == _children, "此 child 不属于当前 children");
 #endif
                 if (null != gen.node)
                 {
@@ -3514,23 +3725,32 @@ namespace Go
                     _children.Remove(gen.node);
                     gen.node = null;
                     check_remove_node();
+                    return true;
                 }
+                return false;
             }
 
-            public async Task wait(params child[] gens)
+            public async Task<int> wait(params child[] gens)
             {
 #if DEBUG
                 Trace.Assert(self == _parent, "此 children 不属于当前 generator");
 #endif
+                int count = 0;
                 if (0 != gens.Count())
                 {
                     msg_buff<child> waitStop = new msg_buff<child>(_parent._strand);
                     foreach (child ele in gens)
                     {
-                        ele.append_stop_callback(() => waitStop.post(ele));
+                        if (null != ele.node)
+                        {
+#if DEBUG
+                            Trace.Assert(ele.node.List == _children, "此 child 不属于当前 children");
+#endif
+                            count++;
+                            ele.append_stop_callback(() => waitStop.post(ele));
+                        }
                     }
-                    int count = gens.Count();
-                    while (0 != count--)
+                    for (int i = 0; i < count; i++)
                     {
                         child gen = (await chan_pop(waitStop)).result;
                         _children.Remove(gen.node);
@@ -3538,12 +3758,14 @@ namespace Go
                     }
                     check_remove_node();
                 }
+                return count;
             }
 
             public async Task<bool> timed_wait(child gen, int ms)
             {
 #if DEBUG
                 Trace.Assert(self == _parent, "此 children 不属于当前 generator");
+                Trace.Assert(null == gen.node || gen.node.List == _children, "此 child 不属于当前 children");
 #endif
                 bool overtime = false;
                 if (null != gen.node)
@@ -3778,6 +4000,11 @@ namespace Go
                 await action();
                 functional.catch_invoke(cb);
             });
+        }
+
+        public void stop()
+        {
+            _runGen.stop();
         }
     }
 
