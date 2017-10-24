@@ -189,10 +189,10 @@ namespace Go
 
         class mail_pck
         {
-            public object mailbox;
+            public channel_base mailbox;
             public child agentAction;
 
-            public mail_pck(object mb)
+            public mail_pck(channel_base mb)
             {
                 mailbox = mb;
             }
@@ -296,12 +296,12 @@ namespace Go
         static SortedList<string, generator> _nameGens = new SortedList<string, generator>();
         static static_init _init = new static_init();
 
-        SortedList<long, mail_pck> _chanMap;
+        SortedList<long, mail_pck> _mailboxMap;
         functional.func<bool> _suspendCb;
         LinkedList<children> _children;
         mutli_callback _multiCb;
         pull_task _pullTask;
-        children _agentMap;
+        children _agentMng;
         async_timer _timer;
         object _selfValue;
         Task _syncNtf;
@@ -439,15 +439,25 @@ namespace Go
             {
                 try
                 {
-                    _lockCount = 0;
-                    await async_wait();
-                    await handler();
+                    try
+                    {
+                        _lockCount = 0;
+                        await async_wait();
+                        await handler();
+                    }
+                    finally
+                    {
+                        _lockSuspendCount = -1;
+                        if (null != _mailboxMap)
+                        {
+                            foreach (KeyValuePair<long, mail_pck> ele in _mailboxMap)
+                            {
+                                ele.Value.mailbox.close(functional.any_handler);
+                            }
+                        }
+                    }
                     if (null != _children)
                     {
-                        if (null != _agentMap)
-                        {
-                            await _agentMap.stop();
-                        }
                         while (0 != _children.Count)
                         {
                             await _children.First.Value.wait_all();
@@ -474,10 +484,6 @@ namespace Go
                     _nameMutex.EnterWriteLock();
                     _nameGens.Remove(_name);
                     _nameMutex.ExitWriteLock();
-                }
-                if (null != _agentMap)
-                {
-                    await _agentMap.stop();
                 }
                 _isStop = true;
                 _suspendCb = null;
@@ -1637,6 +1643,20 @@ namespace Go
             return this_.async_wait();
         }
 
+        static public Task chan_close<T>(channel<T> chan)
+        {
+            generator this_ = self;
+            chan.close(this_.async_same_callback());
+            return this_.async_wait();
+        }
+
+        static public Task chan_cancel<T>(channel<T> chan)
+        {
+            generator this_ = self;
+            chan.cancel(this_.async_same_callback());
+            return this_.async_wait();
+        }
+
         static public async Task<chan_async_state> chan_push<T>(channel<T> chan, T p)
         {
             generator this_ = self;
@@ -2059,6 +2079,7 @@ namespace Go
             bool selected = false;
             try
             {
+                int count = chans.Count();
                 select_chan_state selState = default(select_chan_state);
                 do
                 {
@@ -2067,6 +2088,7 @@ namespace Go
                     {
                         continue;
                     }
+                    count--;
                     selState = await selectedChan.invoke(async delegate()
                     {
                         foreach (select_chan_base chan in chans)
@@ -2078,7 +2100,7 @@ namespace Go
                         }
                         selected = true;
                     });
-                } while (selState.failed);
+                } while (selState.failed && 0 != count);
             }
             catch (stop_select_exception) { }
             finally
@@ -2325,10 +2347,10 @@ namespace Go
         static public async Task<bool> mutex_try_lock(mutex_base mtx)
         {
             generator this_ = self;
-            return chan_async_state.async_ok == await this_.wait_result(delegate (async_result_wrap<chan_async_state> res)
-            {
-                mtx.try_lock(this_._id, this_.async_result(res));
-            });
+            async_result_wrap<chan_async_state> res = new async_result_wrap<chan_async_state>();
+            mtx.try_lock(this_._id, this_.async_result(res));
+            await this_.async_wait();
+            return chan_async_state.async_ok == res.value_1;
         }
 
         static public async Task<bool> mutex_try_lock(mutex_base mtx, functional.func_res<Task> handler)
@@ -2351,10 +2373,10 @@ namespace Go
         static public async Task<bool> mutex_timed_lock(int ms, mutex_base mtx)
         {
             generator this_ = self;
-            return chan_async_state.async_ok == await this_.wait_result(delegate (async_result_wrap<chan_async_state> res)
-            {
-                mtx.timed_lock(this_._id, ms, this_.async_result(res));
-            });
+            async_result_wrap<chan_async_state> res = new async_result_wrap<chan_async_state>();
+            mtx.timed_lock(this_._id, ms, this_.async_result(res));
+            await this_.async_wait();
+            return chan_async_state.async_ok == res.value_1;
         }
 
         static public async Task<bool> mutex_timed_lock(int ms, mutex_base mtx, functional.func_res<Task> handler)
@@ -2483,10 +2505,10 @@ namespace Go
         static public async Task<bool> mutex_try_lock_shared(shared_mutex mtx)
         {
             generator this_ = self;
-            return chan_async_state.async_ok == await this_.wait_result(delegate (async_result_wrap<chan_async_state> res)
-            {
-                mtx.try_lock_shared(this_._id, this_.async_result(res));
-            });
+            async_result_wrap<chan_async_state> res = new async_result_wrap<chan_async_state>();
+            mtx.try_lock_shared(this_._id, this_.async_result(res));
+            await this_.async_wait();
+            return chan_async_state.async_ok == res.value_1;
         }
 
         static public async Task<bool> mutex_try_lock_shared(shared_mutex mtx, functional.func_res<Task> handler)
@@ -2509,10 +2531,10 @@ namespace Go
         static public async Task<bool> mutex_try_lock_upgrade(shared_mutex mtx)
         {
             generator this_ = self;
-            return chan_async_state.async_ok == await this_.wait_result(delegate (async_result_wrap<chan_async_state> res)
-            {
-                mtx.try_lock_upgrade(this_._id, this_.async_result(res));
-            });
+            async_result_wrap<chan_async_state> res = new async_result_wrap<chan_async_state>();
+            mtx.try_lock_upgrade(this_._id, this_.async_result(res));
+            await this_.async_wait();
+            return chan_async_state.async_ok == res.value_1;
         }
 
         static public async Task<bool> mutex_try_lock_upgrade(shared_mutex mtx, functional.func_res<Task> handler)
@@ -2535,10 +2557,10 @@ namespace Go
         static public async Task<bool> mutex_timed_lock_shared(int ms, shared_mutex mtx)
         {
             generator this_ = self;
-            return chan_async_state.async_ok == await this_.wait_result(delegate (async_result_wrap<chan_async_state> res)
-            {
-                mtx.timed_lock_shared(this_._id, ms, this_.async_result(res));
-            });
+            async_result_wrap<chan_async_state> res = new async_result_wrap<chan_async_state>();
+            mtx.timed_lock_shared(this_._id, ms, this_.async_result(res));
+            await this_.async_wait();
+            return chan_async_state.async_ok == res.value_1;
         }
 
         static public async Task<bool> mutex_timed_lock_shared(int ms, shared_mutex mtx, functional.func_res<Task> handler)
@@ -2582,10 +2604,10 @@ namespace Go
         static public async Task<bool> condition_timed_wait(int ms, condition_variable conVar, mutex_base mutex)
         {
             generator this_ = self;
-            return chan_async_state.async_ok == await this_.wait_result(delegate (async_result_wrap<chan_async_state> res)
-            {
-                conVar.timed_wait(this_._id, ms, mutex, this_.async_result(res));
-            });
+            async_result_wrap<chan_async_state> res = new async_result_wrap<chan_async_state>();
+            conVar.timed_wait(this_._id, ms, mutex, this_.async_result(res));
+            await this_.async_wait();
+            return chan_async_state.async_ok == res.value_1;
         }
 
         static public async Task send_strand(shared_strand strand, functional.func handler)
@@ -3242,15 +3264,15 @@ namespace Go
         static public msg_buff<T> self_mailbox<T>(int id = 0)
         {
             generator this_ = self;
-            if (null == this_._chanMap)
+            if (null == this_._mailboxMap)
             {
-                this_._chanMap = new SortedList<long, mail_pck>();
+                this_._mailboxMap = new SortedList<long, mail_pck>();
             }
             mail_pck mb = null;
-            if (!this_._chanMap.TryGetValue(calc_hash<T>(id), out mb))
+            if (!this_._mailboxMap.TryGetValue(calc_hash<T>(id), out mb))
             {
                 mb = new mail_pck(new msg_buff<T>(this_.strand));
-                this_._chanMap.Add(calc_hash<T>(id), mb);
+                this_._mailboxMap.Add(calc_hash<T>(id), mb);
             }
             return (msg_buff<T>)mb.mailbox;
         }
@@ -3259,15 +3281,20 @@ namespace Go
         {
             strand.distribute(delegate ()
             {
-                if (null == _chanMap)
+                if (-1 == _lockSuspendCount)
                 {
-                    _chanMap = new SortedList<long, mail_pck>();
+                    cb(null);
+                    return;
+                }
+                if (null == _mailboxMap)
+                {
+                    _mailboxMap = new SortedList<long, mail_pck>();
                 }
                 mail_pck mb = null;
-                if (!_chanMap.TryGetValue(calc_hash<T>(id), out mb))
+                if (!_mailboxMap.TryGetValue(calc_hash<T>(id), out mb))
                 {
                     mb = new mail_pck(new msg_buff<T>(strand));
-                    _chanMap.Add(calc_hash<T>(id), mb);
+                    _mailboxMap.Add(calc_hash<T>(id), mb);
                 }
                 functional.catch_invoke(cb, (msg_buff<T>)mb.mailbox);
             });
@@ -3282,30 +3309,35 @@ namespace Go
             return res.value_1;
         }
 
-        static public async Task agent_mail<T>(child agentChild, int id = 0)
+        static public async Task<bool> agent_mail<T>(generator agentGen, int id = 0)
         {
             generator this_ = self;
-            if (null == this_._agentMap)
+            if (null == this_._agentMng)
             {
-                this_._agentMap = new children();
+                this_._agentMng = new children();
             }
-            if (null == this_._chanMap)
+            if (null == this_._mailboxMap)
             {
-                this_._chanMap = new SortedList<long, mail_pck>();
+                this_._mailboxMap = new SortedList<long, mail_pck>();
             }
             mail_pck mb = null;
-            if (!this_._chanMap.TryGetValue(calc_hash<T>(id), out mb))
+            if (!this_._mailboxMap.TryGetValue(calc_hash<T>(id), out mb))
             {
                 mb = new mail_pck(new msg_buff<T>(this_.strand));
-                this_._chanMap.Add(calc_hash<T>(id), mb);
+                this_._mailboxMap.Add(calc_hash<T>(id), mb);
             }
             else if (null != mb.agentAction)
             {
-                await this_._agentMap.stop(mb.agentAction);
+                await this_._agentMng.stop(mb.agentAction);
+                mb.agentAction = null;
             }
-            mb.agentAction = this_._agentMap.go(async delegate ()
+            msg_buff<T> agentMb = await agentGen.get_mailbox<T>();
+            if (null == agentMb)
             {
-                msg_buff<T> childMb = await agentChild.get_mailbox<T>();
+                return false;
+            }
+            mb.agentAction = this_._agentMng.go(async delegate ()
+            {
                 msg_buff<T> selfMb = (msg_buff<T>)mb.mailbox;
                 chan_notify_sign ntfSign = new chan_notify_sign();
                 generator self = generator.self;
@@ -3322,7 +3354,7 @@ namespace Go
                             chan_pop_wrap<T> popRes = await chan_try_pop(selfMb);
                             if (chan_async_state.async_ok == popRes.state)
                             {
-                                popRes.state = await chan_push(childMb, popRes.result);
+                                popRes.state = await chan_push(agentMb, popRes.result);
                             }
                             if (chan_async_state.async_closed == popRes.state)
                             {
@@ -3342,18 +3374,21 @@ namespace Go
                     await self.async_wait();
                 }
             });
+            return true;
         }
 
-        static public async Task agent_stop<T>(int id = 0)
+        static public async Task<bool> cancel_agent<T>(int id = 0)
         {
             generator this_ = self;
             mail_pck mb = null;
-            if (null != this_._agentMap && null != this_._chanMap &&
-                this_._chanMap.TryGetValue(calc_hash<T>(id), out mb) && null != mb.agentAction)
+            if (null != this_._agentMng && null != this_._mailboxMap &&
+                this_._mailboxMap.TryGetValue(calc_hash<T>(id), out mb) && null != mb.agentAction)
             {
-                await this_._agentMap.stop(mb.agentAction);
+                await this_._agentMng.stop(mb.agentAction);
                 mb.agentAction = null;
+                return true;
             }
+            return false;
         }
 
         static public object self_value
