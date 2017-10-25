@@ -104,7 +104,7 @@ namespace Go
             }
             _timer = new Timer(delegate (object state)
             {
-                _strand.post(delegate ()
+                _strand.distribute(delegate ()
                 {
                     if ((int)state == _timerCount)
                     {

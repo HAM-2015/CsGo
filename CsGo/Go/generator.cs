@@ -1581,12 +1581,8 @@ namespace Go
         {
             get
             {
-                shared_strand currStrand = shared_strand.top_strand();
-                if (null != currStrand)
-                {
-                    return currStrand.currSelf;
-                }
-                return null;
+                shared_strand currStrand = shared_strand.work_strand();
+                return null != currStrand ? currStrand.currSelf : null;
             }
         }
 
@@ -2121,7 +2117,7 @@ namespace Go
         {
             generator this_ = self;
             msg_buff<select_chan_base> selectChans = new msg_buff<select_chan_base>(this_.strand);
-            this_._timer.timeout(ms, () => selectChans.post(null));
+            this_._timer.timeout(ms, selectChans.wrap_default());
             foreach (select_chan_base chan in chans)
             {
                 chan.ntfSign._selectOnce = true;

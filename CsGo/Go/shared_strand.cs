@@ -164,7 +164,11 @@ namespace Go
 
     public class shared_strand
     {
-        public static readonly ThreadLocal<LinkedList<shared_strand>> _currStrand = new ThreadLocal<LinkedList<shared_strand>>();
+        class curr_strand
+        {
+            public shared_strand strand;
+        }
+        static readonly ThreadLocal<curr_strand> _currStrand = new ThreadLocal<curr_strand>();
 
         public generator currSelf = null;
         protected volatile bool _locked;
@@ -184,18 +188,18 @@ namespace Go
 
         protected bool run_a_round1()
         {
-            LinkedList<shared_strand> currStrand = _currStrand.Value;
+            curr_strand currStrand = _currStrand.Value;
             if (null == currStrand)
             {
-                currStrand = new LinkedList<shared_strand>();
+                currStrand = new curr_strand();
                 _currStrand.Value = currStrand;
             }
-            currStrand.AddFirst(this);
+            currStrand.strand = this;
             while (0 != _readyQueue.Count)
             {
                 if (0 != _pauseState && 0 != Interlocked.CompareExchange(ref _pauseState, 2, 1))
                 {
-                    currStrand.RemoveFirst();
+                    currStrand.strand = null;
                     return false;
                 }
                 try
@@ -215,14 +219,14 @@ namespace Go
                 _readyQueue = _waitQueue;
                 _waitQueue = t;
                 _mutex.ReleaseMutex();
-                currStrand.RemoveFirst();
+                currStrand.strand = null;
                 run_task();
             }
             else
             {
                 _locked = false;
                 _mutex.ReleaseMutex();
-                currStrand.RemoveFirst();
+                currStrand.strand = null;
             }
             return true;
         }
@@ -256,12 +260,32 @@ namespace Go
 
         public virtual bool distribute(functional.func action)
         {
-            if (running_in_this_thread())
+            curr_strand currStrand = _currStrand.Value;
+            if (null != currStrand && this == currStrand.strand)
             {
                 functional.catch_invoke(action);
                 return true;
             }
-            post(action);
+            else
+            {
+                _mutex.WaitOne();
+                if (_locked)
+                {
+                    _waitQueue.AddLast(action);
+                    _mutex.ReleaseMutex();
+                }
+                else
+                {
+                    _locked = true;
+                    _readyQueue.AddLast(action);
+                    _mutex.ReleaseMutex();
+                    if (null == currStrand || null == currStrand.strand)
+                    {
+                        return run_a_round1();
+                    }
+                    run_task();
+                }
+            }
             return false;
         }
 
@@ -280,18 +304,13 @@ namespace Go
 
         public bool running_in_this_thread()
         {
-            LinkedList<shared_strand> currStrand = _currStrand.Value;
-            return null != currStrand && null != currStrand.Find(this);
+            return this == work_strand();
         }
 
-        static public shared_strand top_strand()
+        static public shared_strand work_strand()
         {
-            LinkedList<shared_strand> currStrand = _currStrand.Value;
-            if (null != currStrand && 0 != currStrand.Count)
-            {
-                return currStrand.First.Value;
-            }
-            return null;
+            curr_strand currStrand = _currStrand.Value;
+            return null != currStrand ? currStrand.strand : null;
         }
 
         public virtual bool wait_safe()
