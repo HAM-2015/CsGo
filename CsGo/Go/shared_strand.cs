@@ -164,11 +164,12 @@ namespace Go
 
     public class shared_strand
     {
-        class curr_strand
+        protected class curr_strand
         {
+            public readonly bool is_work = Thread.CurrentThread.IsThreadPoolThread;
             public shared_strand strand;
         }
-        static readonly ThreadLocal<curr_strand> _currStrand = new ThreadLocal<curr_strand>();
+        protected static readonly ThreadLocal<curr_strand> _currStrand = new ThreadLocal<curr_strand>();
 
         public generator currSelf = null;
         protected volatile bool _locked;
@@ -186,10 +187,9 @@ namespace Go
             _waitQueue = new LinkedList<functional.func>();
         }
 
-        protected bool run_a_round1()
+        protected bool run_a_round1(curr_strand currStrand = null)
         {
-            curr_strand currStrand = _currStrand.Value;
-            if (null == currStrand)
+            if (null == currStrand && null == (currStrand = _currStrand.Value))
             {
                 currStrand = new curr_strand();
                 _currStrand.Value = currStrand;
@@ -279,9 +279,9 @@ namespace Go
                     _locked = true;
                     _readyQueue.AddLast(action);
                     _mutex.ReleaseMutex();
-                    if (null == currStrand || null == currStrand.strand)
+                    if (null != currStrand && currStrand.is_work && null == currStrand.strand)
                     {
-                        return run_a_round1();
+                        return run_a_round1(currStrand);
                     }
                     run_task();
                 }
@@ -420,33 +420,33 @@ namespace Go
 
         public override bool distribute(functional.func action)
         {
-            if (running_in_this_thread())
+            curr_strand currStrand = _currStrand.Value;
+            if (null != currStrand && this == currStrand.strand)
             {
                 functional.catch_invoke(action);
                 return true;
             }
-            else if (_checkRequired && !_ctrl.InvokeRequired)
+            else
             {
                 _mutex.WaitOne();
                 if (_locked)
                 {
                     _waitQueue.AddLast(action);
                     _mutex.ReleaseMutex();
-                    return false;
                 }
                 else
                 {
                     _locked = true;
                     _readyQueue.AddLast(action);
                     _mutex.ReleaseMutex();
-                    return run_a_round1();
+                    if (_checkRequired && null != currStrand && null == currStrand.strand && !_ctrl.InvokeRequired)
+                    {
+                        return run_a_round1(currStrand);
+                    }
+                    run_task();
                 }
             }
-            else
-            {
-                post(action);
-                return false;
-            }
+            return false;
         }
 
         protected override void run_task()
