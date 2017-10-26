@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Net;
 using System.Net.Sockets;
+using System.IO.Ports;
 
 namespace Go
 {
@@ -22,101 +23,17 @@ namespace Go
         }
     }
 
-    public class socket_tcp
+    public abstract class socket
     {
-        public Socket _socket;
+        public abstract void async_read_same(ArraySegment<byte> buff, functional.func<socket_result> cb);
+        public abstract void async_write_same(ArraySegment<byte> buff, functional.func<socket_result> cb);
+        public abstract void close();
 
-        public socket_tcp()
-        {
-        }
-
-        public socket_tcp(Socket sck)
-        {
-            _socket = sck;
-        }
-
-        public void close()
-        {
-            if (null != _socket)
-            {
-                try
-                {
-                    _socket.Close();
-                }
-                catch (System.Exception) { }
-                _socket = null;
-            }
-        }
-
-        public void async_connect(string ip, int port, functional.func<socket_result> cb)
-        {
-            try
-            {
-                _socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-                _socket.BeginConnect(IPAddress.Parse(ip), port, delegate (IAsyncResult ar)
-                {
-                    try
-                    {
-                        _socket.EndConnect(ar);
-                        _socket.NoDelay = true;
-                        cb(new socket_result(true));
-                    }
-                    catch (System.Exception ec)
-                    {
-                        cb(new socket_result(false, 0, ec.Message));
-                    }
-                }, null);
-            }
-            catch (System.Exception)
-            {
-                close();
-                cb(new socket_result());
-            }
-        }
-
-        public void async_read_same(ArraySegment<byte> buff, functional.func<socket_result> cb)
-        {
-            try
-            {
-                _socket.BeginReceive(buff.Array, buff.Offset, buff.Count(), 0, delegate (IAsyncResult ar)
-                {
-                    try
-                    {
-                        cb(new socket_result(true, _socket.EndReceive(ar)));
-                    }
-                    catch (System.Exception ec)
-                    {
-                        cb(new socket_result(false, 0, ec.Message));
-                    }
-                }, null);
-            }
-            catch (System.Exception) { cb(new socket_result()); }
-        }
-        
         public void async_read_same(byte[] buff, functional.func<socket_result> cb)
         {
             async_read_same(new ArraySegment<byte>(buff), cb);
         }
 
-        public void async_write_same(ArraySegment<byte> buff, functional.func<socket_result> cb)
-        {
-            try
-            {
-                _socket.BeginSend(buff.Array, buff.Offset, buff.Count(), 0, delegate (IAsyncResult ar)
-                {
-                    try
-                    {
-                        cb(new socket_result(true, _socket.EndSend(ar)));
-                    }
-                    catch (System.Exception ec)
-                    {
-                        cb(new socket_result(false, 0, ec.Message));
-                    }
-                }, null);
-            }
-            catch (System.Exception) { cb(new socket_result()); }
-        }
-        
         public void async_write_same(byte[] buff, functional.func<socket_result> cb)
         {
             async_write_same(new ArraySegment<byte>(buff), cb);
@@ -129,7 +46,7 @@ namespace Go
                 if (tempRes.ok)
                 {
                     currTotal += tempRes.s;
-                    if (buff.Count == currTotal)
+                    if (buff.Count == tempRes.s)
                     {
                         cb(new socket_result(true, currTotal));
                     }
@@ -162,9 +79,9 @@ namespace Go
                 if (tempRes.ok)
                 {
                     currTotal += tempRes.s;
-                    if (buff.Count == currTotal)
+                    if (buff.Count == tempRes.s)
                     {
-                        cb(new socket_result(true, buff.Count));
+                        cb(new socket_result(true, currTotal));
                     }
                     else
                     {
@@ -177,7 +94,7 @@ namespace Go
                 }
             });
         }
-        
+
         public void async_write(ArraySegment<byte> buff, functional.func<socket_result> cb)
         {
             _async_write(0, buff, cb);
@@ -186,11 +103,6 @@ namespace Go
         public void async_write(byte[] buff, functional.func<socket_result> cb)
         {
             _async_write(0, new ArraySegment<byte>(buff), cb);
-        }
-
-        public Task<socket_result> connect(string ip, int port)
-        {
-            return generator.async_call((functional.func<socket_result> cb) => async_connect(ip, port, cb));
         }
 
         public Task<socket_result> read_same(ArraySegment<byte> buff)
@@ -234,6 +146,110 @@ namespace Go
         }
     }
 
+    public class socket_tcp : socket
+    {
+        public Socket _socket;
+
+        public socket_tcp()
+        {
+        }
+
+        public socket_tcp(Socket sck)
+        {
+            _socket = sck;
+        }
+
+        public override void close()
+        {
+            if (null != _socket)
+            {
+                try
+                {
+                    _socket.Close();
+                }
+                catch (System.Exception) { }
+                _socket = null;
+            }
+        }
+
+        public void async_connect(string ip, int port, functional.func<socket_result> cb)
+        {
+            try
+            {
+                _socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                _socket.BeginConnect(IPAddress.Parse(ip), port, delegate (IAsyncResult ar)
+                {
+                    try
+                    {
+                        _socket.EndConnect(ar);
+                        _socket.NoDelay = true;
+                        cb(new socket_result(true));
+                    }
+                    catch (System.Exception ec)
+                    {
+                        cb(new socket_result(false, 0, ec.Message));
+                    }
+                }, null);
+            }
+            catch (System.Exception ec)
+            {
+                close();
+                cb(new socket_result(false, 0, ec.Message));
+            }
+        }
+
+        public override void async_read_same(ArraySegment<byte> buff, functional.func<socket_result> cb)
+        {
+            try
+            {
+                _socket.BeginReceive(buff.Array, buff.Offset, buff.Count(), 0, delegate (IAsyncResult ar)
+                {
+                    try
+                    {
+                        cb(new socket_result(true, _socket.EndReceive(ar)));
+                    }
+                    catch (System.Exception ec)
+                    {
+                        cb(new socket_result(false, 0, ec.Message));
+                    }
+                }, null);
+            }
+            catch (System.Exception ec)
+            {
+                close();
+                cb(new socket_result(false, 0, ec.Message));
+            }
+        }
+
+        public override void async_write_same(ArraySegment<byte> buff, functional.func<socket_result> cb)
+        {
+            try
+            {
+                _socket.BeginSend(buff.Array, buff.Offset, buff.Count(), 0, delegate (IAsyncResult ar)
+                {
+                    try
+                    {
+                        cb(new socket_result(true, _socket.EndSend(ar)));
+                    }
+                    catch (System.Exception ec)
+                    {
+                        cb(new socket_result(false, 0, ec.Message));
+                    }
+                }, null);
+            }
+            catch (System.Exception ec)
+            {
+                close();
+                cb(new socket_result(false, 0, ec.Message));
+            }
+        }
+
+        public Task<socket_result> connect(string ip, int port)
+        {
+            return generator.async_call((functional.func<socket_result> cb) => async_connect(ip, port, cb));
+        }
+    }
+
     public class socket_accept
     {
         Socket _socket;
@@ -269,6 +285,7 @@ namespace Go
         {
             try
             {
+                sck.close();
                 _socket.BeginAccept(delegate (IAsyncResult ar)
                 {
                     try
@@ -283,16 +300,111 @@ namespace Go
                     }
                 }, null);
             }
-            catch (System.Exception)
+            catch (System.Exception ec)
             {
                 close();
-                cb(new socket_result());
+                cb(new socket_result(false, 0, ec.Message));
             }
         }
 
         public Task<socket_result> accept(socket_tcp sck)
         {
             return generator.async_call((functional.func<socket_result> cb) => async_accept(sck, cb));
+        }
+    }
+
+    public class socket_serial : socket
+    {
+        SerialPort _socket;
+        
+        public socket_serial(string portName, int baudRate = 9600, Parity parity = Parity.None, int dataBits = 8, StopBits stopBits = StopBits.One)
+        {
+            _socket = new SerialPort(portName, baudRate, parity, dataBits, stopBits);
+        }
+
+        public bool open()
+        {
+            try
+            {
+                _socket.Open();
+                return true;
+            }
+            catch (System.Exception) { }
+            return false;
+        }
+
+        public override void close()
+        {
+            try
+            {
+                _socket.Close();
+            }
+            catch (System.Exception) { }
+        }
+
+        public override void async_read_same(ArraySegment<byte> buff, functional.func<socket_result> cb)
+        {
+            try
+            {
+                _socket.BaseStream.BeginRead(buff.Array, buff.Offset, buff.Count(), delegate (IAsyncResult ar)
+                {
+                    try
+                    {
+                        cb(new socket_result(true, _socket.BaseStream.EndRead(ar)));
+                    }
+                    catch (System.Exception ec)
+                    {
+                        cb(new socket_result(false, 0, ec.Message));
+                    }
+                }, null);
+            }
+            catch (System.Exception ec)
+            {
+                close();
+                cb(new socket_result(false, 0, ec.Message));
+            }
+        }
+
+        public override void async_write_same(ArraySegment<byte> buff, functional.func<socket_result> cb)
+        {
+            try
+            {
+                _socket.BaseStream.BeginWrite(buff.Array, buff.Offset, buff.Count(), delegate (IAsyncResult ar)
+                {
+                    try
+                    {
+                        _socket.BaseStream.EndWrite(ar);
+                        cb(new socket_result(true, buff.Count));
+                    }
+                    catch (System.Exception ec)
+                    {
+                        cb(new socket_result(false, 0, ec.Message));
+                    }
+                }, null);
+            }
+            catch (System.Exception ec)
+            {
+                close();
+                cb(new socket_result(false, 0, ec.Message));
+            }
+        }
+
+        public void clear_in_buffer()
+        {
+            try
+            {
+                _socket.DiscardInBuffer();
+            }
+            catch (System.Exception) { }
+        }
+
+        public void clear_out_buffer()
+        {
+            try
+            {
+                _socket.DiscardOutBuffer();
+            }
+            catch (System.Exception) { }
         }
     }
 }
