@@ -734,6 +734,16 @@ namespace Go
             _strand.distribute(delegate ()
             {
                 _closed = true;
+                if (0 != _waitQueue.Count)
+                {
+                    functional.func<chan_async_state>[] ntfs = new functional.func<chan_async_state>[_waitQueue.Count];
+                    _waitQueue.CopyTo(ntfs, 0);
+                    _waitQueue.Clear();
+                    foreach (functional.func<chan_async_state> ele in ntfs)
+                    {
+                        ele(chan_async_state.async_closed);
+                    }
+                }
                 ntf();
             });
         }
@@ -742,12 +752,15 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
-                LinkedList<functional.func<chan_async_state>> ntfs = _waitQueue;
-                _waitQueue = new LinkedList<functional.func<chan_async_state>>();
-                while (0 != ntfs.Count)
+                if (0 != _waitQueue.Count)
                 {
-                    ntfs.First()(chan_async_state.async_cancel);
-                    ntfs.RemoveFirst();
+                    functional.func<chan_async_state>[] ntfs = new functional.func<chan_async_state>[_waitQueue.Count];
+                    _waitQueue.CopyTo(ntfs, 0);
+                    _waitQueue.Clear();
+                    foreach (functional.func<chan_async_state> ele in ntfs)
+                    {
+                        ele(chan_async_state.async_cancel);
+                    }
                 }
                 ntf();
             });
@@ -1175,19 +1188,17 @@ namespace Go
             _strand.distribute(delegate ()
             {
                 _closed = true;
-                LinkedList<functional.func<chan_async_state>> ntfs1 = _popWait;
-                LinkedList<functional.func<chan_async_state>> ntfs2 = _pushWait;
-                _popWait = new LinkedList<functional.func<chan_async_state>>();
-                _pushWait = new LinkedList<functional.func<chan_async_state>>();
-                while (0 != ntfs1.Count)
+                if (0 != _popWait.Count || 0 != _pushWait.Count)
                 {
-                    ntfs1.First()(chan_async_state.async_closed);
-                    ntfs1.RemoveFirst();
-                }
-                while (0 != ntfs2.Count)
-                {
-                    ntfs2.First()(chan_async_state.async_closed);
-                    ntfs2.RemoveFirst();
+                    functional.func<chan_async_state>[] ntfs = new functional.func<chan_async_state>[_popWait.Count + _pushWait.Count];
+                    _popWait.CopyTo(ntfs, 0);
+                    _pushWait.CopyTo(ntfs, _popWait.Count);
+                    _popWait.Clear();
+                    _pushWait.Clear();
+                    foreach (functional.func<chan_async_state> ele in ntfs)
+                    {
+                        ele(chan_async_state.async_closed);
+                    }
                 }
                 ntf();
             });
@@ -1196,19 +1207,17 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
-                LinkedList<functional.func<chan_async_state>> ntfs1 = _popWait;
-                LinkedList<functional.func<chan_async_state>> ntfs2 = _pushWait;
-                _popWait = new LinkedList<functional.func<chan_async_state>>();
-                _pushWait = new LinkedList<functional.func<chan_async_state>>();
-                while (0 != ntfs1.Count)
+                if (0 != _popWait.Count || 0 != _pushWait.Count)
                 {
-                    ntfs1.First()(chan_async_state.async_cancel);
-                    ntfs1.RemoveFirst();
-                }
-                while (0 != ntfs2.Count)
-                {
-                    ntfs2.First()(chan_async_state.async_cancel);
-                    ntfs2.RemoveFirst();
+                    functional.func<chan_async_state>[] ntfs = new functional.func<chan_async_state>[_popWait.Count + _pushWait.Count];
+                    _popWait.CopyTo(ntfs, 0);
+                    _pushWait.CopyTo(ntfs, _popWait.Count);
+                    _popWait.Clear();
+                    _pushWait.Clear();
+                    foreach (functional.func<chan_async_state> ele in ntfs)
+                    {
+                        ele(chan_async_state.async_cancel);
+                    }
                 }
                 ntf();
             });
@@ -1714,19 +1723,17 @@ namespace Go
             {
                 _closed = true;
                 _has = false;
-                LinkedList<functional.func<chan_async_state>> ntfs1 = _popWait;
-                LinkedList<functional.func<chan_async_state>> ntfs2 = _pushWait;
-                _popWait = new LinkedList<functional.func<chan_async_state>>();
-                _pushWait = new LinkedList<functional.func<chan_async_state>>();
-                while (0 != ntfs1.Count)
+                if (0 != _popWait.Count || 0 != _pushWait.Count)
                 {
-                    ntfs1.First()(chan_async_state.async_closed);
-                    ntfs1.RemoveFirst();
-                }
-                while (0 != ntfs2.Count)
-                {
-                    ntfs2.First()(chan_async_state.async_closed);
-                    ntfs2.RemoveFirst();
+                    functional.func<chan_async_state>[] ntfs = new functional.func<chan_async_state>[_popWait.Count + _pushWait.Count];
+                    _popWait.CopyTo(ntfs, 0);
+                    _pushWait.CopyTo(ntfs, _popWait.Count);
+                    _popWait.Clear();
+                    _pushWait.Clear();
+                    foreach (functional.func<chan_async_state> ele in ntfs)
+                    {
+                        ele(chan_async_state.async_closed);
+                    }
                 }
                 ntf();
             });
@@ -1737,19 +1744,17 @@ namespace Go
             _strand.distribute(delegate ()
             {
                 _has = false;
-                LinkedList<functional.func<chan_async_state>> ntfs1 = _popWait;
-                LinkedList<functional.func<chan_async_state>> ntfs2 = _pushWait;
-                _popWait = new LinkedList<functional.func<chan_async_state>>();
-                _pushWait = new LinkedList<functional.func<chan_async_state>>();
-                while (0 != ntfs1.Count)
+                if (0 != _popWait.Count || 0 != _pushWait.Count)
                 {
-                    ntfs1.First()(chan_async_state.async_cancel);
-                    ntfs1.RemoveFirst();
-                }
-                while (0 != ntfs2.Count)
-                {
-                    ntfs2.First()(chan_async_state.async_cancel);
-                    ntfs2.RemoveFirst();
+                    functional.func<chan_async_state>[] ntfs = new functional.func<chan_async_state>[_popWait.Count + _pushWait.Count];
+                    _popWait.CopyTo(ntfs, 0);
+                    _pushWait.CopyTo(ntfs, _popWait.Count);
+                    _popWait.Clear();
+                    _pushWait.Clear();
+                    foreach (functional.func<chan_async_state> ele in ntfs)
+                    {
+                        ele(chan_async_state.async_cancel);
+                    }
                 }
                 ntf();
             });
@@ -2101,12 +2106,15 @@ namespace Go
             _strand.distribute(delegate ()
             {
                 _closed = true;
-                LinkedList<functional.func<chan_async_state>> ntfs = _popWait;
-                _popWait = new LinkedList<functional.func<chan_async_state>>();
-                while (0 != ntfs.Count)
+                if (0 != _popWait.Count)
                 {
-                    ntfs.First()(chan_async_state.async_closed);
-                    ntfs.RemoveFirst();
+                    functional.func<chan_async_state>[] ntfs = new functional.func<chan_async_state>[_popWait.Count];
+                    _popWait.CopyTo(ntfs, 0);
+                    _popWait.Clear();
+                    foreach (functional.func<chan_async_state> ele in ntfs)
+                    {
+                        ele(chan_async_state.async_closed);
+                    }
                 }
                 ntf();
             });
@@ -2116,12 +2124,15 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
-                LinkedList<functional.func<chan_async_state>> ntfs = _popWait;
-                _popWait = new LinkedList<functional.func<chan_async_state>>();
-                while (0 != ntfs.Count)
+                if (0 != _popWait.Count)
                 {
-                    ntfs.First()(chan_async_state.async_cancel);
-                    ntfs.RemoveFirst();
+                    functional.func<chan_async_state>[] ntfs = new functional.func<chan_async_state>[_popWait.Count];
+                    _popWait.CopyTo(ntfs, 0);
+                    _popWait.Clear();
+                    foreach (functional.func<chan_async_state> ele in ntfs)
+                    {
+                        ele(chan_async_state.async_cancel);
+                    }
                 }
                 ntf();
             });
@@ -2859,19 +2870,17 @@ namespace Go
                     hasMsg = _msg._ntf;
                     _has = false;
                 }
-                LinkedList<functional.func<chan_async_state>> ntfs1 = _sendQueue;
-                LinkedList<functional.func<chan_async_state>> ntfs2 = _waitQueue;
-                _sendQueue = new LinkedList<functional.func<chan_async_state>>();
-                _waitQueue = new LinkedList<functional.func<chan_async_state>>();
-                while (0 != ntfs1.Count)
+                if (0 != _sendQueue.Count || 0 != _waitQueue.Count)
                 {
-                    ntfs1.First.Value(chan_async_state.async_closed);
-                    ntfs1.RemoveFirst();
-                }
-                while (0 != ntfs2.Count)
-                {
-                    ntfs2.First.Value(chan_async_state.async_closed);
-                    ntfs2.RemoveFirst();
+                    functional.func<chan_async_state>[] ntfs = new functional.func<chan_async_state>[_sendQueue.Count + _waitQueue.Count];
+                    _sendQueue.CopyTo(ntfs, 0);
+                    _waitQueue.CopyTo(ntfs, _sendQueue.Count);
+                    _sendQueue.Clear();
+                    _waitQueue.Clear();
+                    foreach (functional.func<chan_async_state> ele in ntfs)
+                    {
+                        ele(chan_async_state.async_closed);
+                    }
                 }
                 hasMsg?.Invoke(chan_async_state.async_closed);
                 ntf();
@@ -2889,19 +2898,17 @@ namespace Go
                     hasMsg = _msg._ntf;
                     _has = false;
                 }
-                LinkedList<functional.func<chan_async_state>> ntfs1 = _sendQueue;
-                LinkedList<functional.func<chan_async_state>> ntfs2 = _waitQueue;
-                _sendQueue = new LinkedList<functional.func<chan_async_state>>();
-                _waitQueue = new LinkedList<functional.func<chan_async_state>>();
-                while (0 != ntfs1.Count)
+                if (0 != _sendQueue.Count || 0 != _waitQueue.Count)
                 {
-                    ntfs1.First.Value(chan_async_state.async_cancel);
-                    ntfs1.RemoveFirst();
-                }
-                while (0 != ntfs2.Count)
-                {
-                    ntfs2.First.Value(chan_async_state.async_cancel);
-                    ntfs2.RemoveFirst();
+                    functional.func<chan_async_state>[] ntfs = new functional.func<chan_async_state>[_sendQueue.Count + _waitQueue.Count];
+                    _sendQueue.CopyTo(ntfs, 0);
+                    _waitQueue.CopyTo(ntfs, _sendQueue.Count);
+                    _sendQueue.Clear();
+                    _waitQueue.Clear();
+                    foreach (functional.func<chan_async_state> ele in ntfs)
+                    {
+                        ele(chan_async_state.async_cancel);
+                    }
                 }
                 hasMsg?.Invoke(chan_async_state.async_cancel);
                 ntf();

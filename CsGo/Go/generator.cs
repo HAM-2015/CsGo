@@ -138,6 +138,17 @@ namespace Go
         }
     }
 
+    public class chan_exception : System.Exception
+    {
+        public readonly chan_async_state state;
+        public readonly object obj;
+        public chan_exception(chan_async_state st, object o)
+        {
+            state = st;
+            obj = o;
+        }
+    }
+
     public struct chan_pop_wrap<T>
     {
         public chan_async_state state;
@@ -2011,6 +2022,41 @@ namespace Go
         static public void stop_select()
         {
             throw stop_select_exception.val;
+        }
+
+        static public void check_chan(chan_async_state state, object obj = null)
+        {
+            if (chan_async_state.async_ok != state)
+            {
+                throw new chan_exception(state, obj);
+            }
+        }
+
+        static public T check_chan<T>(chan_pop_wrap<T> wrap, object obj = null)
+        {
+            if (chan_async_state.async_ok != wrap.state)
+            {
+                throw new chan_exception(wrap.state, obj);
+            }
+            return wrap.result;
+        }
+
+        static public T check_chan<T>(csp_invoke_wrap<T> wrap, object obj = null)
+        {
+            if (chan_async_state.async_ok != wrap.state)
+            {
+                throw new chan_exception(wrap.state, obj);
+            }
+            return wrap.result;
+        }
+
+        static public Tuple<csp_chan<R, T>.csp_result, T> check_chan<R, T>(csp_wait_wrap<R, T> wrap, object obj = null)
+        {
+            if (chan_async_state.async_ok != wrap.state)
+            {
+                throw new chan_exception(wrap.state, obj);
+            }
+            return new Tuple<csp_chan<R, T>.csp_result, T>(wrap.result, wrap.msg);
         }
 
         static public Task nil_wait()
