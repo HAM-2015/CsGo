@@ -166,8 +166,15 @@ namespace Go
     {
         protected class curr_strand
         {
-            public readonly bool is_work = Thread.CurrentThread.IsThreadPoolThread;
+            public readonly bool work_back_thread;
+            public readonly work_service work_service;
             public shared_strand strand;
+
+            public curr_strand(bool workBackThread = false, work_service workService = null)
+            {
+                work_back_thread = workBackThread;
+                work_service = workService;
+            }
         }
         protected static readonly ThreadLocal<curr_strand> _currStrand = new ThreadLocal<curr_strand>();
 
@@ -187,13 +194,8 @@ namespace Go
             _waitQueue = new LinkedList<functional.func>();
         }
 
-        protected bool run_a_round1(curr_strand currStrand = null)
+        protected bool running_a_round(curr_strand currStrand)
         {
-            if (null == currStrand && null == (currStrand = _currStrand.Value))
-            {
-                currStrand = new curr_strand();
-                _currStrand.Value = currStrand;
-            }
             currStrand.strand = this;
             while (0 != _readyQueue.Count)
             {
@@ -231,14 +233,20 @@ namespace Go
             return true;
         }
 
-        protected void run_a_round()
-        {
-            run_a_round1();
-        }
-
         protected virtual void run_task()
         {
             Task.Run((Action)run_a_round);
+        }
+
+        void run_a_round()
+        {
+            curr_strand currStrand = _currStrand.Value;
+            if (null == currStrand)
+            {
+                currStrand = new curr_strand(true);
+                _currStrand.Value = currStrand;
+            }
+            running_a_round(currStrand);
         }
 
         public void post(functional.func action)
@@ -279,9 +287,9 @@ namespace Go
                     _locked = true;
                     _readyQueue.AddLast(action);
                     _mutex.ReleaseMutex();
-                    if (null != currStrand && currStrand.is_work && null == currStrand.strand)
+                    if (null != currStrand && currStrand.work_back_thread && null == currStrand.strand)
                     {
-                        return run_a_round1(currStrand);
+                        return running_a_round(currStrand);
                     }
                     run_task();
                 }
@@ -386,14 +394,53 @@ namespace Go
             _service = eng.service();
         }
 
+        public override bool distribute(functional.func action)
+        {
+            curr_strand currStrand = _currStrand.Value;
+            if (null != currStrand && this == currStrand.strand)
+            {
+                functional.catch_invoke(action);
+                return true;
+            }
+            else
+            {
+                _mutex.WaitOne();
+                if (_locked)
+                {
+                    _waitQueue.AddLast(action);
+                    _mutex.ReleaseMutex();
+                }
+                else
+                {
+                    _locked = true;
+                    _readyQueue.AddLast(action);
+                    _mutex.ReleaseMutex();
+                    if (null != currStrand && _service == currStrand.work_service && null == currStrand.strand)
+                    {
+                        return running_a_round(currStrand);
+                    }
+                    run_task();
+                }
+            }
+            return false;
+        }
+
         protected override void run_task()
         {
             _service.hold_work();
-            _service.push_option(delegate ()
+            _service.push_option(run_a_round);
+        }
+
+        void run_a_round()
+        {
+            curr_strand currStrand = _currStrand.Value;
+            if (null == currStrand)
             {
-                run_a_round();
-                _service.release_work();
-            });
+                currStrand = new curr_strand(false, _service);
+                _currStrand.Value = currStrand;
+            }
+            running_a_round(currStrand);
+            _service.release_work();
         }
 
         public override void hold_work()
@@ -441,7 +488,7 @@ namespace Go
                     _mutex.ReleaseMutex();
                     if (_checkRequired && null != currStrand && null == currStrand.strand && !_ctrl.InvokeRequired)
                     {
-                        return run_a_round1(currStrand);
+                        return running_a_round(currStrand);
                     }
                     run_task();
                 }
@@ -459,6 +506,17 @@ namespace Go
             {
                 Trace.Fail(ec.Message, ec.StackTrace);
             }
+        }
+
+        void run_a_round()
+        {
+            curr_strand currStrand = _currStrand.Value;
+            if (null == currStrand)
+            {
+                currStrand = new curr_strand();
+                _currStrand.Value = currStrand;
+            }
+            running_a_round(currStrand);
         }
 
         public override bool wait_safe()

@@ -82,7 +82,8 @@ namespace GoTest
 
         static void Main(string[] args)
         {
-            _strand = new shared_strand();
+            work_service work = new work_service();
+            _strand = new work_strand(work);
             _chan1 = channel<long>.make(_strand, 3);
             _chan2 = channel<long>.make(_strand, 0);
             _chan3 = channel<long>.make(_strand, -1);
@@ -91,7 +92,8 @@ namespace GoTest
             generator.go(_strand, Producer2);
             generator.go(_strand, Producer3);
             generator.go(_strand, Producer4);
-            generator.go(_strand, Consumer).sync_wait();
+            generator.go(_strand, Consumer);
+            work.run();
         }
     }
 }
