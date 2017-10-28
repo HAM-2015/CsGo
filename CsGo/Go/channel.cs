@@ -55,6 +55,9 @@ namespace Go
         public abstract void close(functional.same_func ntf);
         public abstract void cancel(functional.same_func ntf);
         public abstract shared_strand self_strand();
+        public abstract bool is_closed();
+        public void close() { close(functional.any_handler); }
+        public void cancel() { cancel(functional.any_handler); }
     }
 
     public abstract class channel<T> : channel_base
@@ -770,6 +773,11 @@ namespace Go
         {
             return _strand;
         }
+
+        public override bool is_closed()
+        {
+            return _closed;
+        }
     }
 
     public class chan<T> : channel<T>
@@ -1226,6 +1234,11 @@ namespace Go
         public override shared_strand self_strand()
         {
             return _strand;
+        }
+
+        public override bool is_closed()
+        {
+            return _closed;
         }
     }
 
@@ -1764,6 +1777,11 @@ namespace Go
         {
             return _strand;
         }
+
+        public override bool is_closed()
+        {
+            return _closed;
+        }
     }
 
     public class broadcast_chan_token
@@ -2141,6 +2159,11 @@ namespace Go
         public override shared_strand self_strand()
         {
             return _strand;
+        }
+
+        public override bool is_closed()
+        {
+            return _closed;
         }
     }
 
@@ -2918,6 +2941,11 @@ namespace Go
         public override shared_strand self_strand()
         {
             return _strand;
+        }
+
+        public override bool is_closed()
+        {
+            return _closed;
         }
     }
 }

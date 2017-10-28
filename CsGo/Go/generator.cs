@@ -1664,6 +1664,23 @@ namespace Go
             return this_.async_wait();
         }
 
+        static public async Task<bool> chan_is_closed<T>(channel<T> chan)
+        {
+            generator this_ = self;
+            bool is_closed = chan.is_closed();
+            if (!is_closed && chan.self_strand() != this_.strand)
+            {
+                functional.func continuation = this_.async_result();
+                chan.self_strand().post(delegate ()
+                {
+                    is_closed = chan.is_closed();
+                    continuation();
+                });
+                await this_.async_wait();
+            }
+            return is_closed;
+        }
+
         static public async Task<chan_async_state> chan_push<T>(channel<T> chan, T p)
         {
             generator this_ = self;
@@ -2064,7 +2081,7 @@ namespace Go
             return _nilTask;
         }
 
-        static public async Task select_chans(params select_chan_base[] chans)
+        static public async Task<bool> select_chans(params select_chan_base[] chans)
         {
             generator this_ = self;
             msg_buff<select_chan_base> selectChans = new msg_buff<select_chan_base>(this_.strand);
@@ -2077,26 +2094,25 @@ namespace Go
             try
             {
                 int count = chans.Count();
-                while (true)
+                while (0 != count)
                 {
                     select_chan_base selectedChan = (await chan_pop(selectChans)).result;
                     if (selectedChan.disabled())
                     {
                         continue;
                     }
-                    count--;
                     select_chan_state selState = await selectedChan.invoke();
-                    if (selState.nextRound)
+                    if (!selState.nextRound)
                     {
-                        count++;
-                    }
-                    if (0 == count)
-                    {
-                        break;
+                        count--;
                     }
                 }
+                return false;
             }
-            catch (stop_select_exception) { }
+            catch (stop_select_exception)
+            {
+                return true;
+            }
             finally
             {
                 lock_stop();
@@ -2108,7 +2124,7 @@ namespace Go
             }
         }
 
-        static public async Task select_chans_once(params select_chan_base[] chans)
+        static public async Task<bool> select_chans_once(params select_chan_base[] chans)
         {
             generator this_ = self;
             msg_buff<select_chan_base> selectChans = new msg_buff<select_chan_base>(this_.strand);
@@ -2122,16 +2138,14 @@ namespace Go
             try
             {
                 int count = chans.Count();
-                select_chan_state selState = default(select_chan_state);
-                do
+                while (0 != count)
                 {
                     select_chan_base selectedChan = (await chan_pop(selectChans)).result;
                     if (selectedChan.disabled())
                     {
                         continue;
                     }
-                    count--;
-                    selState = await selectedChan.invoke(async delegate()
+                    select_chan_state selState = await selectedChan.invoke(async delegate()
                     {
                         foreach (select_chan_base chan in chans)
                         {
@@ -2142,7 +2156,15 @@ namespace Go
                         }
                         selected = true;
                     });
-                } while (selState.failed && 0 != count);
+                    if (!selState.failed)
+                    {
+                        break;
+                    }
+                    else if (!selState.nextRound)
+                    {
+                        count--;
+                    }
+                }
             }
             catch (stop_select_exception) { }
             finally
@@ -2157,9 +2179,10 @@ namespace Go
                     unlock_stop();
                 }
             }
+            return selected;
         }
 
-        static public async Task timed_select_chans(int ms, functional.func_res<Task> timedHandler, params select_chan_base[] chans)
+        static public async Task<bool> timed_select_chans(int ms, functional.func_res<Task> timedHandler, params select_chan_base[] chans)
         {
             generator this_ = self;
             msg_buff<select_chan_base> selectChans = new msg_buff<select_chan_base>(this_.strand);
@@ -2173,8 +2196,8 @@ namespace Go
             bool selected = false;
             try
             {
-                select_chan_state selState = default(select_chan_state);
-                do
+                int count = chans.Count();
+                while (0 != count)
                 {
                     select_chan_base selectedChan = (await chan_pop(selectChans)).result;
                     if (null != selectedChan)
@@ -2183,7 +2206,7 @@ namespace Go
                         {
                             continue;
                         }
-                        selState = await selectedChan.invoke(async delegate ()
+                        select_chan_state selState = await selectedChan.invoke(async delegate ()
                         {
                             this_._timer.cancel();
                             foreach (select_chan_base chan in chans)
@@ -2195,6 +2218,14 @@ namespace Go
                             }
                             selected = true;
                         });
+                        if (!selState.failed)
+                        {
+                            break;
+                        }
+                        else if (!selState.nextRound)
+                        {
+                            count--;
+                        }
                     }
                     else
                     {
@@ -2206,7 +2237,7 @@ namespace Go
                         await timedHandler();
                         break;
                     }
-                } while (selState.failed);
+                }
             }
             catch (stop_select_exception) { }
             finally
@@ -2222,6 +2253,7 @@ namespace Go
                     unlock_stop();
                 }
             }
+            return selected;
         }
 
         static public select_chan_base case_read<T>(channel<T> chan, functional.func_res<Task, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
@@ -3074,6 +3106,22 @@ namespace Go
         static public Task<bool> timed_wait_other(int ms, generator otherGen)
         {
             return timed_wait_task(ms, otherGen._syncNtf);
+        }
+
+        static public Task wait_group(wait_group wg)
+        {
+            generator this_ = self;
+            wg.async_wait(this_.async_result());
+            return this_.async_wait();
+        }
+
+        static public async Task<bool> timed_wait_group(int ms, wait_group wg)
+        {
+            generator this_ = self;
+            bool overtime = false;
+            wg.async_wait(this_.timed_async_result2(ms, () => overtime = true));
+            await this_.async_wait();
+            return !overtime;
         }
 
         static public Task async_call(functional.func<functional.func> handler)
@@ -4092,6 +4140,82 @@ namespace Go
         public void stop()
         {
             _runGen.stop();
+        }
+    }
+
+    public class wait_group
+    {
+        int _tasks;
+        shared_strand _strand;
+        LinkedList<functional.func> _waitList;
+
+        public wait_group()
+        {
+            shared_strand strand = generator.self_strand();
+            _tasks = 0;
+            _strand = null != strand ? strand : new shared_strand();
+            _waitList = new LinkedList<functional.func>();
+        }
+
+        public wait_group(shared_strand strand)
+        {
+            _tasks = 0;
+            _strand = strand;
+            _waitList = new LinkedList<functional.func>();
+        }
+
+        public int add(int delta = 1)
+        {
+            int tasks = 0;
+            if (0 != delta && 0 == (tasks = Interlocked.Add(ref _tasks, delta)))
+            {
+                _strand.distribute(delegate ()
+                {
+                    if (0 == _tasks && 0 != _waitList.Count)
+                    {
+                        functional.func[] continuations = new functional.func[_waitList.Count];
+                        _waitList.CopyTo(continuations, 0);
+                        _waitList.Clear();
+                        foreach (functional.func continuation in continuations)
+                        {
+                            continuation();
+                        }
+                    }
+                });
+            }
+            return tasks;
+        }
+
+        public void done()
+        {
+            add(-1);
+        }
+
+        public functional.func wrap_done()
+        {
+            return done;
+        }
+
+        public void async_wait(functional.func continuation)
+        {
+            if (0 == _tasks)
+            {
+                continuation();
+            }
+            else
+            {
+                _strand.distribute(delegate ()
+                {
+                    if (0 == _tasks)
+                    {
+                        continuation();
+                    }
+                    else
+                    {
+                        _waitList.AddLast(continuation);
+                    }
+                });
+            }
         }
     }
 }
