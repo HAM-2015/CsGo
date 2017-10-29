@@ -180,6 +180,11 @@ namespace Go
             public static readonly stop_exception val = new stop_exception();
         }
 
+        public class stop_this_select_exception : System.Exception
+        {
+            public static readonly stop_this_select_exception val = new stop_this_select_exception();
+        }
+
         public class stop_select_exception : System.Exception
         {
             public static readonly stop_select_exception val = new stop_select_exception();
@@ -2449,6 +2454,11 @@ namespace Go
             throw stop_select_exception.val;
         }
 
+        static public void stop_this_select()
+        {
+            throw stop_this_select_exception.val;
+        }
+
         static public void check_chan(chan_async_state state, object obj = null)
         {
             if (chan_async_state.async_ok != state)
@@ -2509,10 +2519,18 @@ namespace Go
                     {
                         continue;
                     }
-                    select_chan_state selState = await selectedChan.invoke();
-                    if (!selState.nextRound)
+                    try
+                    {
+                        select_chan_state selState = await selectedChan.invoke();
+                        if (!selState.nextRound)
+                        {
+                            count--;
+                        }
+                    }
+                    catch (stop_this_select_exception)
                     {
                         count--;
+                        await selectedChan.end();
                     }
                 }
                 return false;
@@ -2553,24 +2571,39 @@ namespace Go
                     {
                         continue;
                     }
-                    select_chan_state selState = await selectedChan.invoke(async delegate()
+                    try
                     {
-                        foreach (select_chan_base chan in chans)
+                        select_chan_state selState = await selectedChan.invoke(async delegate ()
                         {
-                            if (selectedChan != chan)
+                            foreach (select_chan_base chan in chans)
                             {
-                                await chan.end();
+                                if (selectedChan != chan)
+                                {
+                                    await chan.end();
+                                }
                             }
+                            selected = true;
+                        });
+                        if (!selState.failed)
+                        {
+                            break;
                         }
-                        selected = true;
-                    });
-                    if (!selState.failed)
-                    {
-                        break;
+                        else if (!selState.nextRound)
+                        {
+                            count--;
+                        }
                     }
-                    else if (!selState.nextRound)
+                    catch (stop_this_select_exception)
                     {
-                        count--;
+                        if (selected)
+                        {
+                            break;
+                        }
+                        else
+                        {
+                            count--;
+                            await selectedChan.end();
+                        }
                     }
                 }
             }
@@ -2614,25 +2647,40 @@ namespace Go
                         {
                             continue;
                         }
-                        select_chan_state selState = await selectedChan.invoke(async delegate ()
+                        try
                         {
-                            this_._timer.cancel();
-                            foreach (select_chan_base chan in chans)
+                            select_chan_state selState = await selectedChan.invoke(async delegate ()
                             {
-                                if (selectedChan != chan)
+                                this_._timer.cancel();
+                                foreach (select_chan_base chan in chans)
                                 {
-                                    await chan.end();
+                                    if (selectedChan != chan)
+                                    {
+                                        await chan.end();
+                                    }
                                 }
+                                selected = true;
+                            });
+                            if (!selState.failed)
+                            {
+                                break;
                             }
-                            selected = true;
-                        });
-                        if (!selState.failed)
-                        {
-                            break;
+                            else if (!selState.nextRound)
+                            {
+                                count--;
+                            }
                         }
-                        else if (!selState.nextRound)
+                        catch (stop_this_select_exception)
                         {
-                            count--;
+                            if (selected)
+                            {
+                                break;
+                            }
+                            else
+                            {
+                                count--;
+                                await selectedChan.end();
+                            }
                         }
                     }
                     else
