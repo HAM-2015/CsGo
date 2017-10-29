@@ -185,6 +185,16 @@ namespace Go
             public static readonly stop_select_exception val = new stop_select_exception();
         }
 
+        public class stop_this_receive_exception : System.Exception
+        {
+            public static readonly stop_this_receive_exception val = new stop_this_receive_exception();
+        }
+
+        public class stop_all_receive_exception : System.Exception
+        {
+            public static readonly stop_all_receive_exception val = new stop_all_receive_exception();
+        }
+
         class static_init
         {
             public static_init()
@@ -953,6 +963,76 @@ namespace Go
             }
         }
 
+        static public void lock_suspend_and_stop()
+        {
+            generator this_ = self;
+            if (!this_._beginQuit)
+            {
+                this_._lockSuspendCount++;
+                this_._lockCount++;
+            }
+        }
+
+        static public Task unlock_suspend_and_stop()
+        {
+            generator this_ = self;
+#if DEBUG
+            if (!this_._beginQuit)
+            {
+                Trace.Assert(this_._lockCount > 0, "unlock_stop 不匹配");
+                Trace.Assert(this_._lockSuspendCount > 0, "unlock_suspend 不匹配");
+            }
+#endif
+            if (!this_._beginQuit && 0 == --this_._lockCount && this_._isForce)
+            {
+                this_._lockSuspendCount = 0;
+                this_._holdSuspend = false;
+                this_._beginQuit = true;
+                this_._suspendCb = null;
+                this_._timer.cancel();
+                throw stop_exception.val;
+            }
+            if (!this_._beginQuit && 0 == --this_._lockSuspendCount && this_._holdSuspend)
+            {
+                this_._holdSuspend = false;
+                this_._isSuspend = true;
+                this_._suspend_cb(true);
+                if (this_._isSuspend)
+                {
+                    this_._hasBlock = true;
+                    this_._pullTask.new_task();
+                    return this_.async_wait();
+                }
+            }
+            return nil_wait();
+        }
+
+        static public async Task lock_suspend_and_stop(functional.func_res<Task> handler)
+        {
+            lock_suspend_and_stop();
+            try
+            {
+                await handler();
+            }
+            finally
+            {
+                await unlock_suspend_and_stop();
+            }
+        }
+
+        static public async Task<R> lock_suspend_and_stop<R>(functional.func_res<Task<R>> handler)
+        {
+            lock_suspend_and_stop();
+            try
+            {
+                return await handler();
+            }
+            finally
+            {
+                await unlock_suspend_and_stop();
+            }
+        }
+
         public async Task async_wait()
         {
             await _pullTask;
@@ -1006,6 +1086,114 @@ namespace Go
             };
         }
 
+        public functional.same_func timed_async_same_callback(int ms, functional.func timedHandler = null)
+        {
+            mutli_callback multiCb = new_multi_task();
+            bool beginQuit = _beginQuit;
+            _timer.timeout(ms, delegate ()
+            {
+                if (null != timedHandler)
+                {
+                    timedHandler();
+                }
+                else if (!multiCb.check())
+                {
+                    next(beginQuit);
+                }
+            });
+            return delegate (object[] args)
+            {
+                strand.distribute(delegate ()
+                {
+                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    {
+                        _timer.cancel();
+                        no_check_next();
+                    }
+                });
+            };
+        }
+
+        public functional.same_func timed_async_same_callback2(int ms, functional.func timedHandler = null)
+        {
+            mutli_callback multiCb = new_multi_task();
+            bool beginQuit = _beginQuit;
+            _timer.timeout(ms, delegate ()
+            {
+                functional.catch_invoke(timedHandler);
+                if (!multiCb.check())
+                {
+                    next(beginQuit);
+                }
+            });
+            return delegate (object[] args)
+            {
+                strand.distribute(delegate ()
+                {
+                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    {
+                        _timer.cancel();
+                        no_check_next();
+                    }
+                });
+            };
+        }
+
+        public functional.same_func timed_async_same_callback(int ms, functional.same_func handler, functional.func timedHandler = null)
+        {
+            mutli_callback multiCb = new_multi_task();
+            bool beginQuit = _beginQuit;
+            _timer.timeout(ms, delegate ()
+            {
+                if (null != timedHandler)
+                {
+                    timedHandler();
+                }
+                else if (!multiCb.check())
+                {
+                    next(beginQuit);
+                }
+            });
+            return delegate (object[] args)
+            {
+                strand.distribute(delegate ()
+                {
+                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    {
+                        _timer.cancel();
+                        handler(args);
+                        no_check_next();
+                    }
+                });
+            };
+        }
+
+        public functional.same_func timed_async_same_callback2(int ms, functional.same_func handler, functional.func timedHandler = null)
+        {
+            mutli_callback multiCb = new_multi_task();
+            bool beginQuit = _beginQuit;
+            _timer.timeout(ms, delegate ()
+            {
+                functional.catch_invoke(timedHandler);
+                if (!multiCb.check())
+                {
+                    next(beginQuit);
+                }
+            });
+            return delegate (object[] args)
+            {
+                strand.distribute(delegate ()
+                {
+                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    {
+                        _timer.cancel();
+                        handler(args);
+                        no_check_next();
+                    }
+                });
+            };
+        }
+
         public functional.func async_callback(functional.func handler)
         {
             _pullTask.new_task();
@@ -1047,6 +1235,226 @@ namespace Go
             {
                 handler(p1, p2, p3);
                 strand.distribute(beginQuit ? (functional.func)quit_next : no_quit_next);
+            };
+        }
+
+        public functional.func timed_async_callback(int ms, functional.func handler, functional.func timedHandler = null)
+        {
+            mutli_callback multiCb = new_multi_task();
+            bool beginQuit = _beginQuit;
+            _timer.timeout(ms, delegate ()
+            {
+                if (null != timedHandler)
+                {
+                    timedHandler();
+                }
+                else if (!multiCb.check())
+                {
+                    next(beginQuit);
+                }
+            });
+            return delegate ()
+            {
+                strand.distribute(delegate ()
+                {
+                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    {
+                        _timer.cancel();
+                        handler();
+                        no_check_next();
+                    }
+                });
+            };
+        }
+
+        public functional.func timed_async_callback2(int ms, functional.func handler, functional.func timedHandler = null)
+        {
+            mutli_callback multiCb = new_multi_task();
+            bool beginQuit = _beginQuit;
+            _timer.timeout(ms, delegate ()
+            {
+                functional.catch_invoke(timedHandler);
+                if (!multiCb.check())
+                {
+                    next(beginQuit);
+                }
+            });
+            return delegate ()
+            {
+                strand.distribute(delegate ()
+                {
+                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    {
+                        _timer.cancel();
+                        handler();
+                        no_check_next();
+                    }
+                });
+            };
+        }
+
+        public functional.func<T1> timed_async_callback<T1>(int ms, functional.func<T1> handler, functional.func timedHandler = null)
+        {
+            mutli_callback multiCb = new_multi_task();
+            bool beginQuit = _beginQuit;
+            _timer.timeout(ms, delegate ()
+            {
+                if (null != timedHandler)
+                {
+                    timedHandler();
+                }
+                else if (!multiCb.check())
+                {
+                    next(beginQuit);
+                }
+            });
+            return delegate (T1 p1)
+            {
+                strand.distribute(delegate ()
+                {
+                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    {
+                        _timer.cancel();
+                        handler(p1);
+                        no_check_next();
+                    }
+                });
+            };
+        }
+
+        public functional.func<T1> timed_async_callback2<T1>(int ms, functional.func<T1> handler, functional.func timedHandler = null)
+        {
+            mutli_callback multiCb = new_multi_task();
+            bool beginQuit = _beginQuit;
+            _timer.timeout(ms, delegate ()
+            {
+                functional.catch_invoke(timedHandler);
+                if (!multiCb.check())
+                {
+                    next(beginQuit);
+                }
+            });
+            return delegate (T1 p1)
+            {
+                strand.distribute(delegate ()
+                {
+                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    {
+                        _timer.cancel();
+                        handler(p1);
+                        no_check_next();
+                    }
+                });
+            };
+        }
+
+        public functional.func<T1, T2> timed_async_callback<T1, T2>(int ms, functional.func<T1, T2> handler, functional.func timedHandler = null)
+        {
+            mutli_callback multiCb = new_multi_task();
+            bool beginQuit = _beginQuit;
+            _timer.timeout(ms, delegate ()
+            {
+                if (null != timedHandler)
+                {
+                    timedHandler();
+                }
+                else if (!multiCb.check())
+                {
+                    next(beginQuit);
+                }
+            });
+            return delegate (T1 p1, T2 p2)
+            {
+                strand.distribute(delegate ()
+                {
+                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    {
+                        _timer.cancel();
+                        handler(p1, p2);
+                        no_check_next();
+                    }
+                });
+            };
+        }
+
+        public functional.func<T1, T2> timed_async_callback2<T1, T2>(int ms, functional.func<T1, T2> handler, functional.func timedHandler = null)
+        {
+            mutli_callback multiCb = new_multi_task();
+            bool beginQuit = _beginQuit;
+            _timer.timeout(ms, delegate ()
+            {
+                functional.catch_invoke(timedHandler);
+                if (!multiCb.check())
+                {
+                    next(beginQuit);
+                }
+            });
+            return delegate (T1 p1, T2 p2)
+            {
+                strand.distribute(delegate ()
+                {
+                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    {
+                        _timer.cancel();
+                        handler(p1, p2);
+                        no_check_next();
+                    }
+                });
+            };
+        }
+
+        public functional.func<T1, T2, T3> timed_async_callback<T1, T2, T3>(int ms, functional.func<T1, T2, T3> handler, functional.func timedHandler = null)
+        {
+            mutli_callback multiCb = new_multi_task();
+            bool beginQuit = _beginQuit;
+            _timer.timeout(ms, delegate ()
+            {
+                if (null != timedHandler)
+                {
+                    timedHandler();
+                }
+                else if (!multiCb.check())
+                {
+                    next(beginQuit);
+                }
+            });
+            return delegate (T1 p1, T2 p2, T3 p3)
+            {
+                strand.distribute(delegate ()
+                {
+                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    {
+                        _timer.cancel();
+                        handler(p1, p2, p3);
+                        no_check_next();
+                    }
+                });
+            };
+        }
+
+        public functional.func<T1, T2, T3> timed_async_callback2<T1, T2, T3>(int ms, functional.func<T1, T2, T3> handler, functional.func timedHandler = null)
+        {
+            mutli_callback multiCb = new_multi_task();
+            bool beginQuit = _beginQuit;
+            _timer.timeout(ms, delegate ()
+            {
+                functional.catch_invoke(timedHandler);
+                if (!multiCb.check())
+                {
+                    next(beginQuit);
+                }
+            });
+            return delegate (T1 p1, T2 p2, T3 p3)
+            {
+                strand.distribute(delegate ()
+                {
+                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    {
+                        _timer.cancel();
+                        handler(p1, p2, p3);
+                        no_check_next();
+                    }
+                });
             };
         }
 
@@ -2115,12 +2523,12 @@ namespace Go
             }
             finally
             {
-                lock_stop();
+                lock_suspend_and_stop();
                 foreach (select_chan_base chan in chans)
                 {
                     await chan.end();
                 }
-                unlock_stop();
+                await unlock_suspend_and_stop();
             }
         }
 
@@ -2171,12 +2579,12 @@ namespace Go
             {
                 if (!selected)
                 {
-                    lock_stop();
+                    lock_suspend_and_stop();
                     foreach (select_chan_base chan in chans)
                     {
                         await chan.end();
                     }
-                    unlock_stop();
+                    await unlock_suspend_and_stop();
                 }
             }
             return selected;
@@ -2245,15 +2653,25 @@ namespace Go
                 if (!selected)
                 {
                     this_._timer.cancel();
-                    lock_stop();
+                    lock_suspend_and_stop();
                     foreach (select_chan_base chan in chans)
                     {
                         await chan.end();
                     }
-                    unlock_stop();
+                    await unlock_suspend_and_stop();
                 }
             }
             return selected;
+        }
+
+        static public select_chan_base case_mail<T>(functional.func_res<Task, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+        {
+            return case_read(self_mailbox<T>(), handler, errHandler);
+        }
+
+        static public select_chan_base case_mail<T>(int id, functional.func_res<Task, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+        {
+            return case_read(self_mailbox<T>(id), handler, errHandler);
         }
 
         static public select_chan_base case_read<T>(channel<T> chan, functional.func_res<Task, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
@@ -3351,7 +3769,7 @@ namespace Go
             return (long)id << 32 | (uint)type_hash<T>.code;
         }
 
-        static public msg_buff<T> self_mailbox<T>(int id = 0)
+        static public channel<T> self_mailbox<T>(int id = 0)
         {
             generator this_ = self;
             if (null == this_._mailboxMap)
@@ -3364,10 +3782,10 @@ namespace Go
                 mb = new mail_pck(new msg_buff<T>(this_.strand));
                 this_._mailboxMap.Add(calc_hash<T>(id), mb);
             }
-            return (msg_buff<T>)mb.mailbox;
+            return (channel<T>)mb.mailbox;
         }
 
-        public void get_mailbox<T>(functional.func<msg_buff<T>> cb, int id = 0)
+        public void get_mailbox<T>(functional.func<channel<T>> cb, int id = 0)
         {
             strand.distribute(delegate ()
             {
@@ -3386,14 +3804,14 @@ namespace Go
                     mb = new mail_pck(new msg_buff<T>(strand));
                     _mailboxMap.Add(calc_hash<T>(id), mb);
                 }
-                functional.catch_invoke(cb, (msg_buff<T>)mb.mailbox);
+                functional.catch_invoke(cb, (channel<T>)mb.mailbox);
             });
         }
 
-        public async Task<msg_buff<T>> get_mailbox<T>(int id = 0)
+        public async Task<channel<T>> get_mailbox<T>(int id = 0)
         {
             generator host_ = self;
-            async_result_wrap<msg_buff<T>> res = new async_result_wrap<msg_buff<T>>();
+            async_result_wrap<channel<T>> res = new async_result_wrap<channel<T>>();
             get_mailbox(host_.async_result(res), id);
             await host_.async_wait();
             return res.value_1;
@@ -3421,14 +3839,14 @@ namespace Go
                 await this_._agentMng.stop(mb.agentAction);
                 mb.agentAction = null;
             }
-            msg_buff<T> agentMb = await agentGen.get_mailbox<T>();
+            channel<T> agentMb = await agentGen.get_mailbox<T>();
             if (null == agentMb)
             {
                 return false;
             }
             mb.agentAction = this_._agentMng.go(async delegate ()
             {
-                msg_buff<T> selfMb = (msg_buff<T>)mb.mailbox;
+                channel<T> selfMb = (channel<T>)mb.mailbox;
                 chan_notify_sign ntfSign = new chan_notify_sign();
                 generator self = generator.self;
                 try
@@ -3439,8 +3857,7 @@ namespace Go
                         await self.async_wait();
                         try
                         {
-                            lock_suspend();
-                            lock_stop();
+                            lock_suspend_and_stop();
                             chan_pop_wrap<T> popRes = await chan_try_pop(selfMb);
                             if (chan_async_state.async_ok == popRes.state)
                             {
@@ -3453,15 +3870,16 @@ namespace Go
                         }
                         finally
                         {
-                            unlock_stop();
-                            await unlock_suspend();
+                            await unlock_suspend_and_stop();
                         }
                     }
                 }
                 catch (stop_exception)
                 {
+                    lock_suspend_and_stop();
                     selfMb.remove_pop_notify(self.async_same_callback(), ntfSign);
                     await self.async_wait();
+                    await unlock_suspend_and_stop();
                 }
             });
             return true;
@@ -3479,6 +3897,844 @@ namespace Go
                 return true;
             }
             return false;
+        }
+
+        public class receive_mail
+        {
+            bool _run = true;
+            shared_mutex _mutex;
+            children _children = new children();
+
+            public receive_mail(bool forceStopAll)
+            {
+                generator self = generator.self;
+                if (null == self._mailboxMap)
+                {
+                    self._mailboxMap = new SortedList<long, mail_pck>();
+                }
+                _mutex = forceStopAll ? null : new shared_mutex(self.strand);
+            }
+
+            public receive_mail receive(channel<void_type> chan, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            {
+                return receive(chan, (void_type _) => handler(), errHandler);
+            }
+
+            public receive_mail receive<T>(channel<T> chan, functional.func_res<Task, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            {
+                _children.go(async delegate ()
+                {
+                    generator self = generator.self;
+                    self._mailboxMap = _children.parent()._mailboxMap;
+                    if (null == _mutex)
+                    {
+                        try
+                        {
+                            while (_run)
+                            {
+                                chan_pop_wrap<T> res = await chan_pop(chan);
+                                if (chan_async_state.async_ok == res.state)
+                                {
+                                    await handler(res.result);
+                                }
+                                else if (null == errHandler || await errHandler(res.state))
+                                {
+                                    break;
+                                }
+                            }
+                        }
+                        catch (stop_this_receive_exception) { }
+                        catch (stop_all_receive_exception)
+                        {
+                            _run = false;
+                        }
+                        finally
+                        {
+                            self._mailboxMap = null;
+                        }
+                    }
+                    else
+                    {
+                        chan_notify_sign ntfSign = new chan_notify_sign();
+                        try
+                        {
+                            while (_run)
+                            {
+                                chan.append_pop_notify(self.async_same_callback(), ntfSign);
+                                await self.async_wait();
+                                try
+                                {
+                                    await mutex_lock_shared(_mutex);
+                                    chan_pop_wrap<T> res = await chan_try_pop(chan);
+                                    if (chan_async_state.async_ok == res.state)
+                                    {
+                                        await handler(res.result);
+                                    }
+                                    else if (null != errHandler && await errHandler(res.state))
+                                    {
+                                        break;
+                                    }
+                                    else if (chan_async_state.async_closed == res.state)
+                                    {
+                                        break;
+                                    }
+                                }
+                                finally
+                                {
+                                    await mutex_unlock_shared(_mutex);
+                                }
+                            }
+                        }
+                        catch (stop_this_receive_exception) { }
+                        catch (stop_all_receive_exception)
+                        {
+                            _run = false;
+                        }
+                        finally
+                        {
+                            lock_suspend_and_stop();
+                            self._mailboxMap = null;
+                            chan.remove_pop_notify(self.async_same_callback(), ntfSign);
+                            await self.async_wait();
+                            await unlock_suspend_and_stop();
+                        }
+                    }
+                });
+                return this;
+            }
+
+            public receive_mail timed_receive(channel<void_type> chan, int ms, functional.func_res<Task> timedHandler, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            {
+                return timed_receive(chan, ms, timedHandler, (void_type _) => handler(), errHandler);
+            }
+
+            public receive_mail timed_receive<T>(channel<T> chan, int ms, functional.func_res<Task> timedHandler, functional.func_res<Task, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            {
+                _children.go(async delegate ()
+                {
+                    generator self = generator.self;
+                    self._mailboxMap = _children.parent()._mailboxMap;
+                    if (null == _mutex)
+                    {
+                        chan_pop_wrap<T> res = await chan_timed_pop(ms, chan);
+                        try
+                        {
+                            if (chan_async_state.async_ok == res.state)
+                            {
+                                await handler(res.result);
+                            }
+                            else if (chan_async_state.async_overtime == res.state)
+                            {
+                                await timedHandler();
+                            }
+                            else if (null == errHandler || await errHandler(res.state)) { }
+                        }
+                        catch (stop_this_receive_exception) { }
+                        catch (stop_all_receive_exception)
+                        {
+                            _run = false;
+                        }
+                        finally
+                        {
+                            self._mailboxMap = null;
+                        }
+                    }
+                    else
+                    {
+                        chan_notify_sign ntfSign = new chan_notify_sign();
+                        try
+                        {
+                            long endTick = system_tick.get_tick_ms() + ms;
+                            while (_run)
+                            {
+                                bool overtime = false;
+                                chan.append_pop_notify(self.timed_async_same_callback2(ms, () => overtime = true), ntfSign);
+                                await self.async_wait();
+                                try
+                                {
+                                    await mutex_lock_shared(_mutex);
+                                    if (!overtime)
+                                    {
+                                        chan_pop_wrap<T> res = await chan_try_pop(chan);
+                                        if (chan_async_state.async_ok == res.state)
+                                        {
+                                            await handler(res.result); break;
+                                        }
+                                        else if ((null != errHandler && await errHandler(res.state)) || chan_async_state.async_closed == res.state) { break; }
+                                        if (0 <= ms && 0 >= (ms = (int)(endTick - system_tick.get_tick_ms())))
+                                        {
+                                            await timedHandler(); break;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        await timedHandler(); break;
+                                    }
+                                }
+                                finally
+                                {
+                                    await mutex_unlock_shared(_mutex);
+                                }
+                            }
+                        }
+                        catch (stop_this_receive_exception) { }
+                        catch (stop_all_receive_exception)
+                        {
+                            _run = false;
+                        }
+                        finally
+                        {
+                            lock_suspend_and_stop();
+                            self._mailboxMap = null;
+                            chan.remove_pop_notify(self.async_same_callback(), ntfSign);
+                            await self.async_wait();
+                            await unlock_suspend_and_stop();
+                        }
+                    }
+                });
+                return this;
+            }
+
+            public receive_mail try_receive(channel<void_type> chan, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            {
+                return try_receive(chan, (void_type _) => handler(), errHandler);
+            }
+
+            public receive_mail try_receive<T>(channel<T> chan, functional.func_res<Task, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            {
+                _children.go(async delegate ()
+                {
+                    generator self = generator.self;
+                    self._mailboxMap = _children.parent()._mailboxMap;
+                    try
+                    {
+                        if (null != _mutex)
+                        {
+                            await mutex_lock_shared(_mutex);
+                        }
+                        chan_pop_wrap<T> res = await chan_try_pop(chan);
+                        if (chan_async_state.async_ok == res.state)
+                        {
+                            await handler(res.result);
+                        }
+                        else if (null == errHandler || await errHandler(res.state)) { }
+                    }
+                    catch (stop_this_receive_exception) { }
+                    catch (stop_all_receive_exception)
+                    {
+                        _run = false;
+                    }
+                    finally
+                    {
+                        self._mailboxMap = null;
+                        if (null != _mutex)
+                        {
+                            await mutex_unlock_shared(_mutex);
+                        }
+                    }
+                });
+                return this;
+            }
+
+            public receive_mail receive(broadcast_chan<void_type> chan, functional.func_res<Task> handler, broadcast_chan_token token = null)
+            {
+                return receive(chan, (void_type _) => handler(), token);
+            }
+
+            public receive_mail receive<T>(broadcast_chan<T> chan, functional.func_res<Task, T> handler, broadcast_chan_token token = null)
+            {
+                return receive(chan, handler, null, token);
+            }
+
+            public receive_mail receive(broadcast_chan<void_type> chan, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler, broadcast_chan_token token = null)
+            {
+                return receive(chan, (void_type _) => handler(), errHandler, token);
+            }
+
+            public receive_mail receive<T>(broadcast_chan<T> chan, functional.func_res<Task, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler, broadcast_chan_token token = null)
+            {
+                _children.go(async delegate ()
+                {
+                    generator self = generator.self;
+                    self._mailboxMap = _children.parent()._mailboxMap;
+                    token = null != token ? token : new broadcast_chan_token();
+                    if (null == _mutex)
+                    {
+                        try
+                        {
+                            while (_run)
+                            {
+                                chan_pop_wrap<T> res = await chan_pop(chan, token);
+                                if (chan_async_state.async_ok == res.state)
+                                {
+                                    await handler(res.result);
+                                }
+                                else if (null == errHandler || await errHandler(res.state))
+                                {
+                                    break;
+                                }
+                            }
+                        }
+                        catch (stop_this_receive_exception) { }
+                        catch (stop_all_receive_exception)
+                        {
+                            _run = false;
+                        }
+                        finally
+                        {
+                            self._mailboxMap = null;
+                        }
+                    }
+                    else
+                    {
+                        chan_notify_sign ntfSign = new chan_notify_sign();
+                        try
+                        {
+                            while (_run)
+                            {
+                                chan.append_pop_notify(self.async_same_callback(), ntfSign, token);
+                                await self.async_wait();
+                                try
+                                {
+                                    await mutex_lock_shared(_mutex);
+                                    chan_pop_wrap<T> res = await chan_try_pop(chan, token);
+                                    if (chan_async_state.async_ok == res.state)
+                                    {
+                                        await handler(res.result);
+                                    }
+                                    else if (null != errHandler && await errHandler(res.state))
+                                    {
+                                        break;
+                                    }
+                                    else if (chan_async_state.async_closed == res.state)
+                                    {
+                                        break;
+                                    }
+                                }
+                                finally
+                                {
+                                    await mutex_unlock_shared(_mutex);
+                                }
+                            }
+                        }
+                        catch (stop_this_receive_exception) { }
+                        catch (stop_all_receive_exception)
+                        {
+                            _run = false;
+                        }
+                        finally
+                        {
+                            lock_suspend_and_stop();
+                            self._mailboxMap = null;
+                            chan.remove_pop_notify(self.async_same_callback(), ntfSign);
+                            await self.async_wait();
+                            await unlock_suspend_and_stop();
+                        }
+                    }
+                });
+                return this;
+            }
+
+            public receive_mail timed_receive(int ms, broadcast_chan<void_type> chan, functional.func_res<Task> timedHandler, functional.func_res<Task> handler, broadcast_chan_token token = null)
+            {
+                return timed_receive(ms, chan, timedHandler, (void_type _) => handler(), token);
+            }
+
+            public receive_mail timed_receive<T>(int ms, broadcast_chan<T> chan, functional.func_res<Task> timedHandler, functional.func_res<Task, T> handler, broadcast_chan_token token = null)
+            {
+                return timed_receive(ms, chan, timedHandler, handler, null, token);
+            }
+
+            public receive_mail timed_receive(int ms, broadcast_chan<void_type> chan, functional.func_res<Task> timedHandler, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler, broadcast_chan_token token = null)
+            {
+                return timed_receive(ms, chan, timedHandler, (void_type _) => handler(), errHandler, token);
+            }
+
+            public receive_mail timed_receive<T>(int ms, broadcast_chan<T> chan, functional.func_res<Task> timedHandler, functional.func_res<Task, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler, broadcast_chan_token token = null)
+            {
+                _children.go(async delegate ()
+                {
+                    generator self = generator.self;
+                    self._mailboxMap = _children.parent()._mailboxMap;
+                    token = null != token ? token : new broadcast_chan_token();
+                    if (null == _mutex)
+                    {
+                        chan_pop_wrap<T> res = await chan_timed_pop(ms, chan, token);
+                        try
+                        {
+                            if (chan_async_state.async_ok == res.state)
+                            {
+                                await handler(res.result);
+                            }
+                            else if (chan_async_state.async_overtime == res.state)
+                            {
+                                await timedHandler();
+                            }
+                            else if (null == errHandler || await errHandler(res.state)) { }
+                        }
+                        catch (stop_this_receive_exception) { }
+                        catch (stop_all_receive_exception)
+                        {
+                            _run = false;
+                        }
+                        finally
+                        {
+                            self._mailboxMap = null;
+                        }
+                    }
+                    else
+                    {
+                        chan_notify_sign ntfSign = new chan_notify_sign();
+                        try
+                        {
+                            long endTick = system_tick.get_tick_ms() + ms;
+                            while (_run)
+                            {
+                                bool overtime = false;
+                                chan.append_pop_notify(self.timed_async_same_callback2(ms, () => overtime = true), ntfSign, token);
+                                await self.async_wait();
+                                try
+                                {
+                                    await mutex_lock_shared(_mutex);
+                                    if (!overtime)
+                                    {
+                                        chan_pop_wrap<T> res = await chan_try_pop(chan, token);
+                                        if (chan_async_state.async_ok == res.state)
+                                        {
+                                            await handler(res.result); break;
+                                        }
+                                        else if ((null != errHandler && await errHandler(res.state)) || chan_async_state.async_closed == res.state) { break; }
+                                        if (0 <= ms && 0 >= (ms = (int)(endTick - system_tick.get_tick_ms())))
+                                        {
+                                            await timedHandler(); break;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        await timedHandler(); break;
+                                    }
+                                }
+                                finally
+                                {
+                                    await mutex_unlock_shared(_mutex);
+                                }
+                            }
+                        }
+                        catch (stop_this_receive_exception) { }
+                        catch (stop_all_receive_exception)
+                        {
+                            _run = false;
+                        }
+                        finally
+                        {
+                            lock_suspend_and_stop();
+                            self._mailboxMap = null;
+                            chan.remove_pop_notify(self.async_same_callback(), ntfSign);
+                            await self.async_wait();
+                            await unlock_suspend_and_stop();
+                        }
+                    }
+                });
+                return this;
+            }
+
+            public receive_mail try_receive(broadcast_chan<void_type> chan, functional.func_res<Task> handler, broadcast_chan_token token = null)
+            {
+                return try_receive(chan, (void_type _) => handler(), token);
+            }
+
+            public receive_mail try_receive<T>(broadcast_chan<T> chan, functional.func_res<Task, T> handler, broadcast_chan_token token = null)
+            {
+                return try_receive(chan, handler, null, token);
+            }
+
+            public receive_mail try_receive(broadcast_chan<void_type> chan, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler, broadcast_chan_token token = null)
+            {
+                return try_receive(chan, (void_type _) => handler(), errHandler, token);
+            }
+
+            public receive_mail try_receive<T>(broadcast_chan<T> chan, functional.func_res<Task, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler, broadcast_chan_token token = null)
+            {
+                _children.go(async delegate ()
+                {
+                    generator self = generator.self;
+                    self._mailboxMap = _children.parent()._mailboxMap;
+                    try
+                    {
+                        if (null != _mutex)
+                        {
+                            await mutex_lock_shared(_mutex);
+                        }
+                        chan_pop_wrap<T> res = await chan_try_pop(chan, null != token ? token : new broadcast_chan_token());
+                        if (chan_async_state.async_ok == res.state)
+                        {
+                            await handler(res.result);
+                        }
+                        else if (null == errHandler || await errHandler(res.state)) { }
+                    }
+                    catch (stop_this_receive_exception) { }
+                    catch (stop_all_receive_exception)
+                    {
+                        _run = false;
+                    }
+                    finally
+                    {
+                        self._mailboxMap = null;
+                        if (null != _mutex)
+                        {
+                            await mutex_unlock_shared(_mutex);
+                        }
+                    }
+                });
+                return this;
+            }
+
+            public receive_mail receive<R>(csp_chan<R, void_type> chan, functional.func_res<Task<R>> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            {
+                return receive(chan, async (csp_chan<R, void_type>.csp_result res, void_type _) => res.complete(await handler()), errHandler);
+            }
+
+            public receive_mail receive<T>(csp_chan<void_type, T> chan, functional.func_res<Task, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            {
+                return receive(chan, async (csp_chan<void_type, T>.csp_result res, T msg) => { await handler(msg); res.complete(default(void_type)); }, errHandler);
+            }
+
+            public receive_mail receive(csp_chan<void_type, void_type> chan, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            {
+                return receive(chan, async (csp_chan<void_type, void_type>.csp_result res, void_type _) => { await handler(); res.complete(default(void_type)); }, errHandler);
+            }
+
+            public receive_mail receive<R, T>(csp_chan<R, T> chan, functional.func_res<Task<R>, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            {
+                return receive(chan, async (csp_chan<R, T>.csp_result res, T msg) => res.complete(await handler(msg)), errHandler);
+            }
+
+            public receive_mail receive<R>(csp_chan<R, void_type> chan, functional.func_res<Task, csp_chan<R, void_type>.csp_result> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            {
+                return receive(chan, (csp_chan<R, void_type>.csp_result res, void_type _) => handler(res), errHandler);
+            }
+
+            public receive_mail receive<R, T>(csp_chan<R, T> chan, functional.func_res<Task, csp_chan<R, T>.csp_result, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            {
+                _children.go(async delegate ()
+                {
+                    generator self = generator.self;
+                    self._mailboxMap = _children.parent()._mailboxMap;
+                    if (null == _mutex)
+                    {
+                        try
+                        {
+                            while (_run)
+                            {
+                                csp_wait_wrap<R, T> res = await csp_wait(chan);
+                                if (chan_async_state.async_ok == res.state)
+                                {
+                                    await handler(res.result, res.msg);
+                                }
+                                else if (null == errHandler || await errHandler(res.state))
+                                {
+                                    break;
+                                }
+                            }
+                        }
+                        catch (stop_this_receive_exception) { }
+                        catch (stop_all_receive_exception)
+                        {
+                            _run = false;
+                        }
+                        finally
+                        {
+                            self._mailboxMap = null;
+                        }
+                    }
+                    else
+                    {
+                        chan_notify_sign ntfSign = new chan_notify_sign();
+                        try
+                        {
+                            while (_run)
+                            {
+                                chan.append_pop_notify(self.async_same_callback(), ntfSign);
+                                await self.async_wait();
+                                try
+                                {
+                                    await mutex_lock_shared(_mutex);
+                                    csp_wait_wrap<R, T> res = await csp_try_wait(chan);
+                                    if (chan_async_state.async_ok == res.state)
+                                    {
+                                        await handler(res.result, res.msg);
+                                    }
+                                    else if (null != errHandler && await errHandler(res.state))
+                                    {
+                                        break;
+                                    }
+                                    else if (chan_async_state.async_closed == res.state)
+                                    {
+                                        break;
+                                    }
+                                }
+                                finally
+                                {
+                                    await mutex_unlock_shared(_mutex);
+                                }
+                            }
+                        }
+                        catch (stop_this_receive_exception) { }
+                        catch (stop_all_receive_exception)
+                        {
+                            _run = false;
+                        }
+                        finally
+                        {
+                            lock_suspend_and_stop();
+                            self._mailboxMap = null;
+                            chan.remove_pop_notify(self.async_same_callback(), ntfSign);
+                            await self.async_wait();
+                            await unlock_suspend_and_stop();
+                        }
+                    }
+                });
+                return this;
+            }
+
+            public receive_mail timed_receive<R>(int ms, csp_chan<R, void_type> chan, functional.func_res<Task> timedHandler, functional.func_res<Task<R>> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            {
+                return timed_receive(ms, chan, timedHandler, async (csp_chan<R, void_type>.csp_result res, void_type _) => res.complete(await handler()), errHandler);
+            }
+
+            public receive_mail timed_receive<T>(int ms, csp_chan<void_type, T> chan, functional.func_res<Task> timedHandler, functional.func_res<Task, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            {
+                return timed_receive(ms, chan, timedHandler, async (csp_chan<void_type, T>.csp_result res, T msg) => { await handler(msg); res.complete(default(void_type)); }, errHandler);
+            }
+
+            public receive_mail timed_receive(int ms, csp_chan<void_type, void_type> chan, functional.func_res<Task> timedHandler, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            {
+                return timed_receive(ms, chan, timedHandler, async (csp_chan<void_type, void_type>.csp_result res, void_type _) => { await handler(); res.complete(default(void_type)); }, errHandler);
+            }
+
+            public receive_mail timed_receive<R, T>(int ms, csp_chan<R, T> chan, functional.func_res<Task> timedHandler, functional.func_res<Task<R>, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            {
+                return timed_receive(ms, chan, timedHandler, async (csp_chan<R, T>.csp_result res, T msg) => res.complete(await handler(msg)), errHandler);
+            }
+
+            public receive_mail timed_receive<R>(int ms, csp_chan<R, void_type> chan, functional.func_res<Task> timedHandler, functional.func_res<Task, csp_chan<R, void_type>.csp_result> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            {
+                return timed_receive(ms, chan, timedHandler, (csp_chan<R, void_type>.csp_result res, void_type _) => handler(res), errHandler);
+            }
+
+            public receive_mail timed_receive<R, T>(int ms, csp_chan<R, T> chan, functional.func_res<Task> timedHandler, functional.func_res<Task, csp_chan<R, T>.csp_result, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            {
+                _children.go(async delegate ()
+                {
+                    generator self = generator.self;
+                    self._mailboxMap = _children.parent()._mailboxMap;
+                    if (null == _mutex)
+                    {
+                        csp_wait_wrap<R, T> res = await csp_timed_wait(ms, chan);
+                        try
+                        {
+                            if (chan_async_state.async_ok == res.state)
+                            {
+                                await handler(res.result, res.msg);
+                            }
+                            else if (chan_async_state.async_overtime == res.state)
+                            {
+                                await timedHandler();
+                            }
+                            else if (null == errHandler || await errHandler(res.state)) { }
+                        }
+                        catch (stop_this_receive_exception) { }
+                        catch (stop_all_receive_exception)
+                        {
+                            _run = false;
+                        }
+                        finally
+                        {
+                            self._mailboxMap = null;
+                        }
+                    }
+                    else
+                    {
+                        chan_notify_sign ntfSign = new chan_notify_sign();
+                        try
+                        {
+                            long endTick = system_tick.get_tick_ms() + ms;
+                            while (_run)
+                            {
+                                bool overtime = false;
+                                chan.append_pop_notify(self.timed_async_same_callback2(ms, () => overtime = true), ntfSign);
+                                await self.async_wait();
+                                try
+                                {
+                                    await mutex_lock_shared(_mutex);
+                                    if (!overtime)
+                                    {
+                                        csp_wait_wrap<R, T> res = await csp_try_wait(chan);
+                                        if (chan_async_state.async_ok == res.state)
+                                        {
+                                            await handler(res.result, res.msg); break;
+                                        }
+                                        else if ((null != errHandler && await errHandler(res.state)) || chan_async_state.async_closed == res.state) { break; }
+                                        if (0 <= ms && 0 >= (ms = (int)(endTick - system_tick.get_tick_ms())))
+                                        {
+                                            await timedHandler(); break;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        await timedHandler(); break;
+                                    }
+                                }
+                                finally
+                                {
+                                    await mutex_unlock_shared(_mutex);
+                                }
+                            }
+                        }
+                        catch (stop_this_receive_exception) { }
+                        catch (stop_all_receive_exception)
+                        {
+                            _run = false;
+                        }
+                        finally
+                        {
+                            lock_suspend_and_stop();
+                            self._mailboxMap = null;
+                            chan.remove_pop_notify(self.async_same_callback(), ntfSign);
+                            await self.async_wait();
+                            await unlock_suspend_and_stop();
+                        }
+                    }
+                });
+                return this;
+            }
+
+            public receive_mail try_receive<R>(csp_chan<R, void_type> chan, functional.func_res<Task<R>> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            {
+                return try_receive(chan, async (csp_chan<R, void_type>.csp_result res, void_type _) => res.complete(await handler()), errHandler);
+            }
+
+            public receive_mail try_receive<T>(csp_chan<void_type, T> chan, functional.func_res<Task, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            {
+                return try_receive(chan, async (csp_chan<void_type, T>.csp_result res, T msg) => { await handler(msg); res.complete(default(void_type)); }, errHandler);
+            }
+
+            public receive_mail try_receive(csp_chan<void_type, void_type> chan, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            {
+                return try_receive(chan, async (csp_chan<void_type, void_type>.csp_result res, void_type _) => { await handler(); res.complete(default(void_type)); }, errHandler);
+            }
+
+            public receive_mail try_receive<R, T>(csp_chan<R, T> chan, functional.func_res<Task<R>, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            {
+                return try_receive(chan, async (csp_chan<R, T>.csp_result res, T msg) => res.complete(await handler(msg)), errHandler);
+            }
+
+            public receive_mail try_receive<R>(csp_chan<R, void_type> chan, functional.func_res<Task, csp_chan<R, void_type>.csp_result> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            {
+                return try_receive(chan, (csp_chan<R, void_type>.csp_result res, void_type _) => handler(res), errHandler);
+            }
+
+            public receive_mail try_receive<R, T>(csp_chan<R, T> chan, functional.func_res<Task, csp_chan<R, T>.csp_result, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            {
+                _children.go(async delegate ()
+                {
+                    generator self = generator.self;
+                    self._mailboxMap = _children.parent()._mailboxMap;
+                    try
+                    {
+                        if (null != _mutex)
+                        {
+                            await mutex_lock_shared(_mutex);
+                        }
+                        csp_wait_wrap<R, T> res = await csp_try_wait(chan);
+                        if (chan_async_state.async_ok == res.state)
+                        {
+                            await handler(res.result, res.msg);
+                        }
+                        else if (null == errHandler || await errHandler(res.state)) { }
+                    }
+                    catch (stop_this_receive_exception) { }
+                    catch (stop_all_receive_exception)
+                    {
+                        _run = false;
+                    }
+                    finally
+                    {
+                        self._mailboxMap = null;
+                        if (null != _mutex)
+                        {
+                            await mutex_unlock_shared(_mutex);
+                        }
+                    }
+                });
+                return this;
+            }
+
+            public receive_mail receive<T>(int id, functional.func_res<Task, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            {
+                return receive(self_mailbox<T>(id), handler, errHandler);
+            }
+
+            public receive_mail timed_receive<T>(int id, int ms, functional.func_res<Task> timedHandler, functional.func_res<Task, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            {
+                return timed_receive(self_mailbox<T>(id), ms, timedHandler, handler, errHandler);
+            }
+
+            public receive_mail try_receive<T>(int id, functional.func_res<Task, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            {
+                return try_receive(self_mailbox<T>(id), handler, errHandler);
+            }
+
+            public receive_mail receive<T>(functional.func_res<Task, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            {
+                return receive(0, handler, errHandler);
+            }
+
+            public receive_mail timed_receive<T>(int ms, functional.func_res<Task> timedHandler, functional.func_res<Task, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            {
+                return timed_receive(0, ms, timedHandler, handler, errHandler);
+            }
+
+            public receive_mail try_receive<T>(functional.func_res<Task, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            {
+                return try_receive(0, handler, errHandler);
+            }
+
+            public async Task end()
+            {
+                while (0 != _children.count())
+                {
+                    await _children.wait_one();
+                    if (!_run)
+                    {
+                        if (null != _mutex)
+                        {
+                            await mutex_lock(_mutex);
+                            await _children.stop();
+                            await mutex_unlock(_mutex);
+                        }
+                        else
+                        {
+                            await _children.stop();
+                        }
+                    }
+                }
+            }
+        }
+
+        static public receive_mail begin(bool forceStopAll = true)
+        {
+            return new receive_mail(forceStopAll);
+        }
+
+        static public void stop_this_receive()
+        {
+            throw stop_this_receive_exception.val;
+        }
+
+        static public void stop_all_receive()
+        {
+            throw stop_all_receive_exception.val;
         }
 
         static public object self_value
@@ -3562,57 +4818,57 @@ namespace Go
                 return (child)base.tick_run();
             }
 
-            public void delay_stop(functional.func cb)
+            public void delay_stop(functional.func continuation)
             {
                 strand.post(delegate ()
                 {
                     if (!_isStop)
                     {
-                        _callbacks.AddLast(cb);
+                        _callbacks.AddLast(continuation);
                         _stop();
                     }
                     else
                     {
-                        cb();
+                        continuation();
                     }
                 });
             }
 
-            public void stop(functional.func cb)
+            public void stop(functional.func continuation)
             {
                 if (strand.running_in_this_thread())
                 {
                     if (-1 == _lockCount)
                     {
-                        delay_stop(cb);
+                        delay_stop(continuation);
                     }
                     else if (!_isStop)
                     {
-                        _callbacks.AddLast(cb);
+                        _callbacks.AddLast(continuation);
                         _stop();
                     }
                     else
                     {
-                        cb();
+                        continuation();
                     }
                 }
                 else
                 {
-                    delay_stop(cb);
+                    delay_stop(continuation);
                 }
             }
 
-            public void append_stop_callback(functional.func cb)
+            public void append_stop_callback(functional.func continuation)
             {
                 strand.distribute(delegate ()
                 {
                     if (!_isStop)
                     {
-                        _callbacks.AddLast(cb);
+                        _callbacks.AddLast(continuation);
                     }
                     else
                     {
-                        cb();
+                        continuation();
                     }
                 });
             }
@@ -3747,7 +5003,15 @@ namespace Go
 
             public int count()
             {
+#if DEBUG
+                Trace.Assert(self == _parent, "此 children 不属于当前 generator");
+#endif
                 return _children.Count;
+            }
+
+            public generator parent()
+            {
+                return _parent;
             }
 
             public int discard(params child[] gens)

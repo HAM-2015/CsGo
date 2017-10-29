@@ -80,6 +80,35 @@ namespace GoTest
             }
         }
 
+        static async Task Producer5(generator cons)
+        {
+            channel<int> intMb = await cons.get_mailbox<int>();
+            channel<long> longMb = await cons.get_mailbox<long>();
+            for (int i = 0; i< 10; i++)
+            {
+                await generator.chan_push(intMb, i);
+                await generator.sleep(1000);
+                await generator.chan_push(longMb, i);
+                await generator.sleep(1000);
+            }
+            await generator.chan_close(intMb);
+            await generator.chan_close(longMb);
+        }
+
+        static async Task Consumer2()
+        {
+            await generator.begin().receive(async delegate (int msg)
+            {
+                Console.WriteLine("                                   receive int {0}", msg);
+                await generator.sleep(1);
+            }).receive(async delegate (long msg)
+            {
+                Console.WriteLine("                                   receive long {0}", msg);
+                await generator.sleep(1);
+            }).end();
+            Console.WriteLine("                                   receive end");
+        }
+
         static void Main(string[] args)
         {
             work_service work = new work_service();
@@ -93,6 +122,7 @@ namespace GoTest
             generator.go(_strand, Producer3);
             generator.go(_strand, Producer4);
             generator.go(_strand, Consumer);
+            generator.go(_strand, () => Producer5(generator.go(_strand, Consumer2)));
             work.run();
         }
     }
