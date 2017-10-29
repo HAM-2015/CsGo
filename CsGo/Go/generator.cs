@@ -3962,9 +3962,9 @@ namespace Go
                             {
                                 chan.append_pop_notify(self.async_same_callback(), ntfSign);
                                 await self.async_wait();
+                                await mutex_lock_shared(_mutex);
                                 try
                                 {
-                                    await mutex_lock_shared(_mutex);
                                     chan_pop_wrap<T> res = await chan_try_pop(chan);
                                     if (chan_async_state.async_ok == res.state)
                                     {
@@ -4050,9 +4050,9 @@ namespace Go
                                 bool overtime = false;
                                 chan.append_pop_notify(self.timed_async_same_callback2(ms, () => overtime = true), ntfSign);
                                 await self.async_wait();
+                                await mutex_lock_shared(_mutex);
                                 try
                                 {
-                                    await mutex_lock_shared(_mutex);
                                     if (!overtime)
                                     {
                                         chan_pop_wrap<T> res = await chan_try_pop(chan);
@@ -4106,12 +4106,12 @@ namespace Go
                 {
                     generator self = generator.self;
                     self._mailboxMap = _children.parent()._mailboxMap;
+                    if (null != _mutex)
+                    {
+                        await mutex_lock_shared(_mutex);
+                    }
                     try
                     {
-                        if (null != _mutex)
-                        {
-                            await mutex_lock_shared(_mutex);
-                        }
                         chan_pop_wrap<T> res = await chan_try_pop(chan);
                         if (chan_async_state.async_ok == res.state)
                         {
@@ -4194,9 +4194,9 @@ namespace Go
                             {
                                 chan.append_pop_notify(self.async_same_callback(), ntfSign, token);
                                 await self.async_wait();
+                                await mutex_lock_shared(_mutex);
                                 try
                                 {
-                                    await mutex_lock_shared(_mutex);
                                     chan_pop_wrap<T> res = await chan_try_pop(chan, token);
                                     if (chan_async_state.async_ok == res.state)
                                     {
@@ -4293,9 +4293,9 @@ namespace Go
                                 bool overtime = false;
                                 chan.append_pop_notify(self.timed_async_same_callback2(ms, () => overtime = true), ntfSign, token);
                                 await self.async_wait();
+                                await mutex_lock_shared(_mutex);
                                 try
                                 {
-                                    await mutex_lock_shared(_mutex);
                                     if (!overtime)
                                     {
                                         chan_pop_wrap<T> res = await chan_try_pop(chan, token);
@@ -4359,12 +4359,12 @@ namespace Go
                 {
                     generator self = generator.self;
                     self._mailboxMap = _children.parent()._mailboxMap;
+                    if (null != _mutex)
+                    {
+                        await mutex_lock_shared(_mutex);
+                    }
                     try
                     {
-                        if (null != _mutex)
-                        {
-                            await mutex_lock_shared(_mutex);
-                        }
                         chan_pop_wrap<T> res = await chan_try_pop(chan, null != token ? token : new broadcast_chan_token());
                         if (chan_async_state.async_ok == res.state)
                         {
@@ -4456,9 +4456,9 @@ namespace Go
                             {
                                 chan.append_pop_notify(self.async_same_callback(), ntfSign);
                                 await self.async_wait();
+                                await mutex_lock_shared(_mutex);
                                 try
                                 {
-                                    await mutex_lock_shared(_mutex);
                                     csp_wait_wrap<R, T> res = await csp_try_wait(chan);
                                     if (chan_async_state.async_ok == res.state)
                                     {
@@ -4564,9 +4564,9 @@ namespace Go
                                 bool overtime = false;
                                 chan.append_pop_notify(self.timed_async_same_callback2(ms, () => overtime = true), ntfSign);
                                 await self.async_wait();
+                                await mutex_lock_shared(_mutex);
                                 try
                                 {
-                                    await mutex_lock_shared(_mutex);
                                     if (!overtime)
                                     {
                                         csp_wait_wrap<R, T> res = await csp_try_wait(chan);
@@ -4640,12 +4640,12 @@ namespace Go
                 {
                     generator self = generator.self;
                     self._mailboxMap = _children.parent()._mailboxMap;
+                    if (null != _mutex)
+                    {
+                        await mutex_lock_shared(_mutex);
+                    }
                     try
                     {
-                        if (null != _mutex)
-                        {
-                            await mutex_lock_shared(_mutex);
-                        }
                         csp_wait_wrap<R, T> res = await csp_try_wait(chan);
                         if (chan_async_state.async_ok == res.state)
                         {
