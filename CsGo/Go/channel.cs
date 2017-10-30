@@ -47,6 +47,8 @@ namespace Go
         public abstract void begin();
         public abstract Task<select_chan_state> invoke(functional.func_res<Task> stepOne = null);
         public abstract Task end();
+        public abstract bool is_read();
+        public abstract channel_base channel();
     }
 
     public abstract class channel_base
@@ -71,6 +73,7 @@ namespace Go
 
             public override void begin()
             {
+                ntfSign._disable = false;
                 _chan.append_pop_notify(delegate (object[] args)
                 {
                     nextSelect.post(this);
@@ -109,20 +112,19 @@ namespace Go
                     if (await _errHandler(result.state))
                     {
                         await end();
-                        chanState.nextRound = false;
                         chanState.failed = true;
                     }
                 }
                 else if (chan_async_state.async_closed == result.state)
                 {
                     await end();
-                    chanState.nextRound = false;
                     chanState.failed = true;
                 }
                 else
                 {
                     chanState.failed = true;
                 }
+                chanState.nextRound = !ntfSign._disable;
                 return chanState;
             }
 
@@ -132,6 +134,16 @@ namespace Go
                 ntfSign._disable = true;
                 _chan.remove_pop_notify(self.async_same_callback(), ntfSign);
                 return self.async_wait();
+            }
+
+            public override bool is_read()
+            {
+                return true;
+            }
+
+            public override channel_base channel()
+            {
+                return _chan;
             }
         }
 
@@ -144,6 +156,7 @@ namespace Go
 
             public override void begin()
             {
+                ntfSign._disable = false;
                 _chan.append_push_notify(delegate (object[] args)
                 {
                     nextSelect.post(this);
@@ -178,20 +191,19 @@ namespace Go
                     if (await _errHandler(result))
                     {
                         await end();
-                        chanState.nextRound = false;
                         chanState.failed = true;
                     }
                 }
                 else if (chan_async_state.async_closed == result)
                 {
                     await end();
-                    chanState.nextRound = false;
                     chanState.failed = true;
                 }
                 else
                 {
                     chanState.failed = true;
                 }
+                chanState.nextRound = !ntfSign._disable;
                 return chanState;
             }
 
@@ -201,6 +213,16 @@ namespace Go
                 ntfSign._disable = true;
                 _chan.remove_push_notify(self.async_same_callback(), ntfSign);
                 return self.async_wait();
+            }
+
+            public override bool is_read()
+            {
+                return false;
+            }
+
+            public override channel_base channel()
+            {
+                return _chan;
             }
         }
 
@@ -2222,6 +2244,7 @@ namespace Go
 
             public override void begin()
             {
+                ntfSign._disable = false;
                 _chan.append_pop_notify(delegate (object[] args)
                 {
                     nextSelect.post(this);
@@ -2261,20 +2284,19 @@ namespace Go
                     if (await _errHandler(result.state))
                     {
                         await end();
-                        chanState.nextRound = false;
                         chanState.failed = true;
                     }
                 }
                 else if (chan_async_state.async_closed == result.state)
                 {
                     await end();
-                    chanState.nextRound = false;
                     chanState.failed = true;
                 }
                 else
                 {
                     chanState.failed = true;
                 }
+                chanState.nextRound = !ntfSign._disable;
                 return chanState;
             }
 
@@ -2284,6 +2306,16 @@ namespace Go
                 ntfSign._disable = true;
                 _chan.remove_pop_notify(self.async_same_callback(), ntfSign);
                 return self.async_wait();
+            }
+
+            public override bool is_read()
+            {
+                return true;
+            }
+
+            public override channel_base channel()
+            {
+                return _chan;
             }
         }
 
@@ -2296,6 +2328,7 @@ namespace Go
 
             public override void begin()
             {
+                ntfSign._disable = false;
                 _chan.append_push_notify(delegate (object[] args)
                 {
                     nextSelect.post(this);
@@ -2334,20 +2367,19 @@ namespace Go
                     if (await _errHandler(result.state))
                     {
                         await end();
-                        chanState.nextRound = false;
                         chanState.failed = true;
                     }
                 }
                 else if (chan_async_state.async_closed == result.state)
                 {
                     await end();
-                    chanState.nextRound = false;
                     chanState.failed = true;
                 }
                 else
                 {
                     chanState.failed = true;
                 }
+                chanState.nextRound = !ntfSign._disable;
                 return chanState;
             }
 
@@ -2357,6 +2389,16 @@ namespace Go
                 ntfSign._disable = true;
                 _chan.remove_push_notify(self.async_same_callback(), ntfSign);
                 return self.async_wait();
+            }
+
+            public override bool is_read()
+            {
+                return false;
+            }
+
+            public override channel_base channel()
+            {
+                return _chan;
             }
         }
 

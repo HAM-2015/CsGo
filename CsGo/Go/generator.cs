@@ -322,6 +322,7 @@ namespace Go
         static SortedList<string, generator> _nameGens = new SortedList<string, generator>();
         static static_init _init = new static_init();
 
+        LinkedList<select_chan_base[]> _selectChans;
         SortedList<long, mail_pck> _mailboxMap;
         functional.func<bool> _suspendCb;
         LinkedList<children> _children;
@@ -2449,16 +2450,6 @@ namespace Go
             return result.state;
         }
 
-        static public void stop_select()
-        {
-            throw stop_select_exception.val;
-        }
-
-        static public void stop_this_select()
-        {
-            throw stop_this_select_exception.val;
-        }
-
         static public void check_chan(chan_async_state state, object obj = null)
         {
             if (chan_async_state.async_ok != state)
@@ -2499,6 +2490,97 @@ namespace Go
             return _nilTask;
         }
 
+        static public void stop_select()
+        {
+            throw stop_select_exception.val;
+        }
+
+        static public void stop_this_select()
+        {
+            throw stop_this_select_exception.val;
+        }
+
+        static public async Task disable_other_case(channel_base otherChan, bool disable = true)
+        {
+            generator this_ = self;
+            if (null != this_._selectChans && 0 != this_._selectChans.Count)
+            {
+                foreach (select_chan_base chan in this_._selectChans.First.Value)
+                {
+                    if (chan.channel() == otherChan && chan.disabled() != disable)
+                    {
+                        if (disable)
+                        {
+                            await chan.end();
+                        }
+                        else
+                        {
+                            chan.begin();
+                        }
+                    }
+                }
+            }
+        }
+
+        static public async Task disable_other_case_read(channel_base otherChan, bool disable = true)
+        {
+            generator this_ = self;
+            if (null != this_._selectChans && 0 != this_._selectChans.Count)
+            {
+                foreach (select_chan_base chan in this_._selectChans.First.Value)
+                {
+                    if (chan.channel() == otherChan && chan.is_read() && chan.disabled() != disable)
+                    {
+                        if (disable)
+                        {
+                            await chan.end();
+                        }
+                        else
+                        {
+                            chan.begin();
+                        }
+                    }
+                }
+            }
+        }
+
+        static public async Task disable_other_case_write(channel_base otherChan, bool disable = true)
+        {
+            generator this_ = self;
+            if (null != this_._selectChans && 0 != this_._selectChans.Count)
+            {
+                foreach (select_chan_base chan in this_._selectChans.First.Value)
+                {
+                    if (chan.channel() == otherChan && !chan.is_read() && chan.disabled() != disable)
+                    {
+                        if (disable)
+                        {
+                            await chan.end();
+                        }
+                        else
+                        {
+                            chan.begin();
+                        }
+                    }
+                }
+            }
+        }
+
+        static public Task enable_other_case(channel_base otherChan)
+        {
+            return disable_other_case(otherChan, false);
+        }
+
+        static public Task enable_other_case_read(channel_base otherChan)
+        {
+            return disable_other_case_read(otherChan, false);
+        }
+
+        static public Task enable_other_case_write(channel_base otherChan)
+        {
+            return disable_other_case_write(otherChan, false);
+        }
+
         static public async Task<bool> select_chans(params select_chan_base[] chans)
         {
             generator this_ = self;
@@ -2511,6 +2593,11 @@ namespace Go
             }
             try
             {
+                if (null == this_._selectChans)
+                {
+                    this_._selectChans = new LinkedList<select_chan_base[]>();
+                }
+                this_._selectChans.AddFirst(chans);
                 int count = chans.Count();
                 while (0 != count)
                 {
@@ -2541,6 +2628,7 @@ namespace Go
             }
             finally
             {
+                this_._selectChans.RemoveFirst();
                 lock_suspend_and_stop();
                 foreach (select_chan_base chan in chans)
                 {
@@ -2563,6 +2651,11 @@ namespace Go
             bool selected = false;
             try
             {
+                if (null == this_._selectChans)
+                {
+                    this_._selectChans = new LinkedList<select_chan_base[]>();
+                }
+                this_._selectChans.AddFirst(chans);
                 int count = chans.Count();
                 while (0 != count)
                 {
@@ -2610,6 +2703,7 @@ namespace Go
             catch (stop_select_exception) { }
             finally
             {
+                this_._selectChans.RemoveFirst();
                 if (!selected)
                 {
                     lock_suspend_and_stop();
@@ -2637,6 +2731,11 @@ namespace Go
             bool selected = false;
             try
             {
+                if (null == this_._selectChans)
+                {
+                    this_._selectChans = new LinkedList<select_chan_base[]>();
+                }
+                this_._selectChans.AddFirst(chans);
                 int count = chans.Count();
                 while (0 != count)
                 {
@@ -2698,6 +2797,7 @@ namespace Go
             catch (stop_select_exception) { }
             finally
             {
+                this_._selectChans.RemoveFirst();
                 if (!selected)
                 {
                     this_._timer.cancel();
@@ -3973,11 +4073,11 @@ namespace Go
                 _children.go(async delegate ()
                 {
                     generator self = generator.self;
-                    self._mailboxMap = _children.parent()._mailboxMap;
                     if (null == _mutex)
                     {
                         try
                         {
+                            self._mailboxMap = _children.parent()._mailboxMap;
                             while (_run)
                             {
                                 chan_pop_wrap<T> res = await chan_pop(chan);
@@ -4006,6 +4106,7 @@ namespace Go
                         chan_notify_sign ntfSign = new chan_notify_sign();
                         try
                         {
+                            self._mailboxMap = _children.parent()._mailboxMap;
                             while (_run)
                             {
                                 chan.append_pop_notify(self.async_same_callback(), ntfSign);
@@ -4040,8 +4141,8 @@ namespace Go
                         }
                         finally
                         {
-                            lock_suspend_and_stop();
                             self._mailboxMap = null;
+                            lock_suspend_and_stop();
                             chan.remove_pop_notify(self.async_same_callback(), ntfSign);
                             await self.async_wait();
                             await unlock_suspend_and_stop();
@@ -4061,12 +4162,12 @@ namespace Go
                 _children.go(async delegate ()
                 {
                     generator self = generator.self;
-                    self._mailboxMap = _children.parent()._mailboxMap;
                     if (null == _mutex)
                     {
                         chan_pop_wrap<T> res = await chan_timed_pop(ms, chan);
                         try
                         {
+                            self._mailboxMap = _children.parent()._mailboxMap;
                             if (chan_async_state.async_ok == res.state)
                             {
                                 await handler(res.result);
@@ -4092,6 +4193,7 @@ namespace Go
                         chan_notify_sign ntfSign = new chan_notify_sign();
                         try
                         {
+                            self._mailboxMap = _children.parent()._mailboxMap;
                             long endTick = system_tick.get_tick_ms() + ms;
                             while (_run)
                             {
@@ -4132,8 +4234,8 @@ namespace Go
                         }
                         finally
                         {
-                            lock_suspend_and_stop();
                             self._mailboxMap = null;
+                            lock_suspend_and_stop();
                             chan.remove_pop_notify(self.async_same_callback(), ntfSign);
                             await self.async_wait();
                             await unlock_suspend_and_stop();
@@ -4153,13 +4255,13 @@ namespace Go
                 _children.go(async delegate ()
                 {
                     generator self = generator.self;
-                    self._mailboxMap = _children.parent()._mailboxMap;
                     if (null != _mutex)
                     {
                         await mutex_lock_shared(_mutex);
                     }
                     try
                     {
+                        self._mailboxMap = _children.parent()._mailboxMap;
                         chan_pop_wrap<T> res = await chan_try_pop(chan);
                         if (chan_async_state.async_ok == res.state)
                         {
@@ -4204,12 +4306,12 @@ namespace Go
                 _children.go(async delegate ()
                 {
                     generator self = generator.self;
-                    self._mailboxMap = _children.parent()._mailboxMap;
                     token = null != token ? token : new broadcast_chan_token();
                     if (null == _mutex)
                     {
                         try
                         {
+                            self._mailboxMap = _children.parent()._mailboxMap;
                             while (_run)
                             {
                                 chan_pop_wrap<T> res = await chan_pop(chan, token);
@@ -4238,6 +4340,7 @@ namespace Go
                         chan_notify_sign ntfSign = new chan_notify_sign();
                         try
                         {
+                            self._mailboxMap = _children.parent()._mailboxMap;
                             while (_run)
                             {
                                 chan.append_pop_notify(self.async_same_callback(), ntfSign, token);
@@ -4272,8 +4375,8 @@ namespace Go
                         }
                         finally
                         {
-                            lock_suspend_and_stop();
                             self._mailboxMap = null;
+                            lock_suspend_and_stop();
                             chan.remove_pop_notify(self.async_same_callback(), ntfSign);
                             await self.async_wait();
                             await unlock_suspend_and_stop();
@@ -4303,13 +4406,13 @@ namespace Go
                 _children.go(async delegate ()
                 {
                     generator self = generator.self;
-                    self._mailboxMap = _children.parent()._mailboxMap;
                     token = null != token ? token : new broadcast_chan_token();
                     if (null == _mutex)
                     {
                         chan_pop_wrap<T> res = await chan_timed_pop(ms, chan, token);
                         try
                         {
+                            self._mailboxMap = _children.parent()._mailboxMap;
                             if (chan_async_state.async_ok == res.state)
                             {
                                 await handler(res.result);
@@ -4335,6 +4438,7 @@ namespace Go
                         chan_notify_sign ntfSign = new chan_notify_sign();
                         try
                         {
+                            self._mailboxMap = _children.parent()._mailboxMap;
                             long endTick = system_tick.get_tick_ms() + ms;
                             while (_run)
                             {
@@ -4375,8 +4479,8 @@ namespace Go
                         }
                         finally
                         {
-                            lock_suspend_and_stop();
                             self._mailboxMap = null;
+                            lock_suspend_and_stop();
                             chan.remove_pop_notify(self.async_same_callback(), ntfSign);
                             await self.async_wait();
                             await unlock_suspend_and_stop();
@@ -4406,13 +4510,13 @@ namespace Go
                 _children.go(async delegate ()
                 {
                     generator self = generator.self;
-                    self._mailboxMap = _children.parent()._mailboxMap;
                     if (null != _mutex)
                     {
                         await mutex_lock_shared(_mutex);
                     }
                     try
                     {
+                        self._mailboxMap = _children.parent()._mailboxMap;
                         chan_pop_wrap<T> res = await chan_try_pop(chan, null != token ? token : new broadcast_chan_token());
                         if (chan_async_state.async_ok == res.state)
                         {
@@ -4467,11 +4571,11 @@ namespace Go
                 _children.go(async delegate ()
                 {
                     generator self = generator.self;
-                    self._mailboxMap = _children.parent()._mailboxMap;
                     if (null == _mutex)
                     {
                         try
                         {
+                            self._mailboxMap = _children.parent()._mailboxMap;
                             while (_run)
                             {
                                 csp_wait_wrap<R, T> res = await csp_wait(chan);
@@ -4500,6 +4604,7 @@ namespace Go
                         chan_notify_sign ntfSign = new chan_notify_sign();
                         try
                         {
+                            self._mailboxMap = _children.parent()._mailboxMap;
                             while (_run)
                             {
                                 chan.append_pop_notify(self.async_same_callback(), ntfSign);
@@ -4534,8 +4639,8 @@ namespace Go
                         }
                         finally
                         {
-                            lock_suspend_and_stop();
                             self._mailboxMap = null;
+                            lock_suspend_and_stop();
                             chan.remove_pop_notify(self.async_same_callback(), ntfSign);
                             await self.async_wait();
                             await unlock_suspend_and_stop();
@@ -4575,12 +4680,12 @@ namespace Go
                 _children.go(async delegate ()
                 {
                     generator self = generator.self;
-                    self._mailboxMap = _children.parent()._mailboxMap;
                     if (null == _mutex)
                     {
                         csp_wait_wrap<R, T> res = await csp_timed_wait(ms, chan);
                         try
                         {
+                            self._mailboxMap = _children.parent()._mailboxMap;
                             if (chan_async_state.async_ok == res.state)
                             {
                                 await handler(res.result, res.msg);
@@ -4606,6 +4711,7 @@ namespace Go
                         chan_notify_sign ntfSign = new chan_notify_sign();
                         try
                         {
+                            self._mailboxMap = _children.parent()._mailboxMap;
                             long endTick = system_tick.get_tick_ms() + ms;
                             while (_run)
                             {
@@ -4646,8 +4752,8 @@ namespace Go
                         }
                         finally
                         {
-                            lock_suspend_and_stop();
                             self._mailboxMap = null;
+                            lock_suspend_and_stop();
                             chan.remove_pop_notify(self.async_same_callback(), ntfSign);
                             await self.async_wait();
                             await unlock_suspend_and_stop();
@@ -4687,13 +4793,13 @@ namespace Go
                 _children.go(async delegate ()
                 {
                     generator self = generator.self;
-                    self._mailboxMap = _children.parent()._mailboxMap;
                     if (null != _mutex)
                     {
                         await mutex_lock_shared(_mutex);
                     }
                     try
                     {
+                        self._mailboxMap = _children.parent()._mailboxMap;
                         csp_wait_wrap<R, T> res = await csp_try_wait(chan);
                         if (chan_async_state.async_ok == res.state)
                         {
