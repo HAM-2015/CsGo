@@ -2450,6 +2450,69 @@ namespace Go
             return result.state;
         }
 
+        static public async Task<int> chans_broadcast<T>(T p, params channel<T>[] chans)
+        {
+            generator this_ = self;
+            int count = 0;
+            wait_group wg = new wait_group(chans.Count());
+            foreach (channel<T> chan in chans)
+            {
+                chan.push(delegate (object[] args)
+                {
+                    if (chan_async_state.async_ok == (chan_async_state)args[0])
+                    {
+                        Interlocked.Increment(ref count);
+                    }
+                    wg.done();
+                }, p);
+            }
+            wg.async_wait(this_.async_result());
+            await this_.async_wait();
+            return count;
+        }
+
+        static public async Task<int> chans_try_broadcast<T>(T p, params channel<T>[] chans)
+        {
+            generator this_ = self;
+            int count = 0;
+            wait_group wg = new wait_group(chans.Count());
+            foreach (channel<T> chan in chans)
+            {
+                chan.try_push(delegate (object[] args)
+                {
+                    if (chan_async_state.async_ok == (chan_async_state)args[0])
+                    {
+                        Interlocked.Increment(ref count);
+                    }
+                    wg.done();
+                }, p);
+            }
+            wg.async_wait(this_.async_result());
+            await this_.async_wait();
+            return count;
+        }
+
+        static public async Task<int> chans_timed_broadcast<T>(int ms, T p, params channel<T>[] chans)
+        {
+            generator this_ = self;
+            int count = 0;
+            wait_group wg = new wait_group(chans.Count());
+            foreach (channel<T> chan in chans)
+            {
+                chan.timed_push(ms, delegate (object[] args)
+                {
+                    if (chan_async_state.async_ok == (chan_async_state)args[0])
+                    {
+                        Interlocked.Increment(ref count);
+                    }
+                    wg.done();
+                }, p);
+            }
+            wg.async_wait(this_.async_result());
+            await this_.async_wait();
+            return count;
+        }
+
         static public void check_chan(chan_async_state state, object obj = null)
         {
             if (chan_async_state.async_ok != state)
@@ -5567,17 +5630,17 @@ namespace Go
         shared_strand _strand;
         LinkedList<functional.func> _waitList;
 
-        public wait_group()
+        public wait_group(int initTasks = 0)
         {
             shared_strand strand = generator.self_strand();
-            _tasks = 0;
+            _tasks = initTasks;
             _strand = null != strand ? strand : new shared_strand();
             _waitList = new LinkedList<functional.func>();
         }
 
-        public wait_group(shared_strand strand)
+        public wait_group(shared_strand strand, int initTasks = 0)
         {
-            _tasks = 0;
+            _tasks = initTasks;
             _strand = strand;
             _waitList = new LinkedList<functional.func>();
         }
