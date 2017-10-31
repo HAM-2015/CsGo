@@ -5621,11 +5621,10 @@ namespace Go
             int tasks = 0;
             if (0 != delta && 0 == (tasks = Interlocked.Add(ref _tasks, delta)))
             {
-                LinkedList<functional.func> snapList = new LinkedList<functional.func>();
+                LinkedList<functional.func> newList = new LinkedList<functional.func>();
                 Monitor.Enter(this);
-                LinkedList<functional.func> temp = _waitList;
-                _waitList = snapList;
-                snapList = temp;
+                LinkedList<functional.func> snapList = _waitList;
+                _waitList = newList;
                 Monitor.Exit(this);
                 foreach (functional.func continuation in snapList)
                 {

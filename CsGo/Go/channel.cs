@@ -62,6 +62,49 @@ namespace Go
         public void clear() { clear(functional.any_handler); }
         public void close() { close(functional.any_handler); }
         public void cancel() { cancel(functional.any_handler); }
+
+        static protected void safe_callback(ref LinkedList<functional.func<chan_async_state>> callback, chan_async_state state)
+        {
+            if (0 != callback.Count)
+            {
+                LinkedList<functional.func<chan_async_state>> tempCb = callback;
+                callback = new LinkedList<functional.func<chan_async_state>>();
+                foreach (functional.func<chan_async_state> cb in tempCb)
+                {
+                    cb(state);
+                }
+            }
+        }
+
+        static protected void safe_callback(ref LinkedList<functional.func<chan_async_state>> callback1, ref LinkedList<functional.func<chan_async_state>> callback2, chan_async_state state)
+        {
+            LinkedList<functional.func<chan_async_state>> tempCb1 = null;
+            LinkedList<functional.func<chan_async_state>> tempCb2 = null;
+            if (0 != callback1.Count)
+            {
+                tempCb1 = callback1;
+                callback1 = new LinkedList<functional.func<chan_async_state>>();
+            }
+            if (0 != callback2.Count)
+            {
+                tempCb2 = callback2;
+                callback2 = new LinkedList<functional.func<chan_async_state>>();
+            }
+            if (null != tempCb1)
+            {
+                foreach (functional.func<chan_async_state> cb in tempCb1)
+                {
+                    cb(state);
+                }
+            }
+            if (null != tempCb2)
+            {
+                foreach (functional.func<chan_async_state> cb in tempCb2)
+                {
+                    cb(state);
+                }
+            }
+        }
     }
 
     public abstract class channel<T> : channel_base
@@ -770,16 +813,7 @@ namespace Go
             _strand.distribute(delegate ()
             {
                 _closed = true;
-                if (0 != _waitQueue.Count)
-                {
-                    functional.func<chan_async_state>[] ntfs = new functional.func<chan_async_state>[_waitQueue.Count];
-                    _waitQueue.CopyTo(ntfs, 0);
-                    _waitQueue.Clear();
-                    foreach (functional.func<chan_async_state> ele in ntfs)
-                    {
-                        ele(chan_async_state.async_closed);
-                    }
-                }
+                safe_callback(ref _waitQueue, chan_async_state.async_closed);
                 ntf();
             });
         }
@@ -788,16 +822,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
-                if (0 != _waitQueue.Count)
-                {
-                    functional.func<chan_async_state>[] ntfs = new functional.func<chan_async_state>[_waitQueue.Count];
-                    _waitQueue.CopyTo(ntfs, 0);
-                    _waitQueue.Clear();
-                    foreach (functional.func<chan_async_state> ele in ntfs)
-                    {
-                        ele(chan_async_state.async_cancel);
-                    }
-                }
+                safe_callback(ref _waitQueue, chan_async_state.async_cancel);
                 ntf();
             });
         }
@@ -1229,16 +1254,7 @@ namespace Go
             _strand.distribute(delegate ()
             {
                 _buffer.Clear();
-                if (0 != _pushWait.Count)
-                {
-                    functional.func<chan_async_state>[] ntfs = new functional.func<chan_async_state>[_pushWait.Count];
-                    _pushWait.CopyTo(ntfs, 0);
-                    _pushWait.Clear();
-                    foreach (functional.func<chan_async_state> ele in ntfs)
-                    {
-                        ele(chan_async_state.async_fail);
-                    }
-                }
+                safe_callback(ref _pushWait, chan_async_state.async_fail);
                 ntf();
             });
         }
@@ -1248,18 +1264,7 @@ namespace Go
             _strand.distribute(delegate ()
             {
                 _closed = true;
-                if (0 != _popWait.Count || 0 != _pushWait.Count)
-                {
-                    functional.func<chan_async_state>[] ntfs = new functional.func<chan_async_state>[_popWait.Count + _pushWait.Count];
-                    _popWait.CopyTo(ntfs, 0);
-                    _pushWait.CopyTo(ntfs, _popWait.Count);
-                    _popWait.Clear();
-                    _pushWait.Clear();
-                    foreach (functional.func<chan_async_state> ele in ntfs)
-                    {
-                        ele(chan_async_state.async_closed);
-                    }
-                }
+                safe_callback(ref _popWait, ref _pushWait, chan_async_state.async_closed);
                 ntf();
             });
         }
@@ -1267,18 +1272,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
-                if (0 != _popWait.Count || 0 != _pushWait.Count)
-                {
-                    functional.func<chan_async_state>[] ntfs = new functional.func<chan_async_state>[_popWait.Count + _pushWait.Count];
-                    _popWait.CopyTo(ntfs, 0);
-                    _pushWait.CopyTo(ntfs, _popWait.Count);
-                    _popWait.Clear();
-                    _pushWait.Clear();
-                    foreach (functional.func<chan_async_state> ele in ntfs)
-                    {
-                        ele(chan_async_state.async_cancel);
-                    }
-                }
+                safe_callback(ref _popWait, ref _pushWait, chan_async_state.async_cancel);
                 ntf();
             });
         }
@@ -1787,16 +1781,7 @@ namespace Go
             _strand.distribute(delegate ()
             {
                 _has = false;
-                if (0 != _pushWait.Count)
-                {
-                    functional.func<chan_async_state>[] ntfs = new functional.func<chan_async_state>[_pushWait.Count];
-                    _pushWait.CopyTo(ntfs, 0);
-                    _pushWait.Clear();
-                    foreach (functional.func<chan_async_state> ele in ntfs)
-                    {
-                        ele(chan_async_state.async_fail);
-                    }
-                }
+                safe_callback(ref _pushWait, chan_async_state.async_fail);
                 ntf();
             });
         }
@@ -1807,18 +1792,7 @@ namespace Go
             {
                 _closed = true;
                 _has = false;
-                if (0 != _popWait.Count || 0 != _pushWait.Count)
-                {
-                    functional.func<chan_async_state>[] ntfs = new functional.func<chan_async_state>[_popWait.Count + _pushWait.Count];
-                    _popWait.CopyTo(ntfs, 0);
-                    _pushWait.CopyTo(ntfs, _popWait.Count);
-                    _popWait.Clear();
-                    _pushWait.Clear();
-                    foreach (functional.func<chan_async_state> ele in ntfs)
-                    {
-                        ele(chan_async_state.async_closed);
-                    }
-                }
+                safe_callback(ref _popWait, ref _pushWait, chan_async_state.async_closed);
                 ntf();
             });
         }
@@ -1828,18 +1802,7 @@ namespace Go
             _strand.distribute(delegate ()
             {
                 _has = false;
-                if (0 != _popWait.Count || 0 != _pushWait.Count)
-                {
-                    functional.func<chan_async_state>[] ntfs = new functional.func<chan_async_state>[_popWait.Count + _pushWait.Count];
-                    _popWait.CopyTo(ntfs, 0);
-                    _pushWait.CopyTo(ntfs, _popWait.Count);
-                    _popWait.Clear();
-                    _pushWait.Clear();
-                    foreach (functional.func<chan_async_state> ele in ntfs)
-                    {
-                        ele(chan_async_state.async_cancel);
-                    }
-                }
+                safe_callback(ref _popWait, ref _pushWait, chan_async_state.async_cancel);
                 ntf();
             });
         }
@@ -2204,16 +2167,7 @@ namespace Go
             _strand.distribute(delegate ()
             {
                 _closed = true;
-                if (0 != _popWait.Count)
-                {
-                    functional.func<chan_async_state>[] ntfs = new functional.func<chan_async_state>[_popWait.Count];
-                    _popWait.CopyTo(ntfs, 0);
-                    _popWait.Clear();
-                    foreach (functional.func<chan_async_state> ele in ntfs)
-                    {
-                        ele(chan_async_state.async_closed);
-                    }
-                }
+                safe_callback(ref _popWait, chan_async_state.async_closed);
                 ntf();
             });
         }
@@ -2222,16 +2176,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
-                if (0 != _popWait.Count)
-                {
-                    functional.func<chan_async_state>[] ntfs = new functional.func<chan_async_state>[_popWait.Count];
-                    _popWait.CopyTo(ntfs, 0);
-                    _popWait.Clear();
-                    foreach (functional.func<chan_async_state> ele in ntfs)
-                    {
-                        ele(chan_async_state.async_cancel);
-                    }
-                }
+                safe_callback(ref _popWait, chan_async_state.async_cancel);
                 ntf();
             });
         }
@@ -2986,16 +2931,7 @@ namespace Go
             _strand.distribute(delegate ()
             {
                 _has = false;
-                if (0 != _sendQueue.Count)
-                {
-                    functional.func<chan_async_state>[] ntfs = new functional.func<chan_async_state>[_sendQueue.Count];
-                    _sendQueue.CopyTo(ntfs, 0);
-                    _sendQueue.Clear();
-                    foreach (functional.func<chan_async_state> ele in ntfs)
-                    {
-                        ele(chan_async_state.async_fail);
-                    }
-                }
+                safe_callback(ref _sendQueue, chan_async_state.async_fail);
                 ntf();
             });
         }
@@ -3012,18 +2948,7 @@ namespace Go
                     hasMsg = _msg._ntf;
                     _has = false;
                 }
-                if (0 != _sendQueue.Count || 0 != _waitQueue.Count)
-                {
-                    functional.func<chan_async_state>[] ntfs = new functional.func<chan_async_state>[_sendQueue.Count + _waitQueue.Count];
-                    _sendQueue.CopyTo(ntfs, 0);
-                    _waitQueue.CopyTo(ntfs, _sendQueue.Count);
-                    _sendQueue.Clear();
-                    _waitQueue.Clear();
-                    foreach (functional.func<chan_async_state> ele in ntfs)
-                    {
-                        ele(chan_async_state.async_closed);
-                    }
-                }
+                safe_callback(ref _sendQueue, ref _waitQueue, chan_async_state.async_closed);
                 hasMsg?.Invoke(chan_async_state.async_closed);
                 ntf();
             });
@@ -3040,18 +2965,7 @@ namespace Go
                     hasMsg = _msg._ntf;
                     _has = false;
                 }
-                if (0 != _sendQueue.Count || 0 != _waitQueue.Count)
-                {
-                    functional.func<chan_async_state>[] ntfs = new functional.func<chan_async_state>[_sendQueue.Count + _waitQueue.Count];
-                    _sendQueue.CopyTo(ntfs, 0);
-                    _waitQueue.CopyTo(ntfs, _sendQueue.Count);
-                    _sendQueue.Clear();
-                    _waitQueue.Clear();
-                    foreach (functional.func<chan_async_state> ele in ntfs)
-                    {
-                        ele(chan_async_state.async_cancel);
-                    }
-                }
+                safe_callback(ref _sendQueue, ref _waitQueue, chan_async_state.async_cancel);
                 hasMsg?.Invoke(chan_async_state.async_cancel);
                 ntf();
             });
