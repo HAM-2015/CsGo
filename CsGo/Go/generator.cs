@@ -323,6 +323,7 @@ namespace Go
         static static_init _init = new static_init();
 
         LinkedList<select_chan_base[]> _selectChans;
+        LinkedList<functional.func> _callbacks;
         SortedList<long, mail_pck> _mailboxMap;
         functional.func<bool> _suspendCb;
         LinkedList<children> _children;
@@ -331,7 +332,6 @@ namespace Go
         children _agentMng;
         async_timer _timer;
         object _selfValue;
-        Task _syncNtf;
         string _name;
         long _yieldCount;
         long _id;
@@ -459,7 +459,6 @@ namespace Go
             _yieldCount = 0;
             _suspendCb = suspendCb;
             _pullTask = new pull_task();
-            _syncNtf = new Task(functional.nil_action);
             _timer = new async_timer(strand);
             strand.hold_work();
             strand.distribute(async delegate ()
@@ -515,7 +514,14 @@ namespace Go
                 _isStop = true;
                 _suspendCb = null;
                 functional.catch_invoke(callback);
-                _syncNtf.RunSynchronously();
+                if (null != _callbacks)
+                {
+                    while (0 != _callbacks.Count)
+                    {
+                        functional.catch_invoke(_callbacks.First.Value);
+                        _callbacks.RemoveFirst();
+                    }
+                }
                 strand.release_work();
             });
             return this;
@@ -796,6 +802,73 @@ namespace Go
             }
         }
 
+        public void delay_stop(functional.func continuation)
+        {
+            strand.post(delegate ()
+            {
+                if (!_isStop)
+                {
+                    if (null == _callbacks)
+                    {
+                        _callbacks = new LinkedList<functional.func>();
+                    }
+                    _callbacks.AddLast(continuation);
+                    _stop();
+                }
+                else
+                {
+                    continuation();
+                }
+            });
+        }
+
+        public void stop(functional.func continuation)
+        {
+            if (strand.running_in_this_thread())
+            {
+                if (-1 == _lockCount)
+                {
+                    delay_stop(continuation);
+                }
+                else if (!_isStop)
+                {
+                    if (null == _callbacks)
+                    {
+                        _callbacks = new LinkedList<functional.func>();
+                    }
+                    _callbacks.AddLast(continuation);
+                    _stop();
+                }
+                else
+                {
+                    continuation();
+                }
+            }
+            else
+            {
+                delay_stop(continuation);
+            }
+        }
+
+        public void append_stop_callback(functional.func continuation)
+        {
+            strand.distribute(delegate ()
+            {
+                if (!_isStop)
+                {
+                    if (null == _callbacks)
+                    {
+                        _callbacks = new LinkedList<functional.func>();
+                    }
+                    _callbacks.AddLast(continuation);
+                }
+                else
+                {
+                    continuation();
+                }
+            });
+        }
+
         public bool is_force()
         {
 #if DEBUG
@@ -804,17 +877,9 @@ namespace Go
             return _isForce;
         }
 
-        public void sync_wait()
-        {
-#if DEBUG
-            Trace.Assert(strand.wait_safe(), "不安全的 sync_wait 调用");
-#endif
-            _syncNtf.Wait();
-        }
-
         public bool is_completed()
         {
-            return _syncNtf.IsCompleted;
+            return _isStop;
         }
 
         static public Task hold()
@@ -3727,14 +3792,27 @@ namespace Go
             return true;
         }
 
-        static public Task wait_other(generator otherGen)
+        static public Task stop_other(generator otherGen)
         {
-            return wait_task(otherGen._syncNtf);
+            generator this_ = self;
+            otherGen.stop(this_.async_result());
+            return this_.async_wait();
         }
 
-        static public Task<bool> timed_wait_other(int ms, generator otherGen)
+        static public Task wait_other(generator otherGen)
         {
-            return timed_wait_task(ms, otherGen._syncNtf);
+            generator this_ = self;
+            otherGen.append_stop_callback(this_.async_result());
+            return this_.async_wait();
+        }
+
+        static public async Task<bool> timed_wait_other(int ms, generator otherGen)
+        {
+            generator this_ = self;
+            bool overtime = false;
+            otherGen.append_stop_callback(this_.timed_async_result2(ms, () => overtime = true));
+            await this_.async_wait();
+            return !overtime;
         }
 
         static public Task wait_group(wait_group wg)
@@ -4980,27 +5058,15 @@ namespace Go
 
         public class child : generator
         {
-            LinkedList<functional.func> _callbacks;
             LinkedListNode<child> _childNode;
 
             public child() : base()
             {
-                _callbacks = new LinkedList<functional.func>();
             }
 
             static new public child make(shared_strand strand, action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
             {
-                child newGen = new child();
-                newGen._callbacks.AddFirst(callback);
-                newGen.init(strand, handler, delegate ()
-                {
-                    while (0 != newGen._callbacks.Count)
-                    {
-                        functional.catch_invoke(newGen._callbacks.First.Value);
-                        newGen._callbacks.RemoveFirst();
-                    }
-                }, suspendCb);
-                return newGen;
+                return (child)(new child()).init(strand, handler, callback, suspendCb);
             }
 
             static new public child go(shared_strand strand, action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
@@ -5033,84 +5099,6 @@ namespace Go
             public new child tick_run()
             {
                 return (child)base.tick_run();
-            }
-
-            public void delay_stop(functional.func continuation)
-            {
-                strand.post(delegate ()
-                {
-                    if (!_isStop)
-                    {
-                        _callbacks.AddLast(continuation);
-                        _stop();
-                    }
-                    else
-                    {
-                        continuation();
-                    }
-                });
-            }
-
-            public void stop(functional.func continuation)
-            {
-                if (strand.running_in_this_thread())
-                {
-                    if (-1 == _lockCount)
-                    {
-                        delay_stop(continuation);
-                    }
-                    else if (!_isStop)
-                    {
-                        _callbacks.AddLast(continuation);
-                        _stop();
-                    }
-                    else
-                    {
-                        continuation();
-                    }
-                }
-                else
-                {
-                    delay_stop(continuation);
-                }
-            }
-
-            public void append_stop_callback(functional.func continuation)
-            {
-                strand.distribute(delegate ()
-                {
-                    if (!_isStop)
-                    {
-                        _callbacks.AddLast(continuation);
-                    }
-                    else
-                    {
-                        continuation();
-                    }
-                });
-            }
-
-            public new Task stop()
-            {
-                generator parent = self;
-                stop(parent.async_result());
-                return parent.async_wait();
-            }
-
-            public Task wait()
-            {
-                generator parent = self;
-                append_stop_callback(parent.async_result());
-                return parent.async_wait();
-            }
-
-            public async Task<bool> timed_wait(int ms)
-            {
-                generator parent = self;
-                bool overtime = false;
-                append_stop_callback(parent.timed_async_result2(ms, () => overtime = true));
-                await parent.async_wait();
-                return !overtime;
             }
         }
 
@@ -5627,21 +5615,11 @@ namespace Go
     public class wait_group
     {
         int _tasks;
-        shared_strand _strand;
         LinkedList<functional.func> _waitList;
 
         public wait_group(int initTasks = 0)
         {
-            shared_strand strand = generator.self_strand();
             _tasks = initTasks;
-            _strand = null != strand ? strand : new shared_strand();
-            _waitList = new LinkedList<functional.func>();
-        }
-
-        public wait_group(shared_strand strand, int initTasks = 0)
-        {
-            _tasks = initTasks;
-            _strand = strand;
             _waitList = new LinkedList<functional.func>();
         }
 
@@ -5650,19 +5628,16 @@ namespace Go
             int tasks = 0;
             if (0 != delta && 0 == (tasks = Interlocked.Add(ref _tasks, delta)))
             {
-                _strand.distribute(delegate ()
+                LinkedList<functional.func> snapList = new LinkedList<functional.func>();
+                Monitor.Enter(this);
+                LinkedList<functional.func> temp = _waitList;
+                _waitList = snapList;
+                snapList = temp;
+                Monitor.Exit(this);
+                foreach (functional.func continuation in snapList)
                 {
-                    if (0 == _tasks && 0 != _waitList.Count)
-                    {
-                        functional.func[] continuations = new functional.func[_waitList.Count];
-                        _waitList.CopyTo(continuations, 0);
-                        _waitList.Clear();
-                        foreach (functional.func continuation in continuations)
-                        {
-                            continuation();
-                        }
-                    }
-                });
+                    continuation();
+                }
             }
             return tasks;
         }
@@ -5677,6 +5652,11 @@ namespace Go
             return done;
         }
 
+        public bool is_done()
+        {
+            return 0 == _tasks;
+        }
+
         public void async_wait(functional.func continuation)
         {
             if (0 == _tasks)
@@ -5685,17 +5665,27 @@ namespace Go
             }
             else
             {
-                _strand.distribute(delegate ()
+                LinkedListNode<functional.func> newNode = new LinkedListNode<functional.func>(continuation);
+                Monitor.Enter(this);
+                _waitList.AddLast(newNode);
+                Monitor.Exit(this);
+            }
+        }
+
+        public void sync_wait()
+        {
+            if (0 != _tasks)
+            {
+                LinkedListNode<functional.func> newNode = new LinkedListNode<functional.func>(delegate ()
                 {
-                    if (0 == _tasks)
-                    {
-                        continuation();
-                    }
-                    else
-                    {
-                        _waitList.AddLast(continuation);
-                    }
+                    Monitor.Enter(this);
+                    Monitor.Pulse(this);
+                    Monitor.Exit(this);
                 });
+                Monitor.Enter(this);
+                _waitList.AddLast(newNode);
+                Monitor.Wait(this);
+                Monitor.Exit(this);
             }
         }
     }

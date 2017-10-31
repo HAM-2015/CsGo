@@ -26,8 +26,9 @@ namespace Go
 
         public void push_option(functional.func handler)
         {
+            LinkedListNode<functional.func> newNode = new LinkedListNode<functional.func>(handler);
             Monitor.Enter(this);
-            _opQueue.AddLast(handler);
+            _opQueue.AddLast(newNode);
             if (0 != _waiting)
             {
                 _waiting--;
@@ -41,10 +42,10 @@ namespace Go
             Monitor.Enter(this);
             if (_runSign && 0 != _opQueue.Count)
             {
-                functional.func handler = _opQueue.First();
+                LinkedListNode<functional.func> firstNode = _opQueue.First;
                 _opQueue.RemoveFirst();
                 Monitor.Exit(this);
-                handler();
+                firstNode.Value();
                 return true;
             }
             Monitor.Exit(this);
@@ -59,11 +60,11 @@ namespace Go
                 Monitor.Enter(this);
                 if (0 != _opQueue.Count)
                 {
-                    functional.func handler = _opQueue.First();
+                    LinkedListNode<functional.func> firstNode = _opQueue.First;
                     _opQueue.RemoveFirst();
                     Monitor.Exit(this);
                     count++;
-                    handler();
+                    firstNode.Value();
                 }
                 else if (0 != _work)
                 {
@@ -251,16 +252,17 @@ namespace Go
 
         public void post(functional.func action)
         {
+            LinkedListNode<functional.func> newNode = new LinkedListNode<functional.func>(action);
             _mutex.WaitOne();
             if (_locked)
             {
-                _waitQueue.AddLast(action);
+                _waitQueue.AddLast(newNode);
                 _mutex.ReleaseMutex();
             }
             else
             {
                 _locked = true;
-                _readyQueue.AddLast(action);
+                _readyQueue.AddLast(newNode);
                 _mutex.ReleaseMutex();
                 run_task();
             }
@@ -276,16 +278,17 @@ namespace Go
             }
             else
             {
+                LinkedListNode<functional.func> newNode = new LinkedListNode<functional.func>(action);
                 _mutex.WaitOne();
                 if (_locked)
                 {
-                    _waitQueue.AddLast(action);
+                    _waitQueue.AddLast(newNode);
                     _mutex.ReleaseMutex();
                 }
                 else
                 {
                     _locked = true;
-                    _readyQueue.AddLast(action);
+                    _readyQueue.AddLast(newNode);
                     _mutex.ReleaseMutex();
                     if (null != currStrand && currStrand.work_back_thread && null == currStrand.strand)
                     {
@@ -404,16 +407,17 @@ namespace Go
             }
             else
             {
+                LinkedListNode<functional.func> newNode = new LinkedListNode<functional.func>(action);
                 _mutex.WaitOne();
                 if (_locked)
                 {
-                    _waitQueue.AddLast(action);
+                    _waitQueue.AddLast(newNode);
                     _mutex.ReleaseMutex();
                 }
                 else
                 {
                     _locked = true;
-                    _readyQueue.AddLast(action);
+                    _readyQueue.AddLast(newNode);
                     _mutex.ReleaseMutex();
                     if (null != currStrand && _service == currStrand.work_service && null == currStrand.strand)
                     {
@@ -475,16 +479,17 @@ namespace Go
             }
             else
             {
+                LinkedListNode<functional.func> newNode = new LinkedListNode<functional.func>(action);
                 _mutex.WaitOne();
                 if (_locked)
                 {
-                    _waitQueue.AddLast(action);
+                    _waitQueue.AddLast(newNode);
                     _mutex.ReleaseMutex();
                 }
                 else
                 {
                     _locked = true;
-                    _readyQueue.AddLast(action);
+                    _readyQueue.AddLast(newNode);
                     _mutex.ReleaseMutex();
                     if (_checkRequired && null != currStrand && null == currStrand.strand && !_ctrl.InvokeRequired)
                     {
