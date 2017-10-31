@@ -54,10 +54,12 @@ namespace Go
     public abstract class channel_base
     {
         public abstract chan_type type();
+        public abstract void clear(functional.same_func ntf);
         public abstract void close(functional.same_func ntf);
         public abstract void cancel(functional.same_func ntf);
         public abstract shared_strand self_strand();
         public abstract bool is_closed();
+        public void clear() { clear(functional.any_handler); }
         public void close() { close(functional.any_handler); }
         public void cancel() { cancel(functional.any_handler); }
     }
@@ -487,7 +489,7 @@ namespace Go
     public class msg_buff<T> : channel<T>
     {
         shared_strand _strand;
-        MsgQueue_<T> _msgBuff;
+        MsgQueue_<T> _buffer;
         LinkedList<functional.func<chan_async_state>> _waitQueue;
         bool _closed;
 
@@ -506,7 +508,7 @@ namespace Go
         {
             _strand = strand;
             _closed = false;
-            _msgBuff = typeof(T) == typeof(void_type) ? (MsgQueue_<T>)new VoidMsgQueue_<T>() : new NoVoidMsgQueue_<T>();
+            _buffer = typeof(T) == typeof(void_type) ? (MsgQueue_<T>)new VoidMsgQueue_<T>() : new NoVoidMsgQueue_<T>();
             _waitQueue = new LinkedList<functional.func<chan_async_state>>();
         }
 
@@ -524,7 +526,7 @@ namespace Go
                     ntf(chan_async_state.async_closed);
                     return;
                 }
-                _msgBuff.AddLast(msg);
+                _buffer.AddLast(msg);
                 if (0 != _waitQueue.Count)
                 {
                     functional.func<chan_async_state> wtNtf = _waitQueue.First();
@@ -539,10 +541,10 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
-                if (0 != _msgBuff.Count())
+                if (0 != _buffer.Count())
                 {
-                    T msg = _msgBuff.First();
-                    _msgBuff.RemoveFirst();
+                    T msg = _buffer.First();
+                    _buffer.RemoveFirst();
                     ntf(chan_async_state.async_ok, msg);
                 }
                 else if (_closed)
@@ -575,10 +577,10 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
-                if (0 != _msgBuff.Count())
+                if (0 != _buffer.Count())
                 {
-                    T msg = _msgBuff.First();
-                    _msgBuff.RemoveFirst();
+                    T msg = _buffer.First();
+                    _buffer.RemoveFirst();
                     ntf(chan_async_state.async_ok, msg);
                 }
                 else if (_closed)
@@ -601,10 +603,10 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
-                if (0 != _msgBuff.Count())
+                if (0 != _buffer.Count())
                 {
-                    T msg = _msgBuff.First();
-                    _msgBuff.RemoveFirst();
+                    T msg = _buffer.First();
+                    _buffer.RemoveFirst();
                     ntf(chan_async_state.async_ok, msg);
                 }
                 else if (_closed)
@@ -644,7 +646,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
-                if (0 != _msgBuff.Count())
+                if (0 != _buffer.Count())
                 {
                     ntf(chan_async_state.async_ok);
                 }
@@ -667,10 +669,10 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
-                if (0 != _msgBuff.Count())
+                if (0 != _buffer.Count())
                 {
-                    T msg = _msgBuff.First();
-                    _msgBuff.RemoveFirst();
+                    T msg = _buffer.First();
+                    _buffer.RemoveFirst();
                     if (!ntfSign._selectOnce)
                     {
                         append_pop_notify(msgNtf, ntfSign);
@@ -700,7 +702,7 @@ namespace Go
                     _waitQueue.Remove(ntfSign._ntfNode);
                     ntfSign._ntfNode = null;
                 }
-                if (0 != _msgBuff.Count() && 0 != _waitQueue.Count())
+                if (0 != _buffer.Count() && 0 != _waitQueue.Count())
                 {
                     functional.func<chan_async_state> wtNtf = _waitQueue.First();
                     _waitQueue.RemoveFirst();
@@ -733,7 +735,7 @@ namespace Go
                     cb(chan_async_state.async_closed);
                     return;
                 }
-                _msgBuff.AddLast(msg);
+                _buffer.AddLast(msg);
                 if (0 != _waitQueue.Count)
                 {
                     _waitQueue.RemoveFirst();
@@ -751,6 +753,15 @@ namespace Go
             _strand.distribute(delegate ()
             {
                 ntf(chan_async_state.async_fail);
+            });
+        }
+
+        public override void clear(functional.same_func ntf)
+        {
+            _strand.distribute(delegate ()
+            {
+                _buffer.Clear();
+                ntf();
             });
         }
 
@@ -1210,6 +1221,25 @@ namespace Go
                     pushNtf(chan_async_state.async_ok);
                 }
                 ntf(effect ? chan_async_state.async_ok : chan_async_state.async_fail);
+            });
+        }
+
+        public override void clear(functional.same_func ntf)
+        {
+            _strand.distribute(delegate ()
+            {
+                _buffer.Clear();
+                if (0 != _pushWait.Count)
+                {
+                    functional.func<chan_async_state>[] ntfs = new functional.func<chan_async_state>[_pushWait.Count];
+                    _pushWait.CopyTo(ntfs, 0);
+                    _pushWait.Clear();
+                    foreach (functional.func<chan_async_state> ele in ntfs)
+                    {
+                        ele(chan_async_state.async_fail);
+                    }
+                }
+                ntf();
             });
         }
 
@@ -1752,6 +1782,25 @@ namespace Go
             });
         }
 
+        public override void clear(functional.same_func ntf)
+        {
+            _strand.distribute(delegate ()
+            {
+                _has = false;
+                if (0 != _pushWait.Count)
+                {
+                    functional.func<chan_async_state>[] ntfs = new functional.func<chan_async_state>[_pushWait.Count];
+                    _pushWait.CopyTo(ntfs, 0);
+                    _pushWait.Clear();
+                    foreach (functional.func<chan_async_state> ele in ntfs)
+                    {
+                        ele(chan_async_state.async_fail);
+                    }
+                }
+                ntf();
+            });
+        }
+
         public override void close(functional.same_func ntf)
         {
             _strand.distribute(delegate ()
@@ -2138,6 +2187,15 @@ namespace Go
             _strand.distribute(delegate ()
             {
                 ntf(chan_async_state.async_fail);
+            });
+        }
+
+        public override void clear(functional.same_func ntf)
+        {
+            _strand.distribute(delegate ()
+            {
+                _has = false;
+                ntf();
             });
         }
 
@@ -2920,6 +2978,25 @@ namespace Go
                     sendNtf(chan_async_state.async_ok);
                 }
                 ntf(effect ? chan_async_state.async_ok : chan_async_state.async_fail);
+            });
+        }
+
+        public override void clear(functional.same_func ntf)
+        {
+            _strand.distribute(delegate ()
+            {
+                _has = false;
+                if (0 != _sendQueue.Count)
+                {
+                    functional.func<chan_async_state>[] ntfs = new functional.func<chan_async_state>[_sendQueue.Count];
+                    _sendQueue.CopyTo(ntfs, 0);
+                    _sendQueue.Clear();
+                    foreach (functional.func<chan_async_state> ele in ntfs)
+                    {
+                        ele(chan_async_state.async_fail);
+                    }
+                }
+                ntf();
             });
         }
 

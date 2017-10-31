@@ -2129,6 +2129,13 @@ namespace Go
             return this_.async_wait();
         }
 
+        static public Task chan_clear<T>(channel<T> chan)
+        {
+            generator this_ = self;
+            chan.clear(this_.async_same_callback());
+            return this_.async_wait();
+        }
+
         static public Task chan_close<T>(channel<T> chan)
         {
             generator this_ = self;
@@ -3063,20 +3070,6 @@ namespace Go
         static public select_chan_base case_write(csp_chan<void_type, void_type> chan, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
         {
             return chan.make_select_writer(default(void_type), (void_type _) => handler(), errHandler);
-        }
-
-        static public Task close_chan<T>(channel<T> chan)
-        {
-            generator this_ = self;
-            chan.close(this_.async_same_callback());
-            return this_.async_wait();
-        }
-
-        static public Task cancel_chan<T>(channel<T> chan)
-        {
-            generator this_ = self;
-            chan.cancel(this_.async_same_callback());
-            return this_.async_wait();
         }
 
         static public Task mutex_lock(mutex_base mtx)
