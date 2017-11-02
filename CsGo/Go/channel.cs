@@ -55,13 +55,13 @@ namespace Go
     {
         public abstract chan_type type();
         public abstract void clear(functional.same_func ntf);
-        public abstract void close(functional.same_func ntf);
-        public abstract void cancel(functional.same_func ntf);
+        public abstract void close(functional.same_func ntf, bool isClear = false);
+        public abstract void cancel(functional.same_func ntf, bool isClear = false);
         public abstract shared_strand self_strand();
         public abstract bool is_closed();
         public void clear() { clear(functional.any_handler); }
-        public void close() { close(functional.any_handler); }
-        public void cancel() { cancel(functional.any_handler); }
+        public void close(bool isClear = false) { close(functional.any_handler, isClear); }
+        public void cancel(bool isClear = false) { cancel(functional.any_handler, isClear); }
 
         static protected void safe_callback(ref LinkedList<functional.func<chan_async_state>> callback, chan_async_state state)
         {
@@ -808,20 +808,28 @@ namespace Go
             });
         }
 
-        public override void close(functional.same_func ntf)
+        public override void close(functional.same_func ntf, bool isClear = false)
         {
             _strand.distribute(delegate ()
             {
                 _closed = true;
+                if (isClear)
+                {
+                    _buffer.Clear();
+                }
                 safe_callback(ref _waitQueue, chan_async_state.async_closed);
                 ntf();
             });
         }
 
-        public override void cancel(functional.same_func ntf)
+        public override void cancel(functional.same_func ntf, bool isClear = false)
         {
             _strand.distribute(delegate ()
             {
+                if (isClear)
+                {
+                    _buffer.Clear();
+                }
                 safe_callback(ref _waitQueue, chan_async_state.async_cancel);
                 ntf();
             });
@@ -1259,19 +1267,28 @@ namespace Go
             });
         }
 
-        public override void close(functional.same_func ntf)
+        public override void close(functional.same_func ntf, bool isClear = false)
         {
             _strand.distribute(delegate ()
             {
                 _closed = true;
+                if (isClear)
+                {
+                    _buffer.Clear();
+                }
                 safe_callback(ref _popWait, ref _pushWait, chan_async_state.async_closed);
                 ntf();
             });
         }
-        public override void cancel(functional.same_func ntf)
+
+        public override void cancel(functional.same_func ntf, bool isClear = false)
         {
             _strand.distribute(delegate ()
             {
+                if (isClear)
+                {
+                    _buffer.Clear();
+                }
                 safe_callback(ref _popWait, ref _pushWait, chan_async_state.async_cancel);
                 ntf();
             });
@@ -1786,7 +1803,7 @@ namespace Go
             });
         }
 
-        public override void close(functional.same_func ntf)
+        public override void close(functional.same_func ntf, bool isClear = false)
         {
             _strand.distribute(delegate ()
             {
@@ -1797,7 +1814,7 @@ namespace Go
             });
         }
 
-        public override void cancel(functional.same_func ntf)
+        public override void cancel(functional.same_func ntf, bool isClear = false)
         {
             _strand.distribute(delegate ()
             {
@@ -2162,20 +2179,22 @@ namespace Go
             });
         }
 
-        public override void close(functional.same_func ntf)
+        public override void close(functional.same_func ntf, bool isClear = false)
         {
             _strand.distribute(delegate ()
             {
                 _closed = true;
+                _has &= !isClear;
                 safe_callback(ref _popWait, chan_async_state.async_closed);
                 ntf();
             });
         }
 
-        public override void cancel(functional.same_func ntf)
+        public override void cancel(functional.same_func ntf, bool isClear = false)
         {
             _strand.distribute(delegate ()
             {
+                _has &= !isClear;
                 safe_callback(ref _popWait, chan_async_state.async_cancel);
                 ntf();
             });
@@ -2936,7 +2955,7 @@ namespace Go
             });
         }
 
-        public override void close(functional.same_func ntf)
+        public override void close(functional.same_func ntf, bool isClear = false)
         {
             _strand.distribute(delegate ()
             {
@@ -2954,7 +2973,7 @@ namespace Go
             });
         }
 
-        public override void cancel(functional.same_func ntf)
+        public override void cancel(functional.same_func ntf, bool isClear = false)
         {
             _strand.distribute(delegate ()
             {

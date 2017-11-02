@@ -1640,8 +1640,7 @@ namespace Go
         private functional.func _async_result()
         {
             _pullTask.new_task();
-            bool beginQuit = _beginQuit;
-            return () => (beginQuit ? (functional.func)quit_next : no_quit_next)();
+            return _beginQuit ? (functional.func)quit_next : no_quit_next;
         }
 
         public functional.func<T1> async_result<T1>(async_result_wrap<T1> res)
@@ -2136,17 +2135,17 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public Task chan_close<T>(channel<T> chan)
+        static public Task chan_close<T>(channel<T> chan, bool isClear = false)
         {
             generator this_ = self;
-            chan.close(this_.async_same_callback());
+            chan.close(this_.async_same_callback(), isClear);
             return this_.async_wait();
         }
 
-        static public Task chan_cancel<T>(channel<T> chan)
+        static public Task chan_cancel<T>(channel<T> chan, bool isClear = false)
         {
             generator this_ = self;
-            chan.cancel(this_.async_same_callback());
+            chan.cancel(this_.async_same_callback(), isClear);
             return this_.async_wait();
         }
 
