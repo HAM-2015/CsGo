@@ -4180,6 +4180,41 @@ namespace Go
             return false;
         }
 
+        static public Task<chan_pop_wrap<T>> recv_msg<T>(int id = 0)
+        {
+            return chan_pop(self_mailbox<T>(id));
+        }
+
+        static public Task<chan_pop_wrap<T>> try_recv_msg<T>(int id = 0)
+        {
+            return chan_try_pop(self_mailbox<T>(id));
+        }
+
+        static public Task<chan_pop_wrap<T>> timed_recv_msg<T>(int ms, int id = 0)
+        {
+            return chan_timed_pop(ms, self_mailbox<T>(id));
+        }
+
+        public async Task<chan_async_state> send_msg<T>(int id, T p)
+        {
+            return await chan_push(await get_mailbox<T>(id), p);
+        }
+
+        public async Task<chan_async_state> send_msg(int id)
+        {
+            return await chan_push(await get_mailbox<void_type>(id));
+        }
+
+        public Task<chan_async_state> send_msg<T>(T p)
+        {
+            return send_msg(0, p);
+        }
+
+        public Task<chan_async_state> send_msg()
+        {
+            return send_msg(0);
+        }
+
         public class receive_mail
         {
             bool _run = true;
