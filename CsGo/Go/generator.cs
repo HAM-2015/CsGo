@@ -272,7 +272,7 @@ namespace Go
             public void new_task()
             {
 #if DEBUG
-                Trace.Assert(_completed, "不对称的推入操作!");
+                Trace.Assert(_completed && _activated, "不对称的推入操作!");
 #endif
                 _completed = false;
                 _activated = false;
@@ -2170,10 +2170,7 @@ namespace Go
         {
             generator this_ = self;
             chan_async_state result = chan_async_state.async_undefined;
-            chan.push(this_.async_same_callback(delegate (object[] args)
-            {
-                result = (chan_async_state)args[0];
-            }), p);
+            chan.push(this_.async_same_callback((object[] args) => result = (chan_async_state)args[0]), p);
             await this_.async_wait();
             return result;
         }
@@ -2208,10 +2205,7 @@ namespace Go
         {
             generator this_ = self;
             chan_async_state result = chan_async_state.async_undefined;
-            chan.try_push(this_.async_same_callback(delegate (object[] args)
-            {
-                result = (chan_async_state)args[0];
-            }), p);
+            chan.try_push(this_.async_same_callback((object[] args) => result = (chan_async_state)args[0]), p);
             await this_.async_wait();
             return result;
         }
@@ -2246,10 +2240,7 @@ namespace Go
         {
             generator this_ = self;
             chan_async_state result = chan_async_state.async_undefined;
-            chan.timed_push(ms, this_.async_same_callback(delegate (object[] args)
-            {
-                result = (chan_async_state)args[0];
-            }), p);
+            chan.timed_push(ms, this_.async_same_callback((object[] args) => result = (chan_async_state)args[0]), p);
             await this_.async_wait();
             return result;
         }
@@ -4197,12 +4188,13 @@ namespace Go
 
         public async Task<chan_async_state> send_msg<T>(int id, T p)
         {
-            return await chan_push(await get_mailbox<T>(id), p);
+            channel<T> mb = await get_mailbox<T>(id);
+            return null != mb ? await chan_push(mb, p) : chan_async_state.async_fail;
         }
 
-        public async Task<chan_async_state> send_msg(int id)
+        public Task<chan_async_state> send_msg(int id)
         {
-            return await chan_push(await get_mailbox<void_type>(id));
+            return send_msg(0, default(void_type));
         }
 
         public Task<chan_async_state> send_msg<T>(T p)
@@ -5018,6 +5010,36 @@ namespace Go
             }
 
             public receive_mail try_receive<T>(functional.func_res<Task, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            {
+                return try_receive(0, handler, errHandler);
+            }
+
+            public receive_mail receive(int id, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            {
+                return receive(self_mailbox<void_type>(id), handler, errHandler);
+            }
+
+            public receive_mail timed_receive(int id, int ms, functional.func_res<Task> timedHandler, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            {
+                return timed_receive(self_mailbox<void_type>(id), ms, timedHandler, handler, errHandler);
+            }
+
+            public receive_mail try_receive(int id, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            {
+                return try_receive(self_mailbox<void_type>(id), handler, errHandler);
+            }
+
+            public receive_mail receive(functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            {
+                return receive(0, handler, errHandler);
+            }
+
+            public receive_mail timed_receive(int ms, functional.func_res<Task> timedHandler, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            {
+                return timed_receive(0, ms, timedHandler, handler, errHandler);
+            }
+
+            public receive_mail try_receive(functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
             {
                 return try_receive(0, handler, errHandler);
             }
