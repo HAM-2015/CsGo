@@ -5192,7 +5192,20 @@ namespace Go
                 Trace.Assert(self == _parent, "此 children 不属于当前 generator");
 #endif
                 check_append_node();
-                child newGen = child.make(strand, handler, callback, suspendCb);
+                child newGen = null;
+                newGen = child.make(strand, handler, delegate ()
+                {
+                    _parent.strand.distribute(delegate ()
+                    {
+                        if (null != newGen.node)
+                        {
+                            _children.Remove(newGen.node);
+                            newGen.node = null;
+                            check_remove_node();
+                        }
+                    });
+                    callback?.Invoke();
+                }, suspendCb);
                 newGen.node = _children.AddLast(newGen);
                 return newGen;
             }
@@ -5328,9 +5341,6 @@ namespace Go
                 {
                     gen.stop(_parent.async_result());
                     await _parent.async_wait();
-                    _children.Remove(gen.node);
-                    gen.node = null;
-                    check_remove_node();
                     return true;
                 }
                 return false;
@@ -5344,7 +5354,8 @@ namespace Go
                 int count = 0;
                 if (0 != gens.Count())
                 {
-                    msg_buff<child> waitStop = new msg_buff<child>(_parent.strand);
+                    msg_buff<void_type> waitStop = new msg_buff<void_type>(_parent.strand);
+                    functional.func continuation = waitStop.wrap_default();
                     foreach (child ele in gens)
                     {
                         if (null != ele.node)
@@ -5353,16 +5364,13 @@ namespace Go
                             Trace.Assert(ele.node.List == _children, "此 child 不属于当前 children");
 #endif
                             count++;
-                            ele.stop(() => waitStop.post(ele));
+                            ele.stop(continuation);
                         }
                     }
                     for (int i = 0; i < count; i++)
                     {
-                        child gen = (await chan_pop(waitStop)).result;
-                        _children.Remove(gen.node);
-                        gen.node = null;
+                        await chan_pop(waitStop);
                     }
-                    check_remove_node();
                 }
                 return count;
             }
@@ -5377,9 +5385,6 @@ namespace Go
                 {
                     gen.append_stop_callback(_parent.async_result());
                     await _parent.async_wait();
-                    _children.Remove(gen.node);
-                    gen.node = null;
-                    check_remove_node();
                     return true;
                 }
                 return false;
@@ -5393,7 +5398,8 @@ namespace Go
                 int count = 0;
                 if (0 != gens.Count())
                 {
-                    msg_buff<child> waitStop = new msg_buff<child>(_parent.strand);
+                    msg_buff<void_type> waitStop = new msg_buff<void_type>(_parent.strand);
+                    functional.func continuation = waitStop.wrap_default();
                     foreach (child ele in gens)
                     {
                         if (null != ele.node)
@@ -5402,16 +5408,13 @@ namespace Go
                             Trace.Assert(ele.node.List == _children, "此 child 不属于当前 children");
 #endif
                             count++;
-                            ele.append_stop_callback(() => waitStop.post(ele));
+                            ele.append_stop_callback(continuation);
                         }
                     }
                     for (int i = 0; i < count; i++)
                     {
-                        child gen = (await chan_pop(waitStop)).result;
-                        _children.Remove(gen.node);
-                        gen.node = null;
+                        await chan_pop(waitStop);
                     }
-                    check_remove_node();
                 }
                 return count;
             }
@@ -5427,12 +5430,6 @@ namespace Go
                 {
                     gen.append_stop_callback(_parent.timed_async_result2(ms, () => overtime = true));
                     await _parent.async_wait();
-                    if (!overtime)
-                    {
-                        _children.Remove(gen.node);
-                        gen.node = null;
-                        check_remove_node();
-                    }
                 }
                 return !overtime;
             }
@@ -5444,18 +5441,16 @@ namespace Go
 #endif
                 if (0 != _children.Count)
                 {
-                    msg_buff<child> waitStop = new msg_buff<child>(_parent.strand);
+                    msg_buff<void_type> waitStop = new msg_buff<void_type>(_parent.strand);
+                    functional.func continuation = waitStop.wrap_default();
                     foreach (child ele in _children)
                     {
-                        ele.stop(() => waitStop.post(ele));
+                        ele.stop(continuation);
                     }
                     while (0 != _children.Count)
                     {
-                        child gen = (await chan_pop(waitStop)).result;
-                        _children.Remove(gen.node);
-                        gen.node = null;
+                        await chan_pop(waitStop);
                     }
-                    check_remove_node();
                 }
             }
 
@@ -5464,7 +5459,8 @@ namespace Go
                 if (0 != childrens.Count())
                 {
                     generator self = generator.self;
-                    msg_buff<Tuple<children, child>> waitStop = new msg_buff<Tuple<children, child>>(self.strand);
+                    msg_buff<void_type> waitStop = new msg_buff<void_type>(self.strand);
+                    functional.func continuation = waitStop.wrap_default();
                     int count = 0;
                     foreach (children childs in childrens)
                     {
@@ -5474,15 +5470,12 @@ namespace Go
                         foreach (child ele in childs._children)
                         {
                             count++;
-                            ele.stop(() => waitStop.post(new Tuple<children, child>(childs, ele)));
+                            ele.stop(continuation);
                         }
                     }
                     for (int i = 0; i < count; i++)
                     {
-                        Tuple<children, child> oneRes = (await chan_pop(waitStop)).result;
-                        oneRes.Item1._children.Remove(oneRes.Item2.node);
-                        oneRes.Item2.node = null;
-                        oneRes.Item1.check_remove_node();
+                        await chan_pop(waitStop);
                     }
                 }
             }
@@ -5495,15 +5488,12 @@ namespace Go
                 if (0 != _children.Count)
                 {
                     async_result_wrap<child> res = new async_result_wrap<child>();
-                    functional.func<child> ntf = _parent.safe_async_result(res);
+                    functional.func<child> continuation = _parent.safe_async_result(res);
                     foreach (child ele in _children)
                     {
-                        ele.append_stop_callback(() => ntf(ele));
+                        ele.append_stop_callback(() => continuation(ele));
                     }
                     await _parent.async_wait();
-                    _children.Remove(res.value_1.node);
-                    res.value_1.node = null;
-                    check_remove_node();
                     return res.value_1;
                 }
                 return null;
@@ -5517,19 +5507,13 @@ namespace Go
                 if (0 != _children.Count)
                 {
                     async_result_wrap<child> res = new async_result_wrap<child>();
-                    functional.func<child> ntf = _parent.timed_async_result(ms, res);
+                    functional.func<child> continuation = _parent.timed_async_result(ms, res);
                     foreach (child ele in _children)
                     {
-                        ele.append_stop_callback(() => ntf(ele));
+                        ele.append_stop_callback(() => continuation(ele));
                     }
                     await _parent.async_wait();
-                    if (null != res.value_1)
-                    {
-                        _children.Remove(res.value_1.node);
-                        res.value_1.node = null;
-                        check_remove_node();
-                        return res.value_1;
-                    }
+                    return res.value_1;
                 }
                 return null;
             }
@@ -5541,18 +5525,16 @@ namespace Go
 #endif
                 if (0 != _children.Count)
                 {
-                    msg_buff<child> waitStop = new msg_buff<child>(_parent.strand);
+                    msg_buff<void_type> waitStop = new msg_buff<void_type>(_parent.strand);
+                    functional.func continuation = waitStop.wrap_default();
                     foreach (child ele in _children)
                     {
-                        ele.append_stop_callback(() => waitStop.post(ele));
+                        ele.append_stop_callback(continuation);
                     }
                     while (0 != _children.Count)
                     {
-                        child gen = (await chan_pop(waitStop)).result;
-                        _children.Remove(gen.node);
-                        gen.node = null;
+                        await chan_pop(waitStop);
                     }
-                    check_remove_node();
                 }
             }
         }
