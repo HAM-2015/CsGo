@@ -5107,10 +5107,12 @@ namespace Go
 
         public class child : generator
         {
+            bool _isFree;
             LinkedListNode<child> _childNode;
 
-            public child() : base()
+            public child(bool isFree = false) : base()
             {
+                _isFree = isFree;
             }
 
             static new public child make(shared_strand strand, action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
@@ -5118,14 +5120,9 @@ namespace Go
                 return (child)(new child()).init(strand, handler, callback, suspendCb);
             }
 
-            static new public child go(shared_strand strand, action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
+            static public child free_make(shared_strand strand, action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
             {
-                return make(strand, handler, callback, suspendCb).run();
-            }
-
-            static new public child tick_go(shared_strand strand, action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
-            {
-                return make(strand, handler, callback, suspendCb).tick_run();
+                return (child)(new child(true)).init(strand, handler, callback, suspendCb);
             }
 
             public LinkedListNode<child> node
@@ -5138,6 +5135,11 @@ namespace Go
                 {
                     _childNode = value;
                 }
+            }
+
+            public bool is_free()
+            {
+                return _isFree;
             }
 
             public new child run()
@@ -5179,7 +5181,7 @@ namespace Go
 
             void check_remove_node()
             {
-                if (0 == _children.Count)
+                if (0 == _children.Count && null != _node)
                 {
                     _parent._children.Remove(_node);
                     _node = null;
@@ -5192,8 +5194,19 @@ namespace Go
                 Trace.Assert(self == _parent, "此 children 不属于当前 generator");
 #endif
                 check_append_node();
+                child newGen = child.make(strand, handler, callback, suspendCb);
+                newGen.node = _children.AddLast(newGen);
+                return newGen;
+            }
+
+            public child free_make(shared_strand strand, action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
+            {
+#if DEBUG
+                Trace.Assert(self == _parent, "此 children 不属于当前 generator");
+#endif
+                check_append_node();
                 child newGen = null;
-                newGen = child.make(strand, handler, delegate ()
+                newGen = child.free_make(strand, handler, delegate ()
                 {
                     _parent.strand.distribute(delegate ()
                     {
@@ -5215,9 +5228,19 @@ namespace Go
                 return make(strand, handler, callback, suspendCb).run();
             }
 
+            public child free_go(shared_strand strand, action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
+            {
+                return free_make(strand, handler, callback, suspendCb).run();
+            }
+
             public child tick_go(shared_strand strand, action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
             {
                 return make(strand, handler, callback, suspendCb).tick_run();
+            }
+
+            public child tick_free_go(shared_strand strand, action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
+            {
+                return free_make(strand, handler, callback, suspendCb).tick_run();
             }
 
             public child make(action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
@@ -5225,14 +5248,29 @@ namespace Go
                 return make(_parent.strand, handler, callback, suspendCb);
             }
 
+            public child free_make(action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
+            {
+                return free_make(_parent.strand, handler, callback, suspendCb);
+            }
+
             public child go(action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
             {
                 return go(_parent.strand, handler, callback, suspendCb);
             }
 
+            public child free_go(action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
+            {
+                return free_go(_parent.strand, handler, callback, suspendCb);
+            }
+
             public child tick_go(action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
             {
                 return tick_go(_parent.strand, handler, callback, suspendCb);
+            }
+
+            public child tick_free_go(action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
+            {
+                return tick_free_go(_parent.strand, handler, callback, suspendCb);
             }
 
             public void ignore_suspend(bool igonre = true)
@@ -5341,6 +5379,12 @@ namespace Go
                 {
                     gen.stop(_parent.async_result());
                     await _parent.async_wait();
+                    if (null != gen.node)
+                    {
+                        _children.Remove(gen.node);
+                        gen.node = null;
+                        check_remove_node();
+                    }
                     return true;
                 }
                 return false;
@@ -5354,8 +5398,7 @@ namespace Go
                 int count = 0;
                 if (0 != gens.Count())
                 {
-                    msg_buff<void_type> waitStop = new msg_buff<void_type>(_parent.strand);
-                    functional.func continuation = waitStop.wrap_default();
+                    msg_buff<child> waitStop = new msg_buff<child>(_parent.strand);
                     foreach (child ele in gens)
                     {
                         if (null != ele.node)
@@ -5364,13 +5407,19 @@ namespace Go
                             Trace.Assert(ele.node.List == _children, "此 child 不属于当前 children");
 #endif
                             count++;
-                            ele.stop(continuation);
+                            ele.stop(() => waitStop.post(ele));
                         }
                     }
                     for (int i = 0; i < count; i++)
                     {
-                        await chan_pop(waitStop);
+                        child gen = (await chan_pop(waitStop)).result;
+                        if (null != gen.node)
+                        {
+                            _children.Remove(gen.node);
+                            gen.node = null;
+                        }
                     }
+                    check_remove_node();
                 }
                 return count;
             }
@@ -5385,6 +5434,12 @@ namespace Go
                 {
                     gen.append_stop_callback(_parent.async_result());
                     await _parent.async_wait();
+                    if (null != gen.node)
+                    {
+                        _children.Remove(gen.node);
+                        gen.node = null;
+                        check_remove_node();
+                    }
                     return true;
                 }
                 return false;
@@ -5398,8 +5453,7 @@ namespace Go
                 int count = 0;
                 if (0 != gens.Count())
                 {
-                    msg_buff<void_type> waitStop = new msg_buff<void_type>(_parent.strand);
-                    functional.func continuation = waitStop.wrap_default();
+                    msg_buff<child> waitStop = new msg_buff<child>(_parent.strand);
                     foreach (child ele in gens)
                     {
                         if (null != ele.node)
@@ -5408,13 +5462,19 @@ namespace Go
                             Trace.Assert(ele.node.List == _children, "此 child 不属于当前 children");
 #endif
                             count++;
-                            ele.append_stop_callback(continuation);
+                            ele.append_stop_callback(() => waitStop.post(ele));
                         }
                     }
                     for (int i = 0; i < count; i++)
                     {
-                        await chan_pop(waitStop);
+                        child gen = (await chan_pop(waitStop)).result;
+                        if (null != gen.node)
+                        {
+                            _children.Remove(gen.node);
+                            gen.node = null;
+                        }
                     }
+                    check_remove_node();
                 }
                 return count;
             }
@@ -5430,27 +5490,44 @@ namespace Go
                 {
                     gen.append_stop_callback(_parent.timed_async_result2(ms, () => overtime = true));
                     await _parent.async_wait();
+                    if (!overtime && null != gen.node)
+                    {
+                        _children.Remove(gen.node);
+                        gen.node = null;
+                        check_remove_node();
+                    }
                 }
                 return !overtime;
             }
 
-            public async Task stop()
+            public async Task stop(bool containFree = true)
             {
 #if DEBUG
                 Trace.Assert(self == _parent, "此 children 不属于当前 generator");
 #endif
                 if (0 != _children.Count)
                 {
-                    msg_buff<void_type> waitStop = new msg_buff<void_type>(_parent.strand);
-                    functional.func continuation = waitStop.wrap_default();
+                    msg_buff<child> waitStop = new msg_buff<child>(_parent.strand);
+                    int count = 0;
                     foreach (child ele in _children)
                     {
-                        ele.stop(continuation);
+                        if (!containFree && ele.is_free())
+                        {
+                            continue;
+                        }
+                        count++;
+                        ele.stop(() => waitStop.post(ele));
                     }
-                    while (0 != _children.Count)
+                    while (0 != count--)
                     {
-                        await chan_pop(waitStop);
+                        child gen = (await chan_pop(waitStop)).result;
+                        if (null != gen.node)
+                        {
+                            _children.Remove(gen.node);
+                            gen.node = null;
+                        }
                     }
+                    check_remove_node();
                 }
             }
 
@@ -5459,8 +5536,7 @@ namespace Go
                 if (0 != childrens.Count())
                 {
                     generator self = generator.self;
-                    msg_buff<void_type> waitStop = new msg_buff<void_type>(self.strand);
-                    functional.func continuation = waitStop.wrap_default();
+                    msg_buff<Tuple<children, child>> waitStop = new msg_buff<Tuple<children, child>>(self.strand);
                     int count = 0;
                     foreach (children childs in childrens)
                     {
@@ -5470,17 +5546,23 @@ namespace Go
                         foreach (child ele in childs._children)
                         {
                             count++;
-                            ele.stop(continuation);
+                            ele.stop(() => waitStop.post(new Tuple<children, child>(childs, ele)));
                         }
                     }
                     for (int i = 0; i < count; i++)
                     {
-                        await chan_pop(waitStop);
+                        Tuple<children, child> oneRes = (await chan_pop(waitStop)).result;
+                        if (null != oneRes.Item2.node)
+                        {
+                            oneRes.Item1._children.Remove(oneRes.Item2.node);
+                            oneRes.Item2.node = null;
+                            oneRes.Item1.check_remove_node();
+                        }
                     }
                 }
             }
 
-            public async Task<child> wait_one()
+            public async Task<child> wait_one(bool containFree = false)
             {
 #if DEBUG
                 Trace.Assert(self == _parent, "此 children 不属于当前 generator");
@@ -5488,18 +5570,33 @@ namespace Go
                 if (0 != _children.Count)
                 {
                     async_result_wrap<child> res = new async_result_wrap<child>();
-                    functional.func<child> continuation = _parent.safe_async_result(res);
+                    functional.func<child> ntf = _parent.safe_async_result(res);
+                    bool canWait = false;
                     foreach (child ele in _children)
                     {
-                        ele.append_stop_callback(() => continuation(ele));
+                        if (!containFree && ele.is_free())
+                        {
+                            continue;
+                        }
+                        canWait = true;
+                        ele.append_stop_callback(() => ntf(ele));
                     }
-                    await _parent.async_wait();
-                    return res.value_1;
+                    if (canWait)
+                    {
+                        await _parent.async_wait();
+                        if (null != res.value_1.node)
+                        {
+                            _children.Remove(res.value_1.node);
+                            res.value_1.node = null;
+                            check_remove_node();
+                            return res.value_1;
+                        }
+                    }
                 }
                 return null;
             }
 
-            public async Task<child> timed_wait_one(int ms)
+            public async Task<child> timed_wait_one(int ms, bool containFree = false)
             {
 #if DEBUG
                 Trace.Assert(self == _parent, "此 children 不属于当前 generator");
@@ -5507,34 +5604,60 @@ namespace Go
                 if (0 != _children.Count)
                 {
                     async_result_wrap<child> res = new async_result_wrap<child>();
-                    functional.func<child> continuation = _parent.timed_async_result(ms, res);
+                    functional.func<child> ntf = _parent.timed_async_result(ms, res);
+                    bool canWait = false;
                     foreach (child ele in _children)
                     {
-                        ele.append_stop_callback(() => continuation(ele));
+                        if (!containFree && ele.is_free())
+                        {
+                            continue;
+                        }
+                        canWait = true;
+                        ele.append_stop_callback(() => ntf(ele));
                     }
-                    await _parent.async_wait();
-                    return res.value_1;
+                    if (canWait)
+                    {
+                        await _parent.async_wait();
+                        if (null != res.value_1)
+                        {
+                            _children.Remove(res.value_1.node);
+                            res.value_1.node = null;
+                            check_remove_node();
+                            return res.value_1;
+                        }
+                    }
                 }
                 return null;
             }
 
-            public async Task wait_all()
+            public async Task wait_all(bool containFree = true)
             {
 #if DEBUG
                 Trace.Assert(self == _parent, "此 children 不属于当前 generator");
 #endif
                 if (0 != _children.Count)
                 {
-                    msg_buff<void_type> waitStop = new msg_buff<void_type>(_parent.strand);
-                    functional.func continuation = waitStop.wrap_default();
+                    msg_buff<child> waitStop = new msg_buff<child>(_parent.strand);
+                    int count = 0;
                     foreach (child ele in _children)
                     {
-                        ele.append_stop_callback(continuation);
+                        if (!containFree && ele.is_free())
+                        {
+                            continue;
+                        }
+                        count++;
+                        ele.append_stop_callback(() => waitStop.post(ele));
                     }
-                    while (0 != _children.Count)
+                    while (0 != count--)
                     {
-                        await chan_pop(waitStop);
+                        child gen = (await chan_pop(waitStop)).result;
+                        if (null != gen.node)
+                        {
+                            _children.Remove(gen.node);
+                            gen.node = null;
+                        }
                     }
+                    check_remove_node();
                 }
             }
         }
