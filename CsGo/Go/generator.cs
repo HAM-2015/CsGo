@@ -5589,8 +5589,8 @@ namespace Go
                             _children.Remove(res.value_1.node);
                             res.value_1.node = null;
                             check_remove_node();
-                            return res.value_1;
                         }
+                        return res.value_1;
                     }
                 }
                 return null;
@@ -5618,13 +5618,13 @@ namespace Go
                     if (canWait)
                     {
                         await _parent.async_wait();
-                        if (null != res.value_1)
+                        if (null != res.value_1 && null != res.value_1.node)
                         {
                             _children.Remove(res.value_1.node);
                             res.value_1.node = null;
                             check_remove_node();
-                            return res.value_1;
                         }
+                        return res.value_1;
                     }
                 }
                 return null;
