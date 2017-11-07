@@ -5508,8 +5508,10 @@ namespace Go
                 if (0 != _children.Count)
                 {
                     msg_buff<child> waitStop = new msg_buff<child>(_parent.strand);
+                    child[] tempChilds = new child[_children.Count];
+                    _children.CopyTo(tempChilds, 0);
                     int count = 0;
-                    foreach (child ele in _children)
+                    foreach (child ele in tempChilds)
                     {
                         if (!containFree && ele.is_free())
                         {
@@ -5543,10 +5545,15 @@ namespace Go
 #if DEBUG
                         Trace.Assert(self == childs._parent, "此 children 不属于当前 generator");
 #endif
-                        foreach (child ele in childs._children)
+                        if (0 != childs._children.Count)
                         {
-                            count++;
-                            ele.stop(() => waitStop.post(new Tuple<children, child>(childs, ele)));
+                            child[] tempChilds = new child[childs._children.Count];
+                            childs._children.CopyTo(tempChilds, 0);
+                            foreach (child ele in tempChilds)
+                            {
+                                count++;
+                                ele.stop(() => waitStop.post(new Tuple<children, child>(childs, ele)));
+                            }
                         }
                     }
                     for (int i = 0; i < count; i++)
