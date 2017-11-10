@@ -333,11 +333,11 @@ namespace Go
         async_timer _timer;
         object _selfValue;
         string _name;
+        long _lastTm;
         long _yieldCount;
         long _id;
         int _lockCount;
         int _lockSuspendCount;
-        int _lastTm;
         bool _beginQuit;
         bool _isSuspend;
         bool _holdSuspend;
@@ -651,7 +651,7 @@ namespace Go
                     _isSuspend = true;
                     if (0 != _lastTm)
                     {
-                        _lastTm -= (int)(system_tick.get_tick_ms() - _timer.cancel());
+                        _lastTm -= system_tick.get_tick_us() - _timer.cancel();
                         if (_lastTm <= 0)
                         {
                             _lastTm = 0;
@@ -710,7 +710,7 @@ namespace Go
                         }
                         else if (0 != _lastTm)
                         {
-                            _timer.timeout(_lastTm, no_check_next);
+                            _timer.timeout_us(_lastTm, no_check_next);
                         }
                     }
                 }
@@ -2033,16 +2033,16 @@ namespace Go
             return timed_async_result2(ms, async_result_ignore_wrap<T1, T2, T3>.value, timedHandler);
         }
 
-        static public Task sleep(int ms)
+        static public Task sleep_us(long us)
         {
-            if (ms > 0)
+            if (us > 0)
             {
                 generator this_ = self;
-                this_._lastTm = ms;
-                this_._timer.timeout(ms, this_._async_result());
+                this_._lastTm = us;
+                this_._timer.timeout_us(us, this_._async_result());
                 return this_.async_wait();
             }
-            else if (ms < 0)
+            else if (us < 0)
             {
                 return hold();
             }
@@ -2050,6 +2050,11 @@ namespace Go
             {
                 return yield();
             }
+        }
+
+        static public Task sleep(int ms)
+        {
+            return sleep_us(ms * 1000);
         }
 
         static public Task deadline(long ms)
@@ -5156,6 +5161,7 @@ namespace Go
         public class children
         {
             bool _ignoreSuspend;
+            int _freeCount;
             generator _parent;
             LinkedList<child> _children;
             LinkedListNode<children> _node;
@@ -5163,6 +5169,7 @@ namespace Go
             public children()
             {
                 _parent = self;
+                _freeCount = 0;
                 _ignoreSuspend = false;
                 _children = new LinkedList<child>();
                 if (null == _parent._children)
@@ -5206,8 +5213,10 @@ namespace Go
 #endif
                 check_append_node();
                 child newGen = null;
+                _freeCount++;
                 newGen = child.free_make(strand, handler, delegate ()
                 {
+                    _freeCount--;
                     _parent.strand.distribute(delegate ()
                     {
                         if (null != newGen.node)
@@ -5508,17 +5517,27 @@ namespace Go
                 if (0 != _children.Count)
                 {
                     msg_buff<child> waitStop = new msg_buff<child>(_parent.strand);
-                    child[] tempChilds = new child[_children.Count];
-                    _children.CopyTo(tempChilds, 0);
-                    int count = 0;
-                    foreach (child ele in tempChilds)
+                    int count = _children.Count;
+                    if (0 == _freeCount)
                     {
-                        if (!containFree && ele.is_free())
+                        foreach (child ele in _children)
                         {
-                            continue;
+                            ele.stop(() => waitStop.post(ele));
                         }
-                        count++;
-                        ele.stop(() => waitStop.post(ele));
+                    }
+                    else
+                    {
+                        child[] tempChilds = new child[_children.Count];
+                        _children.CopyTo(tempChilds, 0);
+                        foreach (child ele in tempChilds)
+                        {
+                            if (!containFree && ele.is_free())
+                            {
+                                count--;
+                                continue;
+                            }
+                            ele.stop(() => waitStop.post(ele));
+                        }
                     }
                     while (0 != count--)
                     {
@@ -5547,12 +5566,22 @@ namespace Go
 #endif
                         if (0 != childs._children.Count)
                         {
-                            child[] tempChilds = new child[childs._children.Count];
-                            childs._children.CopyTo(tempChilds, 0);
-                            foreach (child ele in tempChilds)
+                            count += childs._children.Count;
+                            if (0 == childs._freeCount)
                             {
-                                count++;
-                                ele.stop(() => waitStop.post(new Tuple<children, child>(childs, ele)));
+                                foreach (child ele in childs._children)
+                                {
+                                    ele.stop(() => waitStop.post(new Tuple<children, child>(childs, ele)));
+                                }
+                            }
+                            else
+                            {
+                                child[] tempChilds = new child[childs._children.Count];
+                                childs._children.CopyTo(tempChilds, 0);
+                                foreach (child ele in tempChilds)
+                                {
+                                    ele.stop(() => waitStop.post(new Tuple<children, child>(childs, ele)));
+                                }
                             }
                         }
                     }

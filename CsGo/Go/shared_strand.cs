@@ -27,28 +27,28 @@ namespace Go
         public void push_option(functional.func handler)
         {
             LinkedListNode<functional.func> newNode = new LinkedListNode<functional.func>(handler);
-            Monitor.Enter(this);
+            Monitor.Enter(_opQueue);
             _opQueue.AddLast(newNode);
             if (0 != _waiting)
             {
                 _waiting--;
-                Monitor.Pulse(this);
+                Monitor.Pulse(_opQueue);
             }
-            Monitor.Exit(this);
+            Monitor.Exit(_opQueue);
         }
 
         public bool run_one()
         {
-            Monitor.Enter(this);
+            Monitor.Enter(_opQueue);
             if (_runSign && 0 != _opQueue.Count)
             {
                 LinkedListNode<functional.func> firstNode = _opQueue.First;
                 _opQueue.RemoveFirst();
-                Monitor.Exit(this);
+                Monitor.Exit(_opQueue);
                 firstNode.Value();
                 return true;
             }
-            Monitor.Exit(this);
+            Monitor.Exit(_opQueue);
             return false;
         }
 
@@ -57,22 +57,24 @@ namespace Go
             long count = 0;
             while (_runSign)
             {
-                Monitor.Enter(this);
+                Monitor.Enter(_opQueue);
                 if (0 != _opQueue.Count)
                 {
                     LinkedListNode<functional.func> firstNode = _opQueue.First;
                     _opQueue.RemoveFirst();
-                    Monitor.Exit(this);
+                    Monitor.Exit(_opQueue);
                     count++;
                     firstNode.Value();
                 }
                 else if (0 != _work)
                 {
                     _waiting++;
-                    Monitor.Wait(this);
+                    Monitor.Wait(_opQueue);
+                    Monitor.Exit(_opQueue);
                 }
                 else
                 {
+                    Monitor.Exit(_opQueue);
                     break;
                 }
             }
@@ -98,13 +100,13 @@ namespace Go
         {
             if (0 == Interlocked.Decrement(ref _work))
             {
-                Monitor.Enter(this);
+                Monitor.Enter(_opQueue);
                 if (0 != _waiting)
                 {
                     _waiting = 0;
-                    Monitor.PulseAll(this);
+                    Monitor.PulseAll(_opQueue);
                 }
-                Monitor.Exit(this);
+                Monitor.Exit(_opQueue);
             }
         }
     }
@@ -119,7 +121,7 @@ namespace Go
             _service = new work_service();
         }
 
-        public void run(int threads = 1)
+        public void run(int threads = 1, ThreadPriority priority = ThreadPriority.Normal, bool IsBackground = false)
         {
             _service.reset();
             _service.hold_work();
@@ -127,6 +129,8 @@ namespace Go
             for (int i = 0; i < threads; ++i)
             {
                 _runThreads[i] = new Thread(run_thread);
+                _runThreads[i].Priority = priority;
+                _runThreads[i].IsBackground = IsBackground;
                 _runThreads[i].Start();
             }
         }
@@ -179,6 +183,7 @@ namespace Go
         }
         protected static readonly ThreadLocal<curr_strand> _currStrand = new ThreadLocal<curr_strand>();
 
+        public readonly async_timer.steady_timer _timer;
         public generator currSelf = null;
         protected volatile bool _locked;
         protected volatile int _pauseState;
@@ -191,6 +196,7 @@ namespace Go
             _locked = false;
             _pauseState = 0;
             _mutex = new Mutex();
+            _timer = new async_timer.steady_timer(this);
             _readyQueue = new LinkedList<functional.func>();
             _waitQueue = new LinkedList<functional.func>();
         }

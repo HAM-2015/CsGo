@@ -182,7 +182,7 @@ namespace Go
 
         mutex _upgradeMutex;
         LinkedList<wait_node> _waitQueue;
-        SortedList<long, shared_count> _sharedMap;
+        SortedDictionary<long, shared_count> _sharedMap;
 
         public shared_mutex(shared_strand strand)
         {
@@ -199,7 +199,7 @@ namespace Go
         {
             _upgradeMutex = new mutex(strand);
             _waitQueue = new LinkedList<wait_node>();
-            _sharedMap = new SortedList<long, shared_count>();
+            _sharedMap = new SortedDictionary<long, shared_count>();
         }
 
         public override shared_strand self_strand()
