@@ -101,8 +101,7 @@ namespace Go
 
                 bool _exited;
                 int _timerHandle;
-                long _extMaxTick;
-                long _extFinishTime;
+                long _expireTime;
                 Thread _timerThread;
                 work_engine _workEngine;
                 work_strand _workStrand;
@@ -111,8 +110,7 @@ namespace Go
                 waitable_timer()
                 {
                     _exited = false;
-                    _extMaxTick = 0;
-                    _extFinishTime = long.MaxValue;
+                    _expireTime = long.MaxValue;
                     _eventsQueue = new Map<long, waitable_event_handle>(true);
                     _timerHandle = CreateWaitableTimer(0, 0, 0);
                     _workEngine = new work_engine();
@@ -146,14 +144,10 @@ namespace Go
                 {
                     _workStrand.post(delegate ()
                     {
-                        if (absus > _extMaxTick)
-                        {
-                            _extMaxTick = absus;
-                        }
                         eventHandle.steadyTimer._waitableNode = _eventsQueue.Insert(absus, eventHandle);
-                        if (absus < _extFinishTime)
+                        if (absus < _expireTime)
                         {
-                            _extFinishTime = absus;
+                            _expireTime = absus;
                             long sleepTime = -(absus - system_tick.get_tick_us()) * 10;
                             sleepTime = sleepTime < 0 ? sleepTime : 0;
                             SetWaitableTimer(_timerHandle, ref sleepTime, 0, 0, 0, 0);
@@ -167,17 +161,11 @@ namespace Go
                     {
                         if (null != steadyTime._waitableNode)
                         {
-                            long absus = steadyTime._waitableNode.Key;
                             _eventsQueue.Remove(steadyTime._waitableNode);
                             steadyTime._waitableNode = null;
                             if (0 == _eventsQueue.Count)
                             {
-                                _extMaxTick = 0;
-                                _extFinishTime = long.MaxValue;
-                            }
-                            else if (absus == _extMaxTick)
-                            {
-                                _extMaxTick = _eventsQueue.Last.Key;
+                                _expireTime = long.MaxValue;
                             }
                         }
                     });
@@ -193,31 +181,29 @@ namespace Go
 
                 private void timerComplete()
                 {
-                    _extFinishTime = long.MaxValue;
+                    _expireTime = long.MaxValue;
                     while (0 != _eventsQueue.Count)
                     {
                         MapNode<long, waitable_event_handle> first = _eventsQueue.First;
                         long absus = first.Key;
-                        steady_timer steadyTimer = first.Value.steadyTimer;
                         long ct = system_tick.get_tick_us();
                         if (absus > ct)
                         {
-                            _extFinishTime = absus;
+                            _expireTime = absus;
                             long sleepTime = -(absus - ct) * 10;
                             SetWaitableTimer(_timerHandle, ref sleepTime, 0, 0, 0, 0);
                             break;
                         }
-                        _eventsQueue.Remove(steadyTimer._waitableNode);
-                        steadyTimer._waitableNode = null;
-                        steadyTimer.timer_handler(first.Value.id);
+                        first.Value.steadyTimer._waitableNode = null;
+                        first.Value.steadyTimer.timer_handler(first.Value.id);
+                        _eventsQueue.Remove(first);
                     }
                 }
             }
 
             bool _looping;
             int _timerCount;
-            long _extMaxTick;
-            long _extFinishTime;
+            long _expireTime;
             shared_strand _strand;
             MapNode<long, waitable_event_handle> _waitableNode;
             Map<long, async_timer> _timerQueue;
@@ -225,9 +211,8 @@ namespace Go
             public steady_timer(shared_strand strand)
             {
                 _timerCount = 0;
-                _extMaxTick = 0;
                 _looping = false;
-                _extFinishTime = long.MaxValue;
+                _expireTime = long.MaxValue;
                 _strand = strand;
                 _timerQueue = new Map<long, async_timer>(true);
             }
@@ -235,21 +220,17 @@ namespace Go
             public void timeout(async_timer asyncTimer)
             {
                 long absus = asyncTimer._timerHandle.absus;
-                if (absus > _extMaxTick)
-                {
-                    _extMaxTick = absus;
-                }
                 asyncTimer._timerHandle.node = _timerQueue.Insert(absus, asyncTimer);
                 if (!_looping)
                 {
                     _looping = true;
-                    _extFinishTime = absus;
+                    _expireTime = absus;
                     timer_loop(absus);
                 }
-                else if (absus < _extFinishTime)
+                else if (absus < _expireTime)
                 {
                     _timerCount++;
-                    _extFinishTime = absus;
+                    _expireTime = absus;
                     waitable_timer.timer.removeEvent(this);
                     timer_loop(absus);
                 }
@@ -259,44 +240,43 @@ namespace Go
             {
                 if (null != asyncTimer._timerHandle.node)
                 {
-                    long absus = asyncTimer._timerHandle.node.Key;
                     _timerQueue.Remove(asyncTimer._timerHandle.node);
                     asyncTimer._timerHandle.node = null;
                     if (0 == _timerQueue.Count)
                     {
                         _timerCount++;
-                        _extMaxTick = 0;
+                        _expireTime = 0;
                         _looping = false;
                         waitable_timer.timer.removeEvent(this);
-                    }
-                    else if (absus == _extMaxTick)
-                    {
-                        _extMaxTick = _timerQueue.Last.Key;
                     }
                 }
             }
 
             public void timer_handler(int id)
             {
+                if (id != _timerCount)
+                {
+                    return;
+                }
                 _strand.post(delegate ()
                 {
                     if (id == _timerCount)
                     {
-                        _extFinishTime = 0;
+                        _expireTime = 0;
                         while (0 != _timerQueue.Count)
                         {
                             MapNode<long, async_timer> first = _timerQueue.First;
                             if (first.Key > system_tick.get_tick_us())
                             {
-                                _extFinishTime = first.Key;
-                                timer_loop(_extFinishTime);
+                                _expireTime = first.Key;
+                                timer_loop(_expireTime);
                                 return;
                             }
                             else
                             {
                                 first.Value._timerHandle.node = null;
-                                _timerQueue.Remove(first);
                                 first.Value.timer_handler();
+                                _timerQueue.Remove(first);
                             }
                         }
                         _looping = false;
@@ -457,6 +437,9 @@ namespace Go
 
         public long cancel()
         {
+#if DEBUG
+            Trace.Assert(_strand.running_in_this_thread());
+#endif
             if (null != _handler)
             {
                 _timerCount++;
