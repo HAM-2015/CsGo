@@ -89,6 +89,8 @@ namespace Go
                 [DllImport("kernel32.dll")]
                 private static extern int SetWaitableTimer(int hTimer, ref long pDueTime, int lPeriod, int pfnCompletionRoutine, int lpArgToCompletionRoutine, int fResume);
                 [DllImport("kernel32.dll")]
+                private static extern int CancelWaitableTimer(int hTimer);
+                [DllImport("kernel32.dll")]
                 private static extern int CloseHandle(int hObject);
                 [DllImport("kernel32.dll")]
                 private static extern int WaitForSingleObject(int hHandle, int dwMilliseconds);
@@ -161,12 +163,44 @@ namespace Go
                     {
                         if (null != steadyTime._waitableNode)
                         {
+                            long lastAbsus = steadyTime._waitableNode.Key;
                             _eventsQueue.Remove(steadyTime._waitableNode);
                             steadyTime._waitableNode = null;
                             if (0 == _eventsQueue.Count)
                             {
                                 _expireTime = long.MaxValue;
+                                CancelWaitableTimer(_timerHandle);
                             }
+                            else if (lastAbsus == _expireTime)
+                            {
+                                _expireTime = _eventsQueue.First.Key;
+                                long sleepTime = -(_expireTime - system_tick.get_tick_us()) * 10;
+                                sleepTime = sleepTime < 0 ? sleepTime : 0;
+                                SetWaitableTimer(_timerHandle, ref sleepTime, 0, 0, 0, 0);
+                            }
+                        }
+                    });
+                }
+
+                public void updateEvent(long absus, waitable_event_handle eventHandle)
+                {
+                    _workStrand.post(delegate ()
+                    {
+                        if (null != eventHandle.steadyTimer._waitableNode)
+                        {
+                            _eventsQueue.Insert(_eventsQueue.ReNewNode(eventHandle.steadyTimer._waitableNode, absus, eventHandle));
+                        }
+                        else
+                        {
+                            eventHandle.steadyTimer._waitableNode = _eventsQueue.Insert(absus, eventHandle);
+                        }
+                        long newAbsus = _eventsQueue.First.Key;
+                        if (newAbsus < _expireTime)
+                        {
+                            _expireTime = newAbsus;
+                            long sleepTime = -(newAbsus - system_tick.get_tick_us()) * 10;
+                            sleepTime = sleepTime < 0 ? sleepTime : 0;
+                            SetWaitableTimer(_timerHandle, ref sleepTime, 0, 0, 0, 0);
                         }
                     });
                 }
@@ -229,10 +263,8 @@ namespace Go
                 }
                 else if (absus < _expireTime)
                 {
-                    _timerCount++;
                     _expireTime = absus;
-                    waitable_timer.timer.removeEvent(this);
-                    timer_loop(absus);
+                    timer_reloop(absus);
                 }
             }
 
@@ -249,6 +281,36 @@ namespace Go
                         _looping = false;
                         waitable_timer.timer.removeEvent(this);
                     }
+                    else if (asyncTimer._timerHandle.absus == _expireTime)
+                    {
+                        _expireTime = _timerQueue.First.Key;
+                        timer_reloop(_expireTime);
+                    }
+                }
+            }
+
+            public void re_timeout(async_timer asyncTimer)
+            {
+                long absus = asyncTimer._timerHandle.absus;
+                if (null != asyncTimer._timerHandle.node)
+                {
+                    _timerQueue.Insert(_timerQueue.ReNewNode(asyncTimer._timerHandle.node, absus, asyncTimer));
+                }
+                else
+                {
+                    asyncTimer._timerHandle.node = _timerQueue.Insert(absus, asyncTimer);
+                }
+                long newAbsus = _timerQueue.First.Key;
+                if (!_looping)
+                {
+                    _looping = true;
+                    _expireTime = newAbsus;
+                    timer_loop(newAbsus);
+                }
+                else if (newAbsus < _expireTime)
+                {
+                    _expireTime = newAbsus;
+                    timer_reloop(newAbsus);
                 }
             }
 
@@ -262,7 +324,7 @@ namespace Go
                 {
                     if (id == _timerCount)
                     {
-                        _expireTime = 0;
+                        _expireTime = long.MinValue;
                         while (0 != _timerQueue.Count)
                         {
                             MapNode<long, async_timer> first = _timerQueue.First;
@@ -287,6 +349,11 @@ namespace Go
             void timer_loop(long absus)
             {
                 waitable_timer.timer.appendEvent(absus, new waitable_event_handle(++_timerCount, this));
+            }
+
+            void timer_reloop(long absus)
+            {
+                waitable_timer.timer.updateEvent(absus, new waitable_event_handle(++_timerCount, this));
             }
         }
 
@@ -340,6 +407,14 @@ namespace Go
             _timerHandle.absus = absus;
             _timerHandle.period = period;
             _strand._timer.timeout(this);
+        }
+
+        private void re_begin_timer(long absus, long period)
+        {
+            _timerCount++;
+            _timerHandle.absus = absus;
+            _timerHandle.period = period;
+            _strand._timer.re_timeout(this);
         }
 
         public void timeout_us(long us, functional.func handler)
@@ -404,9 +479,8 @@ namespace Go
 #endif
             if (null != _handler)
             {
-                _strand._timer.cancel(this);
                 _beginTick = system_tick.get_tick_us();
-                begin_timer(_beginTick + _timerHandle.period, _timerHandle.period);
+                re_begin_timer(_beginTick + _timerHandle.period, _timerHandle.period);
                 return true;
             }
             return false;
