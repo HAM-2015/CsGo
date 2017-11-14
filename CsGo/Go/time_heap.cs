@@ -111,7 +111,6 @@ namespace Go
             newNode.key = key;
             newNode.value = value;
             newNode.color = rb_color.red;
-            newNode.parent = newNode.left = newNode.right = null;
             return newNode;
         }
 

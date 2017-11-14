@@ -417,7 +417,7 @@ namespace Go
             string time = string.Format("{0}.{1}", DateTime.Now.ToLocalTime(), DateTime.Now.Millisecond);
             for (int i = 0; i < count; ++i, ++offset)
             {
-                if (offset < sts.Count())
+                if (offset < sts.Length)
                 {
                     callStack.AddLast(new call_stack_info(time, sts[offset].GetFileName(), sts[offset].GetFileLineNumber()));
                 }
@@ -2521,7 +2521,7 @@ namespace Go
         {
             generator this_ = self;
             int count = 0;
-            wait_group wg = new wait_group(chans.Count());
+            wait_group wg = new wait_group(chans.Length);
             foreach (channel<T> chan in chans)
             {
                 chan.push(delegate (object[] args)
@@ -2542,7 +2542,7 @@ namespace Go
         {
             generator this_ = self;
             int count = 0;
-            wait_group wg = new wait_group(chans.Count());
+            wait_group wg = new wait_group(chans.Length);
             foreach (channel<T> chan in chans)
             {
                 chan.try_push(delegate (object[] args)
@@ -2563,7 +2563,7 @@ namespace Go
         {
             generator this_ = self;
             int count = 0;
-            wait_group wg = new wait_group(chans.Count());
+            wait_group wg = new wait_group(chans.Length);
             foreach (channel<T> chan in chans)
             {
                 chan.timed_push(ms, delegate (object[] args)
@@ -2728,7 +2728,7 @@ namespace Go
                     this_._selectChans = new LinkedList<select_chan_base[]>();
                 }
                 this_._selectChans.AddFirst(chans);
-                int count = chans.Count();
+                int count = chans.Length;
                 while (0 != count)
                 {
                     select_chan_base selectedChan = (await chan_pop(selectChans)).result;
@@ -2786,7 +2786,7 @@ namespace Go
                     this_._selectChans = new LinkedList<select_chan_base[]>();
                 }
                 this_._selectChans.AddFirst(chans);
-                int count = chans.Count();
+                int count = chans.Length;
                 while (0 != count)
                 {
                     select_chan_base selectedChan = (await chan_pop(selectChans)).result;
@@ -2866,7 +2866,7 @@ namespace Go
                     this_._selectChans = new LinkedList<select_chan_base[]>();
                 }
                 this_._selectChans.AddFirst(chans);
-                int count = chans.Count();
+                int count = chans.Length;
                 while (0 != count)
                 {
                     select_chan_base selectedChan = (await chan_pop(selectChans)).result;
@@ -5334,7 +5334,7 @@ namespace Go
                 Trace.Assert(self == _parent, "此 children 不属于当前 generator");
 #endif
                 int count = 0;
-                if (0 != gens.Count())
+                if (0 != gens.Length)
                 {
                     foreach (child ele in gens)
                     {
@@ -5356,7 +5356,7 @@ namespace Go
             static public int discard(params children[] childrens)
             {
                 int count = 0;
-                if (0 != childrens.Count())
+                if (0 != childrens.Length)
                 {
 #if DEBUG
                     generator self = generator.self;
@@ -5405,7 +5405,7 @@ namespace Go
                 Trace.Assert(self == _parent, "此 children 不属于当前 generator");
 #endif
                 int count = 0;
-                if (0 != gens.Count())
+                if (0 != gens.Length)
                 {
                     msg_buff<child> waitStop = new msg_buff<child>(_parent.strand);
                     foreach (child ele in gens)
@@ -5460,7 +5460,7 @@ namespace Go
                 Trace.Assert(self == _parent, "此 children 不属于当前 generator");
 #endif
                 int count = 0;
-                if (0 != gens.Count())
+                if (0 != gens.Length)
                 {
                     msg_buff<child> waitStop = new msg_buff<child>(_parent.strand);
                     foreach (child ele in gens)
@@ -5554,7 +5554,7 @@ namespace Go
 
             static public async Task stop(params children[] childrens)
             {
-                if (0 != childrens.Count())
+                if (0 != childrens.Length)
                 {
                     generator self = generator.self;
                     msg_buff<Tuple<children, child>> waitStop = new msg_buff<Tuple<children, child>>(self.strand);

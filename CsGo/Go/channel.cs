@@ -455,7 +455,7 @@ namespace Go
         public abstract void AddLast(T msg);
         public abstract T First();
         public abstract void RemoveFirst();
-        public abstract int Count();
+        public abstract int Count { get; }
         public abstract void Clear();
     }
 
@@ -483,9 +483,12 @@ namespace Go
             _msgBuff.RemoveFirst();
         }
 
-        public override int Count()
+        public override int Count
         {
-            return _msgBuff.Count;
+            get
+            {
+                return _msgBuff.Count;
+            }
         }
 
         public override void Clear()
@@ -518,9 +521,12 @@ namespace Go
             _count--;
         }
 
-        public override int Count()
+        public override int Count
         {
-            return _count;
+            get
+            {
+                return _count;
+            }
         }
 
         public override void Clear()
@@ -584,7 +590,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
-                if (0 != _buffer.Count())
+                if (0 != _buffer.Count)
                 {
                     T msg = _buffer.First();
                     _buffer.RemoveFirst();
@@ -620,7 +626,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
-                if (0 != _buffer.Count())
+                if (0 != _buffer.Count)
                 {
                     T msg = _buffer.First();
                     _buffer.RemoveFirst();
@@ -646,7 +652,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
-                if (0 != _buffer.Count())
+                if (0 != _buffer.Count)
                 {
                     T msg = _buffer.First();
                     _buffer.RemoveFirst();
@@ -689,7 +695,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
-                if (0 != _buffer.Count())
+                if (0 != _buffer.Count)
                 {
                     ntf(chan_async_state.async_ok);
                 }
@@ -712,7 +718,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
-                if (0 != _buffer.Count())
+                if (0 != _buffer.Count)
                 {
                     T msg = _buffer.First();
                     _buffer.RemoveFirst();
@@ -745,7 +751,7 @@ namespace Go
                     _waitQueue.Remove(ntfSign._ntfNode);
                     ntfSign._ntfNode = null;
                 }
-                if (0 != _buffer.Count() && 0 != _waitQueue.Count())
+                if (0 != _buffer.Count && 0 != _waitQueue.Count)
                 {
                     functional.func<chan_async_state> wtNtf = _waitQueue.First();
                     _waitQueue.RemoveFirst();
@@ -890,7 +896,7 @@ namespace Go
                     ntf(chan_async_state.async_closed);
                     return;
                 }
-                if (_buffer.Count() == _length)
+                if (_buffer.Count == _length)
                 {
                     _pushWait.AddLast(delegate (chan_async_state state)
                     {
@@ -922,7 +928,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
-                if (0 != _buffer.Count())
+                if (0 != _buffer.Count)
                 {
                     T msg = _buffer.First();
                     _buffer.RemoveFirst();
@@ -964,7 +970,7 @@ namespace Go
                     ntf(chan_async_state.async_closed);
                     return;
                 }
-                if (_buffer.Count() == _length)
+                if (_buffer.Count == _length)
                 {
                     ntf(chan_async_state.async_fail);
                 }
@@ -986,7 +992,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
-                if (0 != _buffer.Count())
+                if (0 != _buffer.Count)
                 {
                     T msg = _buffer.First();
                     _buffer.RemoveFirst();
@@ -1013,7 +1019,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
-                if (_buffer.Count() == _length)
+                if (_buffer.Count == _length)
                 {
                     if (ms > 0)
                     {
@@ -1060,7 +1066,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
-                if (0 != _buffer.Count())
+                if (0 != _buffer.Count)
                 {
                     T msg = _buffer.First();
                     _buffer.RemoveFirst();
@@ -1109,7 +1115,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
-                if (0 != _buffer.Count())
+                if (0 != _buffer.Count)
                 {
                     ntf(chan_async_state.async_ok);
                 }
@@ -1132,7 +1138,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
-                if (0 != _buffer.Count())
+                if (0 != _buffer.Count)
                 {
                     T msg = _buffer.First();
                     _buffer.RemoveFirst();
@@ -1170,7 +1176,7 @@ namespace Go
                     _popWait.Remove(ntfSign._ntfNode);
                     ntfSign._ntfNode = null;
                 }
-                if (0 != _buffer.Count() && 0 != _popWait.Count())
+                if (0 != _buffer.Count && 0 != _popWait.Count)
                 {
                     functional.func<chan_async_state> popNtf = _popWait.First();
                     _popWait.RemoveFirst();
@@ -1189,7 +1195,7 @@ namespace Go
                     ntf(chan_async_state.async_closed);
                     return;
                 }
-                if (_buffer.Count() != _length)
+                if (_buffer.Count != _length)
                 {
                     ntf(chan_async_state.async_ok);
                 }
@@ -1214,7 +1220,7 @@ namespace Go
                     cb(chan_async_state.async_closed);
                     return;
                 }
-                if (_buffer.Count() != _length)
+                if (_buffer.Count != _length)
                 {
                     _buffer.AddLast(msg);
                     if (0 != _popWait.Count)
@@ -1247,7 +1253,7 @@ namespace Go
                     _pushWait.Remove(ntfSign._ntfNode);
                     ntfSign._ntfNode = null;
                 }
-                if (_buffer.Count() != _length && 0 != _pushWait.Count)
+                if (_buffer.Count != _length && 0 != _pushWait.Count)
                 {
                     functional.func<chan_async_state> pushNtf = _pushWait.First.Value;
                     _pushWait.RemoveFirst();
