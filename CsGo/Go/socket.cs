@@ -149,16 +149,18 @@ namespace Go
 
     public class socket_tcp : socket
     {
-        public Socket _socket;
+        Socket _socket;
 
         public socket_tcp()
         {
-            _socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
         }
 
-        public socket_tcp(Socket sck)
+        public Socket socket
         {
-            _socket = sck;
+            get
+            {
+                return _socket;
+            }
         }
 
         public override void close()
@@ -174,6 +176,7 @@ namespace Go
         {
             try
             {
+                _socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                 _socket.BeginConnect(IPAddress.Parse(ip), port, delegate (IAsyncResult ar)
                 {
                     try
@@ -274,78 +277,94 @@ namespace Go
         {
             return generator.async_call((functional.func<socket_result> cb) => async_disconnect(reuseSocket, cb));
         }
-    }
 
-    public class socket_accept
-    {
-        Socket _socket;
-
-        public socket_accept()
+        public class acceptor
         {
-            _socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-        }
+            Socket _socket;
 
-        public bool bind(string ip, int port)
-        {
-            try
+            public acceptor()
             {
-                _socket.Bind(new IPEndPoint(IPAddress.Parse(ip), port));
-                _socket.Listen(1);
-                return true;
-
+                _socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             }
-            catch (System.Exception) { }
-            return false;
-        }
 
-        public void close()
-        {
-            try
+            public Socket socket
             {
-                _socket.Close();
-            }
-            catch (System.Exception) { }
-        }
-
-        public void async_accept(socket_tcp sck, functional.func<socket_result> cb)
-        {
-            try
-            {
-                sck.close();
-                _socket.BeginAccept(delegate (IAsyncResult ar)
+                get
                 {
-                    try
-                    {
-                        sck._socket = _socket.EndAccept(ar);
-                        sck._socket.NoDelay = true;
-                        cb(new socket_result(true));
-                    }
-                    catch (System.Exception ec)
-                    {
-                        cb(new socket_result(false, 0, ec.Message));
-                    }
-                }, null);
+                    return _socket;
+                }
             }
-            catch (System.Exception ec)
-            {
-                close();
-                cb(new socket_result(false, 0, ec.Message));
-            }
-        }
 
-        public Task<socket_result> accept(socket_tcp sck)
-        {
-            return generator.async_call((functional.func<socket_result> cb) => async_accept(sck, cb));
+            public bool bind(string ip, int port)
+            {
+                try
+                {
+                    _socket.Bind(new IPEndPoint(IPAddress.Parse(ip), port));
+                    _socket.Listen(1);
+                    return true;
+
+                }
+                catch (System.Exception) { }
+                return false;
+            }
+
+            public void close()
+            {
+                try
+                {
+                    _socket.Close();
+                }
+                catch (System.Exception) { }
+            }
+
+            public void async_accept(socket_tcp sck, functional.func<socket_result> cb)
+            {
+                try
+                {
+                    sck.close();
+                    _socket.BeginAccept(delegate (IAsyncResult ar)
+                    {
+                        try
+                        {
+                            sck._socket = _socket.EndAccept(ar);
+                            sck._socket.NoDelay = true;
+                            cb(new socket_result(true));
+                        }
+                        catch (System.Exception ec)
+                        {
+                            cb(new socket_result(false, 0, ec.Message));
+                        }
+                    }, null);
+                }
+                catch (System.Exception ec)
+                {
+                    close();
+                    cb(new socket_result(false, 0, ec.Message));
+                }
+            }
+
+            public Task<socket_result> accept(socket_tcp sck)
+            {
+                return generator.async_call((functional.func<socket_result> cb) => async_accept(sck, cb));
+            }
         }
     }
 
     public class socket_serial : socket
     {
         SerialPort _socket;
-        
+
         public socket_serial(string portName, int baudRate = 9600, Parity parity = Parity.None, int dataBits = 8, StopBits stopBits = StopBits.One)
         {
             _socket = new SerialPort(portName, baudRate, parity, dataBits, stopBits);
+        }
+
+        public SerialPort socket
+        {
+            get
+            {
+                return _socket;
+            }
         }
 
         public bool open()
@@ -437,10 +456,18 @@ namespace Go
     public class socket_pipe_server : socket
     {
         NamedPipeServerStream _socket;
-        
+
         public socket_pipe_server(string pipeName, int maxNumberOfServerInstances = 1, int inBufferSize = 4 * 1024, int outBufferSize = 4 * 1024)
         {
             _socket = new NamedPipeServerStream(pipeName, PipeDirection.InOut, maxNumberOfServerInstances, PipeTransmissionMode.Byte, PipeOptions.Asynchronous, inBufferSize, outBufferSize);
+        }
+
+        public NamedPipeServerStream socket
+        {
+            get
+            {
+                return _socket;
+            }
         }
 
         public override void close()
@@ -545,6 +572,14 @@ namespace Go
         public socket_pipe_client(string pipeName, string serverName = ".")
         {
             _socket = new NamedPipeClientStream(serverName, pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
+        }
+
+        public NamedPipeClientStream socket
+        {
+            get
+            {
+                return _socket;
+            }
         }
 
         public override void close()
