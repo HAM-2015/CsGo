@@ -27,8 +27,8 @@ namespace FormTest
         {
             _strand1 = new control_strand(this);
             _strand2 = new shared_strand();
-            _action1 = generator.go(_strand1, Action1);
-            _action2 = generator.go(_strand2, Action2);
+            _action1 = generator.tgo(_strand1, Action1);
+            _action2 = generator.tgo(_strand2, Action2);
         }
 
         private async Task Action1()

@@ -355,14 +355,14 @@ namespace Go
             return (new generator()).init(strand, handler, callback, suspendCb);
         }
 
-        static public generator go(shared_strand strand, action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
+        static public void go(shared_strand strand, action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
         {
-            return (new generator()).init(strand, handler, callback, suspendCb).run();
+            (new generator()).init(strand, handler, callback, suspendCb).run();
         }
 
-        static public generator tick_go(shared_strand strand, action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
+        static public generator tgo(shared_strand strand, action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
         {
-            return (new generator()).init(strand, handler, callback, suspendCb).tick_run();
+            return (new generator()).init(strand, handler, callback, suspendCb).trun();
         }
 
         static public generator make(string name, shared_strand strand, action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
@@ -385,14 +385,14 @@ namespace Go
             return newGen;
         }
 
-        static public generator go(string name, shared_strand strand, action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
+        static public void go(string name, shared_strand strand, action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
         {
-            return make(name, strand, handler, callback, suspendCb).run();
+            make(name, strand, handler, callback, suspendCb).run();
         }
 
-        static public generator tick_go(string name, shared_strand strand, action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
+        static public generator tgo(string name, shared_strand strand, action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
         {
-            return make(name, strand, handler, callback, suspendCb).tick_run();
+            return make(name, strand, handler, callback, suspendCb).trun();
         }
 
         static public generator find(string name)
@@ -585,13 +585,13 @@ namespace Go
             return _multiCb;
         }
 
-        public generator run()
+        public void run()
         {
             strand.distribute(delegate ()
             {
                 if (-1 == _lockCount)
                 {
-                    tick_run();
+                    trun();
                 }
                 else if (!_isRun && !_isStop)
                 {
@@ -599,10 +599,9 @@ namespace Go
                     no_check_next();
                 }
             });
-            return this;
         }
 
-        public generator tick_run()
+        public generator trun()
         {
             strand.post(delegate ()
             {
@@ -4121,7 +4120,7 @@ namespace Go
             {
                 return false;
             }
-            mb.agentAction = this_._agentMng.go(async delegate ()
+            mb.agentAction = this_._agentMng.make(async delegate ()
             {
                 channel<T> selfMb = (channel<T>)mb.mailbox;
                 chan_notify_sign ntfSign = new chan_notify_sign();
@@ -4159,6 +4158,7 @@ namespace Go
                     await unlock_suspend_and_stop();
                 }
             });
+            mb.agentAction.run();
             return true;
         }
 
@@ -5147,14 +5147,9 @@ namespace Go
                 return _isFree;
             }
 
-            public new child run()
+            public new child trun()
             {
-                return (child)base.run();
-            }
-
-            public new child tick_run()
-            {
-                return (child)base.tick_run();
+                return (child)base.trun();
             }
         }
 
@@ -5232,24 +5227,24 @@ namespace Go
                 return newGen;
             }
 
-            public child go(shared_strand strand, action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
+            public void go(shared_strand strand, action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
             {
-                return make(strand, handler, callback, suspendCb).run();
+                make(strand, handler, callback, suspendCb).run();
             }
 
-            public child free_go(shared_strand strand, action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
+            public void free_go(shared_strand strand, action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
             {
-                return free_make(strand, handler, callback, suspendCb).run();
+                free_make(strand, handler, callback, suspendCb).run();
             }
 
-            public child tick_go(shared_strand strand, action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
+            public child tgo(shared_strand strand, action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
             {
-                return make(strand, handler, callback, suspendCb).tick_run();
+                return make(strand, handler, callback, suspendCb).trun();
             }
 
-            public child tick_free_go(shared_strand strand, action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
+            public child free_tgo(shared_strand strand, action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
             {
-                return free_make(strand, handler, callback, suspendCb).tick_run();
+                return free_make(strand, handler, callback, suspendCb).trun();
             }
 
             public child make(action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
@@ -5262,24 +5257,24 @@ namespace Go
                 return free_make(_parent.strand, handler, callback, suspendCb);
             }
 
-            public child go(action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
+            public void go(action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
             {
-                return go(_parent.strand, handler, callback, suspendCb);
+                go(_parent.strand, handler, callback, suspendCb);
             }
 
-            public child free_go(action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
+            public void free_go(action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
             {
-                return free_go(_parent.strand, handler, callback, suspendCb);
+                free_go(_parent.strand, handler, callback, suspendCb);
             }
 
-            public child tick_go(action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
+            public child tgo(action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
             {
-                return tick_go(_parent.strand, handler, callback, suspendCb);
+                return tgo(_parent.strand, handler, callback, suspendCb);
             }
 
-            public child tick_free_go(action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
+            public child free_tgo(action handler, functional.func callback = null, functional.func<bool> suspendCb = null)
             {
-                return tick_free_go(_parent.strand, handler, callback, suspendCb);
+                return free_tgo(_parent.strand, handler, callback, suspendCb);
             }
 
             public void ignore_suspend(bool igonre = true)
@@ -5720,7 +5715,7 @@ namespace Go
         {
             shared_strand strand = new shared_strand();
             _queue = new msg_buff<gen_pck>(strand);
-            _runGen = generator.go(strand, async delegate ()
+            _runGen = generator.make(strand, async delegate ()
             {
                 while (true)
                 {
@@ -5728,6 +5723,7 @@ namespace Go
                     await generator.depth_call(pck.result.strand, pck.result.action);
                 }
             });
+            _runGen.run();
         }
 
         ~async_queue()
@@ -5758,7 +5754,7 @@ namespace Go
         public async_strand(shared_strand strand)
         {
             _queue = new msg_buff<generator.action>(strand);
-            _runGen = generator.go(strand, async delegate ()
+            _runGen = generator.make(strand, async delegate ()
             {
                 while (true)
                 {
@@ -5775,6 +5771,7 @@ namespace Go
                     generator.unlock_stop();
                 }
             });
+            _runGen.run();
         }
 
         ~async_strand()

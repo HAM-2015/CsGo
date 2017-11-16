@@ -122,7 +122,7 @@ namespace GoTest
             generator.go(_strand, Producer3);
             generator.go(_strand, Producer4);
             generator.go(_strand, Consumer);
-            generator.go(_strand, () => Producer5(generator.go(_strand, Consumer2)));
+            generator.go(_strand, () => Producer5(generator.tgo(_strand, Consumer2)));
             work.run();
         }
     }
