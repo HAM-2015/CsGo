@@ -268,6 +268,40 @@ namespace Go
             }
         }
 
+        public void async_send_file(string fileName, byte[] preBuffer, byte[] postBuffer, functional.func<socket_result> cb)
+        {
+            try
+            {
+                _socket.BeginSendFile(fileName, preBuffer, postBuffer, 0, delegate (IAsyncResult ar)
+                {
+                    try
+                    {
+                        _socket.EndSendFile(ar);
+                        cb(new socket_result(true));
+                    }
+                    catch (System.Exception ec)
+                    {
+                        cb(new socket_result(false, 0, ec.Message));
+                    }
+                }, null);
+            }
+            catch (System.Exception ec)
+            {
+                close();
+                cb(new socket_result(false, 0, ec.Message));
+            }
+        }
+
+        public void async_send_file(string fileName, functional.func<socket_result> cb)
+        {
+            async_send_file(fileName, null, null, cb);
+        }
+
+        public Task<socket_result> send_file(string fileName, byte[] preBuffer = null, byte[] postBuffer = null)
+        {
+            return generator.async_call((functional.func<socket_result> cb) => async_send_file(fileName, preBuffer, postBuffer, cb));
+        }
+
         public Task<socket_result> connect(string ip, int port)
         {
             return generator.async_call((functional.func<socket_result> cb) => async_connect(ip, port, cb));
