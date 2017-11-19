@@ -10,14 +10,39 @@ namespace Go
     public class placeholder { }
     public struct void_type { }
 
-    public class delay_result<T>
+    [Serializable]
+    public struct tuple<T1>
     {
-        public T value;
+        public readonly T1 value1;
+        public tuple(T1 v1) { value1 = v1; }
+    }
 
-        public delay_result(T p)
-        {
-            value = p;
-        }
+    [Serializable]
+    public struct tuple<T1, T2>
+    {
+        public readonly T1 value1; public readonly T2 value2;
+        public tuple(T1 v1, T2 v2) { value1 = v1; value2 = v2; }
+    }
+
+    [Serializable]
+    public struct tuple<T1, T2, T3>
+    {
+        public readonly T1 value1; public readonly T2 value2; public readonly T3 value3;
+        public tuple(T1 v1, T2 v2, T3 v3) { value1 = v1; value2 = v2; value3 = v3; }
+    }
+
+    [Serializable]
+    public struct tuple<T1, T2, T3, T4>
+    {
+        public readonly T1 value1; public readonly T2 value2; public readonly T3 value3; public readonly T4 value4;
+        public tuple(T1 v1, T2 v2, T3 v3, T4 v4) { value1 = v1; value2 = v2; value3 = v3; value4 = v4; }
+    }
+
+    [Serializable]
+    public struct tuple<T1, T2, T3, T4, T5>
+    {
+        public readonly T1 value1; public readonly T2 value2; public readonly T3 value3; public readonly T4 value4; public readonly T5 value5;
+        public tuple(T1 v1, T2 v2, T3 v3, T4 v4, T5 v5) { value1 = v1; value2 = v2; value3 = v3; value4 = v4; value5 = v5; }
     }
 
     public class functional

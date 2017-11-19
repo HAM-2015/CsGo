@@ -24,17 +24,17 @@ namespace Go
 
         private system_tick()
         {
-            long frep = 0;
-            if (!QueryPerformanceFrequency(out frep))
+            long freq = 0;
+            if (!QueryPerformanceFrequency(out freq))
             {
                 _sCycle = 0;
                 _msCycle = 0;
                 _usCycle = 0;
                 return;
             }
-            _sCycle = 1.0 / (double)frep;
-            _msCycle = 1000.0 / (double)frep;
-            _usCycle = 1000000.0 / (double)frep;
+            _sCycle = 1.0 / (double)freq;
+            _msCycle = 1000.0 / (double)freq;
+            _usCycle = 1000000.0 / (double)freq;
         }
 
         public static long get_tick_us()
