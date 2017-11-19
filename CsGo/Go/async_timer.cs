@@ -443,7 +443,7 @@ namespace Go
 
         public void timeout(int ms, functional.func handler)
         {
-            timeout_us(ms * 1000, handler);
+            timeout_us((long)ms * 1000, handler);
         }
 
         public void deadline(long ms, functional.func handler)
@@ -453,7 +453,7 @@ namespace Go
 
         public void interval(int ms, functional.func handler, bool immed = false)
         {
-            interval_us(ms * 1000, handler, immed);
+            interval_us((long)ms * 1000, handler, immed);
         }
 
         public void interval_us(long us, functional.func handler, bool immed = false)
@@ -472,7 +472,12 @@ namespace Go
             }
         }
 
-        public bool restart()
+        public bool restart(int ms = -1)
+        {
+            return restart_us(0 > ms ? -1 : (long)ms * 1000);
+        }
+
+        public bool restart_us(long us = -1)
         {
 #if DEBUG
             Trace.Assert(_strand.running_in_this_thread());
@@ -480,7 +485,14 @@ namespace Go
             if (null != _handler)
             {
                 _beginTick = system_tick.get_tick_us();
-                re_begin_timer(_beginTick + _timerHandle.period, _timerHandle.period);
+                if (0 > us)
+                {
+                    re_begin_timer(_beginTick + _timerHandle.period, _timerHandle.period);
+                }
+                else
+                {
+                    re_begin_timer(_beginTick + us, us);
+                }
                 return true;
             }
             return false;

@@ -2032,7 +2032,7 @@ namespace Go
             return timed_async_result2(ms, async_result_ignore_wrap<T1, T2, T3>.value, timedHandler);
         }
 
-        static public Task sleep_us(long us)
+        static public Task usleep(long us)
         {
             if (us > 0)
             {
@@ -2053,7 +2053,7 @@ namespace Go
 
         static public Task sleep(int ms)
         {
-            return sleep_us(ms * 1000);
+            return usleep((long)ms * 1000);
         }
 
         static public Task deadline(long ms)
