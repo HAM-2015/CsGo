@@ -560,6 +560,25 @@ namespace Go
             return whereNode;
         }
 
+        Node rbound(TKey key)
+        {
+            Node pNode = root;
+            Node whereNode = _head;
+            while (!is_nil(pNode))
+            {
+                if (comp_lt(key, pNode.key))
+                {
+                    pNode = pNode.left;
+                }
+                else
+                {
+                    whereNode = pNode;
+                    pNode = pNode.right;
+                }
+            }
+            return whereNode;
+        }
+
         static Node max(Node pNode)
         {
             while (!is_nil(pNode.right))
@@ -655,12 +674,25 @@ namespace Go
 
         public bool Has(TKey key)
         {
-            return !is_nil(lbound(key));
+            Node node = lbound(key);
+            return !is_nil(node) && !comp_lt(key, node.key);
         }
 
         public MapNode<TKey, TValue> Find(TKey key)
         {
             Node node = lbound(key);
+            return !is_nil(node) && !comp_lt(key, node.key) ? node : null;
+        }
+
+        public MapNode<TKey, TValue> FindRight(TKey key)
+        {
+            Node node = lbound(key);
+            return is_nil(node) ? null : node;
+        }
+
+        public MapNode<TKey, TValue> FindLeft(TKey key)
+        {
+            Node node = rbound(key);
             return is_nil(node) ? null : node;
         }
 
