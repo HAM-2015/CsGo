@@ -5810,15 +5810,22 @@ namespace Go
             _waitList = new LinkedList<functional.func>();
         }
 
+        public void reset()
+        {
+#if DEBUG
+            Trace.Assert(0 == _tasks && null == _waitList, "不正确的 reset 调用!");
+#endif
+            _waitList = new LinkedList<functional.func>();
+        }
+
         public int add(int delta = 1)
         {
             int tasks = 0;
             if (0 != delta && 0 == (tasks = Interlocked.Add(ref _tasks, delta)))
             {
-                LinkedList<functional.func> newList = new LinkedList<functional.func>();
                 Monitor.Enter(this);
                 LinkedList<functional.func> snapList = _waitList;
-                _waitList = newList;
+                _waitList = null;
                 Monitor.Exit(this);
                 foreach (functional.func continuation in snapList)
                 {
@@ -5853,8 +5860,16 @@ namespace Go
             {
                 LinkedListNode<functional.func> newNode = new LinkedListNode<functional.func>(continuation);
                 Monitor.Enter(this);
-                _waitList.AddLast(newNode);
-                Monitor.Exit(this);
+                if (null != _waitList)
+                {
+                    _waitList.AddLast(newNode);
+                    Monitor.Exit(this);
+                }
+                else
+                {
+                    Monitor.Exit(this);
+                    continuation();
+                }
             }
         }
 
@@ -5869,10 +5884,44 @@ namespace Go
                     Monitor.Exit(this);
                 });
                 Monitor.Enter(this);
-                _waitList.AddLast(newNode);
-                Monitor.Wait(this);
+                if (null != _waitList)
+                {
+                    _waitList.AddLast(newNode);
+                    Monitor.Wait(this);
+                }
                 Monitor.Exit(this);
             }
+        }
+
+        public bool sync_timed_wait(int ms)
+        {
+            bool ok = true;
+            if (0 != _tasks)
+            {
+                LinkedListNode<functional.func> newNode = new LinkedListNode<functional.func>(delegate ()
+                {
+                    Monitor.Enter(this);
+                    Monitor.Pulse(this);
+                    Monitor.Exit(this);
+                });
+                Monitor.Enter(this);
+                if (null != _waitList)
+                {
+                    _waitList.AddLast(newNode);
+                    ok = Monitor.Wait(this, ms);
+                    if (null != _waitList && _waitList == newNode.List)
+                    {
+                        _waitList.Remove(newNode);
+                    }
+                }
+                Monitor.Exit(this);
+            }
+            return ok;
+        }
+
+        public bool sync_try_wait()
+        {
+            return 0 == _tasks;
         }
     }
 }

@@ -40,6 +40,50 @@ namespace Go
             async_write_same(new ArraySegment<byte>(buff), cb);
         }
 
+        void _async_reads(int currTotal, int currIndex, IList<ArraySegment<byte>> buff, functional.func<socket_result> cb)
+        {
+            if (buff.Count == currIndex)
+            {
+                functional.catch_invoke(cb, new socket_result(true, currTotal));
+            }
+            else
+            {
+                async_read(buff[currIndex], delegate (socket_result tempRes)
+                {
+                    if (tempRes.ok)
+                    {
+                        _async_reads(currTotal + tempRes.s, currIndex + 1, buff, cb);
+                    }
+                    else
+                    {
+                        functional.catch_invoke(cb, new socket_result(false, currTotal, tempRes.message));
+                    }
+                });
+            }
+        }
+
+        void _async_reads(int currTotal, int currIndex, IList<byte[]> buff, functional.func<socket_result> cb)
+        {
+            if (buff.Count == currIndex)
+            {
+                functional.catch_invoke(cb, new socket_result(true, currTotal));
+            }
+            else
+            {
+                async_read(buff[currIndex], delegate (socket_result tempRes)
+                {
+                    if (tempRes.ok)
+                    {
+                        _async_reads(currTotal + tempRes.s, currIndex + 1, buff, cb);
+                    }
+                    else
+                    {
+                        functional.catch_invoke(cb, new socket_result(false, currTotal, tempRes.message));
+                    }
+                });
+            }
+        }
+
         void _async_read(int currTotal, ArraySegment<byte> buff, functional.func<socket_result> cb)
         {
             async_read_same(buff, delegate (socket_result tempRes)
@@ -49,7 +93,7 @@ namespace Go
                     currTotal += tempRes.s;
                     if (buff.Count == tempRes.s)
                     {
-                        cb(new socket_result(true, currTotal));
+                        functional.catch_invoke(cb, new socket_result(true, currTotal));
                     }
                     else
                     {
@@ -58,7 +102,7 @@ namespace Go
                 }
                 else
                 {
-                    cb(new socket_result(false, currTotal, tempRes.message));
+                    functional.catch_invoke(cb, new socket_result(false, currTotal, tempRes.message));
                 }
             });
         }
@@ -73,6 +117,50 @@ namespace Go
             _async_read(0, new ArraySegment<byte>(buff), cb);
         }
 
+        void _async_writes(int currTotal, int currIndex, IList<ArraySegment<byte>> buff, functional.func<socket_result> cb)
+        {
+            if (buff.Count == currIndex)
+            {
+                functional.catch_invoke(cb, new socket_result(true, currTotal));
+            }
+            else
+            {
+                async_write(buff[currIndex], delegate (socket_result tempRes)
+                {
+                    if (tempRes.ok)
+                    {
+                        _async_writes(currTotal + tempRes.s, currIndex + 1, buff, cb);
+                    }
+                    else
+                    {
+                        functional.catch_invoke(cb, new socket_result(false, currTotal, tempRes.message));
+                    }
+                });
+            }
+        }
+
+        void _async_writes(int currTotal, int currIndex, IList<byte[]> buff, functional.func<socket_result> cb)
+        {
+            if (buff.Count == currIndex)
+            {
+                functional.catch_invoke(cb, new socket_result(true, currTotal));
+            }
+            else
+            {
+                async_write(buff[currIndex], delegate (socket_result tempRes)
+                {
+                    if (tempRes.ok)
+                    {
+                        _async_writes(currTotal + tempRes.s, currIndex + 1, buff, cb);
+                    }
+                    else
+                    {
+                        functional.catch_invoke(cb, new socket_result(false, currTotal, tempRes.message));
+                    }
+                });
+            }
+        }
+
         void _async_write(int currTotal, ArraySegment<byte> buff, functional.func<socket_result> cb)
         {
             async_write_same(buff, delegate (socket_result tempRes)
@@ -82,7 +170,7 @@ namespace Go
                     currTotal += tempRes.s;
                     if (buff.Count == tempRes.s)
                     {
-                        cb(new socket_result(true, currTotal));
+                        functional.catch_invoke(cb, new socket_result(true, currTotal));
                     }
                     else
                     {
@@ -91,7 +179,7 @@ namespace Go
                 }
                 else
                 {
-                    cb(new socket_result(false, currTotal, tempRes.message));
+                    functional.catch_invoke(cb, new socket_result(false, currTotal, tempRes.message));
                 }
             });
         }
@@ -126,6 +214,26 @@ namespace Go
             return generator.async_call((functional.func<socket_result> cb) => async_read(buff, cb));
         }
 
+        public Task<socket_result> reads(IList<byte[]> buff)
+        {
+            return generator.async_call((functional.func<socket_result> cb) => _async_reads(0, 0, buff, cb));
+        }
+
+        public Task<socket_result> reads(IList<ArraySegment<byte>> buff)
+        {
+            return generator.async_call((functional.func<socket_result> cb) => _async_reads(0, 0, buff, cb));
+        }
+
+        public Task<socket_result> reads(params byte[][] buff)
+        {
+            return generator.async_call((functional.func<socket_result> cb) => _async_reads(0, 0, buff, cb));
+        }
+
+        public Task<socket_result> reads(params ArraySegment<byte>[] buff)
+        {
+            return generator.async_call((functional.func<socket_result> cb) => _async_reads(0, 0, buff, cb));
+        }
+
         public Task<socket_result> write_same(ArraySegment<byte> buff)
         {
             return generator.async_call((functional.func<socket_result> cb) => async_write_same(buff, cb));
@@ -144,6 +252,26 @@ namespace Go
         public Task<socket_result> write(byte[] buff)
         {
             return generator.async_call((functional.func<socket_result> cb) => async_write(buff, cb));
+        }
+
+        public Task<socket_result> writes(IList<byte[]> buff)
+        {
+            return generator.async_call((functional.func<socket_result> cb) => _async_writes(0, 0, buff, cb));
+        }
+
+        public Task<socket_result> writes(IList<ArraySegment<byte>> buff)
+        {
+            return generator.async_call((functional.func<socket_result> cb) => _async_writes(0, 0, buff, cb));
+        }
+
+        public Task<socket_result> writes(params byte[][] buff)
+        {
+            return generator.async_call((functional.func<socket_result> cb) => _async_writes(0, 0, buff, cb));
+        }
+
+        public Task<socket_result> writes(params ArraySegment<byte>[] buff)
+        {
+            return generator.async_call((functional.func<socket_result> cb) => _async_writes(0, 0, buff, cb));
         }
     }
 
@@ -183,18 +311,18 @@ namespace Go
                     {
                         _socket.EndConnect(ar);
                         _socket.NoDelay = true;
-                        cb(new socket_result(true));
+                        functional.catch_invoke(cb, new socket_result(true));
                     }
                     catch (System.Exception ec)
                     {
-                        cb(new socket_result(false, 0, ec.Message));
+                        functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
                     }
                 }, null);
             }
             catch (System.Exception ec)
             {
                 close();
-                cb(new socket_result(false, 0, ec.Message));
+                functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
             }
         }
 
@@ -207,18 +335,18 @@ namespace Go
                     try
                     {
                         _socket.EndDisconnect(ar);
-                        cb(new socket_result(true));
+                        functional.catch_invoke(cb, new socket_result(true));
                     }
                     catch (System.Exception ec)
                     {
-                        cb(new socket_result(false, 0, ec.Message));
+                        functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
                     }
                 }, null);
             }
             catch (System.Exception ec)
             {
                 close();
-                cb(new socket_result(false, 0, ec.Message));
+                functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
             }
         }
 
@@ -230,18 +358,18 @@ namespace Go
                 {
                     try
                     {
-                        cb(new socket_result(true, _socket.EndReceive(ar)));
+                        functional.catch_invoke(cb, new socket_result(true, _socket.EndReceive(ar)));
                     }
                     catch (System.Exception ec)
                     {
-                        cb(new socket_result(false, 0, ec.Message));
+                        functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
                     }
                 }, null);
             }
             catch (System.Exception ec)
             {
                 close();
-                cb(new socket_result(false, 0, ec.Message));
+                functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
             }
         }
 
@@ -253,18 +381,18 @@ namespace Go
                 {
                     try
                     {
-                        cb(new socket_result(true, _socket.EndSend(ar)));
+                        functional.catch_invoke(cb, new socket_result(true, _socket.EndSend(ar)));
                     }
                     catch (System.Exception ec)
                     {
-                        cb(new socket_result(false, 0, ec.Message));
+                        functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
                     }
                 }, null);
             }
             catch (System.Exception ec)
             {
                 close();
-                cb(new socket_result(false, 0, ec.Message));
+                functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
             }
         }
 
@@ -277,18 +405,18 @@ namespace Go
                     try
                     {
                         _socket.EndSendFile(ar);
-                        cb(new socket_result(true));
+                        functional.catch_invoke(cb, new socket_result(true));
                     }
                     catch (System.Exception ec)
                     {
-                        cb(new socket_result(false, 0, ec.Message));
+                        functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
                     }
                 }, null);
             }
             catch (System.Exception ec)
             {
                 close();
-                cb(new socket_result(false, 0, ec.Message));
+                functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
             }
         }
 
@@ -362,18 +490,18 @@ namespace Go
                         {
                             sck._socket = _socket.EndAccept(ar);
                             sck._socket.NoDelay = true;
-                            cb(new socket_result(true));
+                            functional.catch_invoke(cb, new socket_result(true));
                         }
                         catch (System.Exception ec)
                         {
-                            cb(new socket_result(false, 0, ec.Message));
+                            functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
                         }
                     }, null);
                 }
                 catch (System.Exception ec)
                 {
                     close();
-                    cb(new socket_result(false, 0, ec.Message));
+                    functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
                 }
             }
 
@@ -429,18 +557,18 @@ namespace Go
                 {
                     try
                     {
-                        cb(new socket_result(true, _socket.BaseStream.EndRead(ar)));
+                        functional.catch_invoke(cb, new socket_result(true, _socket.BaseStream.EndRead(ar)));
                     }
                     catch (System.Exception ec)
                     {
-                        cb(new socket_result(false, 0, ec.Message));
+                        functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
                     }
                 }, null);
             }
             catch (System.Exception ec)
             {
                 close();
-                cb(new socket_result(false, 0, ec.Message));
+                functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
             }
         }
 
@@ -453,18 +581,18 @@ namespace Go
                     try
                     {
                         _socket.BaseStream.EndWrite(ar);
-                        cb(new socket_result(true, buff.Count));
+                        functional.catch_invoke(cb, new socket_result(true, buff.Count));
                     }
                     catch (System.Exception ec)
                     {
-                        cb(new socket_result(false, 0, ec.Message));
+                        functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
                     }
                 }, null);
             }
             catch (System.Exception ec)
             {
                 close();
-                cb(new socket_result(false, 0, ec.Message));
+                functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
             }
         }
 
@@ -531,18 +659,18 @@ namespace Go
                     try
                     {
                         _socket.EndWaitForConnection(ar);
-                        cb(new socket_result(true));
+                        functional.catch_invoke(cb, new socket_result(true));
                     }
                     catch (System.Exception ec)
                     {
-                        cb(new socket_result(false, 0, ec.Message));
+                        functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
                     }
                 }, null);
             }
             catch (System.Exception ec)
             {
                 close();
-                cb(new socket_result(false, 0, ec.Message));
+                functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
             }
         }
 
@@ -554,18 +682,18 @@ namespace Go
                 {
                     try
                     {
-                        cb(new socket_result(true, _socket.EndRead(ar)));
+                        functional.catch_invoke(cb, new socket_result(true, _socket.EndRead(ar)));
                     }
                     catch (System.Exception ec)
                     {
-                        cb(new socket_result(false, 0, ec.Message));
+                        functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
                     }
                 }, null);
             }
             catch (System.Exception ec)
             {
                 close();
-                cb(new socket_result(false, 0, ec.Message));
+                functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
             }
         }
 
@@ -578,18 +706,18 @@ namespace Go
                     try
                     {
                         _socket.EndWrite(ar);
-                        cb(new socket_result(true, buff.Count));
+                        functional.catch_invoke(cb, new socket_result(true, buff.Count));
                     }
                     catch (System.Exception ec)
                     {
-                        cb(new socket_result(false, 0, ec.Message));
+                        functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
                     }
                 }, null);
             }
             catch (System.Exception ec)
             {
                 close();
-                cb(new socket_result(false, 0, ec.Message));
+                functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
             }
         }
 
@@ -644,18 +772,18 @@ namespace Go
                 {
                     try
                     {
-                        cb(new socket_result(true, _socket.EndRead(ar)));
+                        functional.catch_invoke(cb, new socket_result(true, _socket.EndRead(ar)));
                     }
                     catch (System.Exception ec)
                     {
-                        cb(new socket_result(false, 0, ec.Message));
+                        functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
                     }
                 }, null);
             }
             catch (System.Exception ec)
             {
                 close();
-                cb(new socket_result(false, 0, ec.Message));
+                functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
             }
         }
 
@@ -668,18 +796,18 @@ namespace Go
                     try
                     {
                         _socket.EndWrite(ar);
-                        cb(new socket_result(true, buff.Count));
+                        functional.catch_invoke(cb, new socket_result(true, buff.Count));
                     }
                     catch (System.Exception ec)
                     {
-                        cb(new socket_result(false, 0, ec.Message));
+                        functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
                     }
                 }, null);
             }
             catch (System.Exception ec)
             {
                 close();
-                cb(new socket_result(false, 0, ec.Message));
+                functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
             }
         }
     }
