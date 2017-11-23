@@ -881,6 +881,26 @@ namespace Go
             return _isStop;
         }
 
+        public void sync_wait()
+        {
+#if DEBUG
+            Trace.Assert(strand.wait_safe(), "不正确的 sync_wait 调用!");
+#endif
+            wait_group wg = new wait_group(1);
+            stop(wg.wrap_done());
+            wg.sync_wait();
+        }
+
+        public bool sync_timed_wait(int ms)
+        {
+#if DEBUG
+            Trace.Assert(strand.wait_safe(), "不正确的 sync_timed_wait 调用!");
+#endif
+            wait_group wg = new wait_group(1);
+            stop(wg.wrap_done());
+            return wg.sync_timed_wait(ms);
+        }
+
         static public Task hold()
         {
             generator this_ = self;
@@ -5813,8 +5833,20 @@ namespace Go
         public void reset()
         {
 #if DEBUG
-            Trace.Assert(0 == _tasks && null == _waitList, "不正确的 reset 调用!");
+            Trace.Assert(0 == _tasks, "不正确的 reset 调用!");
 #endif
+            Monitor.Enter(this);
+            if (null != _waitList)
+            {
+                _waitList.AddLast(delegate ()
+                {
+                    Monitor.Enter(this);
+                    Monitor.Pulse(this);
+                    Monitor.Exit(this);
+                });
+                Monitor.Wait(this);
+            }
+            Monitor.Exit(this);
             _waitList = new LinkedList<functional.func>();
         }
 
@@ -5873,6 +5905,11 @@ namespace Go
             }
         }
 
+        public bool is_completed()
+        {
+            return 0 == _tasks;
+        }
+
         public void sync_wait()
         {
             if (0 != _tasks)
@@ -5908,8 +5945,7 @@ namespace Go
                 if (null != _waitList)
                 {
                     _waitList.AddLast(newNode);
-                    ok = Monitor.Wait(this, ms);
-                    if (null != _waitList && _waitList == newNode.List)
+                    if (!(ok = Monitor.Wait(this, ms) || null == _waitList))
                     {
                         _waitList.Remove(newNode);
                     }
@@ -5917,11 +5953,6 @@ namespace Go
                 Monitor.Exit(this);
             }
             return ok;
-        }
-
-        public bool sync_try_wait()
-        {
-            return 0 == _tasks;
         }
     }
 }
