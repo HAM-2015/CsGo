@@ -901,6 +901,66 @@ namespace Go
             return wg.sync_timed_wait(ms);
         }
 
+        static public R sync_go<R>(shared_strand strand, functional.func_res<Task<R>> handler)
+        {
+#if DEBUG
+            Trace.Assert(strand.wait_safe(), "不正确的 sync_go 调用!");
+#endif
+            R res = default(R);
+            System.Exception hasExcep = null;
+            wait_group wg = new wait_group(1);
+            go(strand, async delegate ()
+            {
+                try
+                {
+                    res = await handler();
+                }
+                catch (stop_exception)
+                {
+                    throw;
+                }
+                catch (System.Exception ec)
+                {
+                    hasExcep = ec;
+                }
+            }, wg.wrap_done());
+            wg.sync_wait();
+            if (null != hasExcep)
+            {
+                throw hasExcep;
+            }
+            return res;
+        }
+
+        static public void sync_go(shared_strand strand, action handler)
+        {
+#if DEBUG
+            Trace.Assert(strand.wait_safe(), "不正确的 sync_go 调用!");
+#endif
+            System.Exception hasExcep = null;
+            wait_group wg = new wait_group(1);
+            go(strand, async delegate ()
+            {
+                try
+                {
+                    await handler();
+                }
+                catch (stop_exception)
+                {
+                    throw;
+                }
+                catch (System.Exception ec)
+                {
+                    hasExcep = ec;
+                }
+            }, wg.wrap_done());
+            wg.sync_wait();
+            if (null != hasExcep)
+            {
+                throw hasExcep;
+            }
+        }
+
         static public Task hold()
         {
             generator this_ = self;
@@ -3084,6 +3144,13 @@ namespace Go
         static public select_chan_base case_write(csp_chan<void_type, void_type> chan, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
         {
             return chan.make_select_writer(default(void_type), (void_type _) => handler(), errHandler);
+        }
+
+        static public Task mutex_cancel(mutex_base mtx, bool allDepth = true)
+        {
+            generator this_ = self;
+            mtx.cancel(allDepth, this_._id, this_.async_result());
+            return this_.async_wait();
         }
 
         static public Task mutex_lock(mutex_base mtx)
