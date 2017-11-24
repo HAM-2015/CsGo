@@ -13,7 +13,7 @@ namespace Go
         public abstract void try_lock(long id, functional.func<chan_async_state> ntf);
         public abstract void timed_lock(long id, int ms, functional.func<chan_async_state> ntf);
         public abstract void unlock(long id, functional.func ntf);
-        public abstract void cancel(bool allDepth, long id, functional.func ntf);
+        public abstract void cancel(long id, functional.func ntf);
         public abstract shared_strand self_strand();
     }
 
@@ -147,16 +147,13 @@ namespace Go
             });
         }
 
-        public override void cancel(bool allDepth, long id, functional.func ntf)
+        public override void cancel(long id, functional.func ntf)
         {
             _strand.distribute(delegate ()
             {
                 if (id == _lockID)
                 {
-                    if (allDepth)
-                    {
-                        _recCount = 1;
-                    }
+                    _recCount = 1;
                     unlock(id, ntf);
                 }
                 else
@@ -520,19 +517,21 @@ namespace Go
             unlock_shared(id, () => Lock(id, ntf));
         }
 
-        public override void cancel(bool allDepth, long id, functional.func ntf)
+        public override void cancel(long id, functional.func ntf)
         {
             self_strand().distribute(delegate ()
             {
-                _upgradeMutex.cancel(allDepth, id, functional.nil_handler);
                 shared_count tempCount;
                 if (_sharedMap.TryGetValue(id, out tempCount))
                 {
-                    if (allDepth)
-                    {
-                        tempCount._count = 1;
-                    }
+                    _upgradeMutex.cancel(id, functional.nil_handler);
+                    tempCount._count = 1;
                     unlock_shared(id, ntf);
+                }
+                else if (id == _upgradeMutex._lockID)
+                {
+                    _upgradeMutex._recCount = 1;
+                    unlock(id, ntf);
                 }
                 else
                 {

@@ -3146,10 +3146,10 @@ namespace Go
             return chan.make_select_writer(default(void_type), (void_type _) => handler(), errHandler);
         }
 
-        static public Task mutex_cancel(mutex_base mtx, bool allDepth = true)
+        static public Task mutex_cancel(mutex_base mtx)
         {
             generator this_ = self;
-            mtx.cancel(allDepth, this_._id, this_.async_result());
+            mtx.cancel(this_._id, this_.async_result());
             return this_.async_wait();
         }
 
