@@ -7,17 +7,7 @@ using System.Diagnostics;
 
 namespace Go
 {
-    public abstract class mutex_base
-    {
-        public abstract void Lock(long id, functional.func ntf);
-        public abstract void try_lock(long id, functional.func<chan_async_state> ntf);
-        public abstract void timed_lock(long id, int ms, functional.func<chan_async_state> ntf);
-        public abstract void unlock(long id, functional.func ntf);
-        public abstract void cancel(long id, functional.func ntf);
-        public abstract shared_strand self_strand();
-    }
-
-    public class mutex : mutex_base
+    public class mutex
     {
         class wait_node
         {
@@ -33,8 +23,8 @@ namespace Go
 
         shared_strand _strand;
         LinkedList<wait_node> _waitQueue;
-        public long _lockID;
-        public int _recCount;
+        protected long _lockID;
+        protected int _recCount;
 
         public mutex(shared_strand strand)
         {
@@ -55,7 +45,7 @@ namespace Go
             _recCount = 0;
         }
 
-        public override void Lock(long id, functional.func ntf)
+        public virtual void Lock(long id, functional.func ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -72,7 +62,7 @@ namespace Go
             });
         }
 
-        public override void try_lock(long id, functional.func<chan_async_state> ntf)
+        public virtual void try_lock(long id, functional.func<chan_async_state> ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -89,7 +79,7 @@ namespace Go
             });
         }
 
-        public override void timed_lock(long id, int ms, functional.func<chan_async_state> ntf)
+        public virtual void timed_lock(long id, int ms, functional.func<chan_async_state> ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -121,7 +111,7 @@ namespace Go
             });
         }
 
-        public override void unlock(long id, functional.func ntf)
+        public virtual void unlock(long id, functional.func ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -147,7 +137,7 @@ namespace Go
             });
         }
 
-        public override void cancel(long id, functional.func ntf)
+        public virtual void cancel(long id, functional.func ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -171,13 +161,13 @@ namespace Go
             });
         }
 
-        public override shared_strand self_strand()
+        public shared_strand self_strand()
         {
             return _strand;
         }
     }
 
-    public class shared_mutex : mutex_base
+    public class shared_mutex : mutex
     {
         enum lock_status
         {
@@ -204,42 +194,30 @@ namespace Go
         {
             public int _count = 0;
         };
-
-        mutex _upgradeMutex;
+        
         LinkedList<wait_node> _waitQueue;
         SortedDictionary<long, shared_count> _sharedMap;
 
-        public shared_mutex(shared_strand strand)
+        public shared_mutex(shared_strand strand): base(strand)
         {
-            init(strand);
-        }
-
-        public shared_mutex()
-        {
-            shared_strand strand = generator.self_strand();
-            init(null != strand ? strand : new shared_strand());
-        }
-
-        private void init(shared_strand strand)
-        {
-            _upgradeMutex = new mutex(strand);
             _waitQueue = new LinkedList<wait_node>();
             _sharedMap = new SortedDictionary<long, shared_count>();
         }
 
-        public override shared_strand self_strand()
+        public shared_mutex(): base()
         {
-            return _upgradeMutex.self_strand();
+            _waitQueue = new LinkedList<wait_node>();
+            _sharedMap = new SortedDictionary<long, shared_count>();
         }
 
         public override void Lock(long id, functional.func ntf)
         {
             self_strand().distribute(delegate ()
             {
-                if (0 == _sharedMap.Count && (0 == _upgradeMutex._lockID || id == _upgradeMutex._lockID))
+                if (0 == _sharedMap.Count && (0 == base._lockID || id == base._lockID))
                 {
-                    _upgradeMutex._lockID = id;
-                    _upgradeMutex._recCount++;
+                    base._lockID = id;
+                    base._recCount++;
                     ntf();
                 }
                 else
@@ -253,10 +231,10 @@ namespace Go
         {
             self_strand().distribute(delegate ()
             {
-                if (0 == _sharedMap.Count && (0 == _upgradeMutex._lockID || id == _upgradeMutex._lockID))
+                if (0 == _sharedMap.Count && (0 == base._lockID || id == base._lockID))
                 {
-                    _upgradeMutex._lockID = id;
-                    _upgradeMutex._recCount++;
+                    base._lockID = id;
+                    base._recCount++;
                     ntf(chan_async_state.async_ok);
                 }
                 else
@@ -270,10 +248,10 @@ namespace Go
         {
             self_strand().distribute(delegate ()
             {
-                if (0 == _sharedMap.Count && (0 == _upgradeMutex._lockID || id == _upgradeMutex._lockID))
+                if (0 == _sharedMap.Count && (0 == base._lockID || id == base._lockID))
                 {
-                    _upgradeMutex._lockID = id;
-                    _upgradeMutex._recCount++;
+                    base._lockID = id;
+                    base._recCount++;
                     ntf(chan_async_state.async_ok);
                 }
                 else if (ms > 0)
@@ -313,7 +291,7 @@ namespace Go
         {
             self_strand().distribute(delegate ()
             {
-                if (0 != _sharedMap.Count || 0 == _upgradeMutex._lockID)
+                if (0 != _sharedMap.Count || 0 == base._lockID)
                 {
                     find_map(id)._count++;
                     ntf();
@@ -329,7 +307,7 @@ namespace Go
         {
             self_strand().distribute(delegate ()
             {
-                if (0 == _waitQueue.Count && (0 != _sharedMap.Count || 0 == _upgradeMutex._lockID))
+                if (0 == _waitQueue.Count && (0 != _sharedMap.Count || 0 == base._lockID))
                 {
                     find_map(id)._count++;
                     ntf();
@@ -345,7 +323,7 @@ namespace Go
         {
             self_strand().distribute(delegate ()
             {
-                if (0 != _sharedMap.Count || 0 == _upgradeMutex._lockID)
+                if (0 != _sharedMap.Count || 0 == base._lockID)
                 {
                     find_map(id)._count++;
                     ntf(chan_async_state.async_ok);
@@ -361,7 +339,7 @@ namespace Go
         {
             self_strand().distribute(delegate ()
             {
-                if (0 != _sharedMap.Count || 0 == _upgradeMutex._lockID)
+                if (0 != _sharedMap.Count || 0 == base._lockID)
                 {
                     find_map(id)._count++;
                     ntf(chan_async_state.async_ok);
@@ -390,19 +368,19 @@ namespace Go
 
         public void lock_upgrade(long id, functional.func ntf)
         {
-            _upgradeMutex.Lock(id, ntf);
+            base.Lock(id, ntf);
         }
 
         public void try_lock_upgrade(long id, functional.func<chan_async_state> ntf)
         {
-            _upgradeMutex.try_lock(id, ntf);
+            base.try_lock(id, ntf);
         }
 
         public override void unlock(long id, functional.func ntf)
         {
             self_strand().distribute(delegate ()
             {
-                if (0 == --_upgradeMutex._recCount && 0 != _waitQueue.Count)
+                if (0 == --base._recCount && 0 != _waitQueue.Count)
                 {
                     LinkedList<functional.func<chan_async_state>> ntfs = new LinkedList<functional.func<chan_async_state>>();
                     wait_node queueFront = _waitQueue.First.Value;
@@ -410,7 +388,7 @@ namespace Go
                     ntfs.AddLast(queueFront._ntf);
                     if (lock_status.st_shared == queueFront._status)
                     {
-                        _upgradeMutex._lockID = 0;
+                        base._lockID = 0;
                         find_map(queueFront._waitHostID)._count++;
                         for (LinkedListNode<wait_node> it = _waitQueue.First; null != it;)
                         {
@@ -430,8 +408,8 @@ namespace Go
                     }
                     else
                     {
-                        _upgradeMutex._lockID = queueFront._waitHostID;
-                        _upgradeMutex._recCount++;
+                        base._lockID = queueFront._waitHostID;
+                        base._recCount++;
                     }
                     while (0 != ntfs.Count)
                     {
@@ -458,7 +436,7 @@ namespace Go
                         ntfs.AddLast(queueFront._ntf);
                         if (lock_status.st_shared == queueFront._status)
                         {
-                            _upgradeMutex._lockID = 0;
+                            base._lockID = 0;
                             find_map(queueFront._waitHostID)._count++;
                             for (LinkedListNode<wait_node> it = _waitQueue.First; null != it;)
                             {
@@ -478,8 +456,8 @@ namespace Go
                         }
                         else
                         {
-                            _upgradeMutex._lockID = queueFront._waitHostID;
-                            _upgradeMutex._recCount++;
+                            base._lockID = queueFront._waitHostID;
+                            base._recCount++;
                         }
                         while (0 != ntfs.Count)
                         {
@@ -494,7 +472,7 @@ namespace Go
 
         public void unlock_upgrade(long id, functional.func ntf)
         {
-            _upgradeMutex.unlock(id, ntf);
+            base.unlock(id, ntf);
         }
 
         public void unlock_and_lock_shared(long id, functional.func ntf)
@@ -524,13 +502,13 @@ namespace Go
                 shared_count tempCount;
                 if (_sharedMap.TryGetValue(id, out tempCount))
                 {
-                    _upgradeMutex.cancel(id, functional.nil_handler);
+                    base.cancel(id, functional.nil_handler);
                     tempCount._count = 1;
                     unlock_shared(id, ntf);
                 }
-                else if (id == _upgradeMutex._lockID)
+                else if (id == base._lockID)
                 {
-                    _upgradeMutex._recCount = 1;
+                    base._recCount = 1;
                     unlock(id, ntf);
                 }
                 else
@@ -572,7 +550,7 @@ namespace Go
             _waitQueue = new LinkedList<functional.func>();
         }
 
-        public void wait(long id, mutex_base mutex, functional.func ntf)
+        public void wait(long id, mutex mutex, functional.func ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -583,7 +561,7 @@ namespace Go
             });
         }
 
-        public void timed_wait(long id, int ms, mutex_base mutex, functional.func<chan_async_state> ntf)
+        public void timed_wait(long id, int ms, mutex mutex, functional.func<chan_async_state> ntf)
         {
             _strand.distribute(delegate ()
             {

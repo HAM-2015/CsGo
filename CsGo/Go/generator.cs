@@ -343,6 +343,7 @@ namespace Go
         bool _holdSuspend;
         bool _hasBlock;
         bool _isForce;
+        bool _isExcep;
         bool _isStop;
         bool _isRun;
 
@@ -447,6 +448,7 @@ namespace Go
 #endif
             _id = Interlocked.Increment(ref _idCount);
             _isForce = false;
+            _isExcep = false;
             _isStop = false;
             _isRun = false;
             _isSuspend = false;
@@ -482,7 +484,7 @@ namespace Go
                             }
                         }
                     }
-                    if (null != _children)
+                    if (!_isForce && null != _children)
                     {
                         while (0 != _children.Count)
                         {
@@ -490,20 +492,24 @@ namespace Go
                         }
                     }
                 }
-                catch (stop_exception)
-                {
-                    _timer.cancel();
-                    if (null != _children && 0 != _children.Count)
-                    {
-                        children[] childs = new children[_children.Count];
-                        _children.CopyTo(childs, 0);
-                        await children.stop(childs);
-                    }
-                }
+                catch (stop_exception) { }
                 catch (System.Exception ec)
                 {
-                    _timer.cancel();
                     MessageBox.Show(String.Format("Message:\n{0}\n{1}", ec.Message, ec.StackTrace), "generator 内部未捕获的异常!", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    _isExcep = true;
+                }
+                finally
+                {
+                    if (_isForce || _isExcep)
+                    {
+                        _timer.cancel();
+                        if (null != _children && 0 != _children.Count)
+                        {
+                            children[] childs = new children[_children.Count];
+                            _children.CopyTo(childs, 0);
+                            await children.stop(childs);
+                        }
+                    }
                 }
                 if (null != _name)
                 {
@@ -874,6 +880,14 @@ namespace Go
             Trace.Assert(_isStop, "不正确的 is_force 调用，generator 还没有结束");
 #endif
             return _isForce;
+        }
+
+        public bool is_exception()
+        {
+#if DEBUG
+            Trace.Assert(_isStop, "不正确的 is_exception 调用，generator 还没有结束");
+#endif
+            return _isExcep;
         }
 
         public bool is_completed()
@@ -3146,21 +3160,21 @@ namespace Go
             return chan.make_select_writer(default(void_type), (void_type _) => handler(), errHandler);
         }
 
-        static public Task mutex_cancel(mutex_base mtx)
+        static public Task mutex_cancel(mutex mtx)
         {
             generator this_ = self;
             mtx.cancel(this_._id, this_.async_result());
             return this_.async_wait();
         }
 
-        static public Task mutex_lock(mutex_base mtx)
+        static public Task mutex_lock(mutex mtx)
         {
             generator this_ = self;
             mtx.Lock(this_._id, this_.async_result());
             return this_.async_wait();
         }
 
-        static public async Task mutex_lock(mutex_base mtx, functional.func_res<Task> handler)
+        static public async Task mutex_lock(mutex mtx, functional.func_res<Task> handler)
         {
             await mutex_lock(mtx);
             try
@@ -3173,7 +3187,7 @@ namespace Go
             }
         }
 
-        static public async Task<R> mutex_lock<R>(mutex_base mtx, functional.func_res<Task<R>> handler)
+        static public async Task<R> mutex_lock<R>(mutex mtx, functional.func_res<Task<R>> handler)
         {
             await mutex_lock(mtx);
             try
@@ -3186,7 +3200,7 @@ namespace Go
             }
         }
 
-        static public async Task<bool> mutex_try_lock(mutex_base mtx)
+        static public async Task<bool> mutex_try_lock(mutex mtx)
         {
             generator this_ = self;
             async_result_wrap<chan_async_state> res = new async_result_wrap<chan_async_state>();
@@ -3195,7 +3209,7 @@ namespace Go
             return chan_async_state.async_ok == res.value_1;
         }
 
-        static public async Task<bool> mutex_try_lock(mutex_base mtx, functional.func_res<Task> handler)
+        static public async Task<bool> mutex_try_lock(mutex mtx, functional.func_res<Task> handler)
         {
             if (await mutex_try_lock(mtx))
             {
@@ -3212,7 +3226,7 @@ namespace Go
             return false;
         }
 
-        static public async Task<bool> mutex_timed_lock(int ms, mutex_base mtx)
+        static public async Task<bool> mutex_timed_lock(int ms, mutex mtx)
         {
             generator this_ = self;
             async_result_wrap<chan_async_state> res = new async_result_wrap<chan_async_state>();
@@ -3221,7 +3235,7 @@ namespace Go
             return chan_async_state.async_ok == res.value_1;
         }
 
-        static public async Task<bool> mutex_timed_lock(int ms, mutex_base mtx, functional.func_res<Task> handler)
+        static public async Task<bool> mutex_timed_lock(int ms, mutex mtx, functional.func_res<Task> handler)
         {
             if (await mutex_timed_lock(ms, mtx))
             {
@@ -3238,7 +3252,7 @@ namespace Go
             return false;
         }
 
-        static public Task mutex_unlock(mutex_base mtx)
+        static public Task mutex_unlock(mutex mtx)
         {
             generator this_ = self;
             mtx.unlock(this_._id, this_.async_result());
@@ -3436,14 +3450,14 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public Task condition_wait(condition_variable conVar, mutex_base mutex)
+        static public Task condition_wait(condition_variable conVar, mutex mutex)
         {
             generator this_ = self;
             conVar.wait(this_._id, mutex, this_.async_result());
             return this_.async_wait();
         }
 
-        static public async Task<bool> condition_timed_wait(int ms, condition_variable conVar, mutex_base mutex)
+        static public async Task<bool> condition_timed_wait(int ms, condition_variable conVar, mutex mutex)
         {
             generator this_ = self;
             async_result_wrap<chan_async_state> res = new async_result_wrap<chan_async_state>();
