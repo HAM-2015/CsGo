@@ -143,9 +143,9 @@ namespace Go
         public void stop()
         {
             _service.release_work();
-            foreach (Thread thread in _runThreads)
+            for (int i = 0; i < _runThreads.Length; i++)
             {
-                thread.Join();
+                _runThreads[i].Join();
             }
             _runThreads = null;
         }

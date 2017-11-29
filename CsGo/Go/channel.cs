@@ -69,9 +69,9 @@ namespace Go
             {
                 LinkedList<functional.func<chan_async_state>> tempCb = callback;
                 callback = new LinkedList<functional.func<chan_async_state>>();
-                foreach (functional.func<chan_async_state> cb in tempCb)
+                for (LinkedListNode<functional.func<chan_async_state>> it = tempCb.First; null != it; it = it.Next)
                 {
-                    cb(state);
+                    it.Value.Invoke(state);
                 }
             }
         }
@@ -92,16 +92,16 @@ namespace Go
             }
             if (null != tempCb1)
             {
-                foreach (functional.func<chan_async_state> cb in tempCb1)
+                for (LinkedListNode<functional.func<chan_async_state>> it = tempCb1.First; null != it; it = it.Next)
                 {
-                    cb(state);
+                    it.Value.Invoke(state);
                 }
             }
             if (null != tempCb2)
             {
-                foreach (functional.func<chan_async_state> cb in tempCb2)
+                for (LinkedListNode<functional.func<chan_async_state>> it = tempCb2.First; null != it; it = it.Next)
                 {
-                    cb(state);
+                    it.Value.Invoke(state);
                 }
             }
         }

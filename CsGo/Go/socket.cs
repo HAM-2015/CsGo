@@ -7,6 +7,8 @@ using System.Net;
 using System.Net.Sockets;
 using System.IO.Ports;
 using System.IO.Pipes;
+using System.Reflection;
+using System.Runtime.InteropServices;
 
 namespace Go
 {
@@ -277,6 +279,217 @@ namespace Go
 
     public class socket_tcp : socket
     {
+        class SocketAsyncIo
+        {
+            static MethodInfo GetMethod(Type type, string name, Type[] parmsType = null)
+            {
+                MethodInfo[] methods = type.GetMethods(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static);
+                for (int i = 0; i < methods.Length; i++)
+                {
+                    if (methods[i].Name == name)
+                    {
+                        if (null == parmsType)
+                        {
+                            return methods[i];
+                        }
+                        else
+                        {
+                            ParameterInfo[] parameters = methods[i].GetParameters();
+                            if (parameters.Length == parmsType.Length)
+                            {
+                                int j = 0;
+                                for (; j < parmsType.Length && parameters[j].ParameterType == parmsType[j]; j++) { }
+                                if (j == parmsType.Length)
+                                {
+                                    return methods[i];
+                                }
+                            }
+                        }
+                    }
+                }
+                return null;
+            }
+
+            static FieldInfo GetField(Type type, string name)
+            {
+                FieldInfo[] members = type.GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static);
+                for (int i = 0; i < members.Length; i++)
+                {
+                    if (members[i].Name == name)
+                    {
+                        return members[i];
+                    }
+                }
+                return null;
+            }
+
+            [DllImport("Ws2_32.dll", CharSet = CharSet.None, ExactSpelling = false, SetLastError = true)]
+            internal static extern SocketError WSASend(IntPtr socketHandle, IntPtr buffer, int bufferCount, out int bytesTransferred, SocketFlags socketFlags, SafeHandle overlapped, IntPtr completionRoutine);
+            [DllImport("Ws2_32.dll", CharSet = CharSet.None, ExactSpelling = false, SetLastError = true)]
+            internal static extern SocketError WSARecv(IntPtr socketHandle, IntPtr buffer, int bufferCount, out int bytesTransferred, ref SocketFlags socketFlags, SafeHandle overlapped, IntPtr completionRoutine);
+
+            static Assembly _systemAss = Assembly.LoadFrom(RuntimeEnvironment.GetRuntimeDirectory() + "System.dll");
+            static Type _overlappedType = _systemAss.GetType("System.Net.Sockets.OverlappedAsyncResult");
+            static Type _cacheSetType = _systemAss.GetType("System.Net.Sockets.Socket+CacheSet");
+            static Type _callbackClosureType = _systemAss.GetType("System.Net.CallbackClosure");
+            static Type _callbackClosureRefType = _systemAss.GetType("System.Net.CallbackClosure&");
+            static Type _overlappedCacheRefType = _systemAss.GetType("System.Net.Sockets.OverlappedCache&");
+            static Type _WSABufferType = _systemAss.GetType("System.Net.WSABuffer");
+            static MethodInfo _overlappedStartPostingAsyncOp = GetMethod(_overlappedType, "StartPostingAsyncOp", new Type[] { typeof(bool) });
+            static MethodInfo _overlappedFinishPostingAsyncOp = GetMethod(_overlappedType, "FinishPostingAsyncOp", new Type[] { _callbackClosureRefType });
+            static MethodInfo _overlappedSetupCache = GetMethod(_overlappedType, "SetupCache", new Type[] { _overlappedCacheRefType });
+            static MethodInfo _overlappedExtractCache = GetMethod(_overlappedType, "ExtractCache", new Type[] { _overlappedCacheRefType });
+            static MethodInfo _overlappedSetUnmanagedStructures = GetMethod(_overlappedType, "SetUnmanagedStructures", new Type[] { typeof(object) });
+            static MethodInfo _overlappedOverlappedHandle = GetMethod(_overlappedType, "get_OverlappedHandle");
+            static MethodInfo _overlappedCheckAsyncCallOverlappedResult = GetMethod(_overlappedType, "CheckAsyncCallOverlappedResult", new Type[] { typeof(SocketError) });
+            static MethodInfo _overlappedInvokeCallback = GetMethod(_overlappedType, "InvokeCallback", new Type[] { typeof(object) });
+            static MethodInfo _socketCaches = GetMethod(typeof(Socket), "get_Caches");
+            static MethodInfo _sockektUpdateStatusAfterSocketError = GetMethod(typeof(Socket), "UpdateStatusAfterSocketError", new Type[] { typeof(SocketError) });
+            static FieldInfo _overlappedmSingleBuffer = GetField(_overlappedType, "m_SingleBuffer");
+            static FieldInfo _WSABufferLength = GetField(_WSABufferType, "Length");
+            static FieldInfo _WSABufferPointer = GetField(_WSABufferType, "Pointer");
+            static FieldInfo _cacheSendClosureCache = GetField(_cacheSetType, "SendClosureCache");
+            static FieldInfo _cacheSendOverlappedCache = GetField(_cacheSetType, "SendOverlappedCache");
+            static FieldInfo _cacheReceiveClosureCache = GetField(_cacheSetType, "ReceiveClosureCache");
+            static FieldInfo _cacheReceiveOverlappedCache = GetField(_cacheSetType, "ReceiveOverlappedCache");
+
+            static private IAsyncResult MakeOverlappedAsyncResult(Socket sck, AsyncCallback callback)
+            {
+                return (IAsyncResult)_systemAss.CreateInstance(_overlappedType.FullName, true,
+                    BindingFlags.Instance | BindingFlags.NonPublic, null,
+                    new object[] { sck, null, callback }, null, null);
+            }
+
+            static readonly object[] startPostingAsyncOpParam = new object[] { false };
+            static private void StartPostingAsyncOp(IAsyncResult overlapped)
+            {
+                _overlappedStartPostingAsyncOp.Invoke(overlapped, startPostingAsyncOpParam);
+            }
+
+            static private void FinishPostingAsyncSendOp(Socket sck, IAsyncResult overlapped, object cacheSet)
+            {
+                object oldClosure = _cacheSendClosureCache.GetValue(cacheSet);
+                object[] closure = new object[] { oldClosure };
+                _overlappedFinishPostingAsyncOp.Invoke(overlapped, closure);
+                if (oldClosure != closure[0])
+                {
+                    _cacheSendClosureCache.SetValue(cacheSet, closure[0]);
+                }
+            }
+
+            static private void FinishPostingAsyncRecvOp(Socket sck, IAsyncResult overlapped, object cacheSet)
+            {
+                object oldClosure = _cacheReceiveClosureCache.GetValue(cacheSet);
+                object[] closure = new object[] { oldClosure };
+                _overlappedFinishPostingAsyncOp.Invoke(overlapped, closure);
+                if (oldClosure != closure[0])
+                {
+                    _cacheReceiveClosureCache.SetValue(cacheSet, closure[0]);
+                }
+            }
+
+            static readonly object[] setUnmanagedStructuresParam = new object[] { null };
+            static private void SetUnmanagedStructures(IAsyncResult overlapped)
+            {
+                _overlappedSetUnmanagedStructures.Invoke(overlapped, setUnmanagedStructuresParam);
+            }
+
+            static private IntPtr SetSendPointer(Socket sck, IAsyncResult overlapped, IntPtr ptr, int offset, int size, object cacheSet)
+            {
+                object oldCache = _cacheSendOverlappedCache.GetValue(cacheSet);
+                object[] overlappedCache = new object[] { oldCache };
+                _overlappedSetupCache.Invoke(overlapped, overlappedCache);
+                if (oldCache != overlappedCache[0])
+                {
+                    _cacheSendOverlappedCache.SetValue(cacheSet, overlappedCache[0]);
+                }
+                SetUnmanagedStructures(overlapped);
+                object WSABuffer = _overlappedmSingleBuffer.GetValue(overlapped);
+                _WSABufferPointer.SetValue(WSABuffer, ptr + offset);
+                _WSABufferLength.SetValue(WSABuffer, size);
+                _overlappedmSingleBuffer.SetValue(overlapped, WSABuffer);
+                return GCHandle.Alloc(WSABuffer, GCHandleType.Pinned).AddrOfPinnedObject();
+            }
+
+            static private IntPtr SetRecvPointer(Socket sck, IAsyncResult overlapped, IntPtr ptr, int offset, int size, object cacheSet)
+            {
+                object oldCache = _cacheReceiveOverlappedCache.GetValue(cacheSet);
+                object[] overlappedCache = new object[] { oldCache };
+                _overlappedSetupCache.Invoke(overlapped, overlappedCache);
+                if (oldCache != overlappedCache[0])
+                {
+                    _cacheReceiveOverlappedCache.SetValue(cacheSet, overlappedCache[0]);
+                }
+                SetUnmanagedStructures(overlapped);
+                object WSABuffer = _overlappedmSingleBuffer.GetValue(overlapped);
+                _WSABufferPointer.SetValue(WSABuffer, ptr + offset);
+                _WSABufferLength.SetValue(WSABuffer, size);
+                _overlappedmSingleBuffer.SetValue(overlapped, WSABuffer);
+                return GCHandle.Alloc(WSABuffer, GCHandleType.Pinned).AddrOfPinnedObject();
+            }
+
+            static public SocketError Send(Socket sck, IntPtr ptr, int offset, int size, SocketFlags socketFlags, AsyncCallback callback)
+            {
+                IAsyncResult overlapped = MakeOverlappedAsyncResult(sck, callback);
+                StartPostingAsyncOp(overlapped);
+                object cacheSet = _socketCaches.Invoke(sck, null);
+                IntPtr WSABuffer = SetSendPointer(sck, overlapped, ptr, offset, size, cacheSet);
+                int num = 0;
+                SafeHandle overlappedHandle = (SafeHandle)_overlappedOverlappedHandle.Invoke(overlapped, null);
+                SocketError lastWin32Error = WSASend(sck.Handle, WSABuffer, 1, out num, socketFlags, overlappedHandle, IntPtr.Zero);
+                if (SocketError.Success != lastWin32Error)
+                {
+                    lastWin32Error = (SocketError)Marshal.GetLastWin32Error();
+                }
+                if (SocketError.Success == lastWin32Error || SocketError.IOPending == lastWin32Error)
+                {
+                    FinishPostingAsyncSendOp(sck, overlapped, cacheSet);
+                    return SocketError.Success;
+                }
+                lastWin32Error = (SocketError)_overlappedCheckAsyncCallOverlappedResult.Invoke(overlapped, new object[] { lastWin32Error });
+                object oldCache = _cacheSendOverlappedCache.GetValue(cacheSet);
+                object[] overlappedCache = new object[] { oldCache };
+                _overlappedExtractCache.Invoke(overlapped, overlappedCache);
+                if (oldCache != overlappedCache[0])
+                {
+                    _cacheSendOverlappedCache.SetValue(cacheSet, overlappedCache[0]);
+                }
+                _sockektUpdateStatusAfterSocketError.Invoke(sck, new object[] { lastWin32Error });
+                return lastWin32Error;
+            }
+
+            static public SocketError Recv(Socket sck, IntPtr ptr, int offset, int size, SocketFlags socketFlags, AsyncCallback callback)
+            {
+                IAsyncResult overlapped = MakeOverlappedAsyncResult(sck, callback);
+                StartPostingAsyncOp(overlapped);
+                object cacheSet = _socketCaches.Invoke(sck, null);
+                IntPtr WSABuffer = SetRecvPointer(sck, overlapped, ptr, offset, size, cacheSet);
+                int num = 0;
+                SafeHandle overlappedHandle = (SafeHandle)_overlappedOverlappedHandle.Invoke(overlapped, null);
+                SocketError lastWin32Error = WSARecv(sck.Handle, WSABuffer, 1, out num, ref socketFlags, overlappedHandle, IntPtr.Zero);
+                if (SocketError.Success != lastWin32Error)
+                {
+                    lastWin32Error = (SocketError)Marshal.GetLastWin32Error();
+                }
+                if (SocketError.Success == lastWin32Error || SocketError.IOPending == lastWin32Error)
+                {
+                    FinishPostingAsyncRecvOp(sck, overlapped, cacheSet);
+                    return SocketError.Success;
+                }
+                lastWin32Error = (SocketError)_overlappedCheckAsyncCallOverlappedResult.Invoke(overlapped, new object[] { lastWin32Error });
+                object oldCache = _cacheReceiveOverlappedCache.GetValue(cacheSet);
+                object[] overlappedCache = new object[] { oldCache };
+                _overlappedExtractCache.Invoke(overlapped, overlappedCache);
+                if (oldCache != overlappedCache[0])
+                {
+                    _cacheReceiveOverlappedCache.SetValue(cacheSet, overlappedCache[0]);
+                }
+                _sockektUpdateStatusAfterSocketError.Invoke(sck, new object[] { lastWin32Error });
+                _overlappedInvokeCallback.Invoke(overlapped, new object[] { new SocketException((int)lastWin32Error) });
+                return lastWin32Error;
+            }
+        }
+
         Socket _socket;
 
         public socket_tcp()
@@ -423,6 +636,138 @@ namespace Go
         public void async_send_file(string fileName, functional.func<socket_result> cb)
         {
             async_send_file(fileName, null, null, cb);
+        }
+
+        public void async_read_same(IntPtr ptr, int offset, int size, functional.func<socket_result> cb)
+        {
+            try
+            {
+                SocketError lastWin32Error = SocketAsyncIo.Recv(_socket, ptr, offset, size, 0, delegate (IAsyncResult ar)
+                {
+                    try
+                    {
+                        functional.catch_invoke(cb, new socket_result(true, _socket.EndReceive(ar)));
+                    }
+                    catch (System.Exception ec)
+                    {
+                        functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
+                    }
+                });
+                if (SocketError.Success != lastWin32Error)
+                {
+                    close();
+                    functional.catch_invoke(cb, new socket_result(false, (int)lastWin32Error));
+                }
+            }
+            catch (System.Exception ec)
+            {
+                close();
+                functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
+            }
+        }
+
+        public void async_write_same(IntPtr ptr, int offset, int size, functional.func<socket_result> cb)
+        {
+            try
+            {
+                SocketError lastWin32Error = SocketAsyncIo.Send(_socket, ptr, offset, size, 0, delegate (IAsyncResult ar)
+                {
+                    try
+                    {
+                        functional.catch_invoke(cb, new socket_result(true, _socket.EndSend(ar)));
+                    }
+                    catch (System.Exception ec)
+                    {
+                        functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
+                    }
+                });
+                if (SocketError.Success != lastWin32Error)
+                {
+                    close();
+                    functional.catch_invoke(cb, new socket_result(false, (int)lastWin32Error));
+                }
+            }
+            catch (System.Exception ec)
+            {
+                close();
+                functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
+            }
+        }
+
+        void _async_read(int currTotal, IntPtr ptr, int offset, int size, functional.func<socket_result> cb)
+        {
+            async_read_same(ptr, offset, size, delegate (socket_result tempRes)
+            {
+                if (tempRes.ok)
+                {
+                    currTotal += tempRes.s;
+                    if (size == tempRes.s)
+                    {
+                        functional.catch_invoke(cb, new socket_result(true, currTotal));
+                    }
+                    else
+                    {
+                        _async_read(currTotal, ptr, offset + tempRes.s, size - tempRes.s, cb);
+                    }
+                }
+                else
+                {
+                    functional.catch_invoke(cb, new socket_result(false, currTotal, tempRes.message));
+                }
+            });
+        }
+
+        void _async_write(int currTotal, IntPtr ptr, int offset, int size, functional.func<socket_result> cb)
+        {
+            async_write_same(ptr, offset, size, delegate (socket_result tempRes)
+            {
+                if (tempRes.ok)
+                {
+                    currTotal += tempRes.s;
+                    if (size == tempRes.s)
+                    {
+                        functional.catch_invoke(cb, new socket_result(true, currTotal));
+                    }
+                    else
+                    {
+                        _async_write(currTotal, ptr, offset + tempRes.s, size - tempRes.s, cb);
+                    }
+                }
+                else
+                {
+                    functional.catch_invoke(cb, new socket_result(false, currTotal, tempRes.message));
+                }
+            });
+        }
+
+        public void async_read(IntPtr ptr, int offset, int size, functional.func<socket_result> cb)
+        {
+            _async_read(0, ptr, offset, size, cb);
+        }
+
+        public void async_write(IntPtr ptr, int offset, int size, functional.func<socket_result> cb)
+        {
+            _async_write(0, ptr, offset, size, cb);
+        }
+
+        public Task<socket_result> read_same(IntPtr ptr, int offset, int size)
+        {
+            return generator.async_call((functional.func<socket_result> cb) => async_read_same(ptr, offset, size, cb));
+        }
+
+        public Task<socket_result> write_same(IntPtr ptr, int offset, int size)
+        {
+            return generator.async_call((functional.func<socket_result> cb) => async_write_same(ptr, offset, size, cb));
+        }
+
+        public Task<socket_result> read(IntPtr ptr, int offset, int size)
+        {
+            return generator.async_call((functional.func<socket_result> cb) => async_read(ptr, offset, size, cb));
+        }
+
+        public Task<socket_result> write(IntPtr ptr, int offset, int size)
+        {
+            return generator.async_call((functional.func<socket_result> cb) => async_write(ptr, offset, size, cb));
         }
 
         public Task<socket_result> send_file(string fileName, byte[] preBuffer = null, byte[] postBuffer = null)

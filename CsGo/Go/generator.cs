@@ -319,12 +319,12 @@ namespace Go
         static long _idCount = 0;
         static Task _nilTask = new Task(functional.nil_action);
         static ReaderWriterLockSlim _nameMutex = new ReaderWriterLockSlim();
-        static SortedList<string, generator> _nameGens = new SortedList<string, generator>();
+        static Dictionary<string, generator> _nameGens = new Dictionary<string, generator>();
         static static_init _init = new static_init();
 
         LinkedList<select_chan_base[]> _selectChans;
         LinkedList<functional.func> _callbacks;
-        SortedList<long, mail_pck> _mailboxMap;
+        Dictionary<long, mail_pck> _mailboxMap;
         functional.func<bool> _suspendCb;
         LinkedList<children> _children;
         mutli_callback _multiCb;
@@ -635,9 +635,9 @@ namespace Go
                 };
                 children[] tempChildren = new children[_children.Count];
                 _children.CopyTo(tempChildren, 0);
-                foreach (children ele in tempChildren)
+                for (int i = 0; i < tempChildren.Length; i++)
                 {
-                    ele.suspend(isSuspend, suspendCb);
+                    tempChildren[i].suspend(isSuspend, suspendCb);
                 }
             }
             else
@@ -2615,9 +2615,9 @@ namespace Go
             generator this_ = self;
             int count = 0;
             wait_group wg = new wait_group(chans.Length);
-            foreach (channel<T> chan in chans)
+            for (int i = 0; i < chans.Length; i++)
             {
-                chan.push(delegate (object[] args)
+                chans[i].push(delegate (object[] args)
                 {
                     if (chan_async_state.async_ok == (chan_async_state)args[0])
                     {
@@ -2636,9 +2636,9 @@ namespace Go
             generator this_ = self;
             int count = 0;
             wait_group wg = new wait_group(chans.Length);
-            foreach (channel<T> chan in chans)
+            for (int i = 0; i < chans.Length; i++)
             {
-                chan.try_push(delegate (object[] args)
+                chans[i].try_push(delegate (object[] args)
                 {
                     if (chan_async_state.async_ok == (chan_async_state)args[0])
                     {
@@ -2657,9 +2657,9 @@ namespace Go
             generator this_ = self;
             int count = 0;
             wait_group wg = new wait_group(chans.Length);
-            foreach (channel<T> chan in chans)
+            for (int i = 0; i < chans.Length; i++)
             {
-                chan.timed_push(ms, delegate (object[] args)
+                chans[i].timed_push(ms, delegate (object[] args)
                 {
                     if (chan_async_state.async_ok == (chan_async_state)args[0])
                     {
@@ -2728,8 +2728,10 @@ namespace Go
             generator this_ = self;
             if (null != this_._selectChans && 0 != this_._selectChans.Count)
             {
-                foreach (select_chan_base chan in this_._selectChans.First.Value)
+                select_chan_base[] currSelect = this_._selectChans.First.Value;
+                for (int i = 0; i < currSelect.Length; i++)
                 {
+                    select_chan_base chan = currSelect[i];
                     if (chan.channel() == otherChan && chan.disabled() != disable)
                     {
                         if (disable)
@@ -2750,8 +2752,10 @@ namespace Go
             generator this_ = self;
             if (null != this_._selectChans && 0 != this_._selectChans.Count)
             {
-                foreach (select_chan_base chan in this_._selectChans.First.Value)
+                select_chan_base[] currSelect = this_._selectChans.First.Value;
+                for (int i = 0; i < currSelect.Length; i++)
                 {
+                    select_chan_base chan = currSelect[i];
                     if (chan.channel() == otherChan && chan.is_read() && chan.disabled() != disable)
                     {
                         if (disable)
@@ -2772,8 +2776,10 @@ namespace Go
             generator this_ = self;
             if (null != this_._selectChans && 0 != this_._selectChans.Count)
             {
-                foreach (select_chan_base chan in this_._selectChans.First.Value)
+                select_chan_base[] currSelect = this_._selectChans.First.Value;
+                for (int i = 0; i < currSelect.Length; i++)
                 {
+                    select_chan_base chan = currSelect[i];
                     if (chan.channel() == otherChan && !chan.is_read() && chan.disabled() != disable)
                     {
                         if (disable)
@@ -2808,8 +2814,9 @@ namespace Go
         {
             generator this_ = self;
             msg_buff<select_chan_base> selectChans = new msg_buff<select_chan_base>(this_.strand);
-            foreach (select_chan_base chan in chans)
+            for (int i = 0; i < chans.Length; i++)
             {
+                select_chan_base chan = chans[i];
                 chan.ntfSign._selectOnce = false;
                 chan.nextSelect = selectChans;
                 chan.begin();
@@ -2853,9 +2860,9 @@ namespace Go
             {
                 this_._selectChans.RemoveFirst();
                 lock_suspend_and_stop();
-                foreach (select_chan_base chan in chans)
+                for (int i = 0; i < chans.Length; i++)
                 {
-                    await chan.end();
+                    await chans[i].end();
                 }
                 await unlock_suspend_and_stop();
             }
@@ -2865,8 +2872,9 @@ namespace Go
         {
             generator this_ = self;
             msg_buff<select_chan_base> selectChans = new msg_buff<select_chan_base>(this_.strand);
-            foreach (select_chan_base chan in chans)
+            for (int i = 0; i < chans.Length; i++)
             {
+                select_chan_base chan = chans[i];
                 chan.ntfSign._selectOnce = true;
                 chan.nextSelect = selectChans;
                 chan.begin();
@@ -2891,11 +2899,11 @@ namespace Go
                     {
                         select_chan_state selState = await selectedChan.invoke(async delegate ()
                         {
-                            foreach (select_chan_base chan in chans)
+                            for (int i = 0; i < chans.Length; i++)
                             {
-                                if (selectedChan != chan)
+                                if (selectedChan != chans[i])
                                 {
-                                    await chan.end();
+                                    await chans[i].end();
                                 }
                             }
                             selected = true;
@@ -2930,9 +2938,9 @@ namespace Go
                 if (!selected)
                 {
                     lock_suspend_and_stop();
-                    foreach (select_chan_base chan in chans)
+                    for (int i = 0; i < chans.Length; i++)
                     {
-                        await chan.end();
+                        await chans[i].end();
                     }
                     await unlock_suspend_and_stop();
                 }
@@ -2945,8 +2953,9 @@ namespace Go
             generator this_ = self;
             msg_buff<select_chan_base> selectChans = new msg_buff<select_chan_base>(this_.strand);
             this_._timer.timeout(ms, selectChans.wrap_default());
-            foreach (select_chan_base chan in chans)
+            for (int i = 0; i < chans.Length; i++)
             {
+                select_chan_base chan = chans[i];
                 chan.ntfSign._selectOnce = true;
                 chan.nextSelect = selectChans;
                 chan.begin();
@@ -2974,11 +2983,11 @@ namespace Go
                             select_chan_state selState = await selectedChan.invoke(async delegate ()
                             {
                                 this_._timer.cancel();
-                                foreach (select_chan_base chan in chans)
+                                for (int i = 0; i < chans.Length; i++)
                                 {
-                                    if (selectedChan != chan)
+                                    if (selectedChan != chans[i])
                                     {
-                                        await chan.end();
+                                        await chans[i].end();
                                     }
                                 }
                                 selected = true;
@@ -3007,9 +3016,9 @@ namespace Go
                     }
                     else
                     {
-                        foreach (select_chan_base chan in chans)
+                        for (int i = 0; i < chans.Length; i++)
                         {
-                            await chan.end();
+                            await chans[i].end();
                         }
                         selected = true;
                         await timedHandler();
@@ -3025,9 +3034,9 @@ namespace Go
                 {
                     this_._timer.cancel();
                     lock_suspend_and_stop();
-                    foreach (select_chan_base chan in chans)
+                    for (int i = 0; i < chans.Length; i++)
                     {
-                        await chan.end();
+                        await chans[i].end();
                     }
                     await unlock_suspend_and_stop();
                 }
@@ -4151,7 +4160,7 @@ namespace Go
             generator this_ = self;
             if (null == this_._mailboxMap)
             {
-                this_._mailboxMap = new SortedList<long, mail_pck>();
+                this_._mailboxMap = new Dictionary<long, mail_pck>();
             }
             mail_pck mb = null;
             if (!this_._mailboxMap.TryGetValue(calc_hash<T>(id), out mb))
@@ -4173,7 +4182,7 @@ namespace Go
                 }
                 if (null == _mailboxMap)
                 {
-                    _mailboxMap = new SortedList<long, mail_pck>();
+                    _mailboxMap = new Dictionary<long, mail_pck>();
                 }
                 mail_pck mb = null;
                 if (!_mailboxMap.TryGetValue(calc_hash<T>(id), out mb))
@@ -4203,7 +4212,7 @@ namespace Go
             }
             if (null == this_._mailboxMap)
             {
-                this_._mailboxMap = new SortedList<long, mail_pck>();
+                this_._mailboxMap = new Dictionary<long, mail_pck>();
             }
             mail_pck mb = null;
             if (!this_._mailboxMap.TryGetValue(calc_hash<T>(id), out mb))
@@ -4324,7 +4333,7 @@ namespace Go
                 generator self = generator.self;
                 if (null == self._mailboxMap)
                 {
-                    self._mailboxMap = new SortedList<long, mail_pck>();
+                    self._mailboxMap = new Dictionary<long, mail_pck>();
                 }
                 _mutex = forceStopAll ? null : new shared_mutex(self.strand);
             }
@@ -5400,9 +5409,9 @@ namespace Go
                     });
                     child[] tempChildren = new child[_children.Count];
                     _children.CopyTo(tempChildren, 0);
-                    foreach (child ele in tempChildren)
+                    for (int i = 0; i < tempChildren.Length; i++)
                     {
-                        (isSuspend ? (Action<functional.func>)ele.suspend : ele.resume)(suspendCb);
+                        (isSuspend ? (Action<functional.func>)tempChildren[i].suspend : tempChildren[i].resume)(suspendCb);
                     }
                 }
                 else
@@ -5432,8 +5441,9 @@ namespace Go
                 int count = 0;
                 if (0 != gens.Length)
                 {
-                    foreach (child ele in gens)
+                    for(int i = 0; i < gens.Length; i++)
                     {
+                        child ele = gens[i];
                         if (null != ele.node)
                         {
 #if DEBUG
@@ -5457,16 +5467,17 @@ namespace Go
 #if DEBUG
                     generator self = generator.self;
 #endif
-                    foreach (children childs in childrens)
+                    for (int i = 0; i < childrens.Length; i++)
                     {
+                        children childs = childrens[i];
 #if DEBUG
                         Trace.Assert(self == childs._parent, "此 children 不属于当前 generator");
 #endif
-                        foreach (child ele in childs._children)
+                        for (LinkedListNode<child> it = childs._children.First; null != it; it = it.Next)
                         {
                             count++;
-                            childs._children.Remove(ele.node);
-                            ele.node = null;
+                            childs._children.Remove(it.Value.node);
+                            it.Value.node = null;
                             childs.check_remove_node();
                         }
                     }
@@ -5504,8 +5515,9 @@ namespace Go
                 if (0 != gens.Length)
                 {
                     msg_buff<child> waitStop = new msg_buff<child>(_parent.strand);
-                    foreach (child ele in gens)
+                    for (int i = 0; i < gens.Length; i++)
                     {
+                        child ele = gens[i];
                         if (null != ele.node)
                         {
 #if DEBUG
@@ -5559,8 +5571,9 @@ namespace Go
                 if (0 != gens.Length)
                 {
                     msg_buff<child> waitStop = new msg_buff<child>(_parent.strand);
-                    foreach (child ele in gens)
+                    for (int i = 0; i < gens.Length; i++)
                     {
+                        child ele = gens[i];
                         if (null != ele.node)
                         {
 #if DEBUG
@@ -5616,8 +5629,9 @@ namespace Go
                     int count = _children.Count;
                     if (0 == _freeCount)
                     {
-                        foreach (child ele in _children)
+                        for (LinkedListNode<child> it = _children.First; null != it; it = it.Next)
                         {
+                            child ele = it.Value;
                             ele.stop(() => waitStop.post(ele));
                         }
                     }
@@ -5625,8 +5639,9 @@ namespace Go
                     {
                         child[] tempChilds = new child[_children.Count];
                         _children.CopyTo(tempChilds, 0);
-                        foreach (child ele in tempChilds)
+                        for (int i = 0; i < tempChilds.Length; i++)
                         {
+                            child ele = tempChilds[i];
                             if (!containFree && ele.is_free())
                             {
                                 count--;
@@ -5655,8 +5670,9 @@ namespace Go
                     generator self = generator.self;
                     msg_buff<Tuple<children, child>> waitStop = new msg_buff<Tuple<children, child>>(self.strand);
                     int count = 0;
-                    foreach (children childs in childrens)
+                    for (int i = 0; i < childrens.Length; i++)
                     {
+                        children childs = childrens[i];
 #if DEBUG
                         Trace.Assert(self == childs._parent, "此 children 不属于当前 generator");
 #endif
@@ -5665,8 +5681,9 @@ namespace Go
                             count += childs._children.Count;
                             if (0 == childs._freeCount)
                             {
-                                foreach (child ele in childs._children)
+                                for (LinkedListNode<child> it = childs._children.First; null != it; it = it.Next)
                                 {
+                                    child ele = it.Value;
                                     ele.stop(() => waitStop.post(new Tuple<children, child>(childs, ele)));
                                 }
                             }
@@ -5674,8 +5691,9 @@ namespace Go
                             {
                                 child[] tempChilds = new child[childs._children.Count];
                                 childs._children.CopyTo(tempChilds, 0);
-                                foreach (child ele in tempChilds)
+                                for (int j = 0; j < tempChilds.Length; j++)
                                 {
+                                    child ele = tempChilds[j];
                                     ele.stop(() => waitStop.post(new Tuple<children, child>(childs, ele)));
                                 }
                             }
@@ -5704,8 +5722,9 @@ namespace Go
                     async_result_wrap<child> res = new async_result_wrap<child>();
                     functional.func<child> ntf = _parent.safe_async_result(res);
                     bool canWait = false;
-                    foreach (child ele in _children)
+                    for (LinkedListNode<child> it = _children.First; null != it; it = it.Next)
                     {
+                        child ele = it.Value;
                         if (!containFree && ele.is_free())
                         {
                             continue;
@@ -5738,8 +5757,9 @@ namespace Go
                     async_result_wrap<child> res = new async_result_wrap<child>();
                     functional.func<child> ntf = _parent.timed_async_result(ms, res);
                     bool canWait = false;
-                    foreach (child ele in _children)
+                    for (LinkedListNode<child> it = _children.First; null != it; it = it.Next)
                     {
+                        child ele = it.Value;
                         if (!containFree && ele.is_free())
                         {
                             continue;
@@ -5771,8 +5791,9 @@ namespace Go
                 {
                     msg_buff<child> waitStop = new msg_buff<child>(_parent.strand);
                     int count = 0;
-                    foreach (child ele in _children)
+                    for (LinkedListNode<child> it = _children.First; null != it; it = it.Next)
                     {
+                        child ele = it.Value;
                         if (!containFree && ele.is_free())
                         {
                             continue;
@@ -5940,9 +5961,9 @@ namespace Go
                 LinkedList<functional.func> snapList = _waitList;
                 _waitList = null;
                 Monitor.Exit(this);
-                foreach (functional.func continuation in snapList)
+                for (LinkedListNode<functional.func> it = snapList.First; null != it; it = it.Next)
                 {
-                    continuation();
+                    it.Value.Invoke();
                 }
             }
             return tasks;
