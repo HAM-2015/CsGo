@@ -183,8 +183,8 @@ namespace Go
         }
         protected static readonly ThreadLocal<curr_strand> _currStrand = new ThreadLocal<curr_strand>();
 
-        public readonly async_timer.steady_timer _timer;
-        public generator currSelf = null;
+        internal readonly async_timer.steady_timer _timer;
+        internal generator currSelf = null;
         protected volatile bool _locked;
         protected volatile int _pauseState;
         protected Mutex _mutex;

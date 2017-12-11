@@ -519,6 +519,7 @@ namespace Go
                 }
                 _isStop = true;
                 _suspendCb = null;
+                strand.currSelf = null;
                 functional.catch_invoke(callback);
                 if (null != _callbacks)
                 {
@@ -893,6 +894,24 @@ namespace Go
         public bool is_completed()
         {
             return _isStop;
+        }
+
+        static public bool begin_quit()
+        {
+            generator this_ = self;
+            return this_._beginQuit;
+        }
+
+        static public bool check_quit()
+        {
+            generator this_ = self;
+            return this_._isForce;
+        }
+
+        static public bool check_suspend()
+        {
+            generator this_ = self;
+            return this_._holdSuspend;
         }
 
         public void sync_wait()
@@ -2276,6 +2295,23 @@ namespace Go
         static public Task<chan_async_state> chan_push(channel<void_type> chan)
         {
             return chan_push(chan, default(void_type));
+        }
+
+        static public async Task<chan_async_state> chan_force_push<T>(chan<T> chan, T p, async_result_wrap<bool, T> outMsg = null)
+        {
+            generator this_ = self;
+            chan_async_state result = chan_async_state.async_undefined;
+            chan.force_push(this_.async_same_callback(delegate (object[] args)
+            {
+                result = (chan_async_state)args[0];
+                if (null != outMsg)
+                {
+                    outMsg.value_1 = 2 == args.Length;
+                    outMsg.value_2 = outMsg.value_1 ? (T)args[1] : default(T);
+                }
+            }), p);
+            await this_.async_wait();
+            return result;
         }
 
         static public Task<chan_pop_wrap<T>> chan_pop<T>(channel<T> chan)

@@ -109,7 +109,7 @@ namespace Go
 
     public abstract class channel<T> : channel_base
     {
-        public class select_chan_reader : select_chan_base
+        internal class select_chan_reader : select_chan_base
         {
             public broadcast_chan_token _token = broadcast_chan_token._defToken;
             public channel<T> _chan;
@@ -192,7 +192,7 @@ namespace Go
             }
         }
 
-        public class select_chan_writer : select_chan_base
+        internal class select_chan_writer : select_chan_base
         {
             public channel<T> _chan;
             public functional.func_res<T> _msg;
@@ -450,7 +450,7 @@ namespace Go
         }
     }
 
-    public abstract class MsgQueue_<T>
+    abstract class MsgQueue_<T>
     {
         public abstract void AddLast(T msg);
         public abstract T First();
@@ -459,7 +459,7 @@ namespace Go
         public abstract void Clear();
     }
 
-    public class NoVoidMsgQueue_<T> : MsgQueue_<T>
+    class NoVoidMsgQueue_<T> : MsgQueue_<T>
     {
         LinkedList<T> _msgBuff;
 
@@ -497,7 +497,7 @@ namespace Go
         }
     }
 
-    public class VoidMsgQueue_<T> : MsgQueue_<T>
+    class VoidMsgQueue_<T> : MsgQueue_<T>
     {
         int _count;
 
@@ -919,6 +919,41 @@ namespace Go
                         _popWait.RemoveFirst();
                         popNtf(chan_async_state.async_ok);
                     }
+                    ntf(chan_async_state.async_ok);
+                }
+            });
+        }
+
+        public void force_push(functional.same_func ntf, T msg)
+        {
+            _strand.distribute(delegate ()
+            {
+                if (_closed)
+                {
+                    ntf(chan_async_state.async_closed);
+                    return;
+                }
+                bool hasOut = false;
+                T outMsg = default(T);
+                if (_buffer.Count == _length)
+                {
+                    hasOut = true;
+                    outMsg = _buffer.First();
+                    _buffer.RemoveFirst();
+                }
+                _buffer.AddLast(msg);
+                if (0 != _popWait.Count)
+                {
+                    functional.func<chan_async_state> popNtf = _popWait.First.Value;
+                    _popWait.RemoveFirst();
+                    popNtf(chan_async_state.async_ok);
+                }
+                if (hasOut)
+                {
+                    ntf(chan_async_state.async_ok, outMsg);
+                }
+                else
+                {
                     ntf(chan_async_state.async_ok);
                 }
             });
@@ -2264,7 +2299,7 @@ namespace Go
             }
         }
 
-        public class select_csp_reader : select_chan_base
+        internal class select_csp_reader : select_chan_base
         {
             public csp_chan<R, T> _chan;
             public functional.func_res<Task, csp_result, T> _handler;
@@ -2347,7 +2382,7 @@ namespace Go
             }
         }
 
-        public class select_csp_writer : select_chan_base
+        internal class select_csp_writer : select_chan_base
         {
             public csp_chan<R, T> _chan;
             public functional.func_res<T> _msg;

@@ -9,9 +9,58 @@ using System.IO.Ports;
 using System.IO.Pipes;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.IO.MemoryMappedFiles;
 
 namespace Go
 {
+    internal class TypeReflection
+    {
+        public static readonly Assembly _systemAss = Assembly.LoadFrom(RuntimeEnvironment.GetRuntimeDirectory() + "System.dll");
+        public static readonly Assembly _mscorlibAss = Assembly.LoadFrom(RuntimeEnvironment.GetRuntimeDirectory() + "mscorlib.dll");
+
+        public static MethodInfo GetMethod(Type type, string name, Type[] parmsType = null)
+        {
+            MethodInfo[] methods = type.GetMethods(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static);
+            for (int i = 0; i < methods.Length; i++)
+            {
+                if (methods[i].Name == name)
+                {
+                    if (null == parmsType)
+                    {
+                        return methods[i];
+                    }
+                    else
+                    {
+                        ParameterInfo[] parameters = methods[i].GetParameters();
+                        if (parameters.Length == parmsType.Length)
+                        {
+                            int j = 0;
+                            for (; j < parmsType.Length && parameters[j].ParameterType == parmsType[j]; j++) { }
+                            if (j == parmsType.Length)
+                            {
+                                return methods[i];
+                            }
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        public static FieldInfo GetField(Type type, string name)
+        {
+            FieldInfo[] members = type.GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static);
+            for (int i = 0; i < members.Length; i++)
+            {
+                if (members[i].Name == name)
+                {
+                    return members[i];
+                }
+            }
+            return null;
+        }
+    }
+
     public struct socket_result
     {
         public bool ok;
@@ -28,12 +77,19 @@ namespace Go
 
     public abstract class socket
     {
-        [DllImport("kernel32.dll", CharSet = CharSet.None, ExactSpelling = false, SetLastError = true)]
-        internal static extern int WriteFile(SafeHandle handle, IntPtr bytes, int numBytesToWrite, out int numBytesWritten, IntPtr mustBeZero);
-        [DllImport("kernel32.dll", CharSet = CharSet.None, ExactSpelling = false, SetLastError = true)]
-        internal static extern int ReadFile(SafeHandle handle, IntPtr bytes, int numBytesToRead, out int numBytesRead, IntPtr mustBeZero);
-        [DllImport("kernel32.dll", CharSet = CharSet.None, ExactSpelling = false, SetLastError = true)]
-        internal static extern int CancelIoEx(SafeHandle handle, IntPtr mustBeZero);
+        [DllImport("kernel32.dll")]
+        static extern int WriteFile(SafeHandle handle, IntPtr bytes, int numBytesToWrite, out int numBytesWritten, IntPtr mustBeZero);
+        [DllImport("kernel32.dll")]
+        static extern int ReadFile(SafeHandle handle, IntPtr bytes, int numBytesToRead, out int numBytesRead, IntPtr mustBeZero);
+        [DllImport("kernel32.dll")]
+        static extern int CancelIoEx(SafeHandle handle, IntPtr mustBeZero);
+
+        static readonly Type _memoryAccessorType = TypeReflection._mscorlibAss.GetType("System.IO.UnmanagedMemoryAccessor");
+        static readonly Type _memoryStreamType = TypeReflection._mscorlibAss.GetType("System.IO.UnmanagedMemoryStream");
+        static readonly Type _safeHandleType = TypeReflection._mscorlibAss.GetType("System.Runtime.InteropServices.SafeHandle");
+        static readonly FieldInfo _memoryAccessorSafeBuffer = TypeReflection.GetField(_memoryAccessorType, "_buffer");
+        static readonly FieldInfo _memoryStreamSafeBuffer = TypeReflection.GetField(_memoryStreamType, "_buffer");
+        static readonly FieldInfo _safeBufferHandle = TypeReflection.GetField(_safeHandleType, "handle");
 
         static public tuple<bool, int> sync_write(SafeHandle handle, IntPtr ptr, int offset, int size)
         {
@@ -70,6 +126,16 @@ namespace Go
         static public bool cancel_io(SafeHandle handle)
         {
             return 1 == CancelIoEx(handle, IntPtr.Zero);
+        }
+
+        static public IntPtr get_mmview_ptr(MemoryMappedViewAccessor mmv)
+        {
+            return (IntPtr)_safeBufferHandle.GetValue(_memoryAccessorSafeBuffer.GetValue(mmv));
+        }
+
+        static public IntPtr get_mmview_ptr(MemoryMappedViewStream mmv)
+        {
+            return (IntPtr)_safeBufferHandle.GetValue(_memoryStreamSafeBuffer.GetValue(mmv));
         }
 
         public abstract void async_read_same(ArraySegment<byte> buff, functional.func<socket_result> cb);
@@ -325,81 +391,38 @@ namespace Go
     {
         class SocketAsyncIo
         {
-            static MethodInfo GetMethod(Type type, string name, Type[] parmsType = null)
-            {
-                MethodInfo[] methods = type.GetMethods(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static);
-                for (int i = 0; i < methods.Length; i++)
-                {
-                    if (methods[i].Name == name)
-                    {
-                        if (null == parmsType)
-                        {
-                            return methods[i];
-                        }
-                        else
-                        {
-                            ParameterInfo[] parameters = methods[i].GetParameters();
-                            if (parameters.Length == parmsType.Length)
-                            {
-                                int j = 0;
-                                for (; j < parmsType.Length && parameters[j].ParameterType == parmsType[j]; j++) { }
-                                if (j == parmsType.Length)
-                                {
-                                    return methods[i];
-                                }
-                            }
-                        }
-                    }
-                }
-                return null;
-            }
-
-            static FieldInfo GetField(Type type, string name)
-            {
-                FieldInfo[] members = type.GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static);
-                for (int i = 0; i < members.Length; i++)
-                {
-                    if (members[i].Name == name)
-                    {
-                        return members[i];
-                    }
-                }
-                return null;
-            }
-
             [DllImport("Ws2_32.dll", CharSet = CharSet.None, ExactSpelling = false, SetLastError = true)]
-            internal static extern SocketError WSASend(IntPtr socketHandle, IntPtr buffer, int bufferCount, out int bytesTransferred, SocketFlags socketFlags, SafeHandle overlapped, IntPtr completionRoutine);
+            static extern SocketError WSASend(IntPtr socketHandle, IntPtr buffer, int bufferCount, out int bytesTransferred, SocketFlags socketFlags, SafeHandle overlapped, IntPtr completionRoutine);
             [DllImport("Ws2_32.dll", CharSet = CharSet.None, ExactSpelling = false, SetLastError = true)]
-            internal static extern SocketError WSARecv(IntPtr socketHandle, IntPtr buffer, int bufferCount, out int bytesTransferred, ref SocketFlags socketFlags, SafeHandle overlapped, IntPtr completionRoutine);
+            static extern SocketError WSARecv(IntPtr socketHandle, IntPtr buffer, int bufferCount, out int bytesTransferred, ref SocketFlags socketFlags, SafeHandle overlapped, IntPtr completionRoutine);
 
-            static Assembly _systemAss = Assembly.LoadFrom(RuntimeEnvironment.GetRuntimeDirectory() + "System.dll");
-            static Type _overlappedType = _systemAss.GetType("System.Net.Sockets.OverlappedAsyncResult");
-            static Type _cacheSetType = _systemAss.GetType("System.Net.Sockets.Socket+CacheSet");
-            static Type _callbackClosureType = _systemAss.GetType("System.Net.CallbackClosure");
-            static Type _callbackClosureRefType = _systemAss.GetType("System.Net.CallbackClosure&");
-            static Type _overlappedCacheRefType = _systemAss.GetType("System.Net.Sockets.OverlappedCache&");
-            static Type _WSABufferType = _systemAss.GetType("System.Net.WSABuffer");
-            static MethodInfo _overlappedStartPostingAsyncOp = GetMethod(_overlappedType, "StartPostingAsyncOp", new Type[] { typeof(bool) });
-            static MethodInfo _overlappedFinishPostingAsyncOp = GetMethod(_overlappedType, "FinishPostingAsyncOp", new Type[] { _callbackClosureRefType });
-            static MethodInfo _overlappedSetupCache = GetMethod(_overlappedType, "SetupCache", new Type[] { _overlappedCacheRefType });
-            static MethodInfo _overlappedExtractCache = GetMethod(_overlappedType, "ExtractCache", new Type[] { _overlappedCacheRefType });
-            static MethodInfo _overlappedSetUnmanagedStructures = GetMethod(_overlappedType, "SetUnmanagedStructures", new Type[] { typeof(object) });
-            static MethodInfo _overlappedOverlappedHandle = GetMethod(_overlappedType, "get_OverlappedHandle");
-            static MethodInfo _overlappedCheckAsyncCallOverlappedResult = GetMethod(_overlappedType, "CheckAsyncCallOverlappedResult", new Type[] { typeof(SocketError) });
-            static MethodInfo _overlappedInvokeCallback = GetMethod(_overlappedType, "InvokeCallback", new Type[] { typeof(object) });
-            static MethodInfo _socketCaches = GetMethod(typeof(Socket), "get_Caches");
-            static MethodInfo _sockektUpdateStatusAfterSocketError = GetMethod(typeof(Socket), "UpdateStatusAfterSocketError", new Type[] { typeof(SocketError) });
-            static FieldInfo _overlappedmSingleBuffer = GetField(_overlappedType, "m_SingleBuffer");
-            static FieldInfo _WSABufferLength = GetField(_WSABufferType, "Length");
-            static FieldInfo _WSABufferPointer = GetField(_WSABufferType, "Pointer");
-            static FieldInfo _cacheSendClosureCache = GetField(_cacheSetType, "SendClosureCache");
-            static FieldInfo _cacheSendOverlappedCache = GetField(_cacheSetType, "SendOverlappedCache");
-            static FieldInfo _cacheReceiveClosureCache = GetField(_cacheSetType, "ReceiveClosureCache");
-            static FieldInfo _cacheReceiveOverlappedCache = GetField(_cacheSetType, "ReceiveOverlappedCache");
+            static readonly Type _overlappedType = TypeReflection._systemAss.GetType("System.Net.Sockets.OverlappedAsyncResult");
+            static readonly Type _cacheSetType = TypeReflection._systemAss.GetType("System.Net.Sockets.Socket+CacheSet");
+            static readonly Type _callbackClosureType = TypeReflection._systemAss.GetType("System.Net.CallbackClosure");
+            static readonly Type _callbackClosureRefType = TypeReflection._systemAss.GetType("System.Net.CallbackClosure&");
+            static readonly Type _overlappedCacheRefType = TypeReflection._systemAss.GetType("System.Net.Sockets.OverlappedCache&");
+            static readonly Type _WSABufferType = TypeReflection._systemAss.GetType("System.Net.WSABuffer");
+            static readonly MethodInfo _overlappedStartPostingAsyncOp = TypeReflection.GetMethod(_overlappedType, "StartPostingAsyncOp", new Type[] { typeof(bool) });
+            static readonly MethodInfo _overlappedFinishPostingAsyncOp = TypeReflection.GetMethod(_overlappedType, "FinishPostingAsyncOp", new Type[] { _callbackClosureRefType });
+            static readonly MethodInfo _overlappedSetupCache = TypeReflection.GetMethod(_overlappedType, "SetupCache", new Type[] { _overlappedCacheRefType });
+            static readonly MethodInfo _overlappedExtractCache = TypeReflection.GetMethod(_overlappedType, "ExtractCache", new Type[] { _overlappedCacheRefType });
+            static readonly MethodInfo _overlappedSetUnmanagedStructures = TypeReflection.GetMethod(_overlappedType, "SetUnmanagedStructures", new Type[] { typeof(object) });
+            static readonly MethodInfo _overlappedOverlappedHandle = TypeReflection.GetMethod(_overlappedType, "get_OverlappedHandle");
+            static readonly MethodInfo _overlappedCheckAsyncCallOverlappedResult = TypeReflection.GetMethod(_overlappedType, "CheckAsyncCallOverlappedResult", new Type[] { typeof(SocketError) });
+            static readonly MethodInfo _overlappedInvokeCallback = TypeReflection.GetMethod(_overlappedType, "InvokeCallback", new Type[] { typeof(object) });
+            static readonly MethodInfo _socketCaches = TypeReflection.GetMethod(typeof(Socket), "get_Caches");
+            static readonly MethodInfo _sockektUpdateStatusAfterSocketError = TypeReflection.GetMethod(typeof(Socket), "UpdateStatusAfterSocketError", new Type[] { typeof(SocketError) });
+            static readonly FieldInfo _overlappedmSingleBuffer = TypeReflection.GetField(_overlappedType, "m_SingleBuffer");
+            static readonly FieldInfo _WSABufferLength = TypeReflection.GetField(_WSABufferType, "Length");
+            static readonly FieldInfo _WSABufferPointer = TypeReflection.GetField(_WSABufferType, "Pointer");
+            static readonly FieldInfo _cacheSendClosureCache = TypeReflection.GetField(_cacheSetType, "SendClosureCache");
+            static readonly FieldInfo _cacheSendOverlappedCache = TypeReflection.GetField(_cacheSetType, "SendOverlappedCache");
+            static readonly FieldInfo _cacheReceiveClosureCache = TypeReflection.GetField(_cacheSetType, "ReceiveClosureCache");
+            static readonly FieldInfo _cacheReceiveOverlappedCache = TypeReflection.GetField(_cacheSetType, "ReceiveOverlappedCache");
 
             static private IAsyncResult MakeOverlappedAsyncResult(Socket sck, AsyncCallback callback)
             {
-                return (IAsyncResult)_systemAss.CreateInstance(_overlappedType.FullName, true,
+                return (IAsyncResult)TypeReflection._systemAss.CreateInstance(_overlappedType.FullName, true,
                     BindingFlags.Instance | BindingFlags.NonPublic, null,
                     new object[] { sck, null, callback }, null, null);
             }
@@ -1020,24 +1043,6 @@ namespace Go
     {
         protected PipeStream _socket;
 
-        public PipeStream socket
-        {
-            get
-            {
-                return _socket;
-            }
-        }
-
-        public override void close()
-        {
-            try
-            {
-                cancel_io(_socket.SafePipeHandle);
-                _socket.Close();
-            }
-            catch (System.Exception) { }
-        }
-
         public override void async_read_same(ArraySegment<byte> buff, functional.func<socket_result> cb)
         {
             try
@@ -1202,47 +1207,74 @@ namespace Go
 
     public class socket_pipe_server : socket_pipe
     {
-        public socket_pipe_server(string pipeName, int maxNumberOfServerInstances = 1, int inBufferSize = 4 * 1024, int outBufferSize = 4 * 1024)
+        readonly string _pipeName;
+
+        public socket_pipe_server(string pipeName, int inBufferSize = 4 * 1024, int outBufferSize = 4 * 1024)
         {
-            _socket = new NamedPipeServerStream(pipeName, PipeDirection.InOut, maxNumberOfServerInstances, PipeTransmissionMode.Byte, PipeOptions.Asynchronous, inBufferSize, outBufferSize);
+            _pipeName = pipeName;
+            _socket = new NamedPipeServerStream("CsGo_" + pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous, inBufferSize, outBufferSize);
         }
 
-        public void disconnect()
+        public NamedPipeServerStream socket
         {
+            get
+            {
+                return (NamedPipeServerStream)_socket;
+            }
+        }
+
+        public override void close()
+        {
+            if (_socket.IsConnected)
+            {
+                try
+                {
+                    ((NamedPipeServerStream)_socket).Disconnect();
+                }
+                catch (System.Exception) { }
+            }
             try
             {
-                ((NamedPipeServerStream)_socket).Disconnect();
+                _socket.Close();
             }
             catch (System.Exception) { }
         }
 
-        public void async_wait_connection(functional.func<socket_result> cb)
+        public async Task<bool> wait_connection(int ms = -1)
         {
+            bool overtime = false;
+            async_timer waitTimeout = null;
             try
             {
-                ((NamedPipeServerStream)_socket).BeginWaitForConnection(delegate (IAsyncResult ar)
+                if (ms >= 0)
                 {
-                    try
+                    waitTimeout = new async_timer(generator.self_strand());
+                    waitTimeout.timeout(ms, delegate ()
                     {
-                        ((NamedPipeServerStream)_socket).EndWaitForConnection(ar);
-                        functional.catch_invoke(cb, new socket_result(true));
-                    }
-                    catch (System.Exception ec)
-                    {
-                        functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
-                    }
-                }, null);
+                        overtime = true;
+                        try
+                        {
+                            NamedPipeClientStream timedPipe = new NamedPipeClientStream(".", "CsGo_" + _pipeName);
+                            timedPipe.Connect(0);
+                            timedPipe.Close();
+                        }
+                        catch (System.Exception) { }
+                    });
+                }
+                await generator.send_task(((NamedPipeServerStream)_socket).WaitForConnection);
+                if (overtime)
+                {
+                    close();
+                }
+                waitTimeout?.cancel();
             }
-            catch (System.Exception ec)
+            catch (System.Exception)
             {
+                waitTimeout?.advance();
                 close();
-                functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
+                throw;
             }
-        }
-
-        public Task<socket_result> wait_connection()
-        {
-            return generator.async_call((functional.func<socket_result> cb) => async_wait_connection(cb));
+            return !overtime;
         }
     }
 
@@ -1250,7 +1282,32 @@ namespace Go
     {
         public socket_pipe_client(string pipeName, string serverName = ".")
         {
-            _socket = new NamedPipeClientStream(serverName, pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
+            _socket = new NamedPipeClientStream(serverName, "CsGo_" + pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
+        }
+
+        public NamedPipeClientStream socket
+        {
+            get
+            {
+                return (NamedPipeClientStream)_socket;
+            }
+        }
+
+        public override void close()
+        {
+            if (_socket.IsConnected)
+            {
+                try
+                {
+                    cancel_io(_socket.SafePipeHandle);
+                }
+                catch (System.Exception) { }
+            }
+            try
+            {
+                _socket.Close();
+            }
+            catch (System.Exception) { }
         }
 
         public bool try_connect()
@@ -1264,18 +1321,22 @@ namespace Go
             return false;
         }
 
-        public Task<bool> connect(int ms = -1)
+        public async Task<bool> connect(int ms = -1)
         {
-            return generator.send_task(delegate ()
+            if (0 == ms)
             {
-                try
+                return try_connect();
+            }
+            long beginTick = system_tick.get_tick_us();
+            while (!try_connect())
+            {
+                await generator.sleep(1);
+                if (ms >= 0 && system_tick.get_tick_us() - beginTick >= (long)ms * 1000)
                 {
-                    ((NamedPipeClientStream)_socket).Connect(ms);
-                    return true;
+                    return false;
                 }
-                catch (System.Exception) { }
-                return false;
-            });
+            }
+            return true;
         }
     }
 }

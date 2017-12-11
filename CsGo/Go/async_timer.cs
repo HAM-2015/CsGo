@@ -68,7 +68,7 @@ namespace Go
             public MapNode<long, async_timer> node;
         }
 
-        public class steady_timer
+        internal class steady_timer
         {
             struct waitable_event_handle
             {
@@ -456,7 +456,17 @@ namespace Go
             interval_us((long)ms * 1000, handler, immed);
         }
 
+        public void interval2(int ms1, int ms2, functional.func handler, bool immed = false)
+        {
+            interval2_us((long)ms1 * 1000, (long)ms2 * 1000, handler, immed);
+        }
+
         public void interval_us(long us, functional.func handler, bool immed = false)
+        {
+            interval2_us(us, us, handler, immed);
+        }
+
+        public void interval2_us(long us1, long us2, functional.func handler, bool immed = false)
         {
 #if DEBUG
             Trace.Assert(_strand.running_in_this_thread() && null == _handler && null != handler);
@@ -465,7 +475,7 @@ namespace Go
             _handler = handler;
             _strand.hold_work();
             _beginTick = system_tick.get_tick_us();
-            begin_timer(_beginTick + us, us);
+            begin_timer(_beginTick + us1, us2);
             if (immed)
             {
                 handler();
