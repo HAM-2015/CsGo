@@ -17,6 +17,9 @@ namespace Go
         private static extern bool QueryPerformanceFrequency(out long frequency);
 
         private static system_tick _pcCycle = new system_tick();
+#if DEBUG
+        private static volatile bool _checkStepDebugSign = false;
+#endif
 
         private double _sCycle;
         private double _msCycle;
@@ -35,6 +38,23 @@ namespace Go
             _sCycle = 1.0 / (double)freq;
             _msCycle = 1000.0 / (double)freq;
             _usCycle = 1000000.0 / (double)freq;
+#if DEBUG
+            Thread checkStepDebug = new Thread(delegate ()
+            {
+                long checkTick = get_tick_ms();
+                while (true)
+                {
+                    Thread.Sleep(80);
+                    long oldTick = checkTick;
+                    checkTick = get_tick_ms();
+                    _checkStepDebugSign = (checkTick - oldTick) > 100;
+                }
+            });
+            checkStepDebug.Priority = ThreadPriority.Highest;
+            checkStepDebug.IsBackground = true;
+            checkStepDebug.Name = "单步调试检测";
+            checkStepDebug.Start();
+#endif
         }
 
         public static long get_tick_us()
@@ -57,6 +77,13 @@ namespace Go
             QueryPerformanceCounter(out quadPart);
             return (int)((double)quadPart * _pcCycle._sCycle);
         }
+
+#if DEBUG
+        public static bool check_step_debugging()
+        {
+            return _checkStepDebugSign;
+        }
+#endif
     }
 
     public class async_timer
@@ -120,6 +147,7 @@ namespace Go
                     _timerThread = new Thread(timerThread);
                     _timerThread.Priority = ThreadPriority.Highest;
                     _timerThread.IsBackground = true;
+                    _timerThread.Name = "定时器调度";
                     _workEngine.run(1, ThreadPriority.Highest, true);
                     _timerThread.Start();
                     uint MaximumTime = 0, MinimumTime = 0, CurrentTime = 0, ActualTime = 0;

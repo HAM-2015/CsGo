@@ -1229,7 +1229,7 @@ namespace Go
         public async Task async_wait()
         {
 #if DEBUG
-            if (system_tick.get_tick_ms() - _beginStepTick > _stepMaxCycle)
+            if (!system_tick.check_step_debugging() && system_tick.get_tick_ms() - _beginStepTick > _stepMaxCycle)
             {
                 LinkedListNode<call_stack_info> it;
                 Debug.WriteLine(string.Format("单步超时:\n{0}\n{1}\n{2}\n{3}\n{4}\n{5}\n{6}\n",

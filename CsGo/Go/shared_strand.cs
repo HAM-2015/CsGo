@@ -131,6 +131,7 @@ namespace Go
                 _runThreads[i] = new Thread(run_thread);
                 _runThreads[i].Priority = priority;
                 _runThreads[i].IsBackground = IsBackground;
+                _runThreads[i].Name = "任务调度";
                 _runThreads[i].Start();
             }
         }
