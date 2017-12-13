@@ -311,8 +311,15 @@ namespace Go
                 file = f;
                 line = l;
             }
+
+            public override string ToString()
+            {
+                return string.Format("<file>{0} <line>{1} <time>{2}", file, line, time);
+            }
         }
-        LinkedList<call_stack_info> _callStack;
+        LinkedList<call_stack_info> _makeStack;
+        long _beginStepTick;
+        static readonly int _stepMaxCycle = 100;
 #endif
 
         static int _hashCount = 0;
@@ -415,7 +422,9 @@ namespace Go
         {
             offset += 2;
             StackFrame[] sts = (new StackTrace(true)).GetFrames();
-            string time = string.Format("{0}.{1}", DateTime.Now.ToLocalTime(), DateTime.Now.Millisecond);
+            string time = string.Format("{0:D2}-{1:D2}-{2:D2} {3:D2}:{4:D2}:{5:D2}.{6:D3}",
+                DateTime.Now.Year % 100, DateTime.Now.Month, DateTime.Now.Day,
+                DateTime.Now.Hour, DateTime.Now.Minute, DateTime.Now.Second, DateTime.Now.Millisecond);
             for (int i = 0; i < count; ++i, ++offset)
             {
                 if (offset < sts.Length)
@@ -431,17 +440,18 @@ namespace Go
 #endif
 
 #if DEBUG
-        generator init(shared_strand strand, action handler, functional.func callback, functional.func<bool> suspendCb, LinkedList<call_stack_info> callStack = null)
+        generator init(shared_strand strand, action handler, functional.func callback, functional.func<bool> suspendCb, LinkedList<call_stack_info> makeStack = null)
         {
-            if (null != callStack)
+            if (null != makeStack)
             {
-                _callStack = callStack;
+                _makeStack = makeStack;
             }
             else
             {
-                _callStack = new LinkedList<call_stack_info>();
-                up_stack_frame(_callStack, 1, 6);
+                _makeStack = new LinkedList<call_stack_info>();
+                up_stack_frame(_makeStack, 1, 6);
             }
+            _beginStepTick = system_tick.get_tick_ms();
 #else
         generator init(shared_strand strand, action handler, functional.func callback, functional.func<bool> suspendCb)
         {
@@ -1218,7 +1228,18 @@ namespace Go
 
         public async Task async_wait()
         {
+#if DEBUG
+            if (system_tick.get_tick_ms() - _beginStepTick > _stepMaxCycle)
+            {
+                LinkedListNode<call_stack_info> it;
+                Debug.WriteLine(string.Format("单步超时:\n{0}\n{1}\n{2}\n{3}\n{4}\n{5}\n{6}\n",
+                    (it = _makeStack.First).Value, (it = it.Next).Value, (it = it.Next).Value, (it = it.Next).Value, (it = it.Next).Value, it.Value, new StackTrace(true)));
+            }
             await _pullTask;
+            _beginStepTick = system_tick.get_tick_ms();
+#else
+            await _pullTask;
+#endif
             _multiCb = null;
             _lastTm = 0;
             _yieldCount++;
@@ -2283,11 +2304,11 @@ namespace Go
             return is_closed;
         }
 
-        static public async Task<chan_async_state> chan_push<T>(channel<T> chan, T p)
+        static public async Task<chan_async_state> chan_push<T>(channel<T> chan, T msg)
         {
             generator this_ = self;
             chan_async_state result = chan_async_state.async_undefined;
-            chan.push(this_.async_same_callback((object[] args) => result = (chan_async_state)args[0]), p);
+            chan.push(this_.async_same_callback((object[] args) => result = (chan_async_state)args[0]), msg);
             await this_.async_wait();
             return result;
         }
@@ -2297,7 +2318,7 @@ namespace Go
             return chan_push(chan, default(void_type));
         }
 
-        static public async Task<chan_async_state> chan_force_push<T>(chan<T> chan, T p, async_result_wrap<bool, T> outMsg = null)
+        static public async Task<chan_async_state> chan_force_push<T>(chan<T> chan, T msg, async_result_wrap<bool, T> outMsg = null)
         {
             generator this_ = self;
             chan_async_state result = chan_async_state.async_undefined;
@@ -2309,7 +2330,7 @@ namespace Go
                     outMsg.value_1 = 2 == args.Length;
                     outMsg.value_2 = outMsg.value_1 ? (T)args[1] : default(T);
                 }
-            }), p);
+            }), msg);
             await this_.async_wait();
             return result;
         }
@@ -2335,11 +2356,11 @@ namespace Go
             return result;
         }
 
-        static public async Task<chan_async_state> chan_try_push<T>(channel<T> chan, T p)
+        static public async Task<chan_async_state> chan_try_push<T>(channel<T> chan, T msg)
         {
             generator this_ = self;
             chan_async_state result = chan_async_state.async_undefined;
-            chan.try_push(this_.async_same_callback((object[] args) => result = (chan_async_state)args[0]), p);
+            chan.try_push(this_.async_same_callback((object[] args) => result = (chan_async_state)args[0]), msg);
             await this_.async_wait();
             return result;
         }
@@ -2370,26 +2391,26 @@ namespace Go
             return result;
         }
 
-        static public async Task<chan_async_state> chan_timed_push<T>(int ms, channel<T> chan, T p)
+        static public async Task<chan_async_state> chan_timed_push<T>(channel<T> chan, int ms, T msg)
         {
             generator this_ = self;
             chan_async_state result = chan_async_state.async_undefined;
-            chan.timed_push(ms, this_.async_same_callback((object[] args) => result = (chan_async_state)args[0]), p);
+            chan.timed_push(ms, this_.async_same_callback((object[] args) => result = (chan_async_state)args[0]), msg);
             await this_.async_wait();
             return result;
         }
 
-        static public Task<chan_async_state> chan_timed_push(int ms, channel<void_type> chan)
+        static public Task<chan_async_state> chan_timed_push(channel<void_type> chan, int ms)
         {
-            return chan_timed_push(ms, chan, default(void_type));
+            return chan_timed_push(chan, ms, default(void_type));
         }
 
-        static public Task<chan_pop_wrap<T>> chan_timed_pop<T>(int ms, channel<T> chan)
+        static public Task<chan_pop_wrap<T>> chan_timed_pop<T>(channel<T> chan, int ms)
         {
-            return chan_timed_pop(ms, chan, broadcast_chan_token._defToken);
+            return chan_timed_pop(chan, ms, broadcast_chan_token._defToken);
         }
 
-        static public async Task<chan_pop_wrap<T>> chan_timed_pop<T>(int ms, channel<T> chan, broadcast_chan_token token)
+        static public async Task<chan_pop_wrap<T>> chan_timed_pop<T>(channel<T> chan, int ms, broadcast_chan_token token)
         {
             generator this_ = self;
             chan_pop_wrap<T> result = default(chan_pop_wrap<T>);
@@ -2405,7 +2426,7 @@ namespace Go
             return result;
         }
 
-        static public async Task<csp_invoke_wrap<R>> csp_invoke<R, T>(csp_chan<R, T> chan, T p)
+        static public async Task<csp_invoke_wrap<R>> csp_invoke<R, T>(csp_chan<R, T> chan, T msg)
         {
             generator this_ = self;
             csp_invoke_wrap<R> result = default(csp_invoke_wrap<R>);
@@ -2416,7 +2437,7 @@ namespace Go
                 {
                     result.result = (R)args[1];
                 }
-            }), p);
+            }), msg);
             await this_.async_wait();
             return result;
         }
@@ -2485,7 +2506,7 @@ namespace Go
             return result.state;
         }
 
-        static public async Task<csp_invoke_wrap<R>> csp_try_invoke<R, T>(csp_chan<R, T> chan, T p)
+        static public async Task<csp_invoke_wrap<R>> csp_try_invoke<R, T>(csp_chan<R, T> chan, T msg)
         {
             generator this_ = self;
             csp_invoke_wrap<R> result = default(csp_invoke_wrap<R>);
@@ -2496,7 +2517,7 @@ namespace Go
                 {
                     result.result = (R)args[1];
                 }
-            }), p);
+            }), msg);
             await this_.async_wait();
             return result;
         }
@@ -2566,7 +2587,7 @@ namespace Go
             return result.state;
         }
 
-        static public async Task<csp_invoke_wrap<R>> csp_timed_invoke<R, T>(int ms, csp_chan<R, T> chan, T p)
+        static public async Task<csp_invoke_wrap<R>> csp_timed_invoke<R, T>(csp_chan<R, T> chan, int ms, T msg)
         {
             generator this_ = self;
             csp_invoke_wrap<R> result = default(csp_invoke_wrap<R>);
@@ -2577,17 +2598,17 @@ namespace Go
                 {
                     result.result = (R)args[1];
                 }
-            }), p);
+            }), msg);
             await this_.async_wait();
             return result;
         }
 
-        static public Task<csp_invoke_wrap<R>> csp_timed_invoke<R>(int ms, csp_chan<R, void_type> chan)
+        static public Task<csp_invoke_wrap<R>> csp_timed_invoke<R>(csp_chan<R, void_type> chan, int ms)
         {
-            return csp_timed_invoke(ms, chan, default(void_type));
+            return csp_timed_invoke(chan, ms, default(void_type));
         }
 
-        static public async Task<csp_wait_wrap<R, T>> csp_timed_wait<R, T>(int ms, csp_chan<R, T> chan)
+        static public async Task<csp_wait_wrap<R, T>> csp_timed_wait<R, T>(csp_chan<R, T> chan, int ms)
         {
             generator this_ = self;
             csp_wait_wrap<R, T> result = default(csp_wait_wrap<R, T>);
@@ -2604,9 +2625,9 @@ namespace Go
             return result;
         }
 
-        static public async Task<chan_async_state> csp_timed_wait<R, T>(int ms, csp_chan<R, T> chan, functional.func_res<Task<R>, T> handler)
+        static public async Task<chan_async_state> csp_timed_wait<R, T>(csp_chan<R, T> chan, int ms, functional.func_res<Task<R>, T> handler)
         {
-            csp_wait_wrap<R, T> result = await csp_timed_wait(ms, chan);
+            csp_wait_wrap<R, T> result = await csp_timed_wait(chan, ms);
             if (chan_async_state.async_ok == result.state)
             {
                 result.complete(await handler(result.msg));
@@ -2614,9 +2635,9 @@ namespace Go
             return result.state;
         }
 
-        static public async Task<chan_async_state> csp_timed_wait<R>(int ms, csp_chan<R, void_type> chan, functional.func_res<Task<R>> handler)
+        static public async Task<chan_async_state> csp_timed_wait<R>(csp_chan<R, void_type> chan, int ms, functional.func_res<Task<R>> handler)
         {
-            csp_wait_wrap<R, void_type> result = await csp_timed_wait(ms, chan);
+            csp_wait_wrap<R, void_type> result = await csp_timed_wait(chan, ms);
             if (chan_async_state.async_ok == result.state)
             {
                 result.complete(await handler());
@@ -2624,9 +2645,9 @@ namespace Go
             return result.state;
         }
 
-        static public async Task<chan_async_state> csp_timed_wait<T>(int ms, csp_chan<void_type, T> chan, functional.func_res<Task, T> handler)
+        static public async Task<chan_async_state> csp_timed_wait<T>(csp_chan<void_type, T> chan, int ms, functional.func_res<Task, T> handler)
         {
-            csp_wait_wrap<void_type, T> result = await csp_timed_wait(ms, chan);
+            csp_wait_wrap<void_type, T> result = await csp_timed_wait(chan, ms);
             if (chan_async_state.async_ok == result.state)
             {
                 await handler(result.msg);
@@ -2635,9 +2656,9 @@ namespace Go
             return result.state;
         }
 
-        static public async Task<chan_async_state> csp_timed_wait(int ms, csp_chan<void_type, void_type> chan, functional.func_res<Task> handler)
+        static public async Task<chan_async_state> csp_timed_wait(csp_chan<void_type, void_type> chan, int ms, functional.func_res<Task> handler)
         {
-            csp_wait_wrap<void_type, void_type> result = await csp_timed_wait(ms, chan);
+            csp_wait_wrap<void_type, void_type> result = await csp_timed_wait(chan, ms);
             if (chan_async_state.async_ok == result.state)
             {
                 await handler();
@@ -2646,7 +2667,7 @@ namespace Go
             return result.state;
         }
 
-        static public async Task<int> chans_broadcast<T>(T p, params channel<T>[] chans)
+        static public async Task<int> chans_broadcast<T>(T msg, params channel<T>[] chans)
         {
             generator this_ = self;
             int count = 0;
@@ -2660,14 +2681,14 @@ namespace Go
                         Interlocked.Increment(ref count);
                     }
                     wg.done();
-                }, p);
+                }, msg);
             }
             wg.async_wait(this_.async_result());
             await this_.async_wait();
             return count;
         }
 
-        static public async Task<int> chans_try_broadcast<T>(T p, params channel<T>[] chans)
+        static public async Task<int> chans_try_broadcast<T>(T msg, params channel<T>[] chans)
         {
             generator this_ = self;
             int count = 0;
@@ -2681,14 +2702,14 @@ namespace Go
                         Interlocked.Increment(ref count);
                     }
                     wg.done();
-                }, p);
+                }, msg);
             }
             wg.async_wait(this_.async_result());
             await this_.async_wait();
             return count;
         }
 
-        static public async Task<int> chans_timed_broadcast<T>(int ms, T p, params channel<T>[] chans)
+        static public async Task<int> chans_timed_broadcast<T>(int ms, T msg, params channel<T>[] chans)
         {
             generator this_ = self;
             int count = 0;
@@ -2702,7 +2723,7 @@ namespace Go
                         Interlocked.Increment(ref count);
                     }
                     wg.done();
-                }, p);
+                }, msg);
             }
             wg.async_wait(this_.async_result());
             await this_.async_wait();
@@ -3271,7 +3292,7 @@ namespace Go
             return false;
         }
 
-        static public async Task<bool> mutex_timed_lock(int ms, mutex mtx)
+        static public async Task<bool> mutex_timed_lock(mutex mtx, int ms)
         {
             generator this_ = self;
             async_result_wrap<chan_async_state> res = new async_result_wrap<chan_async_state>();
@@ -3280,9 +3301,9 @@ namespace Go
             return chan_async_state.async_ok == res.value_1;
         }
 
-        static public async Task<bool> mutex_timed_lock(int ms, mutex mtx, functional.func_res<Task> handler)
+        static public async Task<bool> mutex_timed_lock(mutex mtx, int ms, functional.func_res<Task> handler)
         {
-            if (await mutex_timed_lock(ms, mtx))
+            if (await mutex_timed_lock(mtx, ms))
             {
                 try
                 {
@@ -3455,7 +3476,7 @@ namespace Go
             return false;
         }
 
-        static public async Task<bool> mutex_timed_lock_shared(int ms, shared_mutex mtx)
+        static public async Task<bool> mutex_timed_lock_shared(shared_mutex mtx, int ms)
         {
             generator this_ = self;
             async_result_wrap<chan_async_state> res = new async_result_wrap<chan_async_state>();
@@ -3464,9 +3485,9 @@ namespace Go
             return chan_async_state.async_ok == res.value_1;
         }
 
-        static public async Task<bool> mutex_timed_lock_shared(int ms, shared_mutex mtx, functional.func_res<Task> handler)
+        static public async Task<bool> mutex_timed_lock_shared(shared_mutex mtx, int ms, functional.func_res<Task> handler)
         {
-            if (await mutex_timed_lock_shared(ms, mtx))
+            if (await mutex_timed_lock_shared(mtx, ms))
             {
                 try
                 {
@@ -3502,7 +3523,7 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public async Task<bool> condition_timed_wait(int ms, condition_variable conVar, mutex mutex)
+        static public async Task<bool> condition_timed_wait(condition_variable conVar, mutex mutex, int ms)
         {
             generator this_ = self;
             async_result_wrap<chan_async_state> res = new async_result_wrap<chan_async_state>();
@@ -4115,37 +4136,37 @@ namespace Go
         static public async Task call(action handler)
         {
             generator this_ = self;
-            up_stack_frame(this_._callStack, 2);
+            up_stack_frame(this_._makeStack, 2);
             await handler();
-            this_._callStack.RemoveFirst();
+            this_._makeStack.RemoveFirst();
         }
 
         static public async Task<R> call<R>(functional.func_res<Task<R>> handler)
         {
             generator this_ = self;
-            up_stack_frame(this_._callStack, 2);
+            up_stack_frame(this_._makeStack, 2);
             R res = await handler();
-            this_._callStack.RemoveFirst();
+            this_._makeStack.RemoveFirst();
             return res;
         }
 
         static public async Task depth_call(shared_strand strand, action handler)
         {
             generator this_ = self;
-            up_stack_frame(this_._callStack, 2);
-            (new generator()).init(strand, handler, this_.async_result(), null, this_._callStack).run();
+            up_stack_frame(this_._makeStack, 2);
+            (new generator()).init(strand, handler, this_.async_result(), null, this_._makeStack).run();
             await lock_stop(() => this_.async_wait());
-            this_._callStack.RemoveFirst();
+            this_._makeStack.RemoveFirst();
         }
 
         static public async Task<R> depth_call<R>(shared_strand strand, functional.func_res<Task<R>> handler)
         {
             generator this_ = self;
             R res = default(R);
-            up_stack_frame(this_._callStack, 2);
-            (new generator()).init(strand, async () => res = await handler(), this_.async_result(), null, this_._callStack).run();
+            up_stack_frame(this_._makeStack, 2);
+            (new generator()).init(strand, async () => res = await handler(), this_.async_result(), null, this_._makeStack).run();
             await lock_stop(() => this_.async_wait());
-            this_._callStack.RemoveFirst();
+            this_._makeStack.RemoveFirst();
             return res;
         }
 #else
@@ -4181,7 +4202,7 @@ namespace Go
         {
             get
             {
-                return self._callStack;
+                return self._makeStack;
             }
         }
 #endif
@@ -4334,13 +4355,13 @@ namespace Go
 
         static public Task<chan_pop_wrap<T>> timed_recv_msg<T>(int ms, int id = 0)
         {
-            return chan_timed_pop(ms, self_mailbox<T>(id));
+            return chan_timed_pop(self_mailbox<T>(id), ms);
         }
 
-        public async Task<chan_async_state> send_msg<T>(int id, T p)
+        public async Task<chan_async_state> send_msg<T>(int id, T msg)
         {
             channel<T> mb = await get_mailbox<T>(id);
-            return null != mb ? await chan_push(mb, p) : chan_async_state.async_fail;
+            return null != mb ? await chan_push(mb, msg) : chan_async_state.async_fail;
         }
 
         public Task<chan_async_state> send_msg(int id)
@@ -4348,9 +4369,9 @@ namespace Go
             return send_msg(0, default(void_type));
         }
 
-        public Task<chan_async_state> send_msg<T>(T p)
+        public Task<chan_async_state> send_msg<T>(T msg)
         {
-            return send_msg(0, p);
+            return send_msg(0, msg);
         }
 
         public Task<chan_async_state> send_msg()
@@ -4475,7 +4496,7 @@ namespace Go
                     generator self = generator.self;
                     if (null == _mutex)
                     {
-                        chan_pop_wrap<T> res = await chan_timed_pop(ms, chan);
+                        chan_pop_wrap<T> res = await chan_timed_pop(chan, ms);
                         try
                         {
                             self._mailboxMap = _children.parent()._mailboxMap;
@@ -4697,22 +4718,22 @@ namespace Go
                 return this;
             }
 
-            public receive_mail timed_receive(int ms, broadcast_chan<void_type> chan, functional.func_res<Task> timedHandler, functional.func_res<Task> handler, broadcast_chan_token token = null)
+            public receive_mail timed_receive(broadcast_chan<void_type> chan, int ms, functional.func_res<Task> timedHandler, functional.func_res<Task> handler, broadcast_chan_token token = null)
             {
-                return timed_receive(ms, chan, timedHandler, (void_type _) => handler(), token);
+                return timed_receive(chan, ms, timedHandler, (void_type _) => handler(), token);
             }
 
-            public receive_mail timed_receive<T>(int ms, broadcast_chan<T> chan, functional.func_res<Task> timedHandler, functional.func_res<Task, T> handler, broadcast_chan_token token = null)
+            public receive_mail timed_receive<T>(broadcast_chan<T> chan, int ms, functional.func_res<Task> timedHandler, functional.func_res<Task, T> handler, broadcast_chan_token token = null)
             {
-                return timed_receive(ms, chan, timedHandler, handler, null, token);
+                return timed_receive(chan, ms, timedHandler, handler, null, token);
             }
 
-            public receive_mail timed_receive(int ms, broadcast_chan<void_type> chan, functional.func_res<Task> timedHandler, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler, broadcast_chan_token token = null)
+            public receive_mail timed_receive(broadcast_chan<void_type> chan, int ms, functional.func_res<Task> timedHandler, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler, broadcast_chan_token token = null)
             {
-                return timed_receive(ms, chan, timedHandler, (void_type _) => handler(), errHandler, token);
+                return timed_receive(chan, ms, timedHandler, (void_type _) => handler(), errHandler, token);
             }
 
-            public receive_mail timed_receive<T>(int ms, broadcast_chan<T> chan, functional.func_res<Task> timedHandler, functional.func_res<Task, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler, broadcast_chan_token token = null)
+            public receive_mail timed_receive<T>(broadcast_chan<T> chan, int ms, functional.func_res<Task> timedHandler, functional.func_res<Task, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler, broadcast_chan_token token = null)
             {
                 _children.go(async delegate ()
                 {
@@ -4720,7 +4741,7 @@ namespace Go
                     token = null != token ? token : new broadcast_chan_token();
                     if (null == _mutex)
                     {
-                        chan_pop_wrap<T> res = await chan_timed_pop(ms, chan, token);
+                        chan_pop_wrap<T> res = await chan_timed_pop(chan, ms, token);
                         try
                         {
                             self._mailboxMap = _children.parent()._mailboxMap;
@@ -4961,39 +4982,39 @@ namespace Go
                 return this;
             }
 
-            public receive_mail timed_receive<R>(int ms, csp_chan<R, void_type> chan, functional.func_res<Task> timedHandler, functional.func_res<Task<R>> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            public receive_mail timed_receive<R>(csp_chan<R, void_type> chan, int ms, functional.func_res<Task> timedHandler, functional.func_res<Task<R>> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
             {
-                return timed_receive(ms, chan, timedHandler, async (csp_chan<R, void_type>.csp_result res, void_type _) => res.complete(await handler()), errHandler);
+                return timed_receive(chan, ms, timedHandler, async (csp_chan<R, void_type>.csp_result res, void_type _) => res.complete(await handler()), errHandler);
             }
 
-            public receive_mail timed_receive<T>(int ms, csp_chan<void_type, T> chan, functional.func_res<Task> timedHandler, functional.func_res<Task, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            public receive_mail timed_receive<T>(csp_chan<void_type, T> chan, int ms, functional.func_res<Task> timedHandler, functional.func_res<Task, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
             {
-                return timed_receive(ms, chan, timedHandler, async (csp_chan<void_type, T>.csp_result res, T msg) => { await handler(msg); res.complete(default(void_type)); }, errHandler);
+                return timed_receive(chan, ms, timedHandler, async (csp_chan<void_type, T>.csp_result res, T msg) => { await handler(msg); res.complete(default(void_type)); }, errHandler);
             }
 
-            public receive_mail timed_receive(int ms, csp_chan<void_type, void_type> chan, functional.func_res<Task> timedHandler, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            public receive_mail timed_receive(csp_chan<void_type, void_type> chan, int ms, functional.func_res<Task> timedHandler, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
             {
-                return timed_receive(ms, chan, timedHandler, async (csp_chan<void_type, void_type>.csp_result res, void_type _) => { await handler(); res.complete(default(void_type)); }, errHandler);
+                return timed_receive(chan, ms, timedHandler, async (csp_chan<void_type, void_type>.csp_result res, void_type _) => { await handler(); res.complete(default(void_type)); }, errHandler);
             }
 
-            public receive_mail timed_receive<R, T>(int ms, csp_chan<R, T> chan, functional.func_res<Task> timedHandler, functional.func_res<Task<R>, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            public receive_mail timed_receive<R, T>(csp_chan<R, T> chan, int ms, functional.func_res<Task> timedHandler, functional.func_res<Task<R>, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
             {
-                return timed_receive(ms, chan, timedHandler, async (csp_chan<R, T>.csp_result res, T msg) => res.complete(await handler(msg)), errHandler);
+                return timed_receive(chan, ms, timedHandler, async (csp_chan<R, T>.csp_result res, T msg) => res.complete(await handler(msg)), errHandler);
             }
 
-            public receive_mail timed_receive<R>(int ms, csp_chan<R, void_type> chan, functional.func_res<Task> timedHandler, functional.func_res<Task, csp_chan<R, void_type>.csp_result> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            public receive_mail timed_receive<R>(csp_chan<R, void_type> chan, int ms, functional.func_res<Task> timedHandler, functional.func_res<Task, csp_chan<R, void_type>.csp_result> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
             {
-                return timed_receive(ms, chan, timedHandler, (csp_chan<R, void_type>.csp_result res, void_type _) => handler(res), errHandler);
+                return timed_receive(chan, ms, timedHandler, (csp_chan<R, void_type>.csp_result res, void_type _) => handler(res), errHandler);
             }
 
-            public receive_mail timed_receive<R, T>(int ms, csp_chan<R, T> chan, functional.func_res<Task> timedHandler, functional.func_res<Task, csp_chan<R, T>.csp_result, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
+            public receive_mail timed_receive<R, T>(csp_chan<R, T> chan, int ms, functional.func_res<Task> timedHandler, functional.func_res<Task, csp_chan<R, T>.csp_result, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler = null)
             {
                 _children.go(async delegate ()
                 {
                     generator self = generator.self;
                     if (null == _mutex)
                     {
-                        csp_wait_wrap<R, T> res = await csp_timed_wait(ms, chan);
+                        csp_wait_wrap<R, T> res = await csp_timed_wait(chan, ms);
                         try
                         {
                             self._mailboxMap = _children.parent()._mailboxMap;

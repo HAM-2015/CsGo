@@ -196,18 +196,18 @@ namespace Go
         };
         
         LinkedList<wait_node> _waitQueue;
-        SortedDictionary<long, shared_count> _sharedMap;
+        Dictionary<long, shared_count> _sharedMap;
 
         public shared_mutex(shared_strand strand): base(strand)
         {
             _waitQueue = new LinkedList<wait_node>();
-            _sharedMap = new SortedDictionary<long, shared_count>();
+            _sharedMap = new Dictionary<long, shared_count>();
         }
 
         public shared_mutex(): base()
         {
             _waitQueue = new LinkedList<wait_node>();
-            _sharedMap = new SortedDictionary<long, shared_count>();
+            _sharedMap = new Dictionary<long, shared_count>();
         }
 
         public override void Lock(long id, functional.func ntf)
