@@ -19,6 +19,11 @@ namespace Go
             _callbacked = true;
             return t;
         }
+
+        public bool callbacked()
+        {
+            return _callbacked;
+        }
     }
 
     public class async_result_wrap<T1>
@@ -153,12 +158,44 @@ namespace Go
     {
         public chan_async_state state;
         public T result;
+
+        public static implicit operator T(chan_pop_wrap<T> rval)
+        {
+            if (chan_async_state.async_ok != rval.state)
+            {
+                throw new chan_exception(rval.state, rval);
+            }
+            return rval.result;
+        }
+
+        public override string ToString()
+        {
+            return chan_async_state.async_ok == state ?
+                string.Format("chan_pop_wrap<{0}>.result={1}", typeof(T).Name, result) :
+                string.Format("chan_pop_wrap<{0}>.state={1}", typeof(T).Name, state);
+        }
     }
 
     public struct csp_invoke_wrap<T>
     {
         public chan_async_state state;
         public T result;
+
+        public static implicit operator T(csp_invoke_wrap<T> rval)
+        {
+            if (chan_async_state.async_ok != rval.state)
+            {
+                throw new chan_exception(rval.state, rval);
+            }
+            return rval.result;
+        }
+
+        public override string ToString()
+        {
+            return chan_async_state.async_ok == state ?
+                string.Format("csp_invoke_wrap<{0}>.result={1}", typeof(T).Name, result) :
+                string.Format("csp_invoke_wrap<{0}>.state={1}", typeof(T).Name, state);
+        }
     }
 
     public struct csp_wait_wrap<R, T>
@@ -535,8 +572,9 @@ namespace Go
                 {
                     while (0 != _callbacks.Count)
                     {
-                        functional.catch_invoke(_callbacks.First.Value);
+                        functional.func ntf = _callbacks.First.Value;
                         _callbacks.RemoveFirst();
+                        functional.catch_invoke(ntf);
                     }
                 }
                 strand.release_work();
@@ -866,7 +904,7 @@ namespace Go
             }
         }
 
-        public void append_stop_callback(functional.func continuation)
+        public void append_stop_callback(functional.func continuation, functional.func<LinkedListNode<functional.func>> removeCb = null)
         {
             strand.distribute(delegate ()
             {
@@ -876,12 +914,26 @@ namespace Go
                     {
                         _callbacks = new LinkedList<functional.func>();
                     }
-                    _callbacks.AddLast(continuation);
+                    LinkedListNode<functional.func> node = _callbacks.AddLast(continuation);
+                    removeCb?.Invoke(node);
                 }
                 else
                 {
                     continuation();
+                    removeCb?.Invoke(null);
                 }
+            });
+        }
+
+        public void remove_stop_callback(LinkedListNode<functional.func> node, functional.func cb = null)
+        {
+            strand.distribute(delegate ()
+            {
+                if (null != node.List)
+                {
+                    _callbacks.Remove(node);
+                }
+                cb?.Invoke();
             });
         }
 
@@ -1307,6 +1359,10 @@ namespace Go
             });
             return delegate (object[] args)
             {
+                if (multiCb.callbacked())
+                {
+                    return;
+                }
                 strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
@@ -1332,6 +1388,10 @@ namespace Go
             });
             return delegate (object[] args)
             {
+                if (multiCb.callbacked())
+                {
+                    return;
+                }
                 strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
@@ -1360,6 +1420,10 @@ namespace Go
             });
             return delegate (object[] args)
             {
+                if (multiCb.callbacked())
+                {
+                    return;
+                }
                 strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
@@ -1386,6 +1450,10 @@ namespace Go
             });
             return delegate (object[] args)
             {
+                if (multiCb.callbacked())
+                {
+                    return;
+                }
                 strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
@@ -1459,6 +1527,10 @@ namespace Go
             });
             return delegate ()
             {
+                if (multiCb.callbacked())
+                {
+                    return;
+                }
                 strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
@@ -1485,6 +1557,10 @@ namespace Go
             });
             return delegate ()
             {
+                if (multiCb.callbacked())
+                {
+                    return;
+                }
                 strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
@@ -1514,6 +1590,10 @@ namespace Go
             });
             return delegate (T1 p1)
             {
+                if (multiCb.callbacked())
+                {
+                    return;
+                }
                 strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
@@ -1540,6 +1620,10 @@ namespace Go
             });
             return delegate (T1 p1)
             {
+                if (multiCb.callbacked())
+                {
+                    return;
+                }
                 strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
@@ -1569,6 +1653,10 @@ namespace Go
             });
             return delegate (T1 p1, T2 p2)
             {
+                if (multiCb.callbacked())
+                {
+                    return;
+                }
                 strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
@@ -1595,6 +1683,10 @@ namespace Go
             });
             return delegate (T1 p1, T2 p2)
             {
+                if (multiCb.callbacked())
+                {
+                    return;
+                }
                 strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
@@ -1624,6 +1716,10 @@ namespace Go
             });
             return delegate (T1 p1, T2 p2, T3 p3)
             {
+                if (multiCb.callbacked())
+                {
+                    return;
+                }
                 strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
@@ -1650,6 +1746,10 @@ namespace Go
             });
             return delegate (T1 p1, T2 p2, T3 p3)
             {
+                if (multiCb.callbacked())
+                {
+                    return;
+                }
                 strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
@@ -1668,6 +1768,10 @@ namespace Go
             bool beginQuit = _beginQuit;
             return delegate (object[] args)
             {
+                if (multiCb.callbacked())
+                {
+                    return;
+                }
                 strand.distribute(delegate ()
                 {
                     if (!multiCb.check())
@@ -1684,6 +1788,10 @@ namespace Go
             bool beginQuit = _beginQuit;
             return delegate (object[] args)
             {
+                if (multiCb.callbacked())
+                {
+                    return;
+                }
                 strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
@@ -1701,6 +1809,10 @@ namespace Go
             bool beginQuit = _beginQuit;
             return delegate ()
             {
+                if (multiCb.callbacked())
+                {
+                    return;
+                }
                 strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
@@ -1718,6 +1830,10 @@ namespace Go
             bool beginQuit = _beginQuit;
             return delegate (T1 p1)
             {
+                if (multiCb.callbacked())
+                {
+                    return;
+                }
                 strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
@@ -1735,6 +1851,10 @@ namespace Go
             bool beginQuit = _beginQuit;
             return delegate (T1 p1, T2 p2)
             {
+                if (multiCb.callbacked())
+                {
+                    return;
+                }
                 strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
@@ -1752,6 +1872,10 @@ namespace Go
             bool beginQuit = _beginQuit;
             return delegate (T1 p1, T2 p2, T3 p3)
             {
+                if (multiCb.callbacked())
+                {
+                    return;
+                }
                 strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
@@ -1833,6 +1957,10 @@ namespace Go
             bool beginQuit = _beginQuit;
             return delegate ()
             {
+                if (multiCb.callbacked())
+                {
+                    return;
+                }
                 strand.distribute(delegate ()
                 {
                     if (!multiCb.check())
@@ -1849,6 +1977,10 @@ namespace Go
             bool beginQuit = _beginQuit;
             return delegate (T1 p1)
             {
+                if (multiCb.callbacked())
+                {
+                    return;
+                }
                 strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
@@ -1866,6 +1998,10 @@ namespace Go
             bool beginQuit = _beginQuit;
             return delegate (T1 p1, T2 p2)
             {
+                if (multiCb.callbacked())
+                {
+                    return;
+                }
                 strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
@@ -1884,6 +2020,10 @@ namespace Go
             bool beginQuit = _beginQuit;
             return delegate (T1 p1, T2 p2, T3 p3)
             {
+                if (multiCb.callbacked())
+                {
+                    return;
+                }
                 strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
@@ -1929,6 +2069,10 @@ namespace Go
             });
             return delegate ()
             {
+                if (multiCb.callbacked())
+                {
+                    return;
+                }
                 strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
@@ -1957,6 +2101,10 @@ namespace Go
             });
             return delegate (T1 p1)
             {
+                if (multiCb.callbacked())
+                {
+                    return;
+                }
                 strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
@@ -1986,6 +2134,10 @@ namespace Go
             });
             return delegate (T1 p1, T2 p2)
             {
+                if (multiCb.callbacked())
+                {
+                    return;
+                }
                 strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
@@ -2016,6 +2168,10 @@ namespace Go
             });
             return delegate (T1 p1, T2 p2, T3 p3)
             {
+                if (multiCb.callbacked())
+                {
+                    return;
+                }
                 strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
@@ -2044,6 +2200,10 @@ namespace Go
             });
             return delegate ()
             {
+                if (multiCb.callbacked())
+                {
+                    return;
+                }
                 strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
@@ -2069,6 +2229,10 @@ namespace Go
             });
             return delegate (T1 p1)
             {
+                if (multiCb.callbacked())
+                {
+                    return;
+                }
                 strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
@@ -2095,6 +2259,10 @@ namespace Go
             });
             return delegate (T1 p1, T2 p2)
             {
+                if (multiCb.callbacked())
+                {
+                    return;
+                }
                 strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
@@ -2122,6 +2290,10 @@ namespace Go
             });
             return delegate (T1 p1, T2 p2, T3 p3)
             {
+                if (multiCb.callbacked())
+                {
+                    return;
+                }
                 strand.distribute(delegate ()
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
@@ -5776,9 +5948,11 @@ namespace Go
 #endif
                 if (0 != _children.Count)
                 {
+                    msg_buff<tuple<child, LinkedListNode<functional.func>>> waitRemove = new msg_buff<tuple<child, LinkedListNode<functional.func>>>(_parent.strand);
                     async_result_wrap<child> res = new async_result_wrap<child>();
                     functional.func<child> ntf = _parent.safe_async_result(res);
-                    bool canWait = false;
+                    functional.func<tuple<child, LinkedListNode<functional.func>>> removeNtf = waitRemove.wrap();
+                    int count = 0;
                     for (LinkedListNode<child> it = _children.First; null != it; it = it.Next)
                     {
                         child ele = it.Value;
@@ -5786,10 +5960,10 @@ namespace Go
                         {
                             continue;
                         }
-                        canWait = true;
-                        ele.append_stop_callback(() => ntf(ele));
+                        count++;
+                        ele.append_stop_callback(() => ntf(ele), (LinkedListNode<functional.func> node) => removeNtf(tuple.make(ele, node)));
                     }
-                    if (canWait)
+                    if (0 != count)
                     {
                         await _parent.async_wait();
                         if (null != res.value_1.node)
@@ -5797,6 +5971,14 @@ namespace Go
                             _children.Remove(res.value_1.node);
                             res.value_1.node = null;
                             check_remove_node();
+                        }
+                        while (0 != count--)
+                        {
+                            tuple<child, LinkedListNode<functional.func>> node = (await chan_pop(waitRemove)).result;
+                            if (null != node.value2)
+                            {
+                                node.value1.remove_stop_callback(node.value2);
+                            }
                         }
                         return res.value_1;
                     }
@@ -5811,9 +5993,11 @@ namespace Go
 #endif
                 if (0 != _children.Count)
                 {
+                    msg_buff<tuple<child, LinkedListNode<functional.func>>> waitRemove = new msg_buff<tuple<child, LinkedListNode<functional.func>>>(_parent.strand);
                     async_result_wrap<child> res = new async_result_wrap<child>();
                     functional.func<child> ntf = _parent.timed_async_result(ms, res);
-                    bool canWait = false;
+                    functional.func<tuple<child, LinkedListNode<functional.func>>> removeNtf = waitRemove.wrap();
+                    int count = 0;
                     for (LinkedListNode<child> it = _children.First; null != it; it = it.Next)
                     {
                         child ele = it.Value;
@@ -5821,10 +6005,10 @@ namespace Go
                         {
                             continue;
                         }
-                        canWait = true;
-                        ele.append_stop_callback(() => ntf(ele));
+                        count++;
+                        ele.append_stop_callback(() => ntf(ele), (LinkedListNode<functional.func> node) => removeNtf(tuple.make(ele, node)));
                     }
-                    if (canWait)
+                    if (0 != count)
                     {
                         await _parent.async_wait();
                         if (null != res.value_1 && null != res.value_1.node)
@@ -5832,6 +6016,14 @@ namespace Go
                             _children.Remove(res.value_1.node);
                             res.value_1.node = null;
                             check_remove_node();
+                        }
+                        while (0 != count--)
+                        {
+                            tuple<child, LinkedListNode<functional.func>> node = (await chan_pop(waitRemove)).result;
+                            if (null != node.value2)
+                            {
+                                node.value1.remove_stop_callback(node.value2);
+                            }
                         }
                         return res.value_1;
                     }

@@ -46,7 +46,7 @@ namespace GoTest
         {
             while (true)
             {
-                long res = (await generator.csp_invoke(_csp, system_tick.get_tick_us())).result;
+                long res = await generator.csp_invoke(_csp, system_tick.get_tick_us());
                 Console.WriteLine("csp return {0}", res);
                 await generator.sleep(1000);
             }
@@ -54,9 +54,9 @@ namespace GoTest
 
         static async Task Consumer()
         {
-            Console.WriteLine("pop chan1 {0}", (await generator.chan_pop(_chan1)).result);
+            Console.WriteLine("pop chan1 {0}", await generator.chan_pop(_chan1));
             Console.WriteLine("push chan2 {0}", await generator.chan_push(_chan2, system_tick.get_tick_us()));
-            Console.WriteLine("pop chan3 {0}", (await generator.chan_pop(_chan3)).result);
+            Console.WriteLine("pop chan3 {0}", await generator.chan_pop(_chan3));
             while (true)
             {
                 await generator.select_chans_once(generator.case_read(_chan1, async delegate (long msg)
