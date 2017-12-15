@@ -28,7 +28,7 @@ namespace Go
 
     public class chan_notify_sign
     {
-        public LinkedListNode<functional.func<chan_async_state>> _ntfNode;
+        public LinkedListNode<Action<chan_async_state>> _ntfNode;
         public bool _selectOnce = false;
         public bool _disable = false;
     }
@@ -45,7 +45,7 @@ namespace Go
         public msg_buff<select_chan_base> nextSelect;
         public bool disabled() { return ntfSign._disable; }
         public abstract void begin();
-        public abstract Task<select_chan_state> invoke(functional.func_res<Task> stepOne = null);
+        public abstract Task<select_chan_state> invoke(Func<Task> stepOne = null);
         public abstract Task end();
         public abstract bool is_read();
         public abstract channel_base channel();
@@ -54,52 +54,52 @@ namespace Go
     public abstract class channel_base
     {
         public abstract chan_type type();
-        public abstract void clear(functional.same_func ntf);
-        public abstract void close(functional.same_func ntf, bool isClear = false);
-        public abstract void cancel(functional.same_func ntf, bool isClear = false);
+        public abstract void clear(SameAction ntf);
+        public abstract void close(SameAction ntf, bool isClear = false);
+        public abstract void cancel(SameAction ntf, bool isClear = false);
         public abstract shared_strand self_strand();
         public abstract bool is_closed();
         public void clear() { clear(functional.any_handler); }
         public void close(bool isClear = false) { close(functional.any_handler, isClear); }
         public void cancel(bool isClear = false) { cancel(functional.any_handler, isClear); }
 
-        static protected void safe_callback(ref LinkedList<functional.func<chan_async_state>> callback, chan_async_state state)
+        static protected void safe_callback(ref LinkedList<Action<chan_async_state>> callback, chan_async_state state)
         {
             if (0 != callback.Count)
             {
-                LinkedList<functional.func<chan_async_state>> tempCb = callback;
-                callback = new LinkedList<functional.func<chan_async_state>>();
-                for (LinkedListNode<functional.func<chan_async_state>> it = tempCb.First; null != it; it = it.Next)
+                LinkedList<Action<chan_async_state>> tempCb = callback;
+                callback = new LinkedList<Action<chan_async_state>>();
+                for (LinkedListNode<Action<chan_async_state>> it = tempCb.First; null != it; it = it.Next)
                 {
                     it.Value.Invoke(state);
                 }
             }
         }
 
-        static protected void safe_callback(ref LinkedList<functional.func<chan_async_state>> callback1, ref LinkedList<functional.func<chan_async_state>> callback2, chan_async_state state)
+        static protected void safe_callback(ref LinkedList<Action<chan_async_state>> callback1, ref LinkedList<Action<chan_async_state>> callback2, chan_async_state state)
         {
-            LinkedList<functional.func<chan_async_state>> tempCb1 = null;
-            LinkedList<functional.func<chan_async_state>> tempCb2 = null;
+            LinkedList<Action<chan_async_state>> tempCb1 = null;
+            LinkedList<Action<chan_async_state>> tempCb2 = null;
             if (0 != callback1.Count)
             {
                 tempCb1 = callback1;
-                callback1 = new LinkedList<functional.func<chan_async_state>>();
+                callback1 = new LinkedList<Action<chan_async_state>>();
             }
             if (0 != callback2.Count)
             {
                 tempCb2 = callback2;
-                callback2 = new LinkedList<functional.func<chan_async_state>>();
+                callback2 = new LinkedList<Action<chan_async_state>>();
             }
             if (null != tempCb1)
             {
-                for (LinkedListNode<functional.func<chan_async_state>> it = tempCb1.First; null != it; it = it.Next)
+                for (LinkedListNode<Action<chan_async_state>> it = tempCb1.First; null != it; it = it.Next)
                 {
                     it.Value.Invoke(state);
                 }
             }
             if (null != tempCb2)
             {
-                for (LinkedListNode<functional.func<chan_async_state>> it = tempCb2.First; null != it; it = it.Next)
+                for (LinkedListNode<Action<chan_async_state>> it = tempCb2.First; null != it; it = it.Next)
                 {
                     it.Value.Invoke(state);
                 }
@@ -113,8 +113,8 @@ namespace Go
         {
             public broadcast_chan_token _token = broadcast_chan_token._defToken;
             public channel<T> _chan;
-            public functional.func_res<Task, T> _handler;
-            public functional.func_res<Task<bool>, chan_async_state> _errHandler;
+            public Func<T, Task> _handler;
+            public Func<chan_async_state, Task<bool>> _errHandler;
 
             public override void begin()
             {
@@ -125,7 +125,7 @@ namespace Go
                 }, ntfSign);
             }
 
-            public override async Task<select_chan_state> invoke(functional.func_res<Task> stepOne)
+            public override async Task<select_chan_state> invoke(Func<Task> stepOne)
             {
                 generator self = generator.self;
                 chan_pop_wrap<T> result = default(chan_pop_wrap<T>);
@@ -195,9 +195,9 @@ namespace Go
         internal class select_chan_writer : select_chan_base
         {
             public channel<T> _chan;
-            public functional.func_res<T> _msg;
-            public functional.func_res<Task> _handler;
-            public functional.func_res<Task<bool>, chan_async_state> _errHandler;
+            public Func<T> _msg;
+            public Func<Task> _handler;
+            public Func<chan_async_state, Task<bool>> _errHandler;
 
             public override void begin()
             {
@@ -208,7 +208,7 @@ namespace Go
                 }, ntfSign);
             }
 
-            public override async Task<select_chan_state> invoke(functional.func_res<Task> stepOne)
+            public override async Task<select_chan_state> invoke(Func<Task> stepOne)
             {
                 generator self = generator.self;
                 chan_async_state result = chan_async_state.async_undefined;
@@ -271,18 +271,18 @@ namespace Go
             }
         }
 
-        public abstract void push(functional.same_func ntf, T msg);
-        public abstract void pop(functional.same_func ntf);
-        public abstract void try_push(functional.same_func ntf, T msg);
-        public abstract void try_pop(functional.same_func ntf);
-        public abstract void timed_push(int ms, functional.same_func ntf, T msg);
-        public abstract void timed_pop(int ms, functional.same_func ntf);
-        public abstract void append_pop_notify(functional.same_func ntf, chan_notify_sign ntfSign);
-        public abstract void try_pop_and_append_notify(functional.same_func cb, functional.same_func msgNtf, chan_notify_sign ntfSign);
-        public abstract void remove_pop_notify(functional.same_func ntf, chan_notify_sign ntfSign);
-        public abstract void append_push_notify(functional.same_func ntf, chan_notify_sign ntfSign);
-        public abstract void try_push_and_append_notify(functional.same_func cb, functional.same_func msgNtf, chan_notify_sign ntfSign, T msg);
-        public abstract void remove_push_notify(functional.same_func ntf, chan_notify_sign ntfSign);
+        public abstract void push(SameAction ntf, T msg);
+        public abstract void pop(SameAction ntf);
+        public abstract void try_push(SameAction ntf, T msg);
+        public abstract void try_pop(SameAction ntf);
+        public abstract void timed_push(int ms, SameAction ntf, T msg);
+        public abstract void timed_pop(int ms, SameAction ntf);
+        public abstract void append_pop_notify(SameAction ntf, chan_notify_sign ntfSign);
+        public abstract void try_pop_and_append_notify(SameAction cb, SameAction msgNtf, chan_notify_sign ntfSign);
+        public abstract void remove_pop_notify(SameAction ntf, chan_notify_sign ntfSign);
+        public abstract void append_push_notify(SameAction ntf, chan_notify_sign ntfSign);
+        public abstract void try_push_and_append_notify(SameAction cb, SameAction msgNtf, chan_notify_sign ntfSign, T msg);
+        public abstract void remove_push_notify(SameAction ntf, chan_notify_sign ntfSign);
 
         static public channel<T> make(shared_strand strand, int len)
         {
@@ -318,47 +318,47 @@ namespace Go
             timed_push(ms, functional.any_handler, msg);
         }
 
-        public functional.func<T> wrap()
+        public Action<T> wrap()
         {
             return (T p) => post(p);
         }
 
-        public functional.func<T> wrap_try()
+        public Action<T> wrap_try()
         {
             return (T p) => try_post(p);
         }
 
-        public functional.func<int, T> wrap_timed()
+        public Action<int, T> wrap_timed()
         {
             return (int ms, T p) => timed_post(ms, p);
         }
 
-        public functional.func<T> wrap_timed(int ms)
+        public Action<T> wrap_timed(int ms)
         {
             return (T p) => timed_post(ms, p);
         }
 
-        public functional.func wrap_default()
+        public Action wrap_default()
         {
             return () => post(default(T));
         }
 
-        public functional.func wrap_try_default()
+        public Action wrap_try_default()
         {
             return () => try_post(default(T));
         }
 
-        public functional.func<int> wrap_timed_default()
+        public Action<int> wrap_timed_default()
         {
             return (int ms) => timed_post(ms, default(T));
         }
 
-        public functional.func wrap_timed_default(int ms)
+        public Action wrap_timed_default(int ms)
         {
             return () => timed_post(ms, default(T));
         }
 
-        public select_chan_base make_select_reader(functional.func_res<Task, T> handler)
+        public select_chan_base make_select_reader(Func<T, Task> handler)
         {
             select_chan_reader sel = new select_chan_reader();
             sel._chan = this;
@@ -366,7 +366,7 @@ namespace Go
             return sel;
         }
 
-        public select_chan_base make_select_reader(functional.func_res<Task, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler)
+        public select_chan_base make_select_reader(Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler)
         {
             select_chan_reader sel = new select_chan_reader();
             sel._chan = this;
@@ -375,7 +375,7 @@ namespace Go
             return sel;
         }
 
-        public select_chan_base make_select_writer(functional.func_res<T> msg, functional.func_res<Task> handler)
+        public select_chan_base make_select_writer(Func<T> msg, Func<Task> handler)
         {
             select_chan_writer sel = new select_chan_writer();
             sel._chan = this;
@@ -384,7 +384,7 @@ namespace Go
             return sel;
         }
 
-        public select_chan_base make_select_writer(functional.func_res<T> msg, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler)
+        public select_chan_base make_select_writer(Func<T> msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler)
         {
             select_chan_writer sel = new select_chan_writer();
             sel._chan = this;
@@ -394,57 +394,57 @@ namespace Go
             return sel;
         }
 
-        public select_chan_base make_select_writer(async_result_wrap<T> msg, functional.func_res<Task> handler)
+        public select_chan_base make_select_writer(async_result_wrap<T> msg, Func<Task> handler)
         {
             return make_select_writer(() => msg.value_1, handler);
         }
 
-        public select_chan_base make_select_writer(async_result_wrap<T> msg, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler)
+        public select_chan_base make_select_writer(async_result_wrap<T> msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler)
         {
             return make_select_writer(() => msg.value_1, handler, errHandler);
         }
 
-        public select_chan_base make_select_writer(T msg, functional.func_res<Task> handler)
+        public select_chan_base make_select_writer(T msg, Func<Task> handler)
         {
             return make_select_writer(() => msg, handler);
         }
 
-        public select_chan_base make_select_writer(T msg, functional.func_res<Task> handler, functional.func_res<Task<bool>, chan_async_state> errHandler)
+        public select_chan_base make_select_writer(T msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler)
         {
             return make_select_writer(() => msg, handler, errHandler);
         }
 
-        public virtual void pop(functional.same_func ntf, broadcast_chan_token token)
+        public virtual void pop(SameAction ntf, broadcast_chan_token token)
         {
             pop(ntf);
         }
 
-        public virtual void try_pop(functional.same_func ntf, broadcast_chan_token token)
+        public virtual void try_pop(SameAction ntf, broadcast_chan_token token)
         {
             try_pop(ntf);
         }
 
-        public virtual void timed_pop(int ms, functional.same_func ntf, broadcast_chan_token token)
+        public virtual void timed_pop(int ms, SameAction ntf, broadcast_chan_token token)
         {
             timed_pop(ms, ntf);
         }
 
-        public virtual void append_pop_notify(functional.same_func ntf, chan_notify_sign ntfSign, broadcast_chan_token token)
+        public virtual void append_pop_notify(SameAction ntf, chan_notify_sign ntfSign, broadcast_chan_token token)
         {
             append_pop_notify(ntf, ntfSign);
         }
 
-        public virtual void try_pop_and_append_notify(functional.same_func cb, functional.same_func msgNtf, chan_notify_sign ntfSign, broadcast_chan_token token)
+        public virtual void try_pop_and_append_notify(SameAction cb, SameAction msgNtf, chan_notify_sign ntfSign, broadcast_chan_token token)
         {
             try_pop_and_append_notify(cb, msgNtf, ntfSign);
         }
 
-        public virtual select_chan_base make_select_reader(functional.func_res<Task, T> handler, broadcast_chan_token token)
+        public virtual select_chan_base make_select_reader(Func<T, Task> handler, broadcast_chan_token token)
         {
             return make_select_reader(handler);
         }
 
-        public virtual select_chan_base make_select_reader(functional.func_res<Task, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler, broadcast_chan_token token)
+        public virtual select_chan_base make_select_reader(Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler, broadcast_chan_token token)
         {
             return make_select_reader(handler, errHandler);
         }
@@ -539,7 +539,7 @@ namespace Go
     {
         shared_strand _strand;
         MsgQueue_<T> _buffer;
-        LinkedList<functional.func<chan_async_state>> _waitQueue;
+        LinkedList<Action<chan_async_state>> _waitQueue;
         bool _closed;
 
         public msg_buff(shared_strand strand)
@@ -558,7 +558,7 @@ namespace Go
             _strand = strand;
             _closed = false;
             _buffer = typeof(T) == typeof(void_type) ? (MsgQueue_<T>)new VoidMsgQueue_<T>() : new NoVoidMsgQueue_<T>();
-            _waitQueue = new LinkedList<functional.func<chan_async_state>>();
+            _waitQueue = new LinkedList<Action<chan_async_state>>();
         }
 
         public override chan_type type()
@@ -566,7 +566,7 @@ namespace Go
             return chan_type.nolimit;
         }
 
-        public override void push(functional.same_func ntf, T msg)
+        public override void push(SameAction ntf, T msg)
         {
             _strand.distribute(delegate ()
             {
@@ -578,7 +578,7 @@ namespace Go
                 _buffer.AddLast(msg);
                 if (0 != _waitQueue.Count)
                 {
-                    functional.func<chan_async_state> wtNtf = _waitQueue.First();
+                    Action<chan_async_state> wtNtf = _waitQueue.First();
                     _waitQueue.RemoveFirst();
                     wtNtf(chan_async_state.async_ok);
                 }
@@ -586,7 +586,7 @@ namespace Go
             });
         }
 
-        public override void pop(functional.same_func ntf)
+        public override void pop(SameAction ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -617,12 +617,12 @@ namespace Go
             });
         }
 
-        public override void try_push(functional.same_func ntf, T msg)
+        public override void try_push(SameAction ntf, T msg)
         {
             push(ntf, msg);
         }
 
-        public override void try_pop(functional.same_func ntf)
+        public override void try_pop(SameAction ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -643,12 +643,12 @@ namespace Go
             });
         }
 
-        public override void timed_push(int ms, functional.same_func ntf, T msg)
+        public override void timed_push(int ms, SameAction ntf, T msg)
         {
             push(ntf, msg);
         }
 
-        public override void timed_pop(int ms, functional.same_func ntf)
+        public override void timed_pop(int ms, SameAction ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -665,7 +665,7 @@ namespace Go
                 else if (ms > 0)
                 {
                     async_timer timer = new async_timer(_strand);
-                    LinkedListNode<functional.func<chan_async_state>> it = _waitQueue.AddLast(delegate (chan_async_state state)
+                    LinkedListNode<Action<chan_async_state>> it = _waitQueue.AddLast(delegate (chan_async_state state)
                     {
                         timer.cancel();
                         if (chan_async_state.async_ok == state)
@@ -679,7 +679,7 @@ namespace Go
                     });
                     timer.timeout(ms, delegate ()
                     {
-                        functional.func<chan_async_state> popNtf = it.Value;
+                        Action<chan_async_state> popNtf = it.Value;
                         _waitQueue.Remove(it);
                         popNtf(chan_async_state.async_overtime);
                     });
@@ -691,7 +691,7 @@ namespace Go
             });
         }
 
-        public override void append_pop_notify(functional.same_func ntf, chan_notify_sign ntfSign)
+        public override void append_pop_notify(SameAction ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -714,7 +714,7 @@ namespace Go
             });
         }
 
-        public override void try_pop_and_append_notify(functional.same_func cb, functional.same_func msgNtf, chan_notify_sign ntfSign)
+        public override void try_pop_and_append_notify(SameAction cb, SameAction msgNtf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -741,7 +741,7 @@ namespace Go
             });
         }
 
-        public override void remove_pop_notify(functional.same_func ntf, chan_notify_sign ntfSign)
+        public override void remove_pop_notify(SameAction ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -753,7 +753,7 @@ namespace Go
                 }
                 if (0 != _buffer.Count && 0 != _waitQueue.Count)
                 {
-                    functional.func<chan_async_state> wtNtf = _waitQueue.First();
+                    Action<chan_async_state> wtNtf = _waitQueue.First();
                     _waitQueue.RemoveFirst();
                     wtNtf(chan_async_state.async_ok);
                 }
@@ -761,7 +761,7 @@ namespace Go
             });
         }
 
-        public override void append_push_notify(functional.same_func ntf, chan_notify_sign ntfSign)
+        public override void append_push_notify(SameAction ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -774,7 +774,7 @@ namespace Go
             });
         }
 
-        public override void try_push_and_append_notify(functional.same_func cb, functional.same_func msgNtf, chan_notify_sign ntfSign, T msg)
+        public override void try_push_and_append_notify(SameAction cb, SameAction msgNtf, chan_notify_sign ntfSign, T msg)
         {
             _strand.distribute(delegate ()
             {
@@ -797,7 +797,7 @@ namespace Go
             });
         }
 
-        public override void remove_push_notify(functional.same_func ntf, chan_notify_sign ntfSign)
+        public override void remove_push_notify(SameAction ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -805,7 +805,7 @@ namespace Go
             });
         }
 
-        public override void clear(functional.same_func ntf)
+        public override void clear(SameAction ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -814,7 +814,7 @@ namespace Go
             });
         }
 
-        public override void close(functional.same_func ntf, bool isClear = false)
+        public override void close(SameAction ntf, bool isClear = false)
         {
             _strand.distribute(delegate ()
             {
@@ -828,7 +828,7 @@ namespace Go
             });
         }
 
-        public override void cancel(functional.same_func ntf, bool isClear = false)
+        public override void cancel(SameAction ntf, bool isClear = false)
         {
             _strand.distribute(delegate ()
             {
@@ -856,8 +856,8 @@ namespace Go
     {
         shared_strand _strand;
         MsgQueue_<T> _buffer;
-        LinkedList<functional.func<chan_async_state>> _pushWait;
-        LinkedList<functional.func<chan_async_state>> _popWait;
+        LinkedList<Action<chan_async_state>> _pushWait;
+        LinkedList<Action<chan_async_state>> _popWait;
         int _length;
         bool _closed;
 
@@ -876,8 +876,8 @@ namespace Go
         {
             _strand = strand;
             _buffer = typeof(T) == typeof(void_type) ? (MsgQueue_<T>)new VoidMsgQueue_<T>() : new NoVoidMsgQueue_<T>();
-            _pushWait = new LinkedList<functional.func<chan_async_state>>();
-            _popWait = new LinkedList<functional.func<chan_async_state>>();
+            _pushWait = new LinkedList<Action<chan_async_state>>();
+            _popWait = new LinkedList<Action<chan_async_state>>();
             _length = len;
             _closed = false;
         }
@@ -887,7 +887,7 @@ namespace Go
             return chan_type.limit;
         }
 
-        public override void push(functional.same_func ntf, T msg)
+        public override void push(SameAction ntf, T msg)
         {
             _strand.distribute(delegate ()
             {
@@ -915,7 +915,7 @@ namespace Go
                     _buffer.AddLast(msg);
                     if (0 != _popWait.Count)
                     {
-                        functional.func<chan_async_state> popNtf = _popWait.First.Value;
+                        Action<chan_async_state> popNtf = _popWait.First.Value;
                         _popWait.RemoveFirst();
                         popNtf(chan_async_state.async_ok);
                     }
@@ -924,7 +924,7 @@ namespace Go
             });
         }
 
-        public void force_push(functional.same_func ntf, T msg)
+        public void force_push(SameAction ntf, T msg)
         {
             _strand.distribute(delegate ()
             {
@@ -944,7 +944,7 @@ namespace Go
                 _buffer.AddLast(msg);
                 if (0 != _popWait.Count)
                 {
-                    functional.func<chan_async_state> popNtf = _popWait.First.Value;
+                    Action<chan_async_state> popNtf = _popWait.First.Value;
                     _popWait.RemoveFirst();
                     popNtf(chan_async_state.async_ok);
                 }
@@ -959,7 +959,7 @@ namespace Go
             });
         }
 
-        public override void pop(functional.same_func ntf)
+        public override void pop(SameAction ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -969,7 +969,7 @@ namespace Go
                     _buffer.RemoveFirst();
                     if (0 != _pushWait.Count)
                     {
-                        functional.func<chan_async_state> pushNtf = _pushWait.First.Value;
+                        Action<chan_async_state> pushNtf = _pushWait.First.Value;
                         _pushWait.RemoveFirst();
                         pushNtf(chan_async_state.async_ok);
                     }
@@ -996,7 +996,7 @@ namespace Go
             });
         }
 
-        public override void try_push(functional.same_func ntf, T msg)
+        public override void try_push(SameAction ntf, T msg)
         {
             _strand.distribute(delegate ()
             {
@@ -1014,7 +1014,7 @@ namespace Go
                     _buffer.AddLast(msg);
                     if (0 != _popWait.Count)
                     {
-                        functional.func<chan_async_state> popNtf = _popWait.First.Value;
+                        Action<chan_async_state> popNtf = _popWait.First.Value;
                         _popWait.RemoveFirst();
                         popNtf(chan_async_state.async_ok);
                     }
@@ -1023,7 +1023,7 @@ namespace Go
             });
         }
 
-        public override void try_pop(functional.same_func ntf)
+        public override void try_pop(SameAction ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -1033,7 +1033,7 @@ namespace Go
                     _buffer.RemoveFirst();
                     if (0 != _pushWait.Count)
                     {
-                        functional.func<chan_async_state> pushNtf = _pushWait.First.Value;
+                        Action<chan_async_state> pushNtf = _pushWait.First.Value;
                         _pushWait.RemoveFirst();
                         pushNtf(chan_async_state.async_ok);
                     }
@@ -1050,7 +1050,7 @@ namespace Go
             });
         }
 
-        public override void timed_push(int ms, functional.same_func ntf, T msg)
+        public override void timed_push(int ms, SameAction ntf, T msg)
         {
             _strand.distribute(delegate ()
             {
@@ -1059,7 +1059,7 @@ namespace Go
                     if (ms > 0)
                     {
                         async_timer timer = new async_timer(_strand);
-                        LinkedListNode<functional.func<chan_async_state>> it = _pushWait.AddLast(delegate (chan_async_state state)
+                        LinkedListNode<Action<chan_async_state>> it = _pushWait.AddLast(delegate (chan_async_state state)
                         {
                             timer.cancel();
                             if (chan_async_state.async_ok == state)
@@ -1073,7 +1073,7 @@ namespace Go
                         });
                         timer.timeout(ms, delegate ()
                         {
-                            functional.func<chan_async_state> pushWait = it.Value;
+                            Action<chan_async_state> pushWait = it.Value;
                             _pushWait.Remove(it);
                             pushWait(chan_async_state.async_overtime);
                         });
@@ -1088,7 +1088,7 @@ namespace Go
                     _buffer.AddLast(msg);
                     if (0 != _popWait.Count)
                     {
-                        functional.func<chan_async_state> popNtf = _popWait.First.Value;
+                        Action<chan_async_state> popNtf = _popWait.First.Value;
                         _popWait.RemoveFirst();
                         popNtf(chan_async_state.async_ok);
                     }
@@ -1097,7 +1097,7 @@ namespace Go
             });
         }
 
-        public override void timed_pop(int ms, functional.same_func ntf)
+        public override void timed_pop(int ms, SameAction ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -1107,7 +1107,7 @@ namespace Go
                     _buffer.RemoveFirst();
                     if (0 != _pushWait.Count)
                     {
-                        functional.func<chan_async_state> pushNtf = _pushWait.First.Value;
+                        Action<chan_async_state> pushNtf = _pushWait.First.Value;
                         _pushWait.RemoveFirst();
                         pushNtf(chan_async_state.async_ok);
                     }
@@ -1120,7 +1120,7 @@ namespace Go
                 else if (ms > 0)
                 {
                     async_timer timer = new async_timer(_strand);
-                    LinkedListNode<functional.func<chan_async_state>> it = _popWait.AddLast(delegate (chan_async_state state)
+                    LinkedListNode<Action<chan_async_state>> it = _popWait.AddLast(delegate (chan_async_state state)
                     {
                         timer.cancel();
                         if (chan_async_state.async_ok == state)
@@ -1134,7 +1134,7 @@ namespace Go
                     });
                     timer.timeout(ms, delegate ()
                     {
-                        functional.func<chan_async_state> popNtf = it.Value;
+                        Action<chan_async_state> popNtf = it.Value;
                         _popWait.Remove(it);
                         popNtf(chan_async_state.async_overtime);
                     });
@@ -1146,7 +1146,7 @@ namespace Go
             });
         }
 
-        public override void append_pop_notify(functional.same_func ntf, chan_notify_sign ntfSign)
+        public override void append_pop_notify(SameAction ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -1169,7 +1169,7 @@ namespace Go
             });
         }
 
-        public override void try_pop_and_append_notify(functional.same_func cb, functional.same_func msgNtf, chan_notify_sign ntfSign)
+        public override void try_pop_and_append_notify(SameAction cb, SameAction msgNtf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -1179,7 +1179,7 @@ namespace Go
                     _buffer.RemoveFirst();
                     if (0 != _pushWait.Count)
                     {
-                        functional.func<chan_async_state> pushNtf = _pushWait.First.Value;
+                        Action<chan_async_state> pushNtf = _pushWait.First.Value;
                         _pushWait.RemoveFirst();
                         pushNtf(chan_async_state.async_ok);
                     }
@@ -1201,7 +1201,7 @@ namespace Go
                 }
             });
         }
-        public override void remove_pop_notify(functional.same_func ntf, chan_notify_sign ntfSign)
+        public override void remove_pop_notify(SameAction ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -1213,7 +1213,7 @@ namespace Go
                 }
                 if (0 != _buffer.Count && 0 != _popWait.Count)
                 {
-                    functional.func<chan_async_state> popNtf = _popWait.First();
+                    Action<chan_async_state> popNtf = _popWait.First();
                     _popWait.RemoveFirst();
                     popNtf(chan_async_state.async_ok);
                 }
@@ -1221,7 +1221,7 @@ namespace Go
             });
         }
 
-        public override void append_push_notify(functional.same_func ntf, chan_notify_sign ntfSign)
+        public override void append_push_notify(SameAction ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -1245,7 +1245,7 @@ namespace Go
             });
         }
 
-        public override void try_push_and_append_notify(functional.same_func cb, functional.same_func msgNtf, chan_notify_sign ntfSign, T msg)
+        public override void try_push_and_append_notify(SameAction cb, SameAction msgNtf, chan_notify_sign ntfSign, T msg)
         {
             _strand.distribute(delegate ()
             {
@@ -1260,7 +1260,7 @@ namespace Go
                     _buffer.AddLast(msg);
                     if (0 != _popWait.Count)
                     {
-                        functional.func<chan_async_state> popNtf = _popWait.First.Value;
+                        Action<chan_async_state> popNtf = _popWait.First.Value;
                         _popWait.RemoveFirst();
                         popNtf(chan_async_state.async_ok);
                     }
@@ -1278,7 +1278,7 @@ namespace Go
             });
         }
 
-        public override void remove_push_notify(functional.same_func ntf, chan_notify_sign ntfSign)
+        public override void remove_push_notify(SameAction ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -1290,7 +1290,7 @@ namespace Go
                 }
                 if (_buffer.Count != _length && 0 != _pushWait.Count)
                 {
-                    functional.func<chan_async_state> pushNtf = _pushWait.First.Value;
+                    Action<chan_async_state> pushNtf = _pushWait.First.Value;
                     _pushWait.RemoveFirst();
                     pushNtf(chan_async_state.async_ok);
                 }
@@ -1298,7 +1298,7 @@ namespace Go
             });
         }
 
-        public override void clear(functional.same_func ntf)
+        public override void clear(SameAction ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -1308,7 +1308,7 @@ namespace Go
             });
         }
 
-        public override void close(functional.same_func ntf, bool isClear = false)
+        public override void close(SameAction ntf, bool isClear = false)
         {
             _strand.distribute(delegate ()
             {
@@ -1322,7 +1322,7 @@ namespace Go
             });
         }
 
-        public override void cancel(functional.same_func ntf, bool isClear = false)
+        public override void cancel(SameAction ntf, bool isClear = false)
         {
             _strand.distribute(delegate ()
             {
@@ -1349,8 +1349,8 @@ namespace Go
     public class nil_chan<T> : channel<T>
     {
         shared_strand _strand;
-        LinkedList<functional.func<chan_async_state>> _pushWait;
-        LinkedList<functional.func<chan_async_state>> _popWait;
+        LinkedList<Action<chan_async_state>> _pushWait;
+        LinkedList<Action<chan_async_state>> _popWait;
         T _msg;
         bool _has;
         bool _msgIsTryPush;
@@ -1370,8 +1370,8 @@ namespace Go
         private void init(shared_strand strand)
         {
             _strand = strand;
-            _pushWait = new LinkedList<functional.func<chan_async_state>>();
-            _popWait = new LinkedList<functional.func<chan_async_state>>();
+            _pushWait = new LinkedList<Action<chan_async_state>>();
+            _popWait = new LinkedList<Action<chan_async_state>>();
             _has = false;
             _msgIsTryPush = false;
             _closed = false;
@@ -1382,7 +1382,7 @@ namespace Go
             return chan_type.nil;
         }
 
-        public override void push(functional.same_func ntf, T msg)
+        public override void push(SameAction ntf, T msg)
         {
             _strand.distribute(delegate ()
             {
@@ -1414,7 +1414,7 @@ namespace Go
                     {
                         if (chan_async_state.async_closed != state && chan_async_state.async_cancel != state && 0 != _pushWait.Count)
                         {
-                            functional.func<chan_async_state> pushNtf = _pushWait.First.Value;
+                            Action<chan_async_state> pushNtf = _pushWait.First.Value;
                             _pushWait.RemoveFirst();
                             pushNtf(chan_async_state.async_ok);
                         }
@@ -1422,7 +1422,7 @@ namespace Go
                     });
                     if (0 != _popWait.Count)
                     {
-                        functional.func<chan_async_state> popNtf = _popWait.First.Value;
+                        Action<chan_async_state> popNtf = _popWait.First.Value;
                         _popWait.RemoveFirst();
                         popNtf(chan_async_state.async_ok);
                     }
@@ -1430,7 +1430,7 @@ namespace Go
             });
         }
 
-        public override void pop(functional.same_func ntf)
+        public override void pop(SameAction ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -1438,7 +1438,7 @@ namespace Go
                 {
                     T msg = _msg;
                     _has = false;
-                    functional.func<chan_async_state> pushNtf = _pushWait.First.Value;
+                    Action<chan_async_state> pushNtf = _pushWait.First.Value;
                     _pushWait.RemoveFirst();
                     pushNtf(chan_async_state.async_ok);
                     ntf(chan_async_state.async_ok, msg);
@@ -1462,7 +1462,7 @@ namespace Go
                     });
                     if (0 != _pushWait.Count)
                     {
-                        functional.func<chan_async_state> pushNtf = _pushWait.First.Value;
+                        Action<chan_async_state> pushNtf = _pushWait.First.Value;
                         _pushWait.RemoveFirst();
                         pushNtf(chan_async_state.async_ok);
                     }
@@ -1470,7 +1470,7 @@ namespace Go
             });
         }
 
-        public override void try_push(functional.same_func ntf, T msg)
+        public override void try_push(SameAction ntf, T msg)
         {
             _strand.distribute(delegate ()
             {
@@ -1494,13 +1494,13 @@ namespace Go
                         {
                             if (chan_async_state.async_closed != state && chan_async_state.async_cancel != state && 0 != _pushWait.Count)
                             {
-                                functional.func<chan_async_state> pushNtf = _pushWait.First.Value;
+                                Action<chan_async_state> pushNtf = _pushWait.First.Value;
                                 _pushWait.RemoveFirst();
                                 pushNtf(chan_async_state.async_ok);
                             }
                             ntf(state);
                         });
-                        functional.func<chan_async_state> popNtf = _popWait.First.Value;
+                        Action<chan_async_state> popNtf = _popWait.First.Value;
                         _popWait.RemoveFirst();
                         popNtf(chan_async_state.async_ok);
                     }
@@ -1512,7 +1512,7 @@ namespace Go
             });
         }
 
-        public override void try_pop(functional.same_func ntf)
+        public override void try_pop(SameAction ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -1520,7 +1520,7 @@ namespace Go
                 {
                     T msg = _msg;
                     _has = false;
-                    functional.func<chan_async_state> pushNtf = _pushWait.First.Value;
+                    Action<chan_async_state> pushNtf = _pushWait.First.Value;
                     _pushWait.RemoveFirst();
                     pushNtf(chan_async_state.async_ok);
                     ntf(chan_async_state.async_ok, msg);
@@ -1536,7 +1536,7 @@ namespace Go
             });
         }
 
-        public override void timed_push(int ms, functional.same_func ntf, T msg)
+        public override void timed_push(int ms, SameAction ntf, T msg)
         {
             _strand.distribute(delegate ()
             {
@@ -1550,7 +1550,7 @@ namespace Go
                     if (ms > 0)
                     {
                         async_timer timer = new async_timer(_strand);
-                        LinkedListNode<functional.func<chan_async_state>> it = _pushWait.AddLast(delegate (chan_async_state state)
+                        LinkedListNode<Action<chan_async_state>> it = _pushWait.AddLast(delegate (chan_async_state state)
                         {
                             timer.cancel();
                             if (chan_async_state.async_ok == state)
@@ -1564,7 +1564,7 @@ namespace Go
                         });
                         timer.timeout(ms, delegate ()
                         {
-                            functional.func<chan_async_state> pushWait = it.Value;
+                            Action<chan_async_state> pushWait = it.Value;
                             _pushWait.Remove(it);
                             pushWait(chan_async_state.async_overtime);
                         });
@@ -1580,12 +1580,12 @@ namespace Go
                     _msg = msg;
                     _has = true;
                     async_timer timer = new async_timer(_strand);
-                    LinkedListNode<functional.func<chan_async_state>> it = _pushWait.AddLast(delegate (chan_async_state state)
+                    LinkedListNode<Action<chan_async_state>> it = _pushWait.AddLast(delegate (chan_async_state state)
                     {
                         timer.cancel();
                         if (chan_async_state.async_closed != state && chan_async_state.async_cancel != state && 0 != _pushWait.Count)
                         {
-                            functional.func<chan_async_state> pushNtf = _pushWait.First.Value;
+                            Action<chan_async_state> pushNtf = _pushWait.First.Value;
                             _pushWait.RemoveFirst();
                             pushNtf(chan_async_state.async_ok);
                         }
@@ -1593,13 +1593,13 @@ namespace Go
                     });
                     timer.timeout(ms, delegate ()
                     {
-                        functional.func<chan_async_state> pushWait = it.Value;
+                        Action<chan_async_state> pushWait = it.Value;
                         _pushWait.Remove(it);
                         pushWait(chan_async_state.async_overtime);
                     });
                     if (0 != _popWait.Count)
                     {
-                        functional.func<chan_async_state> popNtf = _popWait.First.Value;
+                        Action<chan_async_state> popNtf = _popWait.First.Value;
                         _popWait.RemoveFirst();
                         popNtf(chan_async_state.async_ok);
                     }
@@ -1607,7 +1607,7 @@ namespace Go
             });
         }
 
-        public override void timed_pop(int ms, functional.same_func ntf)
+        public override void timed_pop(int ms, SameAction ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -1615,7 +1615,7 @@ namespace Go
                 {
                     T msg = _msg;
                     _has = false;
-                    functional.func<chan_async_state> pushNtf = _pushWait.First.Value;
+                    Action<chan_async_state> pushNtf = _pushWait.First.Value;
                     _pushWait.RemoveFirst();
                     pushNtf(chan_async_state.async_ok);
                     ntf(chan_async_state.async_ok, msg);
@@ -1627,7 +1627,7 @@ namespace Go
                 else if (ms > 0)
                 {
                     async_timer timer = new async_timer(_strand);
-                    LinkedListNode<functional.func<chan_async_state>> it = _popWait.AddLast(delegate (chan_async_state state)
+                    LinkedListNode<Action<chan_async_state>> it = _popWait.AddLast(delegate (chan_async_state state)
                     {
                         timer.cancel();
                         if (chan_async_state.async_ok == state)
@@ -1641,13 +1641,13 @@ namespace Go
                     });
                     timer.timeout(ms, delegate ()
                     {
-                        functional.func<chan_async_state> popNtf = it.Value;
+                        Action<chan_async_state> popNtf = it.Value;
                         _popWait.Remove(it);
                         popNtf(chan_async_state.async_overtime);
                     });
                     if (0 != _pushWait.Count)
                     {
-                        functional.func<chan_async_state> pushNtf = _pushWait.First.Value;
+                        Action<chan_async_state> pushNtf = _pushWait.First.Value;
                         _pushWait.RemoveFirst();
                         pushNtf(chan_async_state.async_ok);
                     }
@@ -1659,7 +1659,7 @@ namespace Go
             });
         }
 
-        public override void append_pop_notify(functional.same_func ntf, chan_notify_sign ntfSign)
+        public override void append_pop_notify(SameAction ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -1680,7 +1680,7 @@ namespace Go
                     });
                     if (0 != _pushWait.Count)
                     {
-                        functional.func<chan_async_state> pushNtf = _pushWait.First.Value;
+                        Action<chan_async_state> pushNtf = _pushWait.First.Value;
                         _pushWait.RemoveFirst();
                         pushNtf(chan_async_state.async_ok);
                     }
@@ -1688,7 +1688,7 @@ namespace Go
             });
         }
 
-        public override void try_pop_and_append_notify(functional.same_func cb, functional.same_func msgNtf, chan_notify_sign ntfSign)
+        public override void try_pop_and_append_notify(SameAction cb, SameAction msgNtf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -1696,7 +1696,7 @@ namespace Go
                 {
                     T msg = _msg;
                     _has = false;
-                    functional.func<chan_async_state> pushNtf = _pushWait.First.Value;
+                    Action<chan_async_state> pushNtf = _pushWait.First.Value;
                     _pushWait.RemoveFirst();
                     pushNtf(chan_async_state.async_ok);
                     if (!ntfSign._selectOnce)
@@ -1718,7 +1718,7 @@ namespace Go
             });
         }
 
-        public override void remove_pop_notify(functional.same_func ntf, chan_notify_sign ntfSign)
+        public override void remove_pop_notify(SameAction ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -1732,14 +1732,14 @@ namespace Go
                 {
                     if (0 != _popWait.Count)
                     {
-                        functional.func<chan_async_state> popNtf = _popWait.First.Value;
+                        Action<chan_async_state> popNtf = _popWait.First.Value;
                         _popWait.RemoveFirst();
                         popNtf(chan_async_state.async_ok);
                     }
                     else if (_msgIsTryPush)
                     {
                         _has = false;
-                        functional.func<chan_async_state> pushNtf = _pushWait.First.Value;
+                        Action<chan_async_state> pushNtf = _pushWait.First.Value;
                         _pushWait.RemoveFirst();
                         pushNtf(chan_async_state.async_fail);
                     }
@@ -1748,7 +1748,7 @@ namespace Go
             });
         }
 
-        public override void append_push_notify(functional.same_func ntf, chan_notify_sign ntfSign)
+        public override void append_push_notify(SameAction ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -1772,7 +1772,7 @@ namespace Go
             });
         }
 
-        public override void try_push_and_append_notify(functional.same_func cb, functional.same_func msgNtf, chan_notify_sign ntfSign, T msg)
+        public override void try_push_and_append_notify(SameAction cb, SameAction msgNtf, chan_notify_sign ntfSign, T msg)
         {
             _strand.distribute(delegate ()
             {
@@ -1793,7 +1793,7 @@ namespace Go
                         {
                             if (chan_async_state.async_closed != state && chan_async_state.async_cancel != state && 0 != _pushWait.Count)
                             {
-                                functional.func<chan_async_state> pushNtf = _pushWait.First.Value;
+                                Action<chan_async_state> pushNtf = _pushWait.First.Value;
                                 _pushWait.RemoveFirst();
                                 pushNtf(chan_async_state.async_ok);
                             }
@@ -1803,7 +1803,7 @@ namespace Go
                             }
                             cb(state);
                         });
-                        functional.func<chan_async_state> popNtf = _popWait.First.Value;
+                        Action<chan_async_state> popNtf = _popWait.First.Value;
                         _popWait.RemoveFirst();
                         popNtf(chan_async_state.async_ok);
                         return;
@@ -1814,7 +1814,7 @@ namespace Go
             });
         }
 
-        public override void remove_push_notify(functional.same_func ntf, chan_notify_sign ntfSign)
+        public override void remove_push_notify(SameAction ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -1826,7 +1826,7 @@ namespace Go
                 }
                 if (!_has && 0 != _pushWait.Count)
                 {
-                    functional.func<chan_async_state> pushNtf = _pushWait.First.Value;
+                    Action<chan_async_state> pushNtf = _pushWait.First.Value;
                     _pushWait.RemoveFirst();
                     pushNtf(chan_async_state.async_ok);
                 }
@@ -1834,7 +1834,7 @@ namespace Go
             });
         }
 
-        public override void clear(functional.same_func ntf)
+        public override void clear(SameAction ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -1844,7 +1844,7 @@ namespace Go
             });
         }
 
-        public override void close(functional.same_func ntf, bool isClear = false)
+        public override void close(SameAction ntf, bool isClear = false)
         {
             _strand.distribute(delegate ()
             {
@@ -1855,7 +1855,7 @@ namespace Go
             });
         }
 
-        public override void cancel(functional.same_func ntf, bool isClear = false)
+        public override void cancel(SameAction ntf, bool isClear = false)
         {
             _strand.distribute(delegate ()
             {
@@ -1886,7 +1886,7 @@ namespace Go
             _lastId = -1;
         }
 
-	    public bool is_default()
+        public bool is_default()
         {
             return this == _defToken;
         }
@@ -1895,7 +1895,7 @@ namespace Go
     public class broadcast_chan<T> : channel<T>
     {
         shared_strand _strand;
-        LinkedList<functional.func<chan_async_state>> _popWait;
+        LinkedList<Action<chan_async_state>> _popWait;
         T _msg;
         bool _has;
         long _pushCount;
@@ -1915,13 +1915,13 @@ namespace Go
         private void init(shared_strand strand)
         {
             _strand = strand;
-            _popWait = new LinkedList<functional.func<chan_async_state>>();
+            _popWait = new LinkedList<Action<chan_async_state>>();
             _has = false;
             _pushCount = 0;
             _closed = false;
         }
 
-        public override select_chan_base make_select_reader(functional.func_res<Task, T> handler, broadcast_chan_token token)
+        public override select_chan_base make_select_reader(Func<T, Task> handler, broadcast_chan_token token)
         {
             select_chan_reader sel = new select_chan_reader();
             sel._token = token;
@@ -1935,7 +1935,7 @@ namespace Go
             return chan_type.broadcast;
         }
 
-        public override void push(functional.same_func ntf, T msg)
+        public override void push(SameAction ntf, T msg)
         {
             _strand.distribute(delegate ()
             {
@@ -1947,8 +1947,8 @@ namespace Go
                 _pushCount++;
                 _msg = msg;
                 _has = true;
-                LinkedList<functional.func<chan_async_state>> ntfs = _popWait;
-                _popWait = new LinkedList<functional.func<chan_async_state>>();
+                LinkedList<Action<chan_async_state>> ntfs = _popWait;
+                _popWait = new LinkedList<Action<chan_async_state>>();
                 while (0 != ntfs.Count)
                 {
                     ntfs.First()(chan_async_state.async_ok);
@@ -1958,12 +1958,12 @@ namespace Go
             });
         }
 
-        public override void pop(functional.same_func ntf)
+        public override void pop(SameAction ntf)
         {
             pop(ntf, broadcast_chan_token._defToken);
         }
 
-        public override void pop(functional.same_func ntf, broadcast_chan_token token)
+        public override void pop(SameAction ntf, broadcast_chan_token token)
         {
             _strand.distribute(delegate ()
             {
@@ -1996,17 +1996,17 @@ namespace Go
             });
         }
 
-        public override void try_push(functional.same_func ntf, T msg)
+        public override void try_push(SameAction ntf, T msg)
         {
             push(ntf, msg);
         }
 
-        public override void try_pop(functional.same_func ntf)
+        public override void try_pop(SameAction ntf)
         {
             try_pop(ntf, broadcast_chan_token._defToken);
         }
 
-        public override void try_pop(functional.same_func ntf, broadcast_chan_token token)
+        public override void try_pop(SameAction ntf, broadcast_chan_token token)
         {
             _strand.distribute(delegate ()
             {
@@ -2029,22 +2029,22 @@ namespace Go
             });
         }
 
-        public override void timed_push(int ms, functional.same_func ntf, T msg)
+        public override void timed_push(int ms, SameAction ntf, T msg)
         {
             push(ntf, msg);
         }
 
-        public override void timed_pop(int ms, functional.same_func ntf)
+        public override void timed_pop(int ms, SameAction ntf)
         {
             timed_pop(ms, ntf, broadcast_chan_token._defToken);
         }
 
-        public override void timed_pop(int ms, functional.same_func ntf, broadcast_chan_token token)
+        public override void timed_pop(int ms, SameAction ntf, broadcast_chan_token token)
         {
             _timed_check_pop(system_tick.get_tick_ms() + ms, ntf, token);
         }
 
-        void _timed_check_pop(long deadms, functional.same_func ntf, broadcast_chan_token token)
+        void _timed_check_pop(long deadms, SameAction ntf, broadcast_chan_token token)
         {
             _strand.distribute(delegate ()
             {
@@ -2063,7 +2063,7 @@ namespace Go
                 else
                 {
                     async_timer timer = new async_timer(_strand);
-                    LinkedListNode<functional.func<chan_async_state>> it = _popWait.AddLast(delegate (chan_async_state state)
+                    LinkedListNode<Action<chan_async_state>> it = _popWait.AddLast(delegate (chan_async_state state)
                     {
                         timer.cancel();
                         if (chan_async_state.async_ok == state)
@@ -2077,7 +2077,7 @@ namespace Go
                     });
                     timer.deadline(deadms, delegate ()
                     {
-                        functional.func<chan_async_state> popWait = it.Value;
+                        Action<chan_async_state> popWait = it.Value;
                         _popWait.Remove(it);
                         popWait(chan_async_state.async_overtime);
                     });
@@ -2085,12 +2085,12 @@ namespace Go
             });
         }
 
-        public override void append_pop_notify(functional.same_func ntf, chan_notify_sign ntfSign)
+        public override void append_pop_notify(SameAction ntf, chan_notify_sign ntfSign)
         {
             append_pop_notify(ntf, ntfSign, broadcast_chan_token._defToken);
         }
 
-        public override void append_pop_notify(functional.same_func ntf, chan_notify_sign ntfSign, broadcast_chan_token token)
+        public override void append_pop_notify(SameAction ntf, chan_notify_sign ntfSign, broadcast_chan_token token)
         {
             _strand.distribute(delegate ()
             {
@@ -2098,7 +2098,7 @@ namespace Go
             });
         }
 
-        bool _append_pop_notify(functional.same_func ntf, chan_notify_sign ntfSign, broadcast_chan_token token)
+        bool _append_pop_notify(SameAction ntf, chan_notify_sign ntfSign, broadcast_chan_token token)
         {
             if (_has && token._lastId != _pushCount)
             {
@@ -2124,12 +2124,12 @@ namespace Go
             }
         }
 
-        public override void try_pop_and_append_notify(functional.same_func cb, functional.same_func msgNtf, chan_notify_sign ntfSign)
+        public override void try_pop_and_append_notify(SameAction cb, SameAction msgNtf, chan_notify_sign ntfSign)
         {
             try_pop_and_append_notify(cb, msgNtf, ntfSign, broadcast_chan_token._defToken);
         }
 
-        public override void try_pop_and_append_notify(functional.same_func cb, functional.same_func msgNtf, chan_notify_sign ntfSign, broadcast_chan_token token)
+        public override void try_pop_and_append_notify(SameAction cb, SameAction msgNtf, chan_notify_sign ntfSign, broadcast_chan_token token)
         {
             _strand.distribute(delegate ()
             {
@@ -2149,7 +2149,7 @@ namespace Go
             });
         }
 
-        public override void remove_pop_notify(functional.same_func ntf, chan_notify_sign ntfSign)
+        public override void remove_pop_notify(SameAction ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -2163,7 +2163,7 @@ namespace Go
                 {
                     if (0 != _popWait.Count)
                     {
-                        functional.func<chan_async_state> popNtf = _popWait.First.Value;
+                        Action<chan_async_state> popNtf = _popWait.First.Value;
                         _popWait.RemoveFirst();
                         popNtf(chan_async_state.async_ok);
                     }
@@ -2172,7 +2172,7 @@ namespace Go
             });
         }
 
-        public override void append_push_notify(functional.same_func ntf, chan_notify_sign ntfSign)
+        public override void append_push_notify(SameAction ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -2185,7 +2185,7 @@ namespace Go
             });
         }
 
-        public override void try_push_and_append_notify(functional.same_func cb, functional.same_func msgNtf, chan_notify_sign ntfSign, T msg)
+        public override void try_push_and_append_notify(SameAction cb, SameAction msgNtf, chan_notify_sign ntfSign, T msg)
         {
             _strand.distribute(delegate ()
             {
@@ -2203,7 +2203,7 @@ namespace Go
             });
         }
 
-        public override void remove_push_notify(functional.same_func ntf, chan_notify_sign ntfSign)
+        public override void remove_push_notify(SameAction ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -2211,7 +2211,7 @@ namespace Go
             });
         }
 
-        public override void clear(functional.same_func ntf)
+        public override void clear(SameAction ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -2220,7 +2220,7 @@ namespace Go
             });
         }
 
-        public override void close(functional.same_func ntf, bool isClear = false)
+        public override void close(SameAction ntf, bool isClear = false)
         {
             _strand.distribute(delegate ()
             {
@@ -2231,7 +2231,7 @@ namespace Go
             });
         }
 
-        public override void cancel(functional.same_func ntf, bool isClear = false)
+        public override void cancel(SameAction ntf, bool isClear = false)
         {
             _strand.distribute(delegate ()
             {
@@ -2256,18 +2256,18 @@ namespace Go
     {
         struct send_pck
         {
-            public functional.same_func _ntf;
+            public SameAction _ntf;
             public T _msg;
             async_timer _timer;
 
-            public void set(functional.same_func ntf, T msg, async_timer timer)
+            public void set(SameAction ntf, T msg, async_timer timer)
             {
                 _ntf = ntf;
                 _msg = msg;
                 _timer = timer;
             }
 
-            public void set(functional.same_func ntf, T msg)
+            public void set(SameAction ntf, T msg)
             {
                 _ntf = ntf;
                 _msg = msg;
@@ -2285,9 +2285,9 @@ namespace Go
 
         public struct csp_result
         {
-            functional.same_func _notify;
+            SameAction _notify;
 
-            public csp_result(functional.same_func notify)
+            public csp_result(SameAction notify)
             {
                 _notify = notify;
             }
@@ -2302,8 +2302,8 @@ namespace Go
         internal class select_csp_reader : select_chan_base
         {
             public csp_chan<R, T> _chan;
-            public functional.func_res<Task, csp_result, T> _handler;
-            public functional.func_res<Task<bool>, chan_async_state> _errHandler;
+            public Func<csp_result, T, Task> _handler;
+            public Func<chan_async_state, Task<bool>> _errHandler;
 
             public override void begin()
             {
@@ -2314,7 +2314,7 @@ namespace Go
                 }, ntfSign);
             }
 
-            public override async Task<select_chan_state> invoke(functional.func_res<Task> stepOne)
+            public override async Task<select_chan_state> invoke(Func<Task> stepOne)
             {
                 generator self = generator.self;
                 csp_wait_wrap<R, T> result = default(csp_wait_wrap<R, T>);
@@ -2385,9 +2385,9 @@ namespace Go
         internal class select_csp_writer : select_chan_base
         {
             public csp_chan<R, T> _chan;
-            public functional.func_res<T> _msg;
-            public functional.func_res<Task, R> _handler;
-            public functional.func_res<Task<bool>, chan_async_state> _errHandler;
+            public Func<T> _msg;
+            public Func<R, Task> _handler;
+            public Func<chan_async_state, Task<bool>> _errHandler;
 
             public override void begin()
             {
@@ -2398,7 +2398,7 @@ namespace Go
                 }, ntfSign);
             }
 
-            public override async Task<select_chan_state> invoke(functional.func_res<Task> stepOne)
+            public override async Task<select_chan_state> invoke(Func<Task> stepOne)
             {
                 generator self = generator.self;
                 csp_invoke_wrap<R> result = default(csp_invoke_wrap<R>);
@@ -2468,8 +2468,8 @@ namespace Go
         shared_strand _strand;
         send_pck _msg;
         bool _has;
-        LinkedList<functional.func<chan_async_state>> _sendQueue;
-        LinkedList<functional.func<chan_async_state>> _waitQueue;
+        LinkedList<Action<chan_async_state>> _sendQueue;
+        LinkedList<Action<chan_async_state>> _waitQueue;
         bool _msgIsTryPush;
         bool _closed;
 
@@ -2488,13 +2488,13 @@ namespace Go
         {
             _strand = strand;
             _has = false;
-            _sendQueue = new LinkedList<functional.func<chan_async_state>>();
-            _waitQueue = new LinkedList<functional.func<chan_async_state>>();
+            _sendQueue = new LinkedList<Action<chan_async_state>>();
+            _waitQueue = new LinkedList<Action<chan_async_state>>();
             _msgIsTryPush = false;
             _closed = false;
         }
 
-        public select_chan_base make_select_reader(functional.func_res<Task, csp_result, T> handler)
+        public select_chan_base make_select_reader(Func<csp_result, T, Task> handler)
         {
             select_csp_reader sel = new select_csp_reader();
             sel._chan = this;
@@ -2502,7 +2502,7 @@ namespace Go
             return sel;
         }
 
-        public select_chan_base make_select_reader(functional.func_res<Task, csp_result, T> handler, functional.func_res<Task<bool>, chan_async_state> errHandler)
+        public select_chan_base make_select_reader(Func<csp_result, T, Task> handler, Func<chan_async_state, Task<bool>> errHandler)
         {
             select_csp_reader sel = new select_csp_reader();
             sel._chan = this;
@@ -2511,7 +2511,7 @@ namespace Go
             return sel;
         }
 
-        public select_chan_base make_select_writer(functional.func_res<T> msg, functional.func_res<Task, R> handler)
+        public select_chan_base make_select_writer(Func<T> msg, Func<R, Task> handler)
         {
             select_csp_writer sel = new select_csp_writer();
             sel._chan = this;
@@ -2520,7 +2520,7 @@ namespace Go
             return sel;
         }
 
-        public select_chan_base make_select_writer(functional.func_res<T> msg, functional.func_res<Task, R> handler, functional.func_res<Task<bool>, chan_async_state> errHandler)
+        public select_chan_base make_select_writer(Func<T> msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler)
         {
             select_csp_writer sel = new select_csp_writer();
             sel._chan = this;
@@ -2530,22 +2530,22 @@ namespace Go
             return sel;
         }
 
-        public select_chan_base make_select_writer(async_result_wrap<T> msg, functional.func_res<Task, R> handler)
+        public select_chan_base make_select_writer(async_result_wrap<T> msg, Func<R, Task> handler)
         {
             return make_select_writer(() => msg.value_1, handler);
         }
 
-        public select_chan_base make_select_writer(async_result_wrap<T> msg, functional.func_res<Task, R> handler, functional.func_res<Task<bool>, chan_async_state> errHandler)
+        public select_chan_base make_select_writer(async_result_wrap<T> msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler)
         {
             return make_select_writer(() => msg.value_1, handler, errHandler);
         }
 
-        public select_chan_base make_select_writer(T msg, functional.func_res<Task, R> handler)
+        public select_chan_base make_select_writer(T msg, Func<R, Task> handler)
         {
             return make_select_writer(() => msg, handler);
         }
 
-        public select_chan_base make_select_writer(T msg, functional.func_res<Task, R> handler, functional.func_res<Task<bool>, chan_async_state> errHandler)
+        public select_chan_base make_select_writer(T msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler)
         {
             return make_select_writer(() => msg, handler, errHandler);
         }
@@ -2555,7 +2555,7 @@ namespace Go
             return chan_type.csp;
         }
 
-        public override void push(functional.same_func ntf, T msg)
+        public override void push(SameAction ntf, T msg)
         {
             _strand.distribute(delegate ()
             {
@@ -2585,7 +2585,7 @@ namespace Go
                     _msg.set(ntf, msg);
                     if (0 != _waitQueue.Count)
                     {
-                        functional.func<chan_async_state> handler = _waitQueue.First.Value;
+                        Action<chan_async_state> handler = _waitQueue.First.Value;
                         _waitQueue.RemoveFirst();
                         handler(chan_async_state.async_ok);
                     }
@@ -2593,7 +2593,7 @@ namespace Go
             });
         }
 
-        public override void pop(functional.same_func ntf)
+        public override void pop(SameAction ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -2604,7 +2604,7 @@ namespace Go
                     _has = false;
                     if (0 != _sendQueue.Count)
                     {
-                        functional.func<chan_async_state> sendWait = _sendQueue.First.Value;
+                        Action<chan_async_state> sendWait = _sendQueue.First.Value;
                         _sendQueue.RemoveFirst();
                         sendWait(chan_async_state.async_ok);
                     }
@@ -2629,7 +2629,7 @@ namespace Go
                     });
                     if (0 != _sendQueue.Count)
                     {
-                        functional.func<chan_async_state> sendWait = _sendQueue.First.Value;
+                        Action<chan_async_state> sendWait = _sendQueue.First.Value;
                         _sendQueue.RemoveFirst();
                         sendWait(chan_async_state.async_ok);
                     }
@@ -2637,7 +2637,7 @@ namespace Go
             });
         }
 
-        public override void try_push(functional.same_func ntf, T msg)
+        public override void try_push(SameAction ntf, T msg)
         {
             _strand.distribute(delegate ()
             {
@@ -2657,7 +2657,7 @@ namespace Go
                         _msgIsTryPush = true;
                         _has = true;
                         _msg.set(ntf, msg);
-                        functional.func<chan_async_state> handler = _waitQueue.First.Value;
+                        Action<chan_async_state> handler = _waitQueue.First.Value;
                         _waitQueue.RemoveFirst();
                         handler(chan_async_state.async_ok);
                     }
@@ -2669,7 +2669,7 @@ namespace Go
             });
         }
 
-        public override void try_pop(functional.same_func ntf)
+        public override void try_pop(SameAction ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -2680,7 +2680,7 @@ namespace Go
                     _has = false;
                     if (0 != _sendQueue.Count)
                     {
-                        functional.func<chan_async_state> sendWait = _sendQueue.First.Value;
+                        Action<chan_async_state> sendWait = _sendQueue.First.Value;
                         _sendQueue.RemoveFirst();
                         sendWait(chan_async_state.async_ok);
                     }
@@ -2697,7 +2697,7 @@ namespace Go
             });
         }
 
-        public override void timed_push(int ms, functional.same_func ntf, T msg)
+        public override void timed_push(int ms, SameAction ntf, T msg)
         {
             _strand.distribute(delegate ()
             {
@@ -2711,7 +2711,7 @@ namespace Go
                     if (ms > 0)
                     {
                         async_timer timer = new async_timer(_strand);
-                        LinkedListNode<functional.func<chan_async_state>> it = _sendQueue.AddLast(delegate (chan_async_state state)
+                        LinkedListNode<Action<chan_async_state>> it = _sendQueue.AddLast(delegate (chan_async_state state)
                         {
                             timer.cancel();
                             if (chan_async_state.async_ok == state)
@@ -2725,7 +2725,7 @@ namespace Go
                         });
                         timer.timeout(ms, delegate ()
                         {
-                            functional.func<chan_async_state> sendWait = it.Value;
+                            Action<chan_async_state> sendWait = it.Value;
                             _sendQueue.Remove(it);
                             sendWait(chan_async_state.async_overtime);
                         });
@@ -2744,13 +2744,13 @@ namespace Go
                     timer.timeout(ms, delegate ()
                     {
                         _msg.cancel_timer();
-                        functional.same_func ntf_ = _msg._ntf;
+                        SameAction ntf_ = _msg._ntf;
                         _has = false;
                         ntf_(chan_async_state.async_overtime);
                     });
                     if (0 != _waitQueue.Count)
                     {
-                        functional.func<chan_async_state> handler = _waitQueue.First.Value;
+                        Action<chan_async_state> handler = _waitQueue.First.Value;
                         _waitQueue.RemoveFirst();
                         handler(chan_async_state.async_ok);
                     }
@@ -2758,7 +2758,7 @@ namespace Go
             });
         }
 
-        public override void timed_pop(int ms, functional.same_func ntf)
+        public override void timed_pop(int ms, SameAction ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -2769,7 +2769,7 @@ namespace Go
                     _has = false;
                     if (0 != _sendQueue.Count)
                     {
-                        functional.func<chan_async_state> sendWait = _sendQueue.First.Value;
+                        Action<chan_async_state> sendWait = _sendQueue.First.Value;
                         _sendQueue.RemoveFirst();
                         sendWait(chan_async_state.async_ok);
                     }
@@ -2784,7 +2784,7 @@ namespace Go
                     if (ms > 0)
                     {
                         async_timer timer = new async_timer(_strand);
-                        LinkedListNode<functional.func<chan_async_state>> it = _waitQueue.AddLast(delegate (chan_async_state state)
+                        LinkedListNode<Action<chan_async_state>> it = _waitQueue.AddLast(delegate (chan_async_state state)
                         {
                             timer.cancel();
                             if (chan_async_state.async_ok == state)
@@ -2798,7 +2798,7 @@ namespace Go
                         });
                         timer.timeout(ms, delegate ()
                         {
-                            functional.func<chan_async_state> waitNtf = it.Value;
+                            Action<chan_async_state> waitNtf = it.Value;
                             _waitQueue.Remove(it);
                             waitNtf(chan_async_state.async_overtime);
                         });
@@ -2811,7 +2811,7 @@ namespace Go
             });
         }
 
-        public override void append_pop_notify(functional.same_func ntf, chan_notify_sign ntfSign)
+        public override void append_pop_notify(SameAction ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -2832,7 +2832,7 @@ namespace Go
                     });
                     if (0 != _sendQueue.Count)
                     {
-                        functional.func<chan_async_state> sendNtf = _sendQueue.First.Value;
+                        Action<chan_async_state> sendNtf = _sendQueue.First.Value;
                         _sendQueue.RemoveFirst();
                         sendNtf(chan_async_state.async_ok);
                     }
@@ -2840,7 +2840,7 @@ namespace Go
             });
         }
 
-        public override void try_pop_and_append_notify(functional.same_func cb, functional.same_func msgNtf, chan_notify_sign ntfSign)
+        public override void try_pop_and_append_notify(SameAction cb, SameAction msgNtf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -2851,7 +2851,7 @@ namespace Go
                     _has = false;
                     if (0 != _sendQueue.Count)
                     {
-                        functional.func<chan_async_state> sendNtf = _sendQueue.First.Value;
+                        Action<chan_async_state> sendNtf = _sendQueue.First.Value;
                         _sendQueue.RemoveFirst();
                         sendNtf(chan_async_state.async_ok);
                     }
@@ -2874,7 +2874,7 @@ namespace Go
             });
         }
 
-        public override void remove_pop_notify(functional.same_func ntf, chan_notify_sign ntfSign)
+        public override void remove_pop_notify(SameAction ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -2888,19 +2888,19 @@ namespace Go
                 {
                     if (0 != _waitQueue.Count)
                     {
-                        functional.func<chan_async_state> handler = _waitQueue.First.Value;
+                        Action<chan_async_state> handler = _waitQueue.First.Value;
                         _waitQueue.RemoveFirst();
                         handler(chan_async_state.async_ok);
                     }
                     else if (_msgIsTryPush)
                     {
                         _msg.cancel_timer();
-                        functional.same_func ntf_ = _msg._ntf;
+                        SameAction ntf_ = _msg._ntf;
                         _has = false;
                         ntf_(chan_async_state.async_fail);
                         if (0 != _sendQueue.Count)
                         {
-                            functional.func<chan_async_state> sendNtf = _sendQueue.First.Value;
+                            Action<chan_async_state> sendNtf = _sendQueue.First.Value;
                             _sendQueue.RemoveFirst();
                             sendNtf(chan_async_state.async_ok);
                         }
@@ -2910,7 +2910,7 @@ namespace Go
             });
         }
 
-        public override void append_push_notify(functional.same_func ntf, chan_notify_sign ntfSign)
+        public override void append_push_notify(SameAction ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -2934,7 +2934,7 @@ namespace Go
             });
         }
 
-        public override void try_push_and_append_notify(functional.same_func cb, functional.same_func msgNtf, chan_notify_sign ntfSign, T msg)
+        public override void try_push_and_append_notify(SameAction cb, SameAction msgNtf, chan_notify_sign ntfSign, T msg)
         {
             _strand.distribute(delegate ()
             {
@@ -2955,7 +2955,7 @@ namespace Go
                         {
                             append_push_notify(msgNtf, ntfSign);
                         }
-                        functional.func<chan_async_state> handler = _waitQueue.First.Value;
+                        Action<chan_async_state> handler = _waitQueue.First.Value;
                         _waitQueue.RemoveFirst();
                         handler(chan_async_state.async_ok);
                         return;
@@ -2966,7 +2966,7 @@ namespace Go
             });
         }
 
-        public override void remove_push_notify(functional.same_func ntf, chan_notify_sign ntfSign)
+        public override void remove_push_notify(SameAction ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -2978,7 +2978,7 @@ namespace Go
                 }
                 if (!_has && 0 != _sendQueue.Count)
                 {
-                    functional.func<chan_async_state> sendNtf = _sendQueue.First.Value;
+                    Action<chan_async_state> sendNtf = _sendQueue.First.Value;
                     _sendQueue.RemoveFirst();
                     sendNtf(chan_async_state.async_ok);
                 }
@@ -2986,7 +2986,7 @@ namespace Go
             });
         }
 
-        public override void clear(functional.same_func ntf)
+        public override void clear(SameAction ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -2996,12 +2996,12 @@ namespace Go
             });
         }
 
-        public override void close(functional.same_func ntf, bool isClear = false)
+        public override void close(SameAction ntf, bool isClear = false)
         {
             _strand.distribute(delegate ()
             {
                 _closed = true;
-                functional.same_func hasMsg = null;
+                SameAction hasMsg = null;
                 if (_has)
                 {
                     _msg.cancel_timer();
@@ -3014,11 +3014,11 @@ namespace Go
             });
         }
 
-        public override void cancel(functional.same_func ntf, bool isClear = false)
+        public override void cancel(SameAction ntf, bool isClear = false)
         {
             _strand.distribute(delegate ()
             {
-                functional.same_func hasMsg = null;
+                SameAction hasMsg = null;
                 if (_has)
                 {
                     _msg.cancel_timer();

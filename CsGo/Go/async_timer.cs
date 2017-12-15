@@ -386,7 +386,7 @@ namespace Go
         }
 
         shared_strand _strand;
-        functional.func _handler;
+        Action _handler;
         steady_timer_handle _timerHandle;
         int _timerCount;
         long _beginTick;
@@ -413,7 +413,7 @@ namespace Go
             if (_isInterval)
             {
                 int lastTc = _timerCount;
-                _handler();
+                functional.catch_invoke(_handler);
                 if (lastTc == _timerCount)
                 {
                     begin_timer(_timerHandle.absus += _timerHandle.period, _timerHandle.period);
@@ -421,10 +421,10 @@ namespace Go
             }
             else
             {
-                functional.func handler = _handler;
+                Action handler = _handler;
                 _handler = null;
                 _strand.release_work();
-                handler();
+                functional.catch_invoke(handler);
             }
             _onTopCall = false;
         }
@@ -445,7 +445,7 @@ namespace Go
             _strand._timer.re_timeout(this);
         }
 
-        public void timeout_us(long us, functional.func handler)
+        public void timeout_us(long us, Action handler)
         {
 #if DEBUG
             Trace.Assert(_strand.running_in_this_thread() && null == _handler && null != handler);
@@ -457,7 +457,7 @@ namespace Go
             begin_timer(_beginTick + us, us);
         }
 
-        public void deadline_us(long us, functional.func handler)
+        public void deadline_us(long us, Action handler)
         {
 #if DEBUG
             Trace.Assert(_strand.running_in_this_thread() && null == _handler && null != handler);
@@ -469,32 +469,32 @@ namespace Go
             begin_timer(us, us - _beginTick);
         }
 
-        public void timeout(int ms, functional.func handler)
+        public void timeout(int ms, Action handler)
         {
             timeout_us((long)ms * 1000, handler);
         }
 
-        public void deadline(long ms, functional.func handler)
+        public void deadline(long ms, Action handler)
         {
             deadline_us(ms * 1000, handler);
         }
 
-        public void interval(int ms, functional.func handler, bool immed = false)
+        public void interval(int ms, Action handler, bool immed = false)
         {
             interval_us((long)ms * 1000, handler, immed);
         }
 
-        public void interval2(int ms1, int ms2, functional.func handler, bool immed = false)
+        public void interval2(int ms1, int ms2, Action handler, bool immed = false)
         {
             interval2_us((long)ms1 * 1000, (long)ms2 * 1000, handler, immed);
         }
 
-        public void interval_us(long us, functional.func handler, bool immed = false)
+        public void interval_us(long us, Action handler, bool immed = false)
         {
             interval2_us(us, us, handler, immed);
         }
 
-        public void interval2_us(long us1, long us2, functional.func handler, bool immed = false)
+        public void interval2_us(long us1, long us2, Action handler, bool immed = false)
         {
 #if DEBUG
             Trace.Assert(_strand.running_in_this_thread() && null == _handler && null != handler);
@@ -545,7 +545,7 @@ namespace Go
             {
                 if (!_isInterval)
                 {
-                    functional.func handler = _handler;
+                    Action handler = _handler;
                     cancel();
                     handler();
                     return true;

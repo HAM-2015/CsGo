@@ -79,105 +79,97 @@ namespace Go
         static public tuple<T1, T2, T3, T4, T5> make<T1, T2, T3, T4, T5>(T1 p1, T2 p2, T3 p3, T4 p4, T5 p5) { return new tuple<T1, T2, T3, T4, T5>(p1, p2, p3, p4, p5); }
     }
 
+    public delegate void SameAction(params object[] args);
+    public delegate R SameFunc<R>(params object[] args);
+
     public class functional
     {
         public static readonly placeholder _ = new placeholder();
-
-        public delegate void same_func(params object[] args);
-        public delegate R same_func<R>(params object[] args);
-        public delegate void func();
-        public delegate void func<T1>(T1 p1);
-        public delegate void func<T1, T2>(T1 p1, T2 p2);
-        public delegate void func<T1, T2, T3>(T1 p1, T2 p2, T3 p3);
-        public delegate R func_res<R>();
-        public delegate R func_res<R, T1>(T1 p1);
-        public delegate R func_res<R, T1, T2>(T1 p1, T2 p2);
-        public delegate R func_res<R, T1, T2, T3>(T1 p1, T2 p2, T3 p3);
-        static public readonly func nil_handler = () => { };
-        static public readonly same_func any_handler = (object[] args) => { };
+        static public readonly Action nil_handler = () => { };
+        static public readonly SameAction any_handler = (object[] args) => { };
         static public readonly Action nil_action = () => { };
 
-        public static func cast(same_func handler)
+        public static Action cast(SameAction handler)
         {
             return () => handler();
         }
 
-        public static func<T1> cast<T1>(same_func handler)
+        public static Action<T1> cast<T1>(SameAction handler)
         {
             return (T1 p1) => handler(p1);
         }
 
-        public static func<T1, T2> cast<T1, T2>(same_func handler)
+        public static Action<T1, T2> cast<T1, T2>(SameAction handler)
         {
             return (T1 p1, T2 p2) => handler(p1, p2);
         }
 
-        public static func<T1, T2, T3> cast<T1, T2, T3>(same_func handler)
+        public static Action<T1, T2, T3> cast<T1, T2, T3>(SameAction handler)
         {
             return (T1 p1, T2 p2, T3 p3) => handler(p1, p2, p3);
         }
 
-        public static same_func cast(func handler)
+        public static SameAction cast(Action handler)
         {
             return (object[] args) => handler();
         }
 
-        public static same_func cast<T1>(func<T1> handler)
+        public static SameAction cast<T1>(Action<T1> handler)
         {
             return (object[] args) => handler((T1)args[0]);
         }
 
-        public static same_func cast<T1, T2>(func<T1, T2> handler)
+        public static SameAction cast<T1, T2>(Action<T1, T2> handler)
         {
             return (object[] args) => handler((T1)args[0], (T2)args[1]);
         }
 
-        public static same_func cast<T1, T2, T3>(func<T1, T2, T3> handler)
+        public static SameAction cast<T1, T2, T3>(Action<T1, T2, T3> handler)
         {
             return (object[] args) => handler((T1)args[0], (T2)args[1], (T3)args[2]);
         }
 
-        public static func_res<R> cast<R>(same_func<R> handler)
+        public static Func<R> cast<R>(SameFunc<R> handler)
         {
             return () => handler();
         }
 
-        public static func_res<R, T1> cast<R, T1>(same_func<R> handler)
+        public static Func<T1, R> cast<R, T1>(SameFunc<R> handler)
         {
             return (T1 p1) => handler(p1);
         }
 
-        public static func_res<R, T1, T2> cast<R, T1, T2>(same_func<R> handler)
+        public static Func<T1, T2, R> cast<R, T1, T2>(SameFunc<R> handler)
         {
             return (T1 p1, T2 p2) => handler(p1, p2);
         }
 
-        public static func_res<R, T1, T2, T3> cast<R, T1, T2, T3>(same_func<R> handler)
+        public static Func<T1, T2, T3, R> cast<R, T1, T2, T3>(SameFunc<R> handler)
         {
             return (T1 p1, T2 p2, T3 p3) => handler(p1, p2, p3);
         }
 
-        public static same_func<R> cast<R>(func_res<R> handler)
+        public static SameFunc<R> cast<R>(Func<R> handler)
         {
             return (object[] args) => handler();
         }
 
-        public static same_func<R> cast<R, T1>(func_res<R, T1> handler)
+        public static SameFunc<R> cast<R, T1>(Func<T1, R> handler)
         {
             return (object[] args) => handler((T1)args[0]);
         }
 
-        public static same_func<R> cast<R, T1, T2>(func_res<R, T1, T2> handler)
+        public static SameFunc<R> cast<R, T1, T2>(Func<T1, T2, R> handler)
         {
             return (object[] args) => handler((T1)args[0], (T2)args[1]);
         }
 
-        public static same_func<R> cast<R, T1, T2, T3>(func_res<R, T1, T2, T3> handler)
+        public static SameFunc<R> cast<R, T1, T2, T3>(Func<T1, T2, T3, R> handler)
         {
             return (object[] args) => handler((T1)args[0], (T2)args[1], (T3)args[2]);
         }
 
-        public static same_func bind_same<P1, T1>(func<P1> handler, T1 p1)
+        public static SameAction bind_same<P1, T1>(Action<P1> handler, T1 p1)
         {
             return delegate (object[] args)
             {
@@ -185,7 +177,7 @@ namespace Go
             };
         }
 
-        public static same_func bind_same<P1, P2, T1, T2>(func<P1, P2> handler, T1 p1, T2 p2)
+        public static SameAction bind_same<P1, P2, T1, T2>(Action<P1, P2> handler, T1 p1, T2 p2)
         {
             return delegate (object[] args)
             {
@@ -195,7 +187,7 @@ namespace Go
             };
         }
 
-        public static same_func bind_same<P1, P2, P3, T1, T2, T3>(func<P1, P2, P3> handler, T1 p1, T2 p2, T3 p3)
+        public static SameAction bind_same<P1, P2, P3, T1, T2, T3>(Action<P1, P2, P3> handler, T1 p1, T2 p2, T3 p3)
         {
             return delegate (object[] args)
             {
@@ -206,7 +198,7 @@ namespace Go
             };
         }
 
-        public static same_func<R> bind_same<R, P1, T1>(func_res<R, P1> handler, T1 p1)
+        public static SameFunc<R> bind_same<R, P1, T1>(Func<P1, R> handler, T1 p1)
         {
             return delegate (object[] args)
             {
@@ -214,7 +206,7 @@ namespace Go
             };
         }
 
-        public static same_func<R> bind_same<R, P1, P2, T1, T2>(func_res<R, P1, P2> handler, T1 p1, T2 p2)
+        public static SameFunc<R> bind_same<R, P1, P2, T1, T2>(Func<P1, P2, R> handler, T1 p1, T2 p2)
         {
             return delegate (object[] args)
             {
@@ -224,7 +216,7 @@ namespace Go
             };
         }
 
-        public static same_func<R> bind_same<R, P1, P2, P3, T1, T2, T3>(func_res<R, P1, P2, P3> handler, T1 p1, T2 p2, T3 p3)
+        public static SameFunc<R> bind_same<R, P1, P2, P3, T1, T2, T3>(Func<P1, P2, P3, R> handler, T1 p1, T2 p2, T3 p3)
         {
             return delegate (object[] args)
             {
@@ -235,132 +227,132 @@ namespace Go
             };
         }
 
-        public static func bind<T1>(func<T1> handler, T1 p1)
+        public static Action bind<T1>(Action<T1> handler, T1 p1)
         {
             return () => handler(p1);
         }
 
-        public static func bind<T1, T2>(func<T1, T2> handler, T1 p1, T2 p2)
+        public static Action bind<T1, T2>(Action<T1, T2> handler, T1 p1, T2 p2)
         {
             return () => handler(p1, p2);
         }
 
-        public static func bind<T1, T2, T3>(func<T1, T2, T3> handler, T1 p1, T2 p2, T3 p3)
+        public static Action bind<T1, T2, T3>(Action<T1, T2, T3> handler, T1 p1, T2 p2, T3 p3)
         {
             return () => handler(p1, p2, p3);
         }
 
-        public static func<T1> bind<T1, T2>(func<T1, T2> handler, placeholder p1, T2 p2)
+        public static Action<T1> bind<T1, T2>(Action<T1, T2> handler, placeholder p1, T2 p2)
         {
             return (T1 _1) => handler(_1, p2);
         }
 
-        public static func<T2> bind<T1, T2>(func<T1, T2> handler, T1 p1, placeholder p2)
+        public static Action<T2> bind<T1, T2>(Action<T1, T2> handler, T1 p1, placeholder p2)
         {
             return (T2 _2) => handler(p1, _2);
         }
 
-        public static func<T1> bind<T1, T2, T3>(func<T1, T2, T3> handler, placeholder p1, T2 p2, T3 p3)
+        public static Action<T1> bind<T1, T2, T3>(Action<T1, T2, T3> handler, placeholder p1, T2 p2, T3 p3)
         {
             return (T1 _1) => handler(_1, p2, p3);
         }
 
-        public static func<T2> bind<T1, T2, T3>(func<T1, T2, T3> handler, T1 p1, placeholder p2, T3 p3)
+        public static Action<T2> bind<T1, T2, T3>(Action<T1, T2, T3> handler, T1 p1, placeholder p2, T3 p3)
         {
             return (T2 _2) => handler(p1, _2, p3);
         }
 
-        public static func<T3> bind<T1, T2, T3>(func<T1, T2, T3> handler, T1 p1, T2 p2, placeholder p3)
+        public static Action<T3> bind<T1, T2, T3>(Action<T1, T2, T3> handler, T1 p1, T2 p2, placeholder p3)
         {
             return (T3 _3) => handler(p1, p2, _3);
         }
 
-        public static func<T1, T2> bind<T1, T2, T3>(func<T1, T2, T3> handler, placeholder p1, placeholder p2, T3 p3)
+        public static Action<T1, T2> bind<T1, T2, T3>(Action<T1, T2, T3> handler, placeholder p1, placeholder p2, T3 p3)
         {
             return (T1 _1, T2 _2) => handler(_1, _2, p3);
         }
 
-        public static func<T1, T3> bind<T1, T2, T3>(func<T1, T2, T3> handler, placeholder p1, T2 p2, placeholder p3)
+        public static Action<T1, T3> bind<T1, T2, T3>(Action<T1, T2, T3> handler, placeholder p1, T2 p2, placeholder p3)
         {
             return (T1 _1, T3 _3) => handler(_1, p2, _3);
         }
 
-        public static func<T2, T3> bind<T1, T2, T3>(func<T1, T2, T3> handler, T1 p1, placeholder p2, placeholder p3)
+        public static Action<T2, T3> bind<T1, T2, T3>(Action<T1, T2, T3> handler, T1 p1, placeholder p2, placeholder p3)
         {
             return (T2 _2, T3 _3) => handler(p1, _2, _3);
         }
 
-        public static func_res<R> bind<R, T1>(func_res<R, T1> handler, T1 p1)
+        public static Func<R> bind<R, T1>(Func<T1, R> handler, T1 p1)
         {
             return () => handler(p1);
         }
 
-        public static func_res<R> bind<R, T1, T2>(func_res<R, T1, T2> handler, T1 p1, T2 p2)
+        public static Func<R> bind<R, T1, T2>(Func<T1, T2, R> handler, T1 p1, T2 p2)
         {
             return () => handler(p1, p2);
         }
 
-        public static func_res<R> bind<R, T1, T2, T3>(func_res<R, T1, T2, T3> handler, T1 p1, T2 p2, T3 p3)
+        public static Func<R> bind<R, T1, T2, T3>(Func<T1, T2, T3, R> handler, T1 p1, T2 p2, T3 p3)
         {
             return () => handler(p1, p2, p3);
         }
 
-        public static func_res<R, T1> bind<R, T1, T2>(func_res<R, T1, T2> handler, placeholder p1, T2 p2)
+        public static Func<T1, R> bind<R, T1, T2>(Func<T1, T2, R> handler, placeholder p1, T2 p2)
         {
             return (T1 _1) => handler(_1, p2);
         }
 
-        public static func_res<R, T2> bind<R, T1, T2>(func_res<R, T1, T2> handler, T1 p1, placeholder p2)
+        public static Func<T2, R> bind<R, T1, T2>(Func<T1, T2, R> handler, T1 p1, placeholder p2)
         {
             return (T2 _2) => handler(p1, _2);
         }
 
-        public static func_res<R, T1> bind<R, T1, T2, T3>(func_res<R, T1, T2, T3> handler, placeholder p1, T2 p2, T3 p3)
+        public static Func<T1, R> bind<R, T1, T2, T3>(Func<T1, T2, T3, R> handler, placeholder p1, T2 p2, T3 p3)
         {
             return (T1 _1) => handler(_1, p2, p3);
         }
 
-        public static func_res<R, T2> bind<R, T1, T2, T3>(func_res<R, T1, T2, T3> handler, T1 p1, placeholder p2, T3 p3)
+        public static Func<T2, R> bind<R, T1, T2, T3>(Func<T1, T2, T3, R> handler, T1 p1, placeholder p2, T3 p3)
         {
             return (T2 _2) => handler(p1, _2, p3);
         }
 
-        public static func_res<R, T3> bind<R, T1, T2, T3>(func_res<R, T1, T2, T3> handler, T1 p1, T2 p2, placeholder p3)
+        public static Func<T3, R> bind<R, T1, T2, T3>(Func<T1, T2, T3, R> handler, T1 p1, T2 p2, placeholder p3)
         {
             return (T3 _3) => handler(p1, p2, _3);
         }
 
-        public static func_res<R, T1, T2> bind<R, T1, T2, T3>(func_res<R, T1, T2, T3> handler, placeholder p1, placeholder p2, T3 p3)
+        public static Func<T1, T2, R> bind<R, T1, T2, T3>(Func<T1, T2, T3, R> handler, placeholder p1, placeholder p2, T3 p3)
         {
             return (T1 _1, T2 _2) => handler(_1, _2, p3);
         }
 
-        public static func_res<R, T1, T3> bind<R, T1, T2, T3>(func_res<R, T1, T2, T3> handler, placeholder p1, T2 p2, placeholder p3)
+        public static Func<T1, T3, R> bind<R, T1, T2, T3>(Func<T1, T2, T3, R> handler, placeholder p1, T2 p2, placeholder p3)
         {
             return (T1 _1, T3 _3) => handler(_1, p2, _3);
         }
 
-        public static func_res<R, T2, T3> bind<R, T1, T2, T3>(func_res<R, T1, T2, T3> handler, T1 p1, placeholder p2, placeholder p3)
+        public static Func<T2, T3, R> bind<R, T1, T2, T3>(Func<T1, T2, T3, R> handler, T1 p1, placeholder p2, placeholder p3)
         {
             return (T2 _2, T3 _3) => handler(p1, _2, _3);
         }
 
-        public static generator.action bind<T1>(func_res<Task, T1> handler, T1 p1)
+        public static generator.action bind<T1>(Func<T1, Task> handler, T1 p1)
         {
             return () => handler(p1);
         }
 
-        public static generator.action bind<T1, T2>(func_res<Task, T1, T2> handler, T1 p1, T2 p2)
+        public static generator.action bind<T1, T2>(Func<T1, T2, Task> handler, T1 p1, T2 p2)
         {
             return () => handler(p1, p2);
         }
 
-        public static generator.action bind<T1, T2, T3>(func_res<Task, T1, T2, T3> handler, T1 p1, T2 p2, T3 p3)
+        public static generator.action bind<T1, T2, T3>(Func<T1, T2, T3, Task> handler, T1 p1, T2 p2, T3 p3)
         {
             return () => handler(p1, p2, p3);
         }
 
-        public static void catch_invoke(func handler)
+        public static void catch_invoke(Action handler)
         {
             try
             {
@@ -372,7 +364,7 @@ namespace Go
             }
         }
 
-        public static void catch_invoke<T1>(func<T1> handler, T1 p1)
+        public static void catch_invoke<T1>(Action<T1> handler, T1 p1)
         {
             try
             {
@@ -384,7 +376,7 @@ namespace Go
             }
         }
 
-        public static void catch_invoke<T1, T2>(func<T1, T2> handler, T1 p1, T2 p2)
+        public static void catch_invoke<T1, T2>(Action<T1, T2> handler, T1 p1, T2 p2)
         {
             try
             {
@@ -396,7 +388,7 @@ namespace Go
             }
         }
 
-        public static void catch_invoke<T1, T2, T3>(func<T1, T2, T3> handler, T1 p1, T2 p2, T3 p3)
+        public static void catch_invoke<T1, T2, T3>(Action<T1, T2, T3> handler, T1 p1, T2 p2, T3 p3)
         {
             try
             {

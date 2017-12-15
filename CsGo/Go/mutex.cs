@@ -11,10 +11,10 @@ namespace Go
     {
         class wait_node
         {
-            public functional.func<chan_async_state> _ntf;
+            public Action<chan_async_state> _ntf;
             public long _id;
 
-            public wait_node(functional.func<chan_async_state> ntf, long id)
+            public wait_node(Action<chan_async_state> ntf, long id)
             {
                 _ntf = ntf;
                 _id = id;
@@ -45,7 +45,7 @@ namespace Go
             _recCount = 0;
         }
 
-        public virtual void Lock(long id, functional.func ntf)
+        public virtual void Lock(long id, Action ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -62,7 +62,7 @@ namespace Go
             });
         }
 
-        public virtual void try_lock(long id, functional.func<chan_async_state> ntf)
+        public virtual void try_lock(long id, Action<chan_async_state> ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -79,7 +79,7 @@ namespace Go
             });
         }
 
-        public virtual void timed_lock(long id, int ms, functional.func<chan_async_state> ntf)
+        public virtual void timed_lock(long id, int ms, Action<chan_async_state> ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -92,14 +92,14 @@ namespace Go
                 else if (ms > 0)
                 {
                     async_timer timer = new async_timer(_strand);
-                    LinkedListNode<wait_node>  it = _waitQueue.AddLast(new wait_node(delegate (chan_async_state state)
+                    LinkedListNode<wait_node> it = _waitQueue.AddLast(new wait_node(delegate (chan_async_state state)
                     {
                         timer.cancel();
                         ntf(state);
                     }, id));
                     timer.timeout(ms, delegate ()
                     {
-                        functional.func<chan_async_state> waitNtf = it.Value._ntf;
+                        Action<chan_async_state> waitNtf = it.Value._ntf;
                         _waitQueue.Remove(it);
                         waitNtf(chan_async_state.async_overtime);
                     });
@@ -111,7 +111,7 @@ namespace Go
             });
         }
 
-        public virtual void unlock(long id, functional.func ntf)
+        public virtual void unlock(long id, Action ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -137,7 +137,7 @@ namespace Go
             });
         }
 
-        public virtual void cancel(long id, functional.func ntf)
+        public virtual void cancel(long id, Action ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -178,11 +178,11 @@ namespace Go
 
         class wait_node
         {
-            public functional.func<chan_async_state> _ntf;
+            public Action<chan_async_state> _ntf;
             public long _waitHostID;
             public lock_status _status;
 
-            public wait_node(functional.func<chan_async_state> ntf, long id, lock_status st)
+            public wait_node(Action<chan_async_state> ntf, long id, lock_status st)
             {
                 _ntf = ntf;
                 _waitHostID = id;
@@ -194,23 +194,23 @@ namespace Go
         {
             public int _count = 0;
         };
-        
+
         LinkedList<wait_node> _waitQueue;
         Dictionary<long, shared_count> _sharedMap;
 
-        public shared_mutex(shared_strand strand): base(strand)
+        public shared_mutex(shared_strand strand) : base(strand)
         {
             _waitQueue = new LinkedList<wait_node>();
             _sharedMap = new Dictionary<long, shared_count>();
         }
 
-        public shared_mutex(): base()
+        public shared_mutex() : base()
         {
             _waitQueue = new LinkedList<wait_node>();
             _sharedMap = new Dictionary<long, shared_count>();
         }
 
-        public override void Lock(long id, functional.func ntf)
+        public override void Lock(long id, Action ntf)
         {
             self_strand().distribute(delegate ()
             {
@@ -227,7 +227,7 @@ namespace Go
             });
         }
 
-        public override void try_lock(long id, functional.func<chan_async_state> ntf)
+        public override void try_lock(long id, Action<chan_async_state> ntf)
         {
             self_strand().distribute(delegate ()
             {
@@ -244,7 +244,7 @@ namespace Go
             });
         }
 
-        public override void timed_lock(long id, int ms, functional.func<chan_async_state> ntf)
+        public override void timed_lock(long id, int ms, Action<chan_async_state> ntf)
         {
             self_strand().distribute(delegate ()
             {
@@ -257,14 +257,14 @@ namespace Go
                 else if (ms > 0)
                 {
                     async_timer timer = new async_timer(self_strand());
-                    LinkedListNode<wait_node>  it = _waitQueue.AddLast(new wait_node(delegate (chan_async_state state)
+                    LinkedListNode<wait_node> it = _waitQueue.AddLast(new wait_node(delegate (chan_async_state state)
                     {
                         timer.cancel();
                         ntf(state);
                     }, id, lock_status.st_unique));
                     timer.timeout(ms, delegate ()
                     {
-                        functional.func<chan_async_state> waitNtf = it.Value._ntf;
+                        Action<chan_async_state> waitNtf = it.Value._ntf;
                         _waitQueue.Remove(it);
                         waitNtf(chan_async_state.async_overtime);
                     });
@@ -287,7 +287,7 @@ namespace Go
             return ct;
         }
 
-        public void lock_shared(long id, functional.func ntf)
+        public void lock_shared(long id, Action ntf)
         {
             self_strand().distribute(delegate ()
             {
@@ -303,7 +303,7 @@ namespace Go
             });
         }
 
-        public void lock_pess_shared(long id, functional.func ntf)
+        public void lock_pess_shared(long id, Action ntf)
         {
             self_strand().distribute(delegate ()
             {
@@ -319,7 +319,7 @@ namespace Go
             });
         }
 
-        public void try_lock_shared(long id, functional.func<chan_async_state> ntf)
+        public void try_lock_shared(long id, Action<chan_async_state> ntf)
         {
             self_strand().distribute(delegate ()
             {
@@ -335,7 +335,7 @@ namespace Go
             });
         }
 
-        public void timed_lock_shared(long id, int ms, functional.func<chan_async_state> ntf)
+        public void timed_lock_shared(long id, int ms, Action<chan_async_state> ntf)
         {
             self_strand().distribute(delegate ()
             {
@@ -354,7 +354,7 @@ namespace Go
                     }, id, lock_status.st_shared));
                     timer.timeout(ms, delegate ()
                     {
-                        functional.func<chan_async_state> waitNtf = it.Value._ntf;
+                        Action<chan_async_state> waitNtf = it.Value._ntf;
                         _waitQueue.Remove(it);
                         waitNtf(chan_async_state.async_overtime);
                     });
@@ -366,23 +366,23 @@ namespace Go
             });
         }
 
-        public void lock_upgrade(long id, functional.func ntf)
+        public void lock_upgrade(long id, Action ntf)
         {
             base.Lock(id, ntf);
         }
 
-        public void try_lock_upgrade(long id, functional.func<chan_async_state> ntf)
+        public void try_lock_upgrade(long id, Action<chan_async_state> ntf)
         {
             base.try_lock(id, ntf);
         }
 
-        public override void unlock(long id, functional.func ntf)
+        public override void unlock(long id, Action ntf)
         {
             self_strand().distribute(delegate ()
             {
                 if (0 == --base._recCount && 0 != _waitQueue.Count)
                 {
-                    LinkedList<functional.func<chan_async_state>> ntfs = new LinkedList<functional.func<chan_async_state>>();
+                    LinkedList<Action<chan_async_state>> ntfs = new LinkedList<Action<chan_async_state>>();
                     wait_node queueFront = _waitQueue.First.Value;
                     _waitQueue.RemoveFirst();
                     ntfs.AddLast(queueFront._ntf);
@@ -421,7 +421,7 @@ namespace Go
             });
         }
 
-        public void unlock_shared(long id, functional.func ntf)
+        public void unlock_shared(long id, Action ntf)
         {
             self_strand().distribute(delegate ()
             {
@@ -430,7 +430,7 @@ namespace Go
                     _sharedMap.Remove(id);
                     if (0 == _sharedMap.Count && 0 != _waitQueue.Count)
                     {
-                        LinkedList<functional.func<chan_async_state>> ntfs = new LinkedList<functional.func<chan_async_state>>();
+                        LinkedList<Action<chan_async_state>> ntfs = new LinkedList<Action<chan_async_state>>();
                         wait_node queueFront = _waitQueue.First.Value;
                         _waitQueue.RemoveFirst();
                         ntfs.AddLast(queueFront._ntf);
@@ -470,32 +470,32 @@ namespace Go
             });
         }
 
-        public void unlock_upgrade(long id, functional.func ntf)
+        public void unlock_upgrade(long id, Action ntf)
         {
             base.unlock(id, ntf);
         }
 
-        public void unlock_and_lock_shared(long id, functional.func ntf)
+        public void unlock_and_lock_shared(long id, Action ntf)
         {
             unlock(id, () => lock_shared(id, ntf));
         }
 
-        public void unlock_and_lock_upgrade(long id, functional.func ntf)
+        public void unlock_and_lock_upgrade(long id, Action ntf)
         {
             unlock_and_lock_shared(id, () => lock_upgrade(id, ntf));
         }
 
-        public void unlock_upgrade_and_lock(long id, functional.func ntf)
+        public void unlock_upgrade_and_lock(long id, Action ntf)
         {
             unlock_upgrade(id, () => unlock_shared(id, () => Lock(id, ntf)));
         }
 
-        public void unlock_shared_and_lock(long id, functional.func ntf)
+        public void unlock_shared_and_lock(long id, Action ntf)
         {
             unlock_shared(id, () => Lock(id, ntf));
         }
 
-        public override void cancel(long id, functional.func ntf)
+        public override void cancel(long id, Action ntf)
         {
             self_strand().distribute(delegate ()
             {
@@ -530,12 +530,12 @@ namespace Go
     public class condition_variable
     {
         shared_strand _strand;
-        LinkedList<functional.func> _waitQueue;
+        LinkedList<Action> _waitQueue;
 
         public condition_variable(shared_strand strand)
         {
             _strand = strand;
-            _waitQueue = new LinkedList<functional.func>();
+            _waitQueue = new LinkedList<Action>();
         }
 
         public condition_variable()
@@ -547,10 +547,10 @@ namespace Go
         private void init(shared_strand strand)
         {
             _strand = strand;
-            _waitQueue = new LinkedList<functional.func>();
+            _waitQueue = new LinkedList<Action>();
         }
 
-        public void wait(long id, mutex mutex, functional.func ntf)
+        public void wait(long id, mutex mutex, Action ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -561,14 +561,14 @@ namespace Go
             });
         }
 
-        public void timed_wait(long id, int ms, mutex mutex, functional.func<chan_async_state> ntf)
+        public void timed_wait(long id, int ms, mutex mutex, Action<chan_async_state> ntf)
         {
             _strand.distribute(delegate ()
             {
                 if (ms > 0)
                 {
                     async_timer timer = new async_timer(_strand);
-                    LinkedListNode<functional.func> node = _waitQueue.AddLast(delegate ()
+                    LinkedListNode<Action> node = _waitQueue.AddLast(delegate ()
                     {
                         timer.cancel();
                         mutex.Lock(id, delegate ()
@@ -595,7 +595,7 @@ namespace Go
             {
                 if (_waitQueue.Count > 0)
                 {
-                    functional.func ntf = _waitQueue.First.Value;
+                    Action ntf = _waitQueue.First.Value;
                     _waitQueue.RemoveFirst();
                     ntf();
                 }
@@ -608,8 +608,8 @@ namespace Go
             {
                 if (_waitQueue.Count > 0)
                 {
-                    LinkedList<functional.func> waitQueue = _waitQueue;
-                    _waitQueue = new LinkedList<functional.func>();
+                    LinkedList<Action> waitQueue = _waitQueue;
+                    _waitQueue = new LinkedList<Action>();
                     while (waitQueue.Count > 0)
                     {
                         waitQueue.First.Value.Invoke();

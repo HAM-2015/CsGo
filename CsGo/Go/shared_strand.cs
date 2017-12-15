@@ -14,19 +14,19 @@ namespace Go
         int _work;
         int _waiting;
         volatile bool _runSign;
-        LinkedList<functional.func> _opQueue;
+        LinkedList<Action> _opQueue;
 
         public work_service()
         {
             _work = 0;
             _waiting = 0;
             _runSign = true;
-            _opQueue = new LinkedList<functional.func>();
+            _opQueue = new LinkedList<Action>();
         }
 
-        public void push_option(functional.func handler)
+        public void push_option(Action handler)
         {
-            LinkedListNode<functional.func> newNode = new LinkedListNode<functional.func>(handler);
+            LinkedListNode<Action> newNode = new LinkedListNode<Action>(handler);
             Monitor.Enter(_opQueue);
             _opQueue.AddLast(newNode);
             if (0 != _waiting)
@@ -42,7 +42,7 @@ namespace Go
             Monitor.Enter(_opQueue);
             if (_runSign && 0 != _opQueue.Count)
             {
-                LinkedListNode<functional.func> firstNode = _opQueue.First;
+                LinkedListNode<Action> firstNode = _opQueue.First;
                 _opQueue.RemoveFirst();
                 Monitor.Exit(_opQueue);
                 firstNode.Value();
@@ -60,7 +60,7 @@ namespace Go
                 Monitor.Enter(_opQueue);
                 if (0 != _opQueue.Count)
                 {
-                    LinkedListNode<functional.func> firstNode = _opQueue.First;
+                    LinkedListNode<Action> firstNode = _opQueue.First;
                     _opQueue.RemoveFirst();
                     Monitor.Exit(_opQueue);
                     count++;
@@ -189,8 +189,8 @@ namespace Go
         protected volatile bool _locked;
         protected volatile int _pauseState;
         protected Mutex _mutex;
-        protected LinkedList<functional.func> _readyQueue;
-        protected LinkedList<functional.func> _waitQueue;
+        protected LinkedList<Action> _readyQueue;
+        protected LinkedList<Action> _waitQueue;
 
         public shared_strand()
         {
@@ -198,8 +198,8 @@ namespace Go
             _pauseState = 0;
             _mutex = new Mutex();
             _timer = new async_timer.steady_timer(this);
-            _readyQueue = new LinkedList<functional.func>();
-            _waitQueue = new LinkedList<functional.func>();
+            _readyQueue = new LinkedList<Action>();
+            _waitQueue = new LinkedList<Action>();
         }
 
         protected bool running_a_round(curr_strand currStrand)
@@ -225,7 +225,7 @@ namespace Go
             _mutex.WaitOne();
             if (0 != _waitQueue.Count)
             {
-                LinkedList<functional.func> t = _readyQueue;
+                LinkedList<Action> t = _readyQueue;
                 _readyQueue = _waitQueue;
                 _waitQueue = t;
                 _mutex.ReleaseMutex();
@@ -257,9 +257,9 @@ namespace Go
             running_a_round(currStrand);
         }
 
-        public void post(functional.func action)
+        public void post(Action action)
         {
-            LinkedListNode<functional.func> newNode = new LinkedListNode<functional.func>(action);
+            LinkedListNode<Action> newNode = new LinkedListNode<Action>(action);
             _mutex.WaitOne();
             if (_locked)
             {
@@ -275,7 +275,7 @@ namespace Go
             }
         }
 
-        public virtual bool distribute(functional.func action)
+        public virtual bool distribute(Action action)
         {
             curr_strand currStrand = _currStrand.Value;
             if (null != currStrand && this == currStrand.strand)
@@ -285,7 +285,7 @@ namespace Go
             }
             else
             {
-                LinkedListNode<functional.func> newNode = new LinkedListNode<functional.func>(action);
+                LinkedListNode<Action> newNode = new LinkedListNode<Action>(action);
                 _mutex.WaitOne();
                 if (_locked)
                 {
@@ -349,47 +349,47 @@ namespace Go
         {
         }
 
-        public functional.func wrap(functional.func handler)
+        public Action wrap(Action handler)
         {
             return () => distribute(() => handler());
         }
 
-        public functional.func<T1> wrap<T1>(functional.func<T1> handler)
+        public Action<T1> wrap<T1>(Action<T1> handler)
         {
             return (T1 p1) => distribute(() => handler(p1));
         }
 
-        public functional.func<T1, T2> wrap<T1, T2>(functional.func<T1, T2> handler)
+        public Action<T1, T2> wrap<T1, T2>(Action<T1, T2> handler)
         {
             return (T1 p1, T2 p2) => distribute(() => handler(p1, p2));
         }
 
-        public functional.func<T1, T2, T3> wrap<T1, T2, T3>(functional.func<T1, T2, T3> handler)
+        public Action<T1, T2, T3> wrap<T1, T2, T3>(Action<T1, T2, T3> handler)
         {
             return (T1 p1, T2 p2, T3 p3) => distribute(() => handler(p1, p2, p3));
         }
 
-        public functional.func wrap_post(functional.func handler)
+        public Action wrap_post(Action handler)
         {
             return () => post(() => handler());
         }
 
-        public functional.func<T1> wrap_post<T1>(functional.func<T1> handler)
+        public Action<T1> wrap_post<T1>(Action<T1> handler)
         {
             return (T1 p1) => post(() => handler(p1));
         }
 
-        public functional.func<T1, T2> wrap_post<T1, T2>(functional.func<T1, T2> handler)
+        public Action<T1, T2> wrap_post<T1, T2>(Action<T1, T2> handler)
         {
             return (T1 p1, T2 p2) => post(() => handler(p1, p2));
         }
 
-        public functional.func<T1, T2, T3> wrap_post<T1, T2, T3>(functional.func<T1, T2, T3> handler)
+        public Action<T1, T2, T3> wrap_post<T1, T2, T3>(Action<T1, T2, T3> handler)
         {
             return (T1 p1, T2 p2, T3 p3) => post(() => handler(p1, p2, p3));
         }
     }
-    
+
     public class work_strand : shared_strand
     {
         work_service _service;
@@ -404,7 +404,7 @@ namespace Go
             _service = eng.service();
         }
 
-        public override bool distribute(functional.func action)
+        public override bool distribute(Action action)
         {
             curr_strand currStrand = _currStrand.Value;
             if (null != currStrand && this == currStrand.strand)
@@ -414,7 +414,7 @@ namespace Go
             }
             else
             {
-                LinkedListNode<functional.func> newNode = new LinkedListNode<functional.func>(action);
+                LinkedListNode<Action> newNode = new LinkedListNode<Action>(action);
                 _mutex.WaitOne();
                 if (_locked)
                 {
@@ -476,7 +476,7 @@ namespace Go
             _checkRequired = checkRequired;
         }
 
-        public override bool distribute(functional.func action)
+        public override bool distribute(Action action)
         {
             curr_strand currStrand = _currStrand.Value;
             if (null != currStrand && this == currStrand.strand)
@@ -486,7 +486,7 @@ namespace Go
             }
             else
             {
-                LinkedListNode<functional.func> newNode = new LinkedListNode<functional.func>(action);
+                LinkedListNode<Action> newNode = new LinkedListNode<Action>(action);
                 _mutex.WaitOne();
                 if (_locked)
                 {
