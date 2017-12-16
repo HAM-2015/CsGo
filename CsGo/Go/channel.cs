@@ -54,14 +54,14 @@ namespace Go
     public abstract class channel_base
     {
         public abstract chan_type type();
-        public abstract void clear(SameAction ntf);
-        public abstract void close(SameAction ntf, bool isClear = false);
-        public abstract void cancel(SameAction ntf, bool isClear = false);
+        public abstract void clear(Action ntf);
+        public abstract void close(Action ntf, bool isClear = false);
+        public abstract void cancel(Action ntf, bool isClear = false);
         public abstract shared_strand self_strand();
         public abstract bool is_closed();
-        public void clear() { clear(functional.any_handler); }
-        public void close(bool isClear = false) { close(functional.any_handler, isClear); }
-        public void cancel(bool isClear = false) { cancel(functional.any_handler, isClear); }
+        public void clear() { clear(functional.nil_handler); }
+        public void close(bool isClear = false) { close(functional.nil_handler, isClear); }
+        public void cancel(bool isClear = false) { cancel(functional.nil_handler, isClear); }
 
         static protected void safe_callback(ref LinkedList<Action<chan_async_state>> callback, chan_async_state state)
         {
@@ -119,7 +119,7 @@ namespace Go
             public override void begin()
             {
                 ntfSign._disable = false;
-                _chan.append_pop_notify(delegate (object[] args)
+                _chan.append_pop_notify(delegate (chan_async_state state)
                 {
                     nextSelect.post(this);
                 }, ntfSign);
@@ -136,7 +136,7 @@ namespace Go
                     {
                         result.result = (T)args[1];
                     }
-                }), delegate (object[] args)
+                }), delegate (chan_async_state state)
                 {
                     nextSelect.post(this);
                 }, ntfSign, _token);
@@ -177,7 +177,7 @@ namespace Go
             {
                 generator self = generator.self;
                 ntfSign._disable = true;
-                _chan.remove_pop_notify(self.async_same_callback(), ntfSign);
+                _chan.remove_pop_notify(self.async_ignore<chan_async_state>(), ntfSign);
                 return self.async_wait();
             }
 
@@ -202,7 +202,7 @@ namespace Go
             public override void begin()
             {
                 ntfSign._disable = false;
-                _chan.append_push_notify(delegate (object[] args)
+                _chan.append_push_notify(delegate (chan_async_state state)
                 {
                     nextSelect.post(this);
                 }, ntfSign);
@@ -215,7 +215,7 @@ namespace Go
                 _chan.try_push_and_append_notify(self.async_same_callback(delegate (object[] args)
                 {
                     result = (chan_async_state)args[0];
-                }), delegate (object[] args)
+                }), delegate (chan_async_state state)
                 {
                     nextSelect.post(this);
                 }, ntfSign, _msg());
@@ -256,7 +256,7 @@ namespace Go
             {
                 generator self = generator.self;
                 ntfSign._disable = true;
-                _chan.remove_push_notify(self.async_same_callback(), ntfSign);
+                _chan.remove_push_notify(self.async_ignore<chan_async_state>(), ntfSign);
                 return self.async_wait();
             }
 
@@ -277,12 +277,12 @@ namespace Go
         public abstract void try_pop(SameAction ntf);
         public abstract void timed_push(int ms, SameAction ntf, T msg);
         public abstract void timed_pop(int ms, SameAction ntf);
-        public abstract void append_pop_notify(SameAction ntf, chan_notify_sign ntfSign);
-        public abstract void try_pop_and_append_notify(SameAction cb, SameAction msgNtf, chan_notify_sign ntfSign);
-        public abstract void remove_pop_notify(SameAction ntf, chan_notify_sign ntfSign);
-        public abstract void append_push_notify(SameAction ntf, chan_notify_sign ntfSign);
-        public abstract void try_push_and_append_notify(SameAction cb, SameAction msgNtf, chan_notify_sign ntfSign, T msg);
-        public abstract void remove_push_notify(SameAction ntf, chan_notify_sign ntfSign);
+        public abstract void append_pop_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign);
+        public abstract void try_pop_and_append_notify(SameAction cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign);
+        public abstract void remove_pop_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign);
+        public abstract void append_push_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign);
+        public abstract void try_push_and_append_notify(SameAction cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, T msg);
+        public abstract void remove_push_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign);
 
         static public channel<T> make(shared_strand strand, int len)
         {
@@ -396,12 +396,12 @@ namespace Go
 
         public select_chan_base make_select_writer(async_result_wrap<T> msg, Func<Task> handler)
         {
-            return make_select_writer(() => msg.value_1, handler);
+            return make_select_writer(() => msg.value1, handler);
         }
 
         public select_chan_base make_select_writer(async_result_wrap<T> msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler)
         {
-            return make_select_writer(() => msg.value_1, handler, errHandler);
+            return make_select_writer(() => msg.value1, handler, errHandler);
         }
 
         public select_chan_base make_select_writer(T msg, Func<Task> handler)
@@ -429,12 +429,12 @@ namespace Go
             timed_pop(ms, ntf);
         }
 
-        public virtual void append_pop_notify(SameAction ntf, chan_notify_sign ntfSign, broadcast_chan_token token)
+        public virtual void append_pop_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign, broadcast_chan_token token)
         {
             append_pop_notify(ntf, ntfSign);
         }
 
-        public virtual void try_pop_and_append_notify(SameAction cb, SameAction msgNtf, chan_notify_sign ntfSign, broadcast_chan_token token)
+        public virtual void try_pop_and_append_notify(SameAction cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, broadcast_chan_token token)
         {
             try_pop_and_append_notify(cb, msgNtf, ntfSign);
         }
@@ -691,7 +691,7 @@ namespace Go
             });
         }
 
-        public override void append_pop_notify(SameAction ntf, chan_notify_sign ntfSign)
+        public override void append_pop_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -714,7 +714,7 @@ namespace Go
             });
         }
 
-        public override void try_pop_and_append_notify(SameAction cb, SameAction msgNtf, chan_notify_sign ntfSign)
+        public override void try_pop_and_append_notify(SameAction cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -741,7 +741,7 @@ namespace Go
             });
         }
 
-        public override void remove_pop_notify(SameAction ntf, chan_notify_sign ntfSign)
+        public override void remove_pop_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -761,7 +761,7 @@ namespace Go
             });
         }
 
-        public override void append_push_notify(SameAction ntf, chan_notify_sign ntfSign)
+        public override void append_push_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -774,7 +774,7 @@ namespace Go
             });
         }
 
-        public override void try_push_and_append_notify(SameAction cb, SameAction msgNtf, chan_notify_sign ntfSign, T msg)
+        public override void try_push_and_append_notify(SameAction cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, T msg)
         {
             _strand.distribute(delegate ()
             {
@@ -797,7 +797,7 @@ namespace Go
             });
         }
 
-        public override void remove_push_notify(SameAction ntf, chan_notify_sign ntfSign)
+        public override void remove_push_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -805,7 +805,7 @@ namespace Go
             });
         }
 
-        public override void clear(SameAction ntf)
+        public override void clear(Action ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -814,7 +814,7 @@ namespace Go
             });
         }
 
-        public override void close(SameAction ntf, bool isClear = false)
+        public override void close(Action ntf, bool isClear = false)
         {
             _strand.distribute(delegate ()
             {
@@ -828,7 +828,7 @@ namespace Go
             });
         }
 
-        public override void cancel(SameAction ntf, bool isClear = false)
+        public override void cancel(Action ntf, bool isClear = false)
         {
             _strand.distribute(delegate ()
             {
@@ -1146,7 +1146,7 @@ namespace Go
             });
         }
 
-        public override void append_pop_notify(SameAction ntf, chan_notify_sign ntfSign)
+        public override void append_pop_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -1169,7 +1169,7 @@ namespace Go
             });
         }
 
-        public override void try_pop_and_append_notify(SameAction cb, SameAction msgNtf, chan_notify_sign ntfSign)
+        public override void try_pop_and_append_notify(SameAction cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -1201,7 +1201,7 @@ namespace Go
                 }
             });
         }
-        public override void remove_pop_notify(SameAction ntf, chan_notify_sign ntfSign)
+        public override void remove_pop_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -1221,7 +1221,7 @@ namespace Go
             });
         }
 
-        public override void append_push_notify(SameAction ntf, chan_notify_sign ntfSign)
+        public override void append_push_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -1245,7 +1245,7 @@ namespace Go
             });
         }
 
-        public override void try_push_and_append_notify(SameAction cb, SameAction msgNtf, chan_notify_sign ntfSign, T msg)
+        public override void try_push_and_append_notify(SameAction cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, T msg)
         {
             _strand.distribute(delegate ()
             {
@@ -1278,7 +1278,7 @@ namespace Go
             });
         }
 
-        public override void remove_push_notify(SameAction ntf, chan_notify_sign ntfSign)
+        public override void remove_push_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -1298,7 +1298,7 @@ namespace Go
             });
         }
 
-        public override void clear(SameAction ntf)
+        public override void clear(Action ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -1308,7 +1308,7 @@ namespace Go
             });
         }
 
-        public override void close(SameAction ntf, bool isClear = false)
+        public override void close(Action ntf, bool isClear = false)
         {
             _strand.distribute(delegate ()
             {
@@ -1322,7 +1322,7 @@ namespace Go
             });
         }
 
-        public override void cancel(SameAction ntf, bool isClear = false)
+        public override void cancel(Action ntf, bool isClear = false)
         {
             _strand.distribute(delegate ()
             {
@@ -1659,7 +1659,7 @@ namespace Go
             });
         }
 
-        public override void append_pop_notify(SameAction ntf, chan_notify_sign ntfSign)
+        public override void append_pop_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -1688,7 +1688,7 @@ namespace Go
             });
         }
 
-        public override void try_pop_and_append_notify(SameAction cb, SameAction msgNtf, chan_notify_sign ntfSign)
+        public override void try_pop_and_append_notify(SameAction cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -1718,7 +1718,7 @@ namespace Go
             });
         }
 
-        public override void remove_pop_notify(SameAction ntf, chan_notify_sign ntfSign)
+        public override void remove_pop_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -1748,7 +1748,7 @@ namespace Go
             });
         }
 
-        public override void append_push_notify(SameAction ntf, chan_notify_sign ntfSign)
+        public override void append_push_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -1772,7 +1772,7 @@ namespace Go
             });
         }
 
-        public override void try_push_and_append_notify(SameAction cb, SameAction msgNtf, chan_notify_sign ntfSign, T msg)
+        public override void try_push_and_append_notify(SameAction cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, T msg)
         {
             _strand.distribute(delegate ()
             {
@@ -1814,7 +1814,7 @@ namespace Go
             });
         }
 
-        public override void remove_push_notify(SameAction ntf, chan_notify_sign ntfSign)
+        public override void remove_push_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -1834,7 +1834,7 @@ namespace Go
             });
         }
 
-        public override void clear(SameAction ntf)
+        public override void clear(Action ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -1844,7 +1844,7 @@ namespace Go
             });
         }
 
-        public override void close(SameAction ntf, bool isClear = false)
+        public override void close(Action ntf, bool isClear = false)
         {
             _strand.distribute(delegate ()
             {
@@ -1855,7 +1855,7 @@ namespace Go
             });
         }
 
-        public override void cancel(SameAction ntf, bool isClear = false)
+        public override void cancel(Action ntf, bool isClear = false)
         {
             _strand.distribute(delegate ()
             {
@@ -2085,12 +2085,12 @@ namespace Go
             });
         }
 
-        public override void append_pop_notify(SameAction ntf, chan_notify_sign ntfSign)
+        public override void append_pop_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
         {
             append_pop_notify(ntf, ntfSign, broadcast_chan_token._defToken);
         }
 
-        public override void append_pop_notify(SameAction ntf, chan_notify_sign ntfSign, broadcast_chan_token token)
+        public override void append_pop_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign, broadcast_chan_token token)
         {
             _strand.distribute(delegate ()
             {
@@ -2098,7 +2098,7 @@ namespace Go
             });
         }
 
-        bool _append_pop_notify(SameAction ntf, chan_notify_sign ntfSign, broadcast_chan_token token)
+        bool _append_pop_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign, broadcast_chan_token token)
         {
             if (_has && token._lastId != _pushCount)
             {
@@ -2124,12 +2124,12 @@ namespace Go
             }
         }
 
-        public override void try_pop_and_append_notify(SameAction cb, SameAction msgNtf, chan_notify_sign ntfSign)
+        public override void try_pop_and_append_notify(SameAction cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign)
         {
             try_pop_and_append_notify(cb, msgNtf, ntfSign, broadcast_chan_token._defToken);
         }
 
-        public override void try_pop_and_append_notify(SameAction cb, SameAction msgNtf, chan_notify_sign ntfSign, broadcast_chan_token token)
+        public override void try_pop_and_append_notify(SameAction cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, broadcast_chan_token token)
         {
             _strand.distribute(delegate ()
             {
@@ -2149,7 +2149,7 @@ namespace Go
             });
         }
 
-        public override void remove_pop_notify(SameAction ntf, chan_notify_sign ntfSign)
+        public override void remove_pop_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -2172,7 +2172,7 @@ namespace Go
             });
         }
 
-        public override void append_push_notify(SameAction ntf, chan_notify_sign ntfSign)
+        public override void append_push_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -2185,7 +2185,7 @@ namespace Go
             });
         }
 
-        public override void try_push_and_append_notify(SameAction cb, SameAction msgNtf, chan_notify_sign ntfSign, T msg)
+        public override void try_push_and_append_notify(SameAction cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, T msg)
         {
             _strand.distribute(delegate ()
             {
@@ -2203,7 +2203,7 @@ namespace Go
             });
         }
 
-        public override void remove_push_notify(SameAction ntf, chan_notify_sign ntfSign)
+        public override void remove_push_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -2211,7 +2211,7 @@ namespace Go
             });
         }
 
-        public override void clear(SameAction ntf)
+        public override void clear(Action ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -2220,7 +2220,7 @@ namespace Go
             });
         }
 
-        public override void close(SameAction ntf, bool isClear = false)
+        public override void close(Action ntf, bool isClear = false)
         {
             _strand.distribute(delegate ()
             {
@@ -2231,7 +2231,7 @@ namespace Go
             });
         }
 
-        public override void cancel(SameAction ntf, bool isClear = false)
+        public override void cancel(Action ntf, bool isClear = false)
         {
             _strand.distribute(delegate ()
             {
@@ -2308,7 +2308,7 @@ namespace Go
             public override void begin()
             {
                 ntfSign._disable = false;
-                _chan.append_pop_notify(delegate (object[] args)
+                _chan.append_pop_notify(delegate (chan_async_state state)
                 {
                     nextSelect.post(this);
                 }, ntfSign);
@@ -2326,7 +2326,7 @@ namespace Go
                         result.result = (csp_chan<R, T>.csp_result)(args[1]);
                         result.msg = (T)args[2];
                     }
-                }), delegate (object[] args)
+                }), delegate (chan_async_state state)
                 {
                     nextSelect.post(this);
                 }, ntfSign);
@@ -2367,7 +2367,7 @@ namespace Go
             {
                 generator self = generator.self;
                 ntfSign._disable = true;
-                _chan.remove_pop_notify(self.async_same_callback(), ntfSign);
+                _chan.remove_pop_notify(self.async_ignore<chan_async_state>(), ntfSign);
                 return self.async_wait();
             }
 
@@ -2392,7 +2392,7 @@ namespace Go
             public override void begin()
             {
                 ntfSign._disable = false;
-                _chan.append_push_notify(delegate (object[] args)
+                _chan.append_push_notify(delegate (chan_async_state state)
                 {
                     nextSelect.post(this);
                 }, ntfSign);
@@ -2409,7 +2409,7 @@ namespace Go
                     {
                         result.result = (R)args[1];
                     }
-                }), delegate (object[] args)
+                }), delegate (chan_async_state state)
                 {
                     nextSelect.post(this);
                 }, ntfSign, _msg());
@@ -2450,7 +2450,7 @@ namespace Go
             {
                 generator self = generator.self;
                 ntfSign._disable = true;
-                _chan.remove_push_notify(self.async_same_callback(), ntfSign);
+                _chan.remove_push_notify(self.async_ignore<chan_async_state>(), ntfSign);
                 return self.async_wait();
             }
 
@@ -2532,12 +2532,12 @@ namespace Go
 
         public select_chan_base make_select_writer(async_result_wrap<T> msg, Func<R, Task> handler)
         {
-            return make_select_writer(() => msg.value_1, handler);
+            return make_select_writer(() => msg.value1, handler);
         }
 
         public select_chan_base make_select_writer(async_result_wrap<T> msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler)
         {
-            return make_select_writer(() => msg.value_1, handler, errHandler);
+            return make_select_writer(() => msg.value1, handler, errHandler);
         }
 
         public select_chan_base make_select_writer(T msg, Func<R, Task> handler)
@@ -2811,7 +2811,7 @@ namespace Go
             });
         }
 
-        public override void append_pop_notify(SameAction ntf, chan_notify_sign ntfSign)
+        public override void append_pop_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -2840,7 +2840,7 @@ namespace Go
             });
         }
 
-        public override void try_pop_and_append_notify(SameAction cb, SameAction msgNtf, chan_notify_sign ntfSign)
+        public override void try_pop_and_append_notify(SameAction cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -2874,7 +2874,7 @@ namespace Go
             });
         }
 
-        public override void remove_pop_notify(SameAction ntf, chan_notify_sign ntfSign)
+        public override void remove_pop_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -2910,7 +2910,7 @@ namespace Go
             });
         }
 
-        public override void append_push_notify(SameAction ntf, chan_notify_sign ntfSign)
+        public override void append_push_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -2934,7 +2934,7 @@ namespace Go
             });
         }
 
-        public override void try_push_and_append_notify(SameAction cb, SameAction msgNtf, chan_notify_sign ntfSign, T msg)
+        public override void try_push_and_append_notify(SameAction cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, T msg)
         {
             _strand.distribute(delegate ()
             {
@@ -2966,7 +2966,7 @@ namespace Go
             });
         }
 
-        public override void remove_push_notify(SameAction ntf, chan_notify_sign ntfSign)
+        public override void remove_push_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -2986,7 +2986,7 @@ namespace Go
             });
         }
 
-        public override void clear(SameAction ntf)
+        public override void clear(Action ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -2996,7 +2996,7 @@ namespace Go
             });
         }
 
-        public override void close(SameAction ntf, bool isClear = false)
+        public override void close(Action ntf, bool isClear = false)
         {
             _strand.distribute(delegate ()
             {
@@ -3014,7 +3014,7 @@ namespace Go
             });
         }
 
-        public override void cancel(SameAction ntf, bool isClear = false)
+        public override void cancel(Action ntf, bool isClear = false)
         {
             _strand.distribute(delegate ()
             {

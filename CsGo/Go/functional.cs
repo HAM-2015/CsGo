@@ -87,7 +87,6 @@ namespace Go
         public static readonly placeholder _ = new placeholder();
         static public readonly Action nil_handler = () => { };
         static public readonly SameAction any_handler = (object[] args) => { };
-        static public readonly Action nil_action = () => { };
 
         public static Action cast(SameAction handler)
         {

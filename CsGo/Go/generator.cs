@@ -30,7 +30,7 @@ namespace Go
     {
         T1 p1;
 
-        public virtual T1 value_1
+        public virtual T1 value1
         {
             get { return p1; }
             set { p1 = value; }
@@ -47,13 +47,13 @@ namespace Go
         T1 p1;
         T2 p2;
 
-        public virtual T1 value_1
+        public virtual T1 value1
         {
             get { return p1; }
             set { p1 = value; }
         }
 
-        public virtual T2 value_2
+        public virtual T2 value2
         {
             get { return p2; }
             set { p2 = value; }
@@ -72,19 +72,19 @@ namespace Go
         T2 p2;
         T3 p3;
 
-        public virtual T1 value_1
+        public virtual T1 value1
         {
             get { return p1; }
             set { p1 = value; }
         }
 
-        public virtual T2 value_2
+        public virtual T2 value2
         {
             get { return p2; }
             set { p2 = value; }
         }
 
-        public virtual T3 value_3
+        public virtual T3 value3
         {
             get { return p3; }
             set { p3 = value; }
@@ -102,7 +102,7 @@ namespace Go
     {
         static public async_result_ignore_wrap<T1> value = new async_result_ignore_wrap<T1>();
 
-        public override T1 value_1
+        public override T1 value1
         {
             set { }
         }
@@ -112,12 +112,12 @@ namespace Go
     {
         static public async_result_ignore_wrap<T1, T2> value = new async_result_ignore_wrap<T1, T2>();
 
-        public override T1 value_1
+        public override T1 value1
         {
             set { }
         }
 
-        public override T2 value_2
+        public override T2 value2
         {
             set { }
         }
@@ -127,17 +127,17 @@ namespace Go
     {
         static public async_result_ignore_wrap<T1, T2, T3> value = new async_result_ignore_wrap<T1, T2, T3>();
 
-        public override T1 value_1
+        public override T1 value1
         {
             set { }
         }
 
-        public override T2 value_2
+        public override T2 value2
         {
             set { }
         }
 
-        public override T3 value_3
+        public override T3 value3
         {
             set { }
         }
@@ -361,7 +361,7 @@ namespace Go
 
         static int _hashCount = 0;
         static long _idCount = 0;
-        static Task _nilTask = new Task(functional.nil_action);
+        static Task _nilTask = new Task(functional.nil_handler);
         static ReaderWriterLockSlim _nameMutex = new ReaderWriterLockSlim();
         static Dictionary<string, generator> _nameGens = new Dictionary<string, generator>();
         static static_init _init = new static_init();
@@ -527,7 +527,7 @@ namespace Go
                         {
                             foreach (KeyValuePair<long, mail_pck> ele in _mailboxMap)
                             {
-                                ele.Value.mailbox.close(functional.any_handler);
+                                ele.Value.mailbox.close();
                             }
                         }
                     }
@@ -1318,7 +1318,7 @@ namespace Go
             async_result_wrap<R> res = new async_result_wrap<R>();
             handler(res);
             await async_wait();
-            return res.value_1;
+            return res.value1;
         }
 
         public SameAction async_same_callback()
@@ -1906,7 +1906,7 @@ namespace Go
             bool beginQuit = _beginQuit;
             return delegate (T1 p1)
             {
-                res.value_1 = p1;
+                res.value1 = p1;
                 strand.distribute(beginQuit ? (Action)quit_next : no_quit_next);
             };
         }
@@ -1917,8 +1917,8 @@ namespace Go
             bool beginQuit = _beginQuit;
             return delegate (T1 p1, T2 p2)
             {
-                res.value_1 = p1;
-                res.value_2 = p2;
+                res.value1 = p1;
+                res.value2 = p2;
                 strand.distribute(beginQuit ? (Action)quit_next : no_quit_next);
             };
         }
@@ -1929,9 +1929,9 @@ namespace Go
             bool beginQuit = _beginQuit;
             return delegate (T1 p1, T2 p2, T3 p3)
             {
-                res.value_1 = p1;
-                res.value_2 = p2;
-                res.value_3 = p3;
+                res.value1 = p1;
+                res.value2 = p2;
+                res.value3 = p3;
                 strand.distribute(beginQuit ? (Action)quit_next : no_quit_next);
             };
         }
@@ -1985,7 +1985,7 @@ namespace Go
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
-                        res.value_1 = p1;
+                        res.value1 = p1;
                         no_check_next();
                     }
                 });
@@ -2006,8 +2006,8 @@ namespace Go
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
-                        res.value_1 = p1;
-                        res.value_2 = p2;
+                        res.value1 = p1;
+                        res.value2 = p2;
                         no_check_next();
                     }
                 });
@@ -2028,9 +2028,9 @@ namespace Go
                 {
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
-                        res.value_1 = p1;
-                        res.value_2 = p2;
-                        res.value_3 = p3;
+                        res.value1 = p1;
+                        res.value2 = p2;
+                        res.value3 = p3;
                         no_check_next();
                     }
                 });
@@ -2110,7 +2110,7 @@ namespace Go
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
                         _timer.cancel();
-                        res.value_1 = p1;
+                        res.value1 = p1;
                         no_check_next();
                     }
                 });
@@ -2143,8 +2143,8 @@ namespace Go
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
                         _timer.cancel();
-                        res.value_1 = p1;
-                        res.value_2 = p2;
+                        res.value1 = p1;
+                        res.value2 = p2;
                         no_check_next();
                     }
                 });
@@ -2177,9 +2177,9 @@ namespace Go
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
                         _timer.cancel();
-                        res.value_1 = p1;
-                        res.value_2 = p2;
-                        res.value_3 = p3;
+                        res.value1 = p1;
+                        res.value2 = p2;
+                        res.value3 = p3;
                         no_check_next();
                     }
                 });
@@ -2238,7 +2238,7 @@ namespace Go
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
                         _timer.cancel();
-                        res.value_1 = p1;
+                        res.value1 = p1;
                         no_check_next();
                     }
                 });
@@ -2268,8 +2268,8 @@ namespace Go
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
                         _timer.cancel();
-                        res.value_1 = p1;
-                        res.value_2 = p2;
+                        res.value1 = p1;
+                        res.value2 = p2;
                         no_check_next();
                     }
                 });
@@ -2299,9 +2299,9 @@ namespace Go
                     if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
                     {
                         _timer.cancel();
-                        res.value_1 = p1;
-                        res.value_2 = p2;
-                        res.value_3 = p3;
+                        res.value1 = p1;
+                        res.value2 = p2;
+                        res.value3 = p3;
                         no_check_next();
                     }
                 });
@@ -2452,21 +2452,21 @@ namespace Go
         static public Task chan_clear<T>(channel<T> chan)
         {
             generator this_ = self;
-            chan.clear(this_.async_same_callback());
+            chan.clear(this_.async_result());
             return this_.async_wait();
         }
 
         static public Task chan_close<T>(channel<T> chan, bool isClear = false)
         {
             generator this_ = self;
-            chan.close(this_.async_same_callback(), isClear);
+            chan.close(this_.async_result(), isClear);
             return this_.async_wait();
         }
 
         static public Task chan_cancel<T>(channel<T> chan, bool isClear = false)
         {
             generator this_ = self;
-            chan.cancel(this_.async_same_callback(), isClear);
+            chan.cancel(this_.async_result(), isClear);
             return this_.async_wait();
         }
 
@@ -2485,6 +2485,71 @@ namespace Go
                 await this_.async_wait();
             }
             return is_closed;
+        }
+
+        static public Task<chan_async_state> chan_send<T>(channel<T> chan, T msg)
+        {
+            return chan_push(chan, msg);
+        }
+
+        static public Task<chan_async_state> chan_send(channel<void_type> chan)
+        {
+            return chan_push(chan);
+        }
+
+        static public Task<chan_async_state> chan_force_send<T>(chan<T> chan, T msg, async_result_wrap<bool, T> outMsg = null)
+        {
+            return chan_force_push(chan, msg, outMsg);
+        }
+
+        static public Task<chan_pop_wrap<T>> chan_receive<T>(channel<T> chan)
+        {
+            return chan_pop(chan);
+        }
+
+        static public Task<chan_pop_wrap<T>> chan_receive<T>(channel<T> chan, broadcast_chan_token token)
+        {
+            return chan_pop(chan, token);
+        }
+
+        static public Task<chan_async_state> chan_try_send<T>(channel<T> chan, T msg)
+        {
+            return chan_try_push(chan, msg);
+        }
+
+        static public Task<chan_async_state> chan_try_send(channel<void_type> chan)
+        {
+            return chan_try_push(chan);
+        }
+
+        static public Task<chan_pop_wrap<T>> chan_try_receive<T>(channel<T> chan)
+        {
+            return chan_try_pop(chan);
+        }
+
+        static public Task<chan_pop_wrap<T>> chan_try_receive<T>(channel<T> chan, broadcast_chan_token token)
+        {
+            return chan_try_pop(chan, token);
+        }
+
+        static public Task<chan_async_state> chan_timed_send<T>(channel<T> chan, int ms, T msg)
+        {
+            return chan_timed_push(chan, ms, msg);
+        }
+
+        static public Task<chan_async_state> chan_timed_send(channel<void_type> chan, int ms)
+        {
+            return chan_timed_push(chan, ms);
+        }
+
+        static public Task<chan_pop_wrap<T>> chan_timed_receive<T>(channel<T> chan, int ms)
+        {
+            return chan_timed_pop(chan, ms);
+        }
+
+        static public Task<chan_pop_wrap<T>> chan_timed_receive<T>(channel<T> chan, int ms, broadcast_chan_token token)
+        {
+            return chan_timed_pop(chan, ms, token);
         }
 
         static public async Task<chan_async_state> chan_push<T>(channel<T> chan, T msg)
@@ -2510,8 +2575,8 @@ namespace Go
                 result = (chan_async_state)args[0];
                 if (null != outMsg)
                 {
-                    outMsg.value_1 = 2 == args.Length;
-                    outMsg.value_2 = outMsg.value_1 ? (T)args[1] : default(T);
+                    outMsg.value1 = 2 == args.Length;
+                    outMsg.value2 = outMsg.value1 ? (T)args[1] : default(T);
                 }
             }), msg);
             await this_.async_wait();
@@ -2995,7 +3060,7 @@ namespace Go
             }
         }
 
-        static public async Task disable_other_case_read(channel_base otherChan, bool disable = true)
+        static public async Task disable_other_case_receive(channel_base otherChan, bool disable = true)
         {
             generator this_ = self;
             if (null != this_._selectChans && 0 != this_._selectChans.Count)
@@ -3019,7 +3084,7 @@ namespace Go
             }
         }
 
-        static public async Task disable_other_case_write(channel_base otherChan, bool disable = true)
+        static public async Task disable_other_case_send(channel_base otherChan, bool disable = true)
         {
             generator this_ = self;
             if (null != this_._selectChans && 0 != this_._selectChans.Count)
@@ -3048,14 +3113,14 @@ namespace Go
             return disable_other_case(otherChan, false);
         }
 
-        static public Task enable_other_case_read(channel_base otherChan)
+        static public Task enable_other_case_receive(channel_base otherChan)
         {
-            return disable_other_case_read(otherChan, false);
+            return disable_other_case_receive(otherChan, false);
         }
 
-        static public Task enable_other_case_write(channel_base otherChan)
+        static public Task enable_other_case_send(channel_base otherChan)
         {
-            return disable_other_case_write(otherChan, false);
+            return disable_other_case_send(otherChan, false);
         }
 
         static public async Task<bool> select_chans(params select_chan_base[] chans)
@@ -3294,125 +3359,125 @@ namespace Go
 
         static public select_chan_base case_mail<T>(Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
         {
-            return case_read(self_mailbox<T>(), handler, errHandler);
+            return case_receive(self_mailbox<T>(), handler, errHandler);
         }
 
         static public select_chan_base case_mail<T>(int id, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
         {
-            return case_read(self_mailbox<T>(id), handler, errHandler);
+            return case_receive(self_mailbox<T>(id), handler, errHandler);
         }
 
-        static public select_chan_base case_read<T>(channel<T> chan, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+        static public select_chan_base case_receive<T>(channel<T> chan, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
         {
             return chan.make_select_reader(handler, errHandler);
         }
 
-        static public select_chan_base case_read(channel<void_type> chan, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+        static public select_chan_base case_receive(channel<void_type> chan, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
         {
             return chan.make_select_reader((void_type _) => handler(), errHandler);
         }
 
-        static public select_chan_base case_write<T>(channel<T> chan, Func<T> msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+        static public select_chan_base case_send<T>(channel<T> chan, Func<T> msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
         {
             return chan.make_select_writer(msg, handler, errHandler);
         }
 
-        static public select_chan_base case_write<T>(channel<T> chan, async_result_wrap<T> msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+        static public select_chan_base case_send<T>(channel<T> chan, async_result_wrap<T> msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
         {
             return chan.make_select_writer(msg, handler, errHandler);
         }
 
-        static public select_chan_base case_write<T>(channel<T> chan, T msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+        static public select_chan_base case_send<T>(channel<T> chan, T msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
         {
             return chan.make_select_writer(msg, handler, errHandler);
         }
 
-        static public select_chan_base case_write(channel<void_type> chan, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+        static public select_chan_base case_send(channel<void_type> chan, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
         {
             return chan.make_select_writer(default(void_type), handler, errHandler);
         }
 
-        static public select_chan_base case_read<T>(broadcast_chan<T> chan, Func<T, Task> handler, broadcast_chan_token token)
+        static public select_chan_base case_receive<T>(broadcast_chan<T> chan, Func<T, Task> handler, broadcast_chan_token token)
         {
             return chan.make_select_reader(handler, token);
         }
 
-        static public select_chan_base case_read<T>(broadcast_chan<T> chan, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler, broadcast_chan_token token)
+        static public select_chan_base case_receive<T>(broadcast_chan<T> chan, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler, broadcast_chan_token token)
         {
             return chan.make_select_reader(handler, errHandler, token);
         }
 
-        static public select_chan_base case_read(broadcast_chan<void_type> chan, Func<Task> handler, broadcast_chan_token token)
+        static public select_chan_base case_receive(broadcast_chan<void_type> chan, Func<Task> handler, broadcast_chan_token token)
         {
             return chan.make_select_reader((void_type _) => handler(), token);
         }
 
-        static public select_chan_base case_read(broadcast_chan<void_type> chan, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler, broadcast_chan_token token)
+        static public select_chan_base case_receive(broadcast_chan<void_type> chan, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler, broadcast_chan_token token)
         {
             return chan.make_select_reader((void_type _) => handler(), errHandler, token);
         }
 
-        static public select_chan_base case_read<R, T>(csp_chan<R, T> chan, Func<csp_chan<R, T>.csp_result, T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+        static public select_chan_base case_receive<R, T>(csp_chan<R, T> chan, Func<csp_chan<R, T>.csp_result, T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
         {
             return chan.make_select_reader(handler, errHandler);
         }
 
-        static public select_chan_base case_read<R, T>(csp_chan<R, T> chan, Func<T, Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+        static public select_chan_base case_receive<R, T>(csp_chan<R, T> chan, Func<T, Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null)
         {
             return chan.make_select_reader(async (csp_chan<R, T>.csp_result res, T msg) => res.complete(await handler(msg)), errHandler);
         }
 
-        static public select_chan_base case_read<R>(csp_chan<R, void_type> chan, Func<Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+        static public select_chan_base case_receive<R>(csp_chan<R, void_type> chan, Func<Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null)
         {
             return chan.make_select_reader(async (csp_chan<R, void_type>.csp_result res, void_type _) => res.complete(await handler()), errHandler);
         }
 
-        static public select_chan_base case_read<T>(csp_chan<void_type, T> chan, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+        static public select_chan_base case_receive<T>(csp_chan<void_type, T> chan, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
         {
             return chan.make_select_reader(async (csp_chan<void_type, T>.csp_result res, T msg) => { await handler(msg); res.complete(default(void_type)); }, errHandler);
         }
 
-        static public select_chan_base case_read(csp_chan<void_type, void_type> chan, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+        static public select_chan_base case_receive(csp_chan<void_type, void_type> chan, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
         {
             return chan.make_select_reader(async (csp_chan<void_type, void_type>.csp_result res, void_type _) => { await handler(); res.complete(default(void_type)); }, errHandler);
         }
 
-        static public select_chan_base case_write<R, T>(csp_chan<R, T> chan, Func<T> msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+        static public select_chan_base case_send<R, T>(csp_chan<R, T> chan, Func<T> msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
         {
             return chan.make_select_writer(msg, handler, errHandler);
         }
 
-        static public select_chan_base case_write<R, T>(csp_chan<R, T> chan, async_result_wrap<T> msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+        static public select_chan_base case_send<R, T>(csp_chan<R, T> chan, async_result_wrap<T> msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
         {
             return chan.make_select_writer(msg, handler, errHandler);
         }
 
-        static public select_chan_base case_write<R, T>(csp_chan<R, T> chan, T msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+        static public select_chan_base case_send<R, T>(csp_chan<R, T> chan, T msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
         {
             return chan.make_select_writer(msg, handler, errHandler);
         }
 
-        static public select_chan_base case_write<R>(csp_chan<R, void_type> chan, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+        static public select_chan_base case_send<R>(csp_chan<R, void_type> chan, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
         {
             return chan.make_select_writer(default(void_type), handler, errHandler);
         }
 
-        static public select_chan_base case_write<T>(csp_chan<void_type, T> chan, Func<T> msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+        static public select_chan_base case_send<T>(csp_chan<void_type, T> chan, Func<T> msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
         {
             return chan.make_select_writer(msg, (void_type _) => handler(), errHandler);
         }
 
-        static public select_chan_base case_write<T>(csp_chan<void_type, T> chan, async_result_wrap<T> msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+        static public select_chan_base case_send<T>(csp_chan<void_type, T> chan, async_result_wrap<T> msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
         {
             return chan.make_select_writer(msg, (void_type _) => handler(), errHandler);
         }
 
-        static public select_chan_base case_write<T>(csp_chan<void_type, T> chan, T msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+        static public select_chan_base case_send<T>(csp_chan<void_type, T> chan, T msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
         {
             return chan.make_select_writer(msg, (void_type _) => handler(), errHandler);
         }
 
-        static public select_chan_base case_write(csp_chan<void_type, void_type> chan, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+        static public select_chan_base case_send(csp_chan<void_type, void_type> chan, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
         {
             return chan.make_select_writer(default(void_type), (void_type _) => handler(), errHandler);
         }
@@ -3463,7 +3528,7 @@ namespace Go
             async_result_wrap<chan_async_state> res = new async_result_wrap<chan_async_state>();
             mtx.try_lock(this_._id, this_.async_result(res));
             await this_.async_wait();
-            return chan_async_state.async_ok == res.value_1;
+            return chan_async_state.async_ok == res.value1;
         }
 
         static public async Task<bool> mutex_try_lock(mutex mtx, Func<Task> handler)
@@ -3489,7 +3554,7 @@ namespace Go
             async_result_wrap<chan_async_state> res = new async_result_wrap<chan_async_state>();
             mtx.timed_lock(this_._id, ms, this_.async_result(res));
             await this_.async_wait();
-            return chan_async_state.async_ok == res.value_1;
+            return chan_async_state.async_ok == res.value1;
         }
 
         static public async Task<bool> mutex_timed_lock(mutex mtx, int ms, Func<Task> handler)
@@ -3621,7 +3686,7 @@ namespace Go
             async_result_wrap<chan_async_state> res = new async_result_wrap<chan_async_state>();
             mtx.try_lock_shared(this_._id, this_.async_result(res));
             await this_.async_wait();
-            return chan_async_state.async_ok == res.value_1;
+            return chan_async_state.async_ok == res.value1;
         }
 
         static public async Task<bool> mutex_try_lock_shared(shared_mutex mtx, Func<Task> handler)
@@ -3647,7 +3712,7 @@ namespace Go
             async_result_wrap<chan_async_state> res = new async_result_wrap<chan_async_state>();
             mtx.try_lock_upgrade(this_._id, this_.async_result(res));
             await this_.async_wait();
-            return chan_async_state.async_ok == res.value_1;
+            return chan_async_state.async_ok == res.value1;
         }
 
         static public async Task<bool> mutex_try_lock_upgrade(shared_mutex mtx, Func<Task> handler)
@@ -3673,7 +3738,7 @@ namespace Go
             async_result_wrap<chan_async_state> res = new async_result_wrap<chan_async_state>();
             mtx.timed_lock_shared(this_._id, ms, this_.async_result(res));
             await this_.async_wait();
-            return chan_async_state.async_ok == res.value_1;
+            return chan_async_state.async_ok == res.value1;
         }
 
         static public async Task<bool> mutex_timed_lock_shared(shared_mutex mtx, int ms, Func<Task> handler)
@@ -3720,7 +3785,7 @@ namespace Go
             async_result_wrap<chan_async_state> res = new async_result_wrap<chan_async_state>();
             conVar.timed_wait(this_._id, ms, mutex, this_.async_result(res));
             await this_.async_wait();
-            return chan_async_state.async_ok == res.value_1;
+            return chan_async_state.async_ok == res.value1;
         }
 
         static public async Task send_strand(shared_strand strand, Action handler)
@@ -4177,8 +4242,17 @@ namespace Go
         {
             generator this_ = self;
             bool overtime = false;
-            otherGen.append_stop_callback(this_.timed_async_result2(ms, () => overtime = true));
+            nil_chan<LinkedListNode<Action>> waitRemove = new nil_chan<LinkedListNode<Action>>();
+            otherGen.append_stop_callback(this_.timed_async_result2(ms, () => overtime = true), waitRemove.wrap());
             await this_.async_wait();
+            if (overtime)
+            {
+                LinkedListNode<Action> node = await chan_pop(waitRemove);
+                if (null != node)
+                {
+                    otherGen.remove_stop_callback(node);
+                }
+            }
             return !overtime;
         }
 
@@ -4211,7 +4285,7 @@ namespace Go
             async_result_wrap<R> res = new async_result_wrap<R>();
             handler(this_.async_result(res));
             await this_.async_wait();
-            return res.value_1;
+            return res.value1;
         }
 
         static public async Task<async_result_wrap<R1, R2>> async_call<R1, R2>(Action<Action<R1, R2>> handler)
@@ -4245,7 +4319,7 @@ namespace Go
             async_result_wrap<R> res = new async_result_wrap<R>();
             handler(this_.safe_async_result(res));
             await this_.async_wait();
-            return res.value_1;
+            return res.value1;
         }
 
         static public async Task<async_result_wrap<R1, R2>> safe_async_call<R1, R2>(Action<Action<R1, R2>> handler)
@@ -4470,7 +4544,7 @@ namespace Go
             async_result_wrap<channel<T>> res = new async_result_wrap<channel<T>>();
             get_mailbox(host_.async_result(res), id);
             await host_.async_wait();
-            return res.value_1;
+            return res.value1;
         }
 
         static public async Task<bool> agent_mail<T>(generator agentGen, int id = 0)
@@ -4507,19 +4581,30 @@ namespace Go
                 generator self = generator.self;
                 try
                 {
+                    nil_chan<chan_async_state> waitHasChan = new nil_chan<chan_async_state>();
+                    Action<chan_async_state> waitHasNtf = waitHasChan.wrap();
+                    selfMb.append_pop_notify(waitHasNtf, ntfSign);
                     while (true)
                     {
-                        selfMb.append_pop_notify(self.async_same_callback(), ntfSign);
-                        await self.async_wait();
+                        await chan_pop(waitHasChan);
                         try
                         {
                             lock_suspend_and_stop();
-                            chan_pop_wrap<T> popRes = await chan_try_pop(selfMb);
-                            if (chan_async_state.async_ok == popRes.state)
+                            chan_pop_wrap<T> recvRes = default(chan_pop_wrap<T>);
+                            selfMb.try_pop_and_append_notify(self.async_same_callback(delegate (object[] args)
                             {
-                                popRes.state = await chan_push(agentMb, popRes.result);
+                                recvRes.state = (chan_async_state)args[0];
+                                if (chan_async_state.async_ok == recvRes.state)
+                                {
+                                    recvRes.result = (T)args[1];
+                                }
+                            }), waitHasNtf, ntfSign);
+                            await self.async_wait();
+                            if (chan_async_state.async_ok == recvRes.state)
+                            {
+                                recvRes.state = await chan_push(agentMb, recvRes.result);
                             }
-                            if (chan_async_state.async_closed == popRes.state)
+                            if (chan_async_state.async_closed == recvRes.state)
                             {
                                 break;
                             }
@@ -4533,7 +4618,7 @@ namespace Go
                 catch (stop_exception)
                 {
                     lock_suspend_and_stop();
-                    selfMb.remove_pop_notify(self.async_same_callback(), ntfSign);
+                    selfMb.remove_pop_notify(self.async_ignore<chan_async_state>(), ntfSign);
                     await self.async_wait();
                     await unlock_suspend_and_stop();
                 }
@@ -4652,23 +4737,34 @@ namespace Go
                         try
                         {
                             self._mailboxMap = _children.parent()._mailboxMap;
+                            nil_chan<chan_async_state> waitHasChan = new nil_chan<chan_async_state>();
+                            Action<chan_async_state> waitHasNtf = waitHasChan.wrap();
+                            chan.append_pop_notify(waitHasNtf, ntfSign);
                             while (_run)
                             {
-                                chan.append_pop_notify(self.async_same_callback(), ntfSign);
-                                await self.async_wait();
+                                await chan_pop(waitHasChan);
                                 await mutex_lock_shared(_mutex);
                                 try
                                 {
-                                    chan_pop_wrap<T> res = await chan_try_pop(chan);
-                                    if (chan_async_state.async_ok == res.state)
+                                    chan_pop_wrap<T> recvRes = default(chan_pop_wrap<T>);
+                                    chan.try_pop_and_append_notify(self.async_same_callback(delegate (object[] args)
                                     {
-                                        await handler(res.result);
+                                        recvRes.state = (chan_async_state)args[0];
+                                        if (chan_async_state.async_ok == recvRes.state)
+                                        {
+                                            recvRes.result = (T)args[1];
+                                        }
+                                    }), waitHasNtf, ntfSign);
+                                    await self.async_wait();
+                                    if (chan_async_state.async_ok == recvRes.state)
+                                    {
+                                        await handler(recvRes.result);
                                     }
-                                    else if (null != errHandler && await errHandler(res.state))
+                                    else if (null != errHandler && await errHandler(recvRes.state))
                                     {
                                         break;
                                     }
-                                    else if (chan_async_state.async_closed == res.state)
+                                    else if (chan_async_state.async_closed == recvRes.state)
                                     {
                                         break;
                                     }
@@ -4688,7 +4784,7 @@ namespace Go
                         {
                             self._mailboxMap = null;
                             lock_suspend_and_stop();
-                            chan.remove_pop_notify(self.async_same_callback(), ntfSign);
+                            chan.remove_pop_notify(self.async_ignore<chan_async_state>(), ntfSign);
                             await self.async_wait();
                             await unlock_suspend_and_stop();
                         }
@@ -4739,23 +4835,33 @@ namespace Go
                         try
                         {
                             self._mailboxMap = _children.parent()._mailboxMap;
+                            nil_chan<chan_async_state> waitHasChan = new nil_chan<chan_async_state>();
+                            Action<chan_async_state> waitHasNtf = waitHasChan.wrap();
+                            chan.append_pop_notify(waitHasNtf, ntfSign);
                             long endTick = system_tick.get_tick_ms() + ms;
                             while (_run)
                             {
-                                bool overtime = false;
-                                chan.append_pop_notify(self.timed_async_same_callback2(ms, () => overtime = true), ntfSign);
-                                await self.async_wait();
+                                bool overtime = chan_async_state.async_overtime == await chan_timed_pop(waitHasChan, ms);
                                 await mutex_lock_shared(_mutex);
                                 try
                                 {
                                     if (!overtime)
                                     {
-                                        chan_pop_wrap<T> res = await chan_try_pop(chan);
-                                        if (chan_async_state.async_ok == res.state)
+                                        chan_pop_wrap<T> recvRes = default(chan_pop_wrap<T>);
+                                        chan.try_pop_and_append_notify(self.async_same_callback(delegate (object[] args)
                                         {
-                                            await handler(res.result); break;
+                                            recvRes.state = (chan_async_state)args[0];
+                                            if (chan_async_state.async_ok == recvRes.state)
+                                            {
+                                                recvRes.result = (T)args[1];
+                                            }
+                                        }), waitHasNtf, ntfSign);
+                                        await self.async_wait();
+                                        if (chan_async_state.async_ok == recvRes.state)
+                                        {
+                                            await handler(recvRes.result); break;
                                         }
-                                        else if ((null != errHandler && await errHandler(res.state)) || chan_async_state.async_closed == res.state) { break; }
+                                        else if ((null != errHandler && await errHandler(recvRes.state)) || chan_async_state.async_closed == recvRes.state) { break; }
                                         if (0 <= ms && 0 >= (ms = (int)(endTick - system_tick.get_tick_ms())))
                                         {
                                             await timedHandler(); break;
@@ -4781,7 +4887,7 @@ namespace Go
                         {
                             self._mailboxMap = null;
                             lock_suspend_and_stop();
-                            chan.remove_pop_notify(self.async_same_callback(), ntfSign);
+                            chan.remove_pop_notify(self.async_ignore<chan_async_state>(), ntfSign);
                             await self.async_wait();
                             await unlock_suspend_and_stop();
                         }
@@ -4886,23 +4992,34 @@ namespace Go
                         try
                         {
                             self._mailboxMap = _children.parent()._mailboxMap;
+                            nil_chan<chan_async_state> waitHasChan = new nil_chan<chan_async_state>();
+                            Action<chan_async_state> waitHasNtf = waitHasChan.wrap();
+                            chan.append_pop_notify(waitHasNtf, ntfSign);
                             while (_run)
                             {
-                                chan.append_pop_notify(self.async_same_callback(), ntfSign, token);
-                                await self.async_wait();
+                                await chan_pop(waitHasChan);
                                 await mutex_lock_shared(_mutex);
                                 try
                                 {
-                                    chan_pop_wrap<T> res = await chan_try_pop(chan, token);
-                                    if (chan_async_state.async_ok == res.state)
+                                    chan_pop_wrap<T> recvRes = default(chan_pop_wrap<T>);
+                                    chan.try_pop_and_append_notify(self.async_same_callback(delegate (object[] args)
                                     {
-                                        await handler(res.result);
+                                        recvRes.state = (chan_async_state)args[0];
+                                        if (chan_async_state.async_ok == recvRes.state)
+                                        {
+                                            recvRes.result = (T)args[1];
+                                        }
+                                    }), waitHasNtf, ntfSign);
+                                    await self.async_wait();
+                                    if (chan_async_state.async_ok == recvRes.state)
+                                    {
+                                        await handler(recvRes.result);
                                     }
-                                    else if (null != errHandler && await errHandler(res.state))
+                                    else if (null != errHandler && await errHandler(recvRes.state))
                                     {
                                         break;
                                     }
-                                    else if (chan_async_state.async_closed == res.state)
+                                    else if (chan_async_state.async_closed == recvRes.state)
                                     {
                                         break;
                                     }
@@ -4922,7 +5039,7 @@ namespace Go
                         {
                             self._mailboxMap = null;
                             lock_suspend_and_stop();
-                            chan.remove_pop_notify(self.async_same_callback(), ntfSign);
+                            chan.remove_pop_notify(self.async_ignore<chan_async_state>(), ntfSign);
                             await self.async_wait();
                             await unlock_suspend_and_stop();
                         }
@@ -4984,23 +5101,33 @@ namespace Go
                         try
                         {
                             self._mailboxMap = _children.parent()._mailboxMap;
+                            nil_chan<chan_async_state> waitHasChan = new nil_chan<chan_async_state>();
+                            Action<chan_async_state> waitHasNtf = waitHasChan.wrap();
+                            chan.append_pop_notify(waitHasNtf, ntfSign);
                             long endTick = system_tick.get_tick_ms() + ms;
                             while (_run)
                             {
-                                bool overtime = false;
-                                chan.append_pop_notify(self.timed_async_same_callback2(ms, () => overtime = true), ntfSign, token);
-                                await self.async_wait();
+                                bool overtime = chan_async_state.async_overtime == await chan_timed_pop(waitHasChan, ms);
                                 await mutex_lock_shared(_mutex);
                                 try
                                 {
                                     if (!overtime)
                                     {
-                                        chan_pop_wrap<T> res = await chan_try_pop(chan, token);
-                                        if (chan_async_state.async_ok == res.state)
+                                        chan_pop_wrap<T> recvRes = default(chan_pop_wrap<T>);
+                                        chan.try_pop_and_append_notify(self.async_same_callback(delegate (object[] args)
                                         {
-                                            await handler(res.result); break;
+                                            recvRes.state = (chan_async_state)args[0];
+                                            if (chan_async_state.async_ok == recvRes.state)
+                                            {
+                                                recvRes.result = (T)args[1];
+                                            }
+                                        }), waitHasNtf, ntfSign);
+                                        await self.async_wait();
+                                        if (chan_async_state.async_ok == recvRes.state)
+                                        {
+                                            await handler(recvRes.result); break;
                                         }
-                                        else if ((null != errHandler && await errHandler(res.state)) || chan_async_state.async_closed == res.state) { break; }
+                                        else if ((null != errHandler && await errHandler(recvRes.state)) || chan_async_state.async_closed == recvRes.state) { break; }
                                         if (0 <= ms && 0 >= (ms = (int)(endTick - system_tick.get_tick_ms())))
                                         {
                                             await timedHandler(); break;
@@ -5026,7 +5153,7 @@ namespace Go
                         {
                             self._mailboxMap = null;
                             lock_suspend_and_stop();
-                            chan.remove_pop_notify(self.async_same_callback(), ntfSign);
+                            chan.remove_pop_notify(self.async_ignore<chan_async_state>(), ntfSign);
                             await self.async_wait();
                             await unlock_suspend_and_stop();
                         }
@@ -5150,23 +5277,39 @@ namespace Go
                         try
                         {
                             self._mailboxMap = _children.parent()._mailboxMap;
+                            nil_chan<chan_async_state> waitHasChan = new nil_chan<chan_async_state>();
+                            Action<chan_async_state> waitHasNtf = waitHasChan.wrap();
+                            chan.append_pop_notify(waitHasNtf, ntfSign);
                             while (_run)
                             {
-                                chan.append_pop_notify(self.async_same_callback(), ntfSign);
-                                await self.async_wait();
+                                await chan_pop(waitHasChan);
                                 await mutex_lock_shared(_mutex);
                                 try
                                 {
-                                    csp_wait_wrap<R, T> res = await csp_try_wait(chan);
-                                    if (chan_async_state.async_ok == res.state)
+                                    csp_wait_wrap<R, T> recvRes = default(csp_wait_wrap<R, T>);
+                                    chan.try_pop_and_append_notify(self.async_same_callback(delegate (object[] args)
                                     {
-                                        await handler(res.result, res.msg);
+                                        recvRes.state = (chan_async_state)args[0];
+                                        if (chan_async_state.async_ok == recvRes.state)
+                                        {
+                                            recvRes.state = (chan_async_state)args[0];
+                                            if (chan_async_state.async_ok == recvRes.state)
+                                            {
+                                                recvRes.result = (csp_chan<R, T>.csp_result)(args[1]);
+                                                recvRes.msg = (T)args[2];
+                                            }
+                                        }
+                                    }), waitHasNtf, ntfSign);
+                                    await self.async_wait();
+                                    if (chan_async_state.async_ok == recvRes.state)
+                                    {
+                                        await handler(recvRes.result, recvRes.msg);
                                     }
-                                    else if (null != errHandler && await errHandler(res.state))
+                                    else if (null != errHandler && await errHandler(recvRes.state))
                                     {
                                         break;
                                     }
-                                    else if (chan_async_state.async_closed == res.state)
+                                    else if (chan_async_state.async_closed == recvRes.state)
                                     {
                                         break;
                                     }
@@ -5186,7 +5329,7 @@ namespace Go
                         {
                             self._mailboxMap = null;
                             lock_suspend_and_stop();
-                            chan.remove_pop_notify(self.async_same_callback(), ntfSign);
+                            chan.remove_pop_notify(self.async_ignore<chan_async_state>(), ntfSign);
                             await self.async_wait();
                             await unlock_suspend_and_stop();
                         }
@@ -5257,23 +5400,38 @@ namespace Go
                         try
                         {
                             self._mailboxMap = _children.parent()._mailboxMap;
+                            nil_chan<chan_async_state> waitHasChan = new nil_chan<chan_async_state>();
+                            Action<chan_async_state> waitHasNtf = waitHasChan.wrap();
+                            chan.append_pop_notify(waitHasNtf, ntfSign);
                             long endTick = system_tick.get_tick_ms() + ms;
                             while (_run)
                             {
-                                bool overtime = false;
-                                chan.append_pop_notify(self.timed_async_same_callback2(ms, () => overtime = true), ntfSign);
-                                await self.async_wait();
+                                bool overtime = chan_async_state.async_overtime == await chan_pop(waitHasChan);
                                 await mutex_lock_shared(_mutex);
                                 try
                                 {
                                     if (!overtime)
                                     {
-                                        csp_wait_wrap<R, T> res = await csp_try_wait(chan);
-                                        if (chan_async_state.async_ok == res.state)
+                                        csp_wait_wrap<R, T> recvRes = default(csp_wait_wrap<R, T>);
+                                        chan.try_pop_and_append_notify(self.async_same_callback(delegate (object[] args)
                                         {
-                                            await handler(res.result, res.msg); break;
+                                            recvRes.state = (chan_async_state)args[0];
+                                            if (chan_async_state.async_ok == recvRes.state)
+                                            {
+                                                recvRes.state = (chan_async_state)args[0];
+                                                if (chan_async_state.async_ok == recvRes.state)
+                                                {
+                                                    recvRes.result = (csp_chan<R, T>.csp_result)(args[1]);
+                                                    recvRes.msg = (T)args[2];
+                                                }
+                                            }
+                                        }), waitHasNtf, ntfSign);
+                                        await self.async_wait();
+                                        if (chan_async_state.async_ok == recvRes.state)
+                                        {
+                                            await handler(recvRes.result, recvRes.msg); break;
                                         }
-                                        else if ((null != errHandler && await errHandler(res.state)) || chan_async_state.async_closed == res.state) { break; }
+                                        else if ((null != errHandler && await errHandler(recvRes.state)) || chan_async_state.async_closed == recvRes.state) { break; }
                                         if (0 <= ms && 0 >= (ms = (int)(endTick - system_tick.get_tick_ms())))
                                         {
                                             await timedHandler(); break;
@@ -5299,7 +5457,7 @@ namespace Go
                         {
                             self._mailboxMap = null;
                             lock_suspend_and_stop();
-                            chan.remove_pop_notify(self.async_same_callback(), ntfSign);
+                            chan.remove_pop_notify(self.async_ignore<chan_async_state>(), ntfSign);
                             await self.async_wait();
                             await unlock_suspend_and_stop();
                         }
@@ -5877,7 +6035,7 @@ namespace Go
                 return count;
             }
 
-            public async Task<bool> timed_wait(child gen, int ms)
+            public async Task<bool> timed_wait(int ms, child gen)
             {
 #if DEBUG
                 Trace.Assert(self == _parent, "此 children 不属于当前 generator");
@@ -5886,8 +6044,7 @@ namespace Go
                 bool overtime = false;
                 if (null != gen._childNode)
                 {
-                    gen.append_stop_callback(_parent.timed_async_result2(ms, () => overtime = true));
-                    await _parent.async_wait();
+                    overtime = !await timed_wait_other(ms, gen);
                     if (!overtime && null != gen._childNode)
                     {
                         _children.Remove(gen._childNode);
@@ -6020,11 +6177,11 @@ namespace Go
                     if (0 != count)
                     {
                         await _parent.async_wait();
-                        if (null != res.value_1._childNode)
+                        if (null != res.value1._childNode)
                         {
-                            _children.Remove(res.value_1._childNode);
-                            res.value_1._childNode = null;
-                            res.value_1._childrenMgr = null;
+                            _children.Remove(res.value1._childNode);
+                            res.value1._childNode = null;
+                            res.value1._childrenMgr = null;
                             check_remove_node();
                         }
                         while (0 != count--)
@@ -6035,7 +6192,7 @@ namespace Go
                                 node.value1.remove_stop_callback(node.value2);
                             }
                         }
-                        return res.value_1;
+                        return res.value1;
                     }
                 }
                 return null;
@@ -6066,11 +6223,11 @@ namespace Go
                     if (0 != count)
                     {
                         await _parent.async_wait();
-                        if (null != res.value_1 && null != res.value_1._childNode)
+                        if (null != res.value1 && null != res.value1._childNode)
                         {
-                            _children.Remove(res.value_1._childNode);
-                            res.value_1._childNode = null;
-                            res.value_1._childrenMgr = null;
+                            _children.Remove(res.value1._childNode);
+                            res.value1._childNode = null;
+                            res.value1._childrenMgr = null;
                             check_remove_node();
                         }
                         while (0 != count--)
@@ -6081,7 +6238,7 @@ namespace Go
                                 node.value1.remove_stop_callback(node.value2);
                             }
                         }
-                        return res.value_1;
+                        return res.value1;
                     }
                 }
                 return null;
