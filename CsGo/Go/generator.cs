@@ -154,12 +154,12 @@ namespace Go
         }
     }
 
-    public struct chan_pop_wrap<T>
+    public struct chan_recv_wrap<T>
     {
         public chan_async_state state;
         public T result;
 
-        public static implicit operator T(chan_pop_wrap<T> rval)
+        public static implicit operator T(chan_recv_wrap<T> rval)
         {
             if (chan_async_state.async_ok != rval.state)
             {
@@ -171,8 +171,8 @@ namespace Go
         public override string ToString()
         {
             return chan_async_state.async_ok == state ?
-                string.Format("chan_pop_wrap<{0}>.result={1}", typeof(T).Name, result) :
-                string.Format("chan_pop_wrap<{0}>.state={1}", typeof(T).Name, state);
+                string.Format("chan_recv_wrap<{0}>.result={1}", typeof(T).Name, result) :
+                string.Format("chan_recv_wrap<{0}>.state={1}", typeof(T).Name, state);
         }
     }
 
@@ -2487,72 +2487,7 @@ namespace Go
             return is_closed;
         }
 
-        static public Task<chan_async_state> chan_send<T>(channel<T> chan, T msg)
-        {
-            return chan_push(chan, msg);
-        }
-
-        static public Task<chan_async_state> chan_send(channel<void_type> chan)
-        {
-            return chan_push(chan);
-        }
-
-        static public Task<chan_async_state> chan_force_send<T>(chan<T> chan, T msg, async_result_wrap<bool, T> outMsg = null)
-        {
-            return chan_force_push(chan, msg, outMsg);
-        }
-
-        static public Task<chan_pop_wrap<T>> chan_receive<T>(channel<T> chan)
-        {
-            return chan_pop(chan);
-        }
-
-        static public Task<chan_pop_wrap<T>> chan_receive<T>(channel<T> chan, broadcast_chan_token token)
-        {
-            return chan_pop(chan, token);
-        }
-
-        static public Task<chan_async_state> chan_try_send<T>(channel<T> chan, T msg)
-        {
-            return chan_try_push(chan, msg);
-        }
-
-        static public Task<chan_async_state> chan_try_send(channel<void_type> chan)
-        {
-            return chan_try_push(chan);
-        }
-
-        static public Task<chan_pop_wrap<T>> chan_try_receive<T>(channel<T> chan)
-        {
-            return chan_try_pop(chan);
-        }
-
-        static public Task<chan_pop_wrap<T>> chan_try_receive<T>(channel<T> chan, broadcast_chan_token token)
-        {
-            return chan_try_pop(chan, token);
-        }
-
-        static public Task<chan_async_state> chan_timed_send<T>(channel<T> chan, int ms, T msg)
-        {
-            return chan_timed_push(chan, ms, msg);
-        }
-
-        static public Task<chan_async_state> chan_timed_send(channel<void_type> chan, int ms)
-        {
-            return chan_timed_push(chan, ms);
-        }
-
-        static public Task<chan_pop_wrap<T>> chan_timed_receive<T>(channel<T> chan, int ms)
-        {
-            return chan_timed_pop(chan, ms);
-        }
-
-        static public Task<chan_pop_wrap<T>> chan_timed_receive<T>(channel<T> chan, int ms, broadcast_chan_token token)
-        {
-            return chan_timed_pop(chan, ms, token);
-        }
-
-        static public async Task<chan_async_state> chan_push<T>(channel<T> chan, T msg)
+        static public async Task<chan_async_state> chan_send<T>(channel<T> chan, T msg)
         {
             generator this_ = self;
             chan_async_state result = chan_async_state.async_undefined;
@@ -2561,12 +2496,12 @@ namespace Go
             return result;
         }
 
-        static public Task<chan_async_state> chan_push(channel<void_type> chan)
+        static public Task<chan_async_state> chan_send(channel<void_type> chan)
         {
-            return chan_push(chan, default(void_type));
+            return chan_send(chan, default(void_type));
         }
 
-        static public async Task<chan_async_state> chan_force_push<T>(chan<T> chan, T msg, async_result_wrap<bool, T> outMsg = null)
+        static public async Task<chan_async_state> chan_force_send<T>(chan<T> chan, T msg, async_result_wrap<bool, T> outMsg = null)
         {
             generator this_ = self;
             chan_async_state result = chan_async_state.async_undefined;
@@ -2583,15 +2518,15 @@ namespace Go
             return result;
         }
 
-        static public Task<chan_pop_wrap<T>> chan_pop<T>(channel<T> chan)
+        static public Task<chan_recv_wrap<T>> chan_receive<T>(channel<T> chan)
         {
-            return chan_pop(chan, broadcast_chan_token._defToken);
+            return chan_receive(chan, broadcast_chan_token._defToken);
         }
 
-        static public async Task<chan_pop_wrap<T>> chan_pop<T>(channel<T> chan, broadcast_chan_token token)
+        static public async Task<chan_recv_wrap<T>> chan_receive<T>(channel<T> chan, broadcast_chan_token token)
         {
             generator this_ = self;
-            chan_pop_wrap<T> result = default(chan_pop_wrap<T>);
+            chan_recv_wrap<T> result = default(chan_recv_wrap<T>);
             chan.pop(this_.async_same_callback(delegate (object[] args)
             {
                 result.state = (chan_async_state)args[0];
@@ -2604,7 +2539,7 @@ namespace Go
             return result;
         }
 
-        static public async Task<chan_async_state> chan_try_push<T>(channel<T> chan, T msg)
+        static public async Task<chan_async_state> chan_try_send<T>(channel<T> chan, T msg)
         {
             generator this_ = self;
             chan_async_state result = chan_async_state.async_undefined;
@@ -2613,20 +2548,20 @@ namespace Go
             return result;
         }
 
-        static public Task<chan_async_state> chan_try_push(channel<void_type> chan)
+        static public Task<chan_async_state> chan_try_send(channel<void_type> chan)
         {
-            return chan_try_push(chan, default(void_type));
+            return chan_try_send(chan, default(void_type));
         }
 
-        static public Task<chan_pop_wrap<T>> chan_try_pop<T>(channel<T> chan)
+        static public Task<chan_recv_wrap<T>> chan_try_receive<T>(channel<T> chan)
         {
-            return chan_try_pop(chan, broadcast_chan_token._defToken);
+            return chan_try_receive(chan, broadcast_chan_token._defToken);
         }
 
-        static public async Task<chan_pop_wrap<T>> chan_try_pop<T>(channel<T> chan, broadcast_chan_token token)
+        static public async Task<chan_recv_wrap<T>> chan_try_receive<T>(channel<T> chan, broadcast_chan_token token)
         {
             generator this_ = self;
-            chan_pop_wrap<T> result = default(chan_pop_wrap<T>);
+            chan_recv_wrap<T> result = default(chan_recv_wrap<T>);
             chan.try_pop(this_.async_same_callback(delegate (object[] args)
             {
                 result.state = (chan_async_state)args[0];
@@ -2639,7 +2574,7 @@ namespace Go
             return result;
         }
 
-        static public async Task<chan_async_state> chan_timed_push<T>(channel<T> chan, int ms, T msg)
+        static public async Task<chan_async_state> chan_timed_send<T>(channel<T> chan, int ms, T msg)
         {
             generator this_ = self;
             chan_async_state result = chan_async_state.async_undefined;
@@ -2648,20 +2583,20 @@ namespace Go
             return result;
         }
 
-        static public Task<chan_async_state> chan_timed_push(channel<void_type> chan, int ms)
+        static public Task<chan_async_state> chan_timed_send(channel<void_type> chan, int ms)
         {
-            return chan_timed_push(chan, ms, default(void_type));
+            return chan_timed_send(chan, ms, default(void_type));
         }
 
-        static public Task<chan_pop_wrap<T>> chan_timed_pop<T>(channel<T> chan, int ms)
+        static public Task<chan_recv_wrap<T>> chan_timed_receive<T>(channel<T> chan, int ms)
         {
-            return chan_timed_pop(chan, ms, broadcast_chan_token._defToken);
+            return chan_timed_receive(chan, ms, broadcast_chan_token._defToken);
         }
 
-        static public async Task<chan_pop_wrap<T>> chan_timed_pop<T>(channel<T> chan, int ms, broadcast_chan_token token)
+        static public async Task<chan_recv_wrap<T>> chan_timed_receive<T>(channel<T> chan, int ms, broadcast_chan_token token)
         {
             generator this_ = self;
-            chan_pop_wrap<T> result = default(chan_pop_wrap<T>);
+            chan_recv_wrap<T> result = default(chan_recv_wrap<T>);
             chan.timed_pop(ms, this_.async_same_callback(delegate (object[] args)
             {
                 result.state = (chan_async_state)args[0];
@@ -2986,7 +2921,7 @@ namespace Go
             }
         }
 
-        static public T check_chan<T>(chan_pop_wrap<T> wrap, object obj = null)
+        static public T check_chan<T>(chan_recv_wrap<T> wrap, object obj = null)
         {
             if (chan_async_state.async_ok != wrap.state)
             {
@@ -3144,7 +3079,7 @@ namespace Go
                 int count = chans.Length;
                 while (0 != count)
                 {
-                    select_chan_base selectedChan = (await chan_pop(selectChans)).result;
+                    select_chan_base selectedChan = (await chan_receive(selectChans)).result;
                     if (selectedChan.disabled())
                     {
                         continue;
@@ -3203,7 +3138,7 @@ namespace Go
                 int count = chans.Length;
                 while (0 != count)
                 {
-                    select_chan_base selectedChan = (await chan_pop(selectChans)).result;
+                    select_chan_base selectedChan = (await chan_receive(selectChans)).result;
                     if (selectedChan.disabled())
                     {
                         continue;
@@ -3284,7 +3219,7 @@ namespace Go
                 int count = chans.Length;
                 while (0 != count)
                 {
-                    select_chan_base selectedChan = (await chan_pop(selectChans)).result;
+                    select_chan_base selectedChan = (await chan_receive(selectChans)).result;
                     if (null != selectedChan)
                     {
                         if (selectedChan.disabled())
@@ -4247,7 +4182,7 @@ namespace Go
             await this_.async_wait();
             if (overtime)
             {
-                LinkedListNode<Action> node = await chan_pop(waitRemove);
+                LinkedListNode<Action> node = await chan_receive(waitRemove);
                 if (null != node)
                 {
                     otherGen.remove_stop_callback(node);
@@ -4586,11 +4521,11 @@ namespace Go
                     selfMb.append_pop_notify(waitHasNtf, ntfSign);
                     while (true)
                     {
-                        await chan_pop(waitHasChan);
+                        await chan_receive(waitHasChan);
                         try
                         {
                             lock_suspend_and_stop();
-                            chan_pop_wrap<T> recvRes = default(chan_pop_wrap<T>);
+                            chan_recv_wrap<T> recvRes = default(chan_recv_wrap<T>);
                             selfMb.try_pop_and_append_notify(self.async_same_callback(delegate (object[] args)
                             {
                                 recvRes.state = (chan_async_state)args[0];
@@ -4602,7 +4537,7 @@ namespace Go
                             await self.async_wait();
                             if (chan_async_state.async_ok == recvRes.state)
                             {
-                                recvRes.state = await chan_push(agentMb, recvRes.result);
+                                recvRes.state = await chan_send(agentMb, recvRes.result);
                             }
                             if (chan_async_state.async_closed == recvRes.state)
                             {
@@ -4641,25 +4576,25 @@ namespace Go
             return false;
         }
 
-        static public Task<chan_pop_wrap<T>> recv_msg<T>(int id = 0)
+        static public Task<chan_recv_wrap<T>> recv_msg<T>(int id = 0)
         {
-            return chan_pop(self_mailbox<T>(id));
+            return chan_receive(self_mailbox<T>(id));
         }
 
-        static public Task<chan_pop_wrap<T>> try_recv_msg<T>(int id = 0)
+        static public Task<chan_recv_wrap<T>> try_recv_msg<T>(int id = 0)
         {
-            return chan_try_pop(self_mailbox<T>(id));
+            return chan_try_receive(self_mailbox<T>(id));
         }
 
-        static public Task<chan_pop_wrap<T>> timed_recv_msg<T>(int ms, int id = 0)
+        static public Task<chan_recv_wrap<T>> timed_recv_msg<T>(int ms, int id = 0)
         {
-            return chan_timed_pop(self_mailbox<T>(id), ms);
+            return chan_timed_receive(self_mailbox<T>(id), ms);
         }
 
         public async Task<chan_async_state> send_msg<T>(int id, T msg)
         {
             channel<T> mb = await get_mailbox<T>(id);
-            return null != mb ? await chan_push(mb, msg) : chan_async_state.async_fail;
+            return null != mb ? await chan_send(mb, msg) : chan_async_state.async_fail;
         }
 
         public Task<chan_async_state> send_msg(int id)
@@ -4710,7 +4645,7 @@ namespace Go
                             self._mailboxMap = _children.parent()._mailboxMap;
                             while (_run)
                             {
-                                chan_pop_wrap<T> res = await chan_pop(chan);
+                                chan_recv_wrap<T> res = await chan_receive(chan);
                                 if (chan_async_state.async_ok == res.state)
                                 {
                                     await handler(res.result);
@@ -4742,11 +4677,11 @@ namespace Go
                             chan.append_pop_notify(waitHasNtf, ntfSign);
                             while (_run)
                             {
-                                await chan_pop(waitHasChan);
+                                await chan_receive(waitHasChan);
                                 await mutex_lock_shared(_mutex);
                                 try
                                 {
-                                    chan_pop_wrap<T> recvRes = default(chan_pop_wrap<T>);
+                                    chan_recv_wrap<T> recvRes = default(chan_recv_wrap<T>);
                                     chan.try_pop_and_append_notify(self.async_same_callback(delegate (object[] args)
                                     {
                                         recvRes.state = (chan_async_state)args[0];
@@ -4805,7 +4740,7 @@ namespace Go
                     generator self = generator.self;
                     if (null == _mutex)
                     {
-                        chan_pop_wrap<T> res = await chan_timed_pop(chan, ms);
+                        chan_recv_wrap<T> res = await chan_timed_receive(chan, ms);
                         try
                         {
                             self._mailboxMap = _children.parent()._mailboxMap;
@@ -4835,28 +4770,18 @@ namespace Go
                         try
                         {
                             self._mailboxMap = _children.parent()._mailboxMap;
-                            nil_chan<chan_async_state> waitHasChan = new nil_chan<chan_async_state>();
-                            Action<chan_async_state> waitHasNtf = waitHasChan.wrap();
-                            chan.append_pop_notify(waitHasNtf, ntfSign);
                             long endTick = system_tick.get_tick_ms() + ms;
                             while (_run)
                             {
-                                bool overtime = chan_async_state.async_overtime == await chan_timed_pop(waitHasChan, ms);
+                                bool overtime = false;
+                                chan.append_pop_notify(self.timed_async_ignore2<chan_async_state>(ms, () => overtime = true), ntfSign);
+                                await self.async_wait();
                                 await mutex_lock_shared(_mutex);
                                 try
                                 {
                                     if (!overtime)
                                     {
-                                        chan_pop_wrap<T> recvRes = default(chan_pop_wrap<T>);
-                                        chan.try_pop_and_append_notify(self.async_same_callback(delegate (object[] args)
-                                        {
-                                            recvRes.state = (chan_async_state)args[0];
-                                            if (chan_async_state.async_ok == recvRes.state)
-                                            {
-                                                recvRes.result = (T)args[1];
-                                            }
-                                        }), waitHasNtf, ntfSign);
-                                        await self.async_wait();
+                                        chan_recv_wrap<T> recvRes = await chan_try_receive(chan);
                                         if (chan_async_state.async_ok == recvRes.state)
                                         {
                                             await handler(recvRes.result); break;
@@ -4913,7 +4838,7 @@ namespace Go
                     try
                     {
                         self._mailboxMap = _children.parent()._mailboxMap;
-                        chan_pop_wrap<T> res = await chan_try_pop(chan);
+                        chan_recv_wrap<T> res = await chan_try_receive(chan);
                         if (chan_async_state.async_ok == res.state)
                         {
                             await handler(res.result);
@@ -4965,7 +4890,7 @@ namespace Go
                             self._mailboxMap = _children.parent()._mailboxMap;
                             while (_run)
                             {
-                                chan_pop_wrap<T> res = await chan_pop(chan, token);
+                                chan_recv_wrap<T> res = await chan_receive(chan, token);
                                 if (chan_async_state.async_ok == res.state)
                                 {
                                     await handler(res.result);
@@ -4997,11 +4922,11 @@ namespace Go
                             chan.append_pop_notify(waitHasNtf, ntfSign);
                             while (_run)
                             {
-                                await chan_pop(waitHasChan);
+                                await chan_receive(waitHasChan);
                                 await mutex_lock_shared(_mutex);
                                 try
                                 {
-                                    chan_pop_wrap<T> recvRes = default(chan_pop_wrap<T>);
+                                    chan_recv_wrap<T> recvRes = default(chan_recv_wrap<T>);
                                     chan.try_pop_and_append_notify(self.async_same_callback(delegate (object[] args)
                                     {
                                         recvRes.state = (chan_async_state)args[0];
@@ -5071,7 +4996,7 @@ namespace Go
                     token = null != token ? token : new broadcast_chan_token();
                     if (null == _mutex)
                     {
-                        chan_pop_wrap<T> res = await chan_timed_pop(chan, ms, token);
+                        chan_recv_wrap<T> res = await chan_timed_receive(chan, ms, token);
                         try
                         {
                             self._mailboxMap = _children.parent()._mailboxMap;
@@ -5101,28 +5026,18 @@ namespace Go
                         try
                         {
                             self._mailboxMap = _children.parent()._mailboxMap;
-                            nil_chan<chan_async_state> waitHasChan = new nil_chan<chan_async_state>();
-                            Action<chan_async_state> waitHasNtf = waitHasChan.wrap();
-                            chan.append_pop_notify(waitHasNtf, ntfSign);
                             long endTick = system_tick.get_tick_ms() + ms;
                             while (_run)
                             {
-                                bool overtime = chan_async_state.async_overtime == await chan_timed_pop(waitHasChan, ms);
+                                bool overtime = false;
+                                chan.append_pop_notify(self.timed_async_ignore2<chan_async_state>(ms, () => overtime = true), ntfSign);
+                                await self.async_wait();
                                 await mutex_lock_shared(_mutex);
                                 try
                                 {
                                     if (!overtime)
                                     {
-                                        chan_pop_wrap<T> recvRes = default(chan_pop_wrap<T>);
-                                        chan.try_pop_and_append_notify(self.async_same_callback(delegate (object[] args)
-                                        {
-                                            recvRes.state = (chan_async_state)args[0];
-                                            if (chan_async_state.async_ok == recvRes.state)
-                                            {
-                                                recvRes.result = (T)args[1];
-                                            }
-                                        }), waitHasNtf, ntfSign);
-                                        await self.async_wait();
+                                        chan_recv_wrap<T> recvRes = await chan_try_receive(chan);
                                         if (chan_async_state.async_ok == recvRes.state)
                                         {
                                             await handler(recvRes.result); break;
@@ -5189,7 +5104,7 @@ namespace Go
                     try
                     {
                         self._mailboxMap = _children.parent()._mailboxMap;
-                        chan_pop_wrap<T> res = await chan_try_pop(chan, null != token ? token : new broadcast_chan_token());
+                        chan_recv_wrap<T> res = await chan_try_receive(chan, null != token ? token : new broadcast_chan_token());
                         if (chan_async_state.async_ok == res.state)
                         {
                             await handler(res.result);
@@ -5282,7 +5197,7 @@ namespace Go
                             chan.append_pop_notify(waitHasNtf, ntfSign);
                             while (_run)
                             {
-                                await chan_pop(waitHasChan);
+                                await chan_receive(waitHasChan);
                                 await mutex_lock_shared(_mutex);
                                 try
                                 {
@@ -5400,33 +5315,18 @@ namespace Go
                         try
                         {
                             self._mailboxMap = _children.parent()._mailboxMap;
-                            nil_chan<chan_async_state> waitHasChan = new nil_chan<chan_async_state>();
-                            Action<chan_async_state> waitHasNtf = waitHasChan.wrap();
-                            chan.append_pop_notify(waitHasNtf, ntfSign);
                             long endTick = system_tick.get_tick_ms() + ms;
                             while (_run)
                             {
-                                bool overtime = chan_async_state.async_overtime == await chan_pop(waitHasChan);
+                                bool overtime = false;
+                                chan.append_pop_notify(self.timed_async_ignore2<chan_async_state>(ms, () => overtime = true), ntfSign);
+                                await self.async_wait();
                                 await mutex_lock_shared(_mutex);
                                 try
                                 {
                                     if (!overtime)
                                     {
-                                        csp_wait_wrap<R, T> recvRes = default(csp_wait_wrap<R, T>);
-                                        chan.try_pop_and_append_notify(self.async_same_callback(delegate (object[] args)
-                                        {
-                                            recvRes.state = (chan_async_state)args[0];
-                                            if (chan_async_state.async_ok == recvRes.state)
-                                            {
-                                                recvRes.state = (chan_async_state)args[0];
-                                                if (chan_async_state.async_ok == recvRes.state)
-                                                {
-                                                    recvRes.result = (csp_chan<R, T>.csp_result)(args[1]);
-                                                    recvRes.msg = (T)args[2];
-                                                }
-                                            }
-                                        }), waitHasNtf, ntfSign);
-                                        await self.async_wait();
+                                        csp_wait_wrap<R, T> recvRes = await csp_try_wait(chan);
                                         if (chan_async_state.async_ok == recvRes.state)
                                         {
                                             await handler(recvRes.result, recvRes.msg); break;
@@ -5964,7 +5864,7 @@ namespace Go
                     }
                     for (int i = 0; i < count; i++)
                     {
-                        child gen = (await chan_pop(waitStop)).result;
+                        child gen = (await chan_receive(waitStop)).result;
                         if (null != gen._childNode)
                         {
                             _children.Remove(gen._childNode);
@@ -6022,7 +5922,7 @@ namespace Go
                     }
                     for (int i = 0; i < count; i++)
                     {
-                        child gen = (await chan_pop(waitStop)).result;
+                        child gen = (await chan_receive(waitStop)).result;
                         if (null != gen._childNode)
                         {
                             _children.Remove(gen._childNode);
@@ -6090,7 +5990,7 @@ namespace Go
                     }
                     while (0 != count--)
                     {
-                        child gen = (await chan_pop(waitStop)).result;
+                        child gen = (await chan_receive(waitStop)).result;
                         if (null != gen._childNode)
                         {
                             _children.Remove(gen._childNode);
@@ -6140,7 +6040,7 @@ namespace Go
                     }
                     for (int i = 0; i < count; i++)
                     {
-                        Tuple<children, child> oneRes = (await chan_pop(waitStop)).result;
+                        Tuple<children, child> oneRes = (await chan_receive(waitStop)).result;
                         if (null != oneRes.Item2._childNode)
                         {
                             oneRes.Item1._children.Remove(oneRes.Item2._childNode);
@@ -6186,7 +6086,7 @@ namespace Go
                         }
                         while (0 != count--)
                         {
-                            tuple<child, LinkedListNode<Action>> node = (await chan_pop(waitRemove)).result;
+                            tuple<child, LinkedListNode<Action>> node = (await chan_receive(waitRemove)).result;
                             if (null != node.value2)
                             {
                                 node.value1.remove_stop_callback(node.value2);
@@ -6232,7 +6132,7 @@ namespace Go
                         }
                         while (0 != count--)
                         {
-                            tuple<child, LinkedListNode<Action>> node = (await chan_pop(waitRemove)).result;
+                            tuple<child, LinkedListNode<Action>> node = (await chan_receive(waitRemove)).result;
                             if (null != node.value2)
                             {
                                 node.value1.remove_stop_callback(node.value2);
@@ -6265,7 +6165,7 @@ namespace Go
                     }
                     while (0 != count--)
                     {
-                        child gen = (await chan_pop(waitStop)).result;
+                        child gen = (await chan_receive(waitStop)).result;
                         if (null != gen._childNode)
                         {
                             _children.Remove(gen._childNode);
@@ -6304,7 +6204,7 @@ namespace Go
             {
                 while (true)
                 {
-                    chan_pop_wrap<gen_pck> pck = await generator.chan_pop(_queue);
+                    chan_recv_wrap<gen_pck> pck = await generator.chan_receive(_queue);
                     await generator.depth_call(pck.result.strand, pck.result.action);
                 }
             });
@@ -6343,7 +6243,7 @@ namespace Go
             {
                 while (true)
                 {
-                    chan_pop_wrap<generator.action> pck = await generator.chan_pop(_queue);
+                    chan_recv_wrap<generator.action> pck = await generator.chan_receive(_queue);
                     generator.lock_stop();
                     try
                     {

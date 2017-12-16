@@ -128,7 +128,7 @@ namespace Go
             public override async Task<select_chan_state> invoke(Func<Task> stepOne)
             {
                 generator self = generator.self;
-                chan_pop_wrap<T> result = default(chan_pop_wrap<T>);
+                chan_recv_wrap<T> result = default(chan_recv_wrap<T>);
                 _chan.try_pop_and_append_notify(self.async_same_callback(delegate (object[] args)
                 {
                     result.state = (chan_async_state)args[0];
