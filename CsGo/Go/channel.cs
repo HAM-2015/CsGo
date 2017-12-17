@@ -59,9 +59,9 @@ namespace Go
         public abstract void cancel(Action ntf, bool isClear = false);
         public abstract shared_strand self_strand();
         public abstract bool is_closed();
-        public void clear() { clear(functional.nil_handler); }
-        public void close(bool isClear = false) { close(functional.nil_handler, isClear); }
-        public void cancel(bool isClear = false) { cancel(functional.nil_handler, isClear); }
+        public void clear() { clear(nil_action.action); }
+        public void close(bool isClear = false) { close(nil_action.action, isClear); }
+        public void cancel(bool isClear = false) { cancel(nil_action.action, isClear); }
 
         static protected void safe_callback(ref LinkedList<Action<chan_async_state>> callback, chan_async_state state)
         {
@@ -129,12 +129,12 @@ namespace Go
             {
                 generator self = generator.self;
                 chan_recv_wrap<T> result = default(chan_recv_wrap<T>);
-                _chan.try_pop_and_append_notify(self.async_same_callback(delegate (object[] args)
+                _chan.try_pop_and_append_notify(self.async_callback(delegate (chan_async_state state, T msg, object _)
                 {
-                    result.state = (chan_async_state)args[0];
-                    if (chan_async_state.async_ok == result.state)
+                    result.state = state;
+                    if (chan_async_state.async_ok == state)
                     {
-                        result.result = (T)args[1];
+                        result.result = msg;
                     }
                 }), delegate (chan_async_state state)
                 {
@@ -212,9 +212,9 @@ namespace Go
             {
                 generator self = generator.self;
                 chan_async_state result = chan_async_state.async_undefined;
-                _chan.try_push_and_append_notify(self.async_same_callback(delegate (object[] args)
+                _chan.try_push_and_append_notify(self.async_callback(delegate (chan_async_state state, object _)
                 {
-                    result = (chan_async_state)args[0];
+                    result = state;
                 }), delegate (chan_async_state state)
                 {
                     nextSelect.post(this);
@@ -271,17 +271,17 @@ namespace Go
             }
         }
 
-        public abstract void push(SameAction ntf, T msg);
-        public abstract void pop(SameAction ntf);
-        public abstract void try_push(SameAction ntf, T msg);
-        public abstract void try_pop(SameAction ntf);
-        public abstract void timed_push(int ms, SameAction ntf, T msg);
-        public abstract void timed_pop(int ms, SameAction ntf);
+        public abstract void push(Action<chan_async_state, object> ntf, T msg);
+        public abstract void pop(Action<chan_async_state, T, object> ntf);
+        public abstract void try_push(Action<chan_async_state, object> ntf, T msg);
+        public abstract void try_pop(Action<chan_async_state, T, object> ntf);
+        public abstract void timed_push(int ms, Action<chan_async_state, object> ntf, T msg);
+        public abstract void timed_pop(int ms, Action<chan_async_state, T, object> ntf);
         public abstract void append_pop_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign);
-        public abstract void try_pop_and_append_notify(SameAction cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign);
+        public abstract void try_pop_and_append_notify(Action<chan_async_state, T, object> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign);
         public abstract void remove_pop_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign);
         public abstract void append_push_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign);
-        public abstract void try_push_and_append_notify(SameAction cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, T msg);
+        public abstract void try_push_and_append_notify(Action<chan_async_state, object> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, T msg);
         public abstract void remove_push_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign);
 
         static public channel<T> make(shared_strand strand, int len)
@@ -305,17 +305,17 @@ namespace Go
 
         public void post(T msg)
         {
-            push(functional.any_handler, msg);
+            push(nil_action<chan_async_state, object>.action, msg);
         }
 
         public void try_post(T msg)
         {
-            try_push(functional.any_handler, msg);
+            try_push(nil_action<chan_async_state, object>.action, msg);
         }
 
         public void timed_post(int ms, T msg)
         {
-            timed_push(ms, functional.any_handler, msg);
+            timed_push(ms, nil_action<chan_async_state, object>.action, msg);
         }
 
         public Action<T> wrap()
@@ -414,17 +414,17 @@ namespace Go
             return make_select_writer(() => msg, handler, errHandler);
         }
 
-        public virtual void pop(SameAction ntf, broadcast_chan_token token)
+        public virtual void pop(Action<chan_async_state, T, object> ntf, broadcast_chan_token token)
         {
             pop(ntf);
         }
 
-        public virtual void try_pop(SameAction ntf, broadcast_chan_token token)
+        public virtual void try_pop(Action<chan_async_state, T, object> ntf, broadcast_chan_token token)
         {
             try_pop(ntf);
         }
 
-        public virtual void timed_pop(int ms, SameAction ntf, broadcast_chan_token token)
+        public virtual void timed_pop(int ms, Action<chan_async_state, T, object> ntf, broadcast_chan_token token)
         {
             timed_pop(ms, ntf);
         }
@@ -434,7 +434,7 @@ namespace Go
             append_pop_notify(ntf, ntfSign);
         }
 
-        public virtual void try_pop_and_append_notify(SameAction cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, broadcast_chan_token token)
+        public virtual void try_pop_and_append_notify(Action<chan_async_state, T, object> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, broadcast_chan_token token)
         {
             try_pop_and_append_notify(cb, msgNtf, ntfSign);
         }
@@ -566,13 +566,13 @@ namespace Go
             return chan_type.nolimit;
         }
 
-        public override void push(SameAction ntf, T msg)
+        public override void push(Action<chan_async_state, object> ntf, T msg)
         {
             _strand.distribute(delegate ()
             {
                 if (_closed)
                 {
-                    ntf(chan_async_state.async_closed);
+                    ntf(chan_async_state.async_closed, null);
                     return;
                 }
                 _buffer.AddLast(msg);
@@ -582,11 +582,11 @@ namespace Go
                     _waitQueue.RemoveFirst();
                     wtNtf(chan_async_state.async_ok);
                 }
-                ntf(chan_async_state.async_ok);
+                ntf(chan_async_state.async_ok, null);
             });
         }
 
-        public override void pop(SameAction ntf)
+        public override void pop(Action<chan_async_state, T, object> ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -594,11 +594,11 @@ namespace Go
                 {
                     T msg = _buffer.First();
                     _buffer.RemoveFirst();
-                    ntf(chan_async_state.async_ok, msg);
+                    ntf(chan_async_state.async_ok, msg, null);
                 }
                 else if (_closed)
                 {
-                    ntf(chan_async_state.async_closed);
+                    ntf(chan_async_state.async_closed, default(T), null);
                 }
                 else
                 {
@@ -610,19 +610,19 @@ namespace Go
                         }
                         else
                         {
-                            ntf(state);
+                            ntf(state, default(T), null);
                         }
                     });
                 }
             });
         }
 
-        public override void try_push(SameAction ntf, T msg)
+        public override void try_push(Action<chan_async_state, object> ntf, T msg)
         {
             push(ntf, msg);
         }
 
-        public override void try_pop(SameAction ntf)
+        public override void try_pop(Action<chan_async_state, T, object> ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -630,25 +630,25 @@ namespace Go
                 {
                     T msg = _buffer.First();
                     _buffer.RemoveFirst();
-                    ntf(chan_async_state.async_ok, msg);
+                    ntf(chan_async_state.async_ok, msg, null);
                 }
                 else if (_closed)
                 {
-                    ntf(chan_async_state.async_closed);
+                    ntf(chan_async_state.async_closed, default(T), null);
                 }
                 else
                 {
-                    ntf(chan_async_state.async_fail);
+                    ntf(chan_async_state.async_fail, default(T), null);
                 }
             });
         }
 
-        public override void timed_push(int ms, SameAction ntf, T msg)
+        public override void timed_push(int ms, Action<chan_async_state, object> ntf, T msg)
         {
             push(ntf, msg);
         }
 
-        public override void timed_pop(int ms, SameAction ntf)
+        public override void timed_pop(int ms, Action<chan_async_state, T, object> ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -656,11 +656,11 @@ namespace Go
                 {
                     T msg = _buffer.First();
                     _buffer.RemoveFirst();
-                    ntf(chan_async_state.async_ok, msg);
+                    ntf(chan_async_state.async_ok, msg, null);
                 }
                 else if (_closed)
                 {
-                    ntf(chan_async_state.async_closed);
+                    ntf(chan_async_state.async_closed, default(T), null);
                 }
                 else if (ms > 0)
                 {
@@ -674,7 +674,7 @@ namespace Go
                         }
                         else
                         {
-                            ntf(state);
+                            ntf(state, default(T), null);
                         }
                     });
                     timer.timeout(ms, delegate ()
@@ -686,7 +686,7 @@ namespace Go
                 }
                 else
                 {
-                    ntf(chan_async_state.async_overtime);
+                    ntf(chan_async_state.async_overtime, default(T), null);
                 }
             });
         }
@@ -714,7 +714,7 @@ namespace Go
             });
         }
 
-        public override void try_pop_and_append_notify(SameAction cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign)
+        public override void try_pop_and_append_notify(Action<chan_async_state, T, object> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -726,17 +726,17 @@ namespace Go
                     {
                         append_pop_notify(msgNtf, ntfSign);
                     }
-                    cb(chan_async_state.async_ok, msg);
+                    cb(chan_async_state.async_ok, msg, null);
                 }
                 else if (_closed)
                 {
                     msgNtf(chan_async_state.async_closed);
-                    cb(chan_async_state.async_closed);
+                    cb(chan_async_state.async_closed, default(T), null);
                 }
                 else
                 {
                     append_pop_notify(msgNtf, ntfSign);
-                    cb(chan_async_state.async_fail);
+                    cb(chan_async_state.async_fail, default(T), null);
                 }
             });
         }
@@ -774,14 +774,14 @@ namespace Go
             });
         }
 
-        public override void try_push_and_append_notify(SameAction cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, T msg)
+        public override void try_push_and_append_notify(Action<chan_async_state, object> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, T msg)
         {
             _strand.distribute(delegate ()
             {
                 if (_closed)
                 {
                     msgNtf(chan_async_state.async_closed);
-                    cb(chan_async_state.async_closed);
+                    cb(chan_async_state.async_closed, null);
                     return;
                 }
                 _buffer.AddLast(msg);
@@ -793,7 +793,7 @@ namespace Go
                 {
                     append_push_notify(msgNtf, ntfSign);
                 }
-                cb(chan_async_state.async_ok);
+                cb(chan_async_state.async_ok, null);
             });
         }
 
@@ -887,13 +887,13 @@ namespace Go
             return chan_type.limit;
         }
 
-        public override void push(SameAction ntf, T msg)
+        public override void push(Action<chan_async_state, object> ntf, T msg)
         {
             _strand.distribute(delegate ()
             {
                 if (_closed)
                 {
-                    ntf(chan_async_state.async_closed);
+                    ntf(chan_async_state.async_closed, null);
                     return;
                 }
                 if (_buffer.Count == _length)
@@ -906,7 +906,7 @@ namespace Go
                         }
                         else
                         {
-                            ntf(state);
+                            ntf(state, null);
                         }
                     });
                 }
@@ -919,18 +919,18 @@ namespace Go
                         _popWait.RemoveFirst();
                         popNtf(chan_async_state.async_ok);
                     }
-                    ntf(chan_async_state.async_ok);
+                    ntf(chan_async_state.async_ok, null);
                 }
             });
         }
 
-        public void force_push(SameAction ntf, T msg)
+        public void force_push(Action<chan_async_state, bool, T> ntf, T msg)
         {
             _strand.distribute(delegate ()
             {
                 if (_closed)
                 {
-                    ntf(chan_async_state.async_closed);
+                    ntf(chan_async_state.async_closed, false, default(T));
                     return;
                 }
                 bool hasOut = false;
@@ -950,16 +950,16 @@ namespace Go
                 }
                 if (hasOut)
                 {
-                    ntf(chan_async_state.async_ok, outMsg);
+                    ntf(chan_async_state.async_ok, true, outMsg);
                 }
                 else
                 {
-                    ntf(chan_async_state.async_ok);
+                    ntf(chan_async_state.async_ok, false, default(T));
                 }
             });
         }
 
-        public override void pop(SameAction ntf)
+        public override void pop(Action<chan_async_state, T, object> ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -973,11 +973,11 @@ namespace Go
                         _pushWait.RemoveFirst();
                         pushNtf(chan_async_state.async_ok);
                     }
-                    ntf(chan_async_state.async_ok, msg);
+                    ntf(chan_async_state.async_ok, msg, null);
                 }
                 else if (_closed)
                 {
-                    ntf(chan_async_state.async_closed);
+                    ntf(chan_async_state.async_closed, default(T), null);
                 }
                 else
                 {
@@ -989,25 +989,25 @@ namespace Go
                         }
                         else
                         {
-                            ntf(state);
+                            ntf(state, default(T), null);
                         }
                     });
                 }
             });
         }
 
-        public override void try_push(SameAction ntf, T msg)
+        public override void try_push(Action<chan_async_state, object> ntf, T msg)
         {
             _strand.distribute(delegate ()
             {
                 if (_closed)
                 {
-                    ntf(chan_async_state.async_closed);
+                    ntf(chan_async_state.async_closed, null);
                     return;
                 }
                 if (_buffer.Count == _length)
                 {
-                    ntf(chan_async_state.async_fail);
+                    ntf(chan_async_state.async_fail, null);
                 }
                 else
                 {
@@ -1018,12 +1018,12 @@ namespace Go
                         _popWait.RemoveFirst();
                         popNtf(chan_async_state.async_ok);
                     }
-                    ntf(chan_async_state.async_ok);
+                    ntf(chan_async_state.async_ok, null);
                 }
             });
         }
 
-        public override void try_pop(SameAction ntf)
+        public override void try_pop(Action<chan_async_state, T, object> ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -1037,20 +1037,20 @@ namespace Go
                         _pushWait.RemoveFirst();
                         pushNtf(chan_async_state.async_ok);
                     }
-                    ntf(chan_async_state.async_ok, msg);
+                    ntf(chan_async_state.async_ok, msg, null);
                 }
                 else if (_closed)
                 {
-                    ntf(chan_async_state.async_closed);
+                    ntf(chan_async_state.async_closed, default(T), null);
                 }
                 else
                 {
-                    ntf(chan_async_state.async_fail);
+                    ntf(chan_async_state.async_fail, default(T), null);
                 }
             });
         }
 
-        public override void timed_push(int ms, SameAction ntf, T msg)
+        public override void timed_push(int ms, Action<chan_async_state, object> ntf, T msg)
         {
             _strand.distribute(delegate ()
             {
@@ -1068,7 +1068,7 @@ namespace Go
                             }
                             else
                             {
-                                ntf(state);
+                                ntf(state, null);
                             }
                         });
                         timer.timeout(ms, delegate ()
@@ -1080,7 +1080,7 @@ namespace Go
                     }
                     else
                     {
-                        ntf(chan_async_state.async_overtime);
+                        ntf(chan_async_state.async_overtime, null);
                     }
                 }
                 else
@@ -1092,12 +1092,12 @@ namespace Go
                         _popWait.RemoveFirst();
                         popNtf(chan_async_state.async_ok);
                     }
-                    ntf(chan_async_state.async_ok);
+                    ntf(chan_async_state.async_ok, null);
                 }
             });
         }
 
-        public override void timed_pop(int ms, SameAction ntf)
+        public override void timed_pop(int ms, Action<chan_async_state, T, object> ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -1111,11 +1111,11 @@ namespace Go
                         _pushWait.RemoveFirst();
                         pushNtf(chan_async_state.async_ok);
                     }
-                    ntf(chan_async_state.async_ok, msg);
+                    ntf(chan_async_state.async_ok, msg, null);
                 }
                 else if (_closed)
                 {
-                    ntf(chan_async_state.async_closed);
+                    ntf(chan_async_state.async_closed, default(T), null);
                 }
                 else if (ms > 0)
                 {
@@ -1129,7 +1129,7 @@ namespace Go
                         }
                         else
                         {
-                            ntf(state);
+                            ntf(state, default(T), null);
                         }
                     });
                     timer.timeout(ms, delegate ()
@@ -1141,7 +1141,7 @@ namespace Go
                 }
                 else
                 {
-                    ntf(chan_async_state.async_overtime);
+                    ntf(chan_async_state.async_overtime, default(T), null);
                 }
             });
         }
@@ -1169,7 +1169,7 @@ namespace Go
             });
         }
 
-        public override void try_pop_and_append_notify(SameAction cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign)
+        public override void try_pop_and_append_notify(Action<chan_async_state, T, object> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -1187,17 +1187,17 @@ namespace Go
                     {
                         append_pop_notify(msgNtf, ntfSign);
                     }
-                    cb(chan_async_state.async_ok, msg);
+                    cb(chan_async_state.async_ok, msg, null);
                 }
                 else if (_closed)
                 {
                     msgNtf(chan_async_state.async_closed);
-                    cb(chan_async_state.async_closed);
+                    cb(chan_async_state.async_closed, default(T), null);
                 }
                 else
                 {
                     append_pop_notify(msgNtf, ntfSign);
-                    cb(chan_async_state.async_fail);
+                    cb(chan_async_state.async_fail, default(T), null);
                 }
             });
         }
@@ -1245,14 +1245,14 @@ namespace Go
             });
         }
 
-        public override void try_push_and_append_notify(SameAction cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, T msg)
+        public override void try_push_and_append_notify(Action<chan_async_state, object> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, T msg)
         {
             _strand.distribute(delegate ()
             {
                 if (_closed)
                 {
                     msgNtf(chan_async_state.async_closed);
-                    cb(chan_async_state.async_closed);
+                    cb(chan_async_state.async_closed, null);
                     return;
                 }
                 if (_buffer.Count != _length)
@@ -1268,12 +1268,12 @@ namespace Go
                     {
                         append_push_notify(msgNtf, ntfSign);
                     }
-                    cb(chan_async_state.async_ok);
+                    cb(chan_async_state.async_ok, null);
                 }
                 else
                 {
                     append_push_notify(msgNtf, ntfSign);
-                    cb(chan_async_state.async_fail);
+                    cb(chan_async_state.async_fail, null);
                 }
             });
         }
@@ -1382,13 +1382,13 @@ namespace Go
             return chan_type.nil;
         }
 
-        public override void push(SameAction ntf, T msg)
+        public override void push(Action<chan_async_state, object> ntf, T msg)
         {
             _strand.distribute(delegate ()
             {
                 if (_closed)
                 {
-                    ntf(chan_async_state.async_closed);
+                    ntf(chan_async_state.async_closed, null);
                     return;
                 }
                 if (_has)
@@ -1401,7 +1401,7 @@ namespace Go
                         }
                         else
                         {
-                            ntf(state);
+                            ntf(state, null);
                         }
                     });
                 }
@@ -1418,7 +1418,7 @@ namespace Go
                             _pushWait.RemoveFirst();
                             pushNtf(chan_async_state.async_ok);
                         }
-                        ntf(state);
+                        ntf(state, null);
                     });
                     if (0 != _popWait.Count)
                     {
@@ -1430,7 +1430,7 @@ namespace Go
             });
         }
 
-        public override void pop(SameAction ntf)
+        public override void pop(Action<chan_async_state, T, object> ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -1441,11 +1441,11 @@ namespace Go
                     Action<chan_async_state> pushNtf = _pushWait.First.Value;
                     _pushWait.RemoveFirst();
                     pushNtf(chan_async_state.async_ok);
-                    ntf(chan_async_state.async_ok, msg);
+                    ntf(chan_async_state.async_ok, msg, default(T));
                 }
                 else if (_closed)
                 {
-                    ntf(chan_async_state.async_closed);
+                    ntf(chan_async_state.async_closed, default(T), null);
                 }
                 else
                 {
@@ -1457,7 +1457,7 @@ namespace Go
                         }
                         else
                         {
-                            ntf(state);
+                            ntf(state, default(T), null);
                         }
                     });
                     if (0 != _pushWait.Count)
@@ -1470,18 +1470,18 @@ namespace Go
             });
         }
 
-        public override void try_push(SameAction ntf, T msg)
+        public override void try_push(Action<chan_async_state, object> ntf, T msg)
         {
             _strand.distribute(delegate ()
             {
                 if (_closed)
                 {
-                    ntf(chan_async_state.async_closed);
+                    ntf(chan_async_state.async_closed, null);
                     return;
                 }
                 if (_has)
                 {
-                    ntf(chan_async_state.async_fail);
+                    ntf(chan_async_state.async_fail, null);
                 }
                 else
                 {
@@ -1498,7 +1498,7 @@ namespace Go
                                 _pushWait.RemoveFirst();
                                 pushNtf(chan_async_state.async_ok);
                             }
-                            ntf(state);
+                            ntf(state, null);
                         });
                         Action<chan_async_state> popNtf = _popWait.First.Value;
                         _popWait.RemoveFirst();
@@ -1506,13 +1506,13 @@ namespace Go
                     }
                     else
                     {
-                        ntf(chan_async_state.async_fail);
+                        ntf(chan_async_state.async_fail, null);
                     }
                 }
             });
         }
 
-        public override void try_pop(SameAction ntf)
+        public override void try_pop(Action<chan_async_state, T, object> ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -1523,26 +1523,26 @@ namespace Go
                     Action<chan_async_state> pushNtf = _pushWait.First.Value;
                     _pushWait.RemoveFirst();
                     pushNtf(chan_async_state.async_ok);
-                    ntf(chan_async_state.async_ok, msg);
+                    ntf(chan_async_state.async_ok, msg, null);
                 }
                 else if (_closed)
                 {
-                    ntf(chan_async_state.async_closed);
+                    ntf(chan_async_state.async_closed, default(T), null);
                 }
                 else
                 {
-                    ntf(chan_async_state.async_fail);
+                    ntf(chan_async_state.async_fail, default(T), null);
                 }
             });
         }
 
-        public override void timed_push(int ms, SameAction ntf, T msg)
+        public override void timed_push(int ms, Action<chan_async_state, object> ntf, T msg)
         {
             _strand.distribute(delegate ()
             {
                 if (_closed)
                 {
-                    ntf(chan_async_state.async_closed);
+                    ntf(chan_async_state.async_closed, null);
                     return;
                 }
                 if (_has)
@@ -1559,7 +1559,7 @@ namespace Go
                             }
                             else
                             {
-                                ntf(state);
+                                ntf(state, null);
                             }
                         });
                         timer.timeout(ms, delegate ()
@@ -1571,7 +1571,7 @@ namespace Go
                     }
                     else
                     {
-                        ntf(chan_async_state.async_overtime);
+                        ntf(chan_async_state.async_overtime, null);
                     }
                 }
                 else
@@ -1589,7 +1589,7 @@ namespace Go
                             _pushWait.RemoveFirst();
                             pushNtf(chan_async_state.async_ok);
                         }
-                        ntf(state);
+                        ntf(state, null);
                     });
                     timer.timeout(ms, delegate ()
                     {
@@ -1607,7 +1607,7 @@ namespace Go
             });
         }
 
-        public override void timed_pop(int ms, SameAction ntf)
+        public override void timed_pop(int ms, Action<chan_async_state, T, object> ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -1618,11 +1618,11 @@ namespace Go
                     Action<chan_async_state> pushNtf = _pushWait.First.Value;
                     _pushWait.RemoveFirst();
                     pushNtf(chan_async_state.async_ok);
-                    ntf(chan_async_state.async_ok, msg);
+                    ntf(chan_async_state.async_ok, msg, null);
                 }
                 else if (_closed)
                 {
-                    ntf(chan_async_state.async_closed);
+                    ntf(chan_async_state.async_closed, default(T), null);
                 }
                 else if (ms > 0)
                 {
@@ -1636,7 +1636,7 @@ namespace Go
                         }
                         else
                         {
-                            ntf(state);
+                            ntf(state, default(T), null);
                         }
                     });
                     timer.timeout(ms, delegate ()
@@ -1654,7 +1654,7 @@ namespace Go
                 }
                 else
                 {
-                    ntf(chan_async_state.async_overtime);
+                    ntf(chan_async_state.async_overtime, default(T), null);
                 }
             });
         }
@@ -1688,7 +1688,7 @@ namespace Go
             });
         }
 
-        public override void try_pop_and_append_notify(SameAction cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign)
+        public override void try_pop_and_append_notify(Action<chan_async_state, T, object> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -1703,17 +1703,17 @@ namespace Go
                     {
                         append_pop_notify(msgNtf, ntfSign);
                     }
-                    cb(chan_async_state.async_ok, msg);
+                    cb(chan_async_state.async_ok, msg, null);
                 }
                 else if (_closed)
                 {
                     msgNtf(chan_async_state.async_closed);
-                    cb(chan_async_state.async_closed);
+                    cb(chan_async_state.async_closed, default(T), null);
                 }
                 else
                 {
                     append_pop_notify(msgNtf, ntfSign);
-                    cb(chan_async_state.async_fail);
+                    cb(chan_async_state.async_fail, default(T), null);
                 }
             });
         }
@@ -1772,14 +1772,14 @@ namespace Go
             });
         }
 
-        public override void try_push_and_append_notify(SameAction cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, T msg)
+        public override void try_push_and_append_notify(Action<chan_async_state, object> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, T msg)
         {
             _strand.distribute(delegate ()
             {
                 if (_closed)
                 {
                     msgNtf(chan_async_state.async_closed);
-                    cb(chan_async_state.async_closed);
+                    cb(chan_async_state.async_closed, null);
                     return;
                 }
                 if (!_has)
@@ -1801,7 +1801,7 @@ namespace Go
                             {
                                 append_push_notify(msgNtf, ntfSign);
                             }
-                            cb(state);
+                            cb(state, null);
                         });
                         Action<chan_async_state> popNtf = _popWait.First.Value;
                         _popWait.RemoveFirst();
@@ -1810,7 +1810,7 @@ namespace Go
                     }
                 }
                 append_push_notify(msgNtf, ntfSign);
-                cb(chan_async_state.async_fail);
+                cb(chan_async_state.async_fail, null);
             });
         }
 
@@ -1935,13 +1935,13 @@ namespace Go
             return chan_type.broadcast;
         }
 
-        public override void push(SameAction ntf, T msg)
+        public override void push(Action<chan_async_state, object> ntf, T msg)
         {
             _strand.distribute(delegate ()
             {
                 if (_closed)
                 {
-                    ntf(chan_async_state.async_closed);
+                    ntf(chan_async_state.async_closed, null);
                     return;
                 }
                 _pushCount++;
@@ -1954,16 +1954,16 @@ namespace Go
                     ntfs.First()(chan_async_state.async_ok);
                     ntfs.RemoveFirst();
                 }
-                ntf(chan_async_state.async_ok);
+                ntf(chan_async_state.async_ok, null);
             });
         }
 
-        public override void pop(SameAction ntf)
+        public override void pop(Action<chan_async_state, T, object> ntf)
         {
             pop(ntf, broadcast_chan_token._defToken);
         }
 
-        public override void pop(SameAction ntf, broadcast_chan_token token)
+        public override void pop(Action<chan_async_state, T, object> ntf, broadcast_chan_token token)
         {
             _strand.distribute(delegate ()
             {
@@ -1973,11 +1973,11 @@ namespace Go
                     {
                         token._lastId = _pushCount;
                     }
-                    ntf(chan_async_state.async_ok, _msg);
+                    ntf(chan_async_state.async_ok, _msg, null);
                 }
                 else if (_closed)
                 {
-                    ntf(chan_async_state.async_closed);
+                    ntf(chan_async_state.async_closed, default(T), null);
                 }
                 else
                 {
@@ -1989,24 +1989,24 @@ namespace Go
                         }
                         else
                         {
-                            ntf(state);
+                            ntf(state, default(T), null);
                         }
                     });
                 }
             });
         }
 
-        public override void try_push(SameAction ntf, T msg)
+        public override void try_push(Action<chan_async_state, object> ntf, T msg)
         {
             push(ntf, msg);
         }
 
-        public override void try_pop(SameAction ntf)
+        public override void try_pop(Action<chan_async_state, T, object> ntf)
         {
             try_pop(ntf, broadcast_chan_token._defToken);
         }
 
-        public override void try_pop(SameAction ntf, broadcast_chan_token token)
+        public override void try_pop(Action<chan_async_state, T, object> ntf, broadcast_chan_token token)
         {
             _strand.distribute(delegate ()
             {
@@ -2016,35 +2016,35 @@ namespace Go
                     {
                         token._lastId = _pushCount;
                     }
-                    ntf(chan_async_state.async_ok, _msg);
+                    ntf(chan_async_state.async_ok, _msg, null);
                 }
                 else if (_closed)
                 {
-                    ntf(chan_async_state.async_closed);
+                    ntf(chan_async_state.async_closed, default(T), null);
                 }
                 else
                 {
-                    ntf(chan_async_state.async_fail);
+                    ntf(chan_async_state.async_fail, default(T), null);
                 }
             });
         }
 
-        public override void timed_push(int ms, SameAction ntf, T msg)
+        public override void timed_push(int ms, Action<chan_async_state, object> ntf, T msg)
         {
             push(ntf, msg);
         }
 
-        public override void timed_pop(int ms, SameAction ntf)
+        public override void timed_pop(int ms, Action<chan_async_state, T, object> ntf)
         {
             timed_pop(ms, ntf, broadcast_chan_token._defToken);
         }
 
-        public override void timed_pop(int ms, SameAction ntf, broadcast_chan_token token)
+        public override void timed_pop(int ms, Action<chan_async_state, T, object> ntf, broadcast_chan_token token)
         {
             _timed_check_pop(system_tick.get_tick_ms() + ms, ntf, token);
         }
 
-        void _timed_check_pop(long deadms, SameAction ntf, broadcast_chan_token token)
+        void _timed_check_pop(long deadms, Action<chan_async_state, T, object> ntf, broadcast_chan_token token)
         {
             _strand.distribute(delegate ()
             {
@@ -2054,11 +2054,11 @@ namespace Go
                     {
                         token._lastId = _pushCount;
                     }
-                    ntf(chan_async_state.async_ok, _msg);
+                    ntf(chan_async_state.async_ok, _msg, null);
                 }
                 else if (_closed)
                 {
-                    ntf(chan_async_state.async_closed);
+                    ntf(chan_async_state.async_closed, default(T), null);
                 }
                 else
                 {
@@ -2072,7 +2072,7 @@ namespace Go
                         }
                         else
                         {
-                            ntf(state);
+                            ntf(state, default(T), null);
                         }
                     });
                     timer.deadline(deadms, delegate ()
@@ -2124,27 +2124,27 @@ namespace Go
             }
         }
 
-        public override void try_pop_and_append_notify(SameAction cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign)
+        public override void try_pop_and_append_notify(Action<chan_async_state, T, object> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign)
         {
             try_pop_and_append_notify(cb, msgNtf, ntfSign, broadcast_chan_token._defToken);
         }
 
-        public override void try_pop_and_append_notify(SameAction cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, broadcast_chan_token token)
+        public override void try_pop_and_append_notify(Action<chan_async_state, T, object> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, broadcast_chan_token token)
         {
             _strand.distribute(delegate ()
             {
                 if (_append_pop_notify(msgNtf, ntfSign, token))
                 {
-                    cb(chan_async_state.async_ok, _msg);
+                    cb(chan_async_state.async_ok, _msg, null);
                 }
                 else if (_closed)
                 {
                     msgNtf(chan_async_state.async_closed);
-                    cb(chan_async_state.async_closed);
+                    cb(chan_async_state.async_closed, default(T), null);
                 }
                 else
                 {
-                    cb(chan_async_state.async_fail);
+                    cb(chan_async_state.async_fail, default(T), null);
                 }
             });
         }
@@ -2185,21 +2185,21 @@ namespace Go
             });
         }
 
-        public override void try_push_and_append_notify(SameAction cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, T msg)
+        public override void try_push_and_append_notify(Action<chan_async_state, object> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, T msg)
         {
             _strand.distribute(delegate ()
             {
                 if (_closed)
                 {
                     msgNtf(chan_async_state.async_closed);
-                    cb(chan_async_state.async_closed);
+                    cb(chan_async_state.async_closed, null);
                     return;
                 }
                 _pushCount++;
                 _msg = msg;
                 _has = true;
                 msgNtf(chan_async_state.async_ok);
-                cb(chan_async_state.async_ok);
+                cb(chan_async_state.async_ok, null);
             });
         }
 
@@ -2256,18 +2256,18 @@ namespace Go
     {
         struct send_pck
         {
-            public SameAction _ntf;
+            public Action<chan_async_state, object> _ntf;
             public T _msg;
             async_timer _timer;
 
-            public void set(SameAction ntf, T msg, async_timer timer)
+            public void set(Action<chan_async_state, object> ntf, T msg, async_timer timer)
             {
                 _ntf = ntf;
                 _msg = msg;
                 _timer = timer;
             }
 
-            public void set(SameAction ntf, T msg)
+            public void set(Action<chan_async_state, object> ntf, T msg)
             {
                 _ntf = ntf;
                 _msg = msg;
@@ -2285,9 +2285,9 @@ namespace Go
 
         public struct csp_result
         {
-            SameAction _notify;
+            Action<chan_async_state, object> _notify;
 
-            public csp_result(SameAction notify)
+            public csp_result(Action<chan_async_state, object> notify)
             {
                 _notify = notify;
             }
@@ -2318,13 +2318,13 @@ namespace Go
             {
                 generator self = generator.self;
                 csp_wait_wrap<R, T> result = default(csp_wait_wrap<R, T>);
-                _chan.try_pop_and_append_notify(self.async_same_callback(delegate (object[] args)
+                _chan.try_pop_and_append_notify(self.async_callback(delegate (chan_async_state state, T msg, object exObj)
                 {
-                    result.state = (chan_async_state)args[0];
-                    if (chan_async_state.async_ok == result.state)
+                    result.state = state;
+                    if (chan_async_state.async_ok == state)
                     {
-                        result.result = (csp_chan<R, T>.csp_result)(args[1]);
-                        result.msg = (T)args[2];
+                        result.msg = msg;
+                        result.result = (csp_chan<R, T>.csp_result)exObj;
                     }
                 }), delegate (chan_async_state state)
                 {
@@ -2402,12 +2402,12 @@ namespace Go
             {
                 generator self = generator.self;
                 csp_invoke_wrap<R> result = default(csp_invoke_wrap<R>);
-                _chan.try_push_and_append_notify(self.async_same_callback(delegate (object[] args)
+                _chan.try_push_and_append_notify(self.async_callback(delegate (chan_async_state state, object exObj)
                 {
-                    result.state = (chan_async_state)args[0];
-                    if (chan_async_state.async_ok == result.state)
+                    result.state = state;
+                    if (chan_async_state.async_ok == state)
                     {
-                        result.result = (R)args[1];
+                        result.result = (R)exObj;
                     }
                 }), delegate (chan_async_state state)
                 {
@@ -2555,13 +2555,13 @@ namespace Go
             return chan_type.csp;
         }
 
-        public override void push(SameAction ntf, T msg)
+        public override void push(Action<chan_async_state, object> ntf, T msg)
         {
             _strand.distribute(delegate ()
             {
                 if (_closed)
                 {
-                    ntf(chan_async_state.async_closed);
+                    ntf(chan_async_state.async_closed, null);
                     return;
                 }
                 if (_has)
@@ -2574,7 +2574,7 @@ namespace Go
                         }
                         else
                         {
-                            ntf(state);
+                            ntf(state, null);
                         }
                     });
                 }
@@ -2593,7 +2593,7 @@ namespace Go
             });
         }
 
-        public override void pop(SameAction ntf)
+        public override void pop(Action<chan_async_state, T, object> ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -2608,11 +2608,11 @@ namespace Go
                         _sendQueue.RemoveFirst();
                         sendWait(chan_async_state.async_ok);
                     }
-                    ntf(chan_async_state.async_ok, new csp_result(pck._ntf), pck._msg);
+                    ntf(chan_async_state.async_ok, pck._msg, new csp_result(pck._ntf));
                 }
                 else if (_closed)
                 {
-                    ntf(chan_async_state.async_closed);
+                    ntf(chan_async_state.async_closed, default(T), null);
                 }
                 else
                 {
@@ -2624,7 +2624,7 @@ namespace Go
                         }
                         else
                         {
-                            ntf(state);
+                            ntf(state, default(T), null);
                         }
                     });
                     if (0 != _sendQueue.Count)
@@ -2637,18 +2637,18 @@ namespace Go
             });
         }
 
-        public override void try_push(SameAction ntf, T msg)
+        public override void try_push(Action<chan_async_state, object> ntf, T msg)
         {
             _strand.distribute(delegate ()
             {
                 if (_closed)
                 {
-                    ntf(chan_async_state.async_closed);
+                    ntf(chan_async_state.async_closed, null);
                     return;
                 }
                 if (_has)
                 {
-                    ntf(chan_async_state.async_fail);
+                    ntf(chan_async_state.async_fail, null);
                 }
                 else
                 {
@@ -2663,13 +2663,13 @@ namespace Go
                     }
                     else
                     {
-                        ntf(chan_async_state.async_fail);
+                        ntf(chan_async_state.async_fail, null);
                     }
                 }
             });
         }
 
-        public override void try_pop(SameAction ntf)
+        public override void try_pop(Action<chan_async_state, T, object> ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -2684,26 +2684,26 @@ namespace Go
                         _sendQueue.RemoveFirst();
                         sendWait(chan_async_state.async_ok);
                     }
-                    ntf(chan_async_state.async_ok, new csp_result(pck._ntf), pck._msg);
+                    ntf(chan_async_state.async_ok, pck._msg, new csp_result(pck._ntf));
                 }
                 else if (_closed)
                 {
-                    ntf(chan_async_state.async_closed);
+                    ntf(chan_async_state.async_closed, default(T), null);
                 }
                 else
                 {
-                    ntf(chan_async_state.async_fail);
+                    ntf(chan_async_state.async_fail, default(T), null);
                 }
             });
         }
 
-        public override void timed_push(int ms, SameAction ntf, T msg)
+        public override void timed_push(int ms, Action<chan_async_state, object> ntf, T msg)
         {
             _strand.distribute(delegate ()
             {
                 if (_closed)
                 {
-                    ntf(chan_async_state.async_closed);
+                    ntf(chan_async_state.async_closed, null);
                     return;
                 }
                 if (_has)
@@ -2720,7 +2720,7 @@ namespace Go
                             }
                             else
                             {
-                                ntf(state);
+                                ntf(state, null);
                             }
                         });
                         timer.timeout(ms, delegate ()
@@ -2732,7 +2732,7 @@ namespace Go
                     }
                     else
                     {
-                        ntf(chan_async_state.async_overtime);
+                        ntf(chan_async_state.async_overtime, null);
                     }
                 }
                 else
@@ -2744,9 +2744,9 @@ namespace Go
                     timer.timeout(ms, delegate ()
                     {
                         _msg.cancel_timer();
-                        SameAction ntf_ = _msg._ntf;
+                        Action<chan_async_state, object> ntf_ = _msg._ntf;
                         _has = false;
-                        ntf_(chan_async_state.async_overtime);
+                        ntf_(chan_async_state.async_overtime, null);
                     });
                     if (0 != _waitQueue.Count)
                     {
@@ -2758,7 +2758,7 @@ namespace Go
             });
         }
 
-        public override void timed_pop(int ms, SameAction ntf)
+        public override void timed_pop(int ms, Action<chan_async_state, T, object> ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -2773,11 +2773,11 @@ namespace Go
                         _sendQueue.RemoveFirst();
                         sendWait(chan_async_state.async_ok);
                     }
-                    ntf(chan_async_state.async_ok, new csp_result(pck._ntf), pck._msg);
+                    ntf(chan_async_state.async_ok, pck._msg, new csp_result(pck._ntf));
                 }
                 else if (_closed)
                 {
-                    ntf(chan_async_state.async_closed);
+                    ntf(chan_async_state.async_closed, default(T), null);
                 }
                 else
                 {
@@ -2793,7 +2793,7 @@ namespace Go
                             }
                             else
                             {
-                                ntf(state);
+                                ntf(state, default(T), null);
                             }
                         });
                         timer.timeout(ms, delegate ()
@@ -2805,7 +2805,7 @@ namespace Go
                     }
                     else
                     {
-                        ntf(chan_async_state.async_overtime);
+                        ntf(chan_async_state.async_overtime, default(T), null);
                     }
                 }
             });
@@ -2840,7 +2840,7 @@ namespace Go
             });
         }
 
-        public override void try_pop_and_append_notify(SameAction cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign)
+        public override void try_pop_and_append_notify(Action<chan_async_state, T, object> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign)
         {
             _strand.distribute(delegate ()
             {
@@ -2859,17 +2859,17 @@ namespace Go
                     {
                         append_pop_notify(msgNtf, ntfSign);
                     }
-                    cb(chan_async_state.async_ok, new csp_result(pck._ntf), pck._msg);
+                    cb(chan_async_state.async_ok, pck._msg, new csp_result(pck._ntf));
                 }
                 else if (_closed)
                 {
                     msgNtf(chan_async_state.async_closed);
-                    cb(chan_async_state.async_closed);
+                    cb(chan_async_state.async_closed, default(T), null);
                 }
                 else
                 {
                     append_pop_notify(msgNtf, ntfSign);
-                    cb(chan_async_state.async_fail);
+                    cb(chan_async_state.async_fail, default(T), null);
                 }
             });
         }
@@ -2895,9 +2895,9 @@ namespace Go
                     else if (_msgIsTryPush)
                     {
                         _msg.cancel_timer();
-                        SameAction ntf_ = _msg._ntf;
+                        Action<chan_async_state, object> ntf_ = _msg._ntf;
                         _has = false;
-                        ntf_(chan_async_state.async_fail);
+                        ntf_(chan_async_state.async_fail, null);
                         if (0 != _sendQueue.Count)
                         {
                             Action<chan_async_state> sendNtf = _sendQueue.First.Value;
@@ -2934,14 +2934,14 @@ namespace Go
             });
         }
 
-        public override void try_push_and_append_notify(SameAction cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, T msg)
+        public override void try_push_and_append_notify(Action<chan_async_state, object> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, T msg)
         {
             _strand.distribute(delegate ()
             {
                 if (_closed)
                 {
                     msgNtf(chan_async_state.async_closed);
-                    cb(chan_async_state.async_closed);
+                    cb(chan_async_state.async_closed, null);
                     return;
                 }
                 if (!_has)
@@ -2962,7 +2962,7 @@ namespace Go
                     }
                 }
                 append_push_notify(msgNtf, ntfSign);
-                cb(chan_async_state.async_fail);
+                cb(chan_async_state.async_fail, null);
             });
         }
 
@@ -3001,7 +3001,7 @@ namespace Go
             _strand.distribute(delegate ()
             {
                 _closed = true;
-                SameAction hasMsg = null;
+                Action<chan_async_state, object> hasMsg = null;
                 if (_has)
                 {
                     _msg.cancel_timer();
@@ -3009,7 +3009,7 @@ namespace Go
                     _has = false;
                 }
                 safe_callback(ref _sendQueue, ref _waitQueue, chan_async_state.async_closed);
-                hasMsg?.Invoke(chan_async_state.async_closed);
+                hasMsg?.Invoke(chan_async_state.async_closed, null);
                 ntf();
             });
         }
@@ -3018,7 +3018,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
-                SameAction hasMsg = null;
+                Action<chan_async_state, object> hasMsg = null;
                 if (_has)
                 {
                     _msg.cancel_timer();
@@ -3026,7 +3026,7 @@ namespace Go
                     _has = false;
                 }
                 safe_callback(ref _sendQueue, ref _waitQueue, chan_async_state.async_cancel);
-                hasMsg?.Invoke(chan_async_state.async_cancel);
+                hasMsg?.Invoke(chan_async_state.async_cancel, null);
                 ntf();
             });
         }

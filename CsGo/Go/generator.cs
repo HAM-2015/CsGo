@@ -361,7 +361,7 @@ namespace Go
 
         static int _hashCount = 0;
         static long _idCount = 0;
-        static Task _nilTask = new Task(functional.nil_handler);
+        static Task _nilTask = new Task(nil_action.action);
         static ReaderWriterLockSlim _nameMutex = new ReaderWriterLockSlim();
         static Dictionary<string, generator> _nameGens = new Dictionary<string, generator>();
         static static_init _init = new static_init();
@@ -2491,7 +2491,7 @@ namespace Go
         {
             generator this_ = self;
             chan_async_state result = chan_async_state.async_undefined;
-            chan.push(this_.async_same_callback((object[] args) => result = (chan_async_state)args[0]), msg);
+            chan.push(this_.async_callback((chan_async_state state, object _) => result = state), msg);
             await this_.async_wait();
             return result;
         }
@@ -2505,13 +2505,13 @@ namespace Go
         {
             generator this_ = self;
             chan_async_state result = chan_async_state.async_undefined;
-            chan.force_push(this_.async_same_callback(delegate (object[] args)
+            chan.force_push(this_.async_callback(delegate (chan_async_state state, bool hasOut, T freeMsg)
             {
-                result = (chan_async_state)args[0];
+                result = state;
                 if (null != outMsg)
                 {
-                    outMsg.value1 = 2 == args.Length;
-                    outMsg.value2 = outMsg.value1 ? (T)args[1] : default(T);
+                    outMsg.value1 = hasOut;
+                    outMsg.value2 = freeMsg;
                 }
             }), msg);
             await this_.async_wait();
@@ -2527,12 +2527,12 @@ namespace Go
         {
             generator this_ = self;
             chan_recv_wrap<T> result = default(chan_recv_wrap<T>);
-            chan.pop(this_.async_same_callback(delegate (object[] args)
+            chan.pop(this_.async_callback(delegate (chan_async_state state, T msg, object _)
             {
-                result.state = (chan_async_state)args[0];
-                if (chan_async_state.async_ok == result.state)
+                result.state = state;
+                if (chan_async_state.async_ok == state)
                 {
-                    result.result = (T)args[1];
+                    result.result = msg;
                 }
             }), token);
             await this_.async_wait();
@@ -2543,7 +2543,7 @@ namespace Go
         {
             generator this_ = self;
             chan_async_state result = chan_async_state.async_undefined;
-            chan.try_push(this_.async_same_callback((object[] args) => result = (chan_async_state)args[0]), msg);
+            chan.try_push(this_.async_callback((chan_async_state state, object _) => result = state), msg);
             await this_.async_wait();
             return result;
         }
@@ -2562,12 +2562,12 @@ namespace Go
         {
             generator this_ = self;
             chan_recv_wrap<T> result = default(chan_recv_wrap<T>);
-            chan.try_pop(this_.async_same_callback(delegate (object[] args)
+            chan.try_pop(this_.async_callback(delegate (chan_async_state state, T msg, object _)
             {
-                result.state = (chan_async_state)args[0];
-                if (chan_async_state.async_ok == result.state)
+                result.state = state;
+                if (chan_async_state.async_ok == state)
                 {
-                    result.result = (T)args[1];
+                    result.result = msg;
                 }
             }), token);
             await this_.async_wait();
@@ -2578,7 +2578,7 @@ namespace Go
         {
             generator this_ = self;
             chan_async_state result = chan_async_state.async_undefined;
-            chan.timed_push(ms, this_.async_same_callback((object[] args) => result = (chan_async_state)args[0]), msg);
+            chan.timed_push(ms, this_.async_callback((chan_async_state state, object _) => result = state), msg);
             await this_.async_wait();
             return result;
         }
@@ -2597,12 +2597,12 @@ namespace Go
         {
             generator this_ = self;
             chan_recv_wrap<T> result = default(chan_recv_wrap<T>);
-            chan.timed_pop(ms, this_.async_same_callback(delegate (object[] args)
+            chan.timed_pop(ms, this_.async_callback(delegate (chan_async_state state, T msg, object _)
             {
-                result.state = (chan_async_state)args[0];
-                if (chan_async_state.async_ok == result.state)
+                result.state = state;
+                if (chan_async_state.async_ok == state)
                 {
-                    result.result = (T)args[1];
+                    result.result = msg;
                 }
             }), token);
             await this_.async_wait();
@@ -2613,12 +2613,12 @@ namespace Go
         {
             generator this_ = self;
             csp_invoke_wrap<R> result = default(csp_invoke_wrap<R>);
-            chan.push(this_.async_same_callback(delegate (object[] args)
+            chan.push(this_.async_callback(delegate (chan_async_state state, object exObj)
             {
-                result.state = (chan_async_state)args[0];
-                if (chan_async_state.async_ok == result.state)
+                result.state = state;
+                if (chan_async_state.async_ok == state)
                 {
-                    result.result = (R)args[1];
+                    result.result = (R)exObj;
                 }
             }), msg);
             await this_.async_wait();
@@ -2634,13 +2634,13 @@ namespace Go
         {
             generator this_ = self;
             csp_wait_wrap<R, T> result = default(csp_wait_wrap<R, T>);
-            chan.pop(this_.async_same_callback(delegate (object[] args)
+            chan.pop(this_.async_callback(delegate (chan_async_state state, T msg, object exObj)
             {
-                result.state = (chan_async_state)args[0];
-                if (chan_async_state.async_ok == result.state)
+                result.state = state;
+                if (chan_async_state.async_ok == state)
                 {
-                    result.result = (csp_chan<R, T>.csp_result)(args[1]);
-                    result.msg = (T)args[2];
+                    result.msg = msg;
+                    result.result = (csp_chan<R, T>.csp_result)exObj;
                 }
             }));
             await this_.async_wait();
@@ -2693,12 +2693,12 @@ namespace Go
         {
             generator this_ = self;
             csp_invoke_wrap<R> result = default(csp_invoke_wrap<R>);
-            chan.try_push(this_.async_same_callback(delegate (object[] args)
+            chan.try_push(this_.async_callback(delegate (chan_async_state state, object exObj)
             {
-                result.state = (chan_async_state)args[0];
-                if (chan_async_state.async_ok == result.state)
+                result.state = state;
+                if (chan_async_state.async_ok == state)
                 {
-                    result.result = (R)args[1];
+                    result.result = (R)exObj;
                 }
             }), msg);
             await this_.async_wait();
@@ -2714,13 +2714,13 @@ namespace Go
         {
             generator this_ = self;
             csp_wait_wrap<R, T> result = default(csp_wait_wrap<R, T>);
-            chan.try_pop(this_.async_same_callback(delegate (object[] args)
+            chan.try_pop(this_.async_callback(delegate (chan_async_state state, T msg, object exObj)
             {
-                result.state = (chan_async_state)args[0];
-                if (chan_async_state.async_ok == result.state)
+                result.state = state;
+                if (chan_async_state.async_ok == state)
                 {
-                    result.result = (csp_chan<R, T>.csp_result)(args[1]);
-                    result.msg = (T)args[2];
+                    result.msg = msg;
+                    result.result = (csp_chan<R, T>.csp_result)exObj;
                 }
             }));
             await this_.async_wait();
@@ -2774,12 +2774,12 @@ namespace Go
         {
             generator this_ = self;
             csp_invoke_wrap<R> result = default(csp_invoke_wrap<R>);
-            chan.timed_push(ms, this_.async_same_callback(delegate (object[] args)
+            chan.timed_push(ms, this_.async_callback(delegate (chan_async_state state, object exObj)
             {
-                result.state = (chan_async_state)args[0];
-                if (chan_async_state.async_ok == result.state)
+                result.state = state;
+                if (chan_async_state.async_ok == state)
                 {
-                    result.result = (R)args[1];
+                    result.result = (R)exObj;
                 }
             }), msg);
             await this_.async_wait();
@@ -2795,13 +2795,13 @@ namespace Go
         {
             generator this_ = self;
             csp_wait_wrap<R, T> result = default(csp_wait_wrap<R, T>);
-            chan.timed_pop(ms, this_.async_same_callback(delegate (object[] args)
+            chan.timed_pop(ms, this_.async_callback(delegate (chan_async_state state, T msg, object exObj)
             {
-                result.state = (chan_async_state)args[0];
-                if (chan_async_state.async_ok == result.state)
+                result.state = state;
+                if (chan_async_state.async_ok == state)
                 {
-                    result.result = (csp_chan<R, T>.csp_result)(args[1]);
-                    result.msg = (T)args[2];
+                    result.msg = msg;
+                    result.result = (csp_chan<R, T>.csp_result)exObj;
                 }
             }));
             await this_.async_wait();
@@ -2857,9 +2857,9 @@ namespace Go
             wait_group wg = new wait_group(chans.Length);
             for (int i = 0; i < chans.Length; i++)
             {
-                chans[i].push(delegate (object[] args)
+                chans[i].push(delegate (chan_async_state state, object _)
                 {
-                    if (chan_async_state.async_ok == (chan_async_state)args[0])
+                    if (chan_async_state.async_ok == state)
                     {
                         Interlocked.Increment(ref count);
                     }
@@ -2878,9 +2878,9 @@ namespace Go
             wait_group wg = new wait_group(chans.Length);
             for (int i = 0; i < chans.Length; i++)
             {
-                chans[i].try_push(delegate (object[] args)
+                chans[i].try_push(delegate (chan_async_state state, object _)
                 {
-                    if (chan_async_state.async_ok == (chan_async_state)args[0])
+                    if (chan_async_state.async_ok == state)
                     {
                         Interlocked.Increment(ref count);
                     }
@@ -2899,9 +2899,9 @@ namespace Go
             wait_group wg = new wait_group(chans.Length);
             for (int i = 0; i < chans.Length; i++)
             {
-                chans[i].timed_push(ms, delegate (object[] args)
+                chans[i].timed_push(ms, delegate (chan_async_state state, object _)
                 {
-                    if (chan_async_state.async_ok == (chan_async_state)args[0])
+                    if (chan_async_state.async_ok == state)
                     {
                         Interlocked.Increment(ref count);
                     }
@@ -4526,12 +4526,12 @@ namespace Go
                         {
                             lock_suspend_and_stop();
                             chan_recv_wrap<T> recvRes = default(chan_recv_wrap<T>);
-                            selfMb.try_pop_and_append_notify(self.async_same_callback(delegate (object[] args)
+                            selfMb.try_pop_and_append_notify(self.async_callback(delegate (chan_async_state state, T msg, object _)
                             {
-                                recvRes.state = (chan_async_state)args[0];
-                                if (chan_async_state.async_ok == recvRes.state)
+                                recvRes.state = state;
+                                if (chan_async_state.async_ok == state)
                                 {
-                                    recvRes.result = (T)args[1];
+                                    recvRes.result = msg;
                                 }
                             }), waitHasNtf, ntfSign);
                             await self.async_wait();
@@ -4682,12 +4682,12 @@ namespace Go
                                 try
                                 {
                                     chan_recv_wrap<T> recvRes = default(chan_recv_wrap<T>);
-                                    chan.try_pop_and_append_notify(self.async_same_callback(delegate (object[] args)
+                                    chan.try_pop_and_append_notify(self.async_callback(delegate (chan_async_state state, T msg, object _)
                                     {
-                                        recvRes.state = (chan_async_state)args[0];
-                                        if (chan_async_state.async_ok == recvRes.state)
+                                        recvRes.state = state;
+                                        if (chan_async_state.async_ok == state)
                                         {
-                                            recvRes.result = (T)args[1];
+                                            recvRes.result = msg;
                                         }
                                     }), waitHasNtf, ntfSign);
                                     await self.async_wait();
@@ -4927,12 +4927,12 @@ namespace Go
                                 try
                                 {
                                     chan_recv_wrap<T> recvRes = default(chan_recv_wrap<T>);
-                                    chan.try_pop_and_append_notify(self.async_same_callback(delegate (object[] args)
+                                    chan.try_pop_and_append_notify(self.async_callback(delegate (chan_async_state state, T msg, object _)
                                     {
-                                        recvRes.state = (chan_async_state)args[0];
-                                        if (chan_async_state.async_ok == recvRes.state)
+                                        recvRes.state = state;
+                                        if (chan_async_state.async_ok == state)
                                         {
-                                            recvRes.result = (T)args[1];
+                                            recvRes.result = msg;
                                         }
                                     }), waitHasNtf, ntfSign);
                                     await self.async_wait();
@@ -5202,17 +5202,13 @@ namespace Go
                                 try
                                 {
                                     csp_wait_wrap<R, T> recvRes = default(csp_wait_wrap<R, T>);
-                                    chan.try_pop_and_append_notify(self.async_same_callback(delegate (object[] args)
+                                    chan.try_pop_and_append_notify(self.async_callback(delegate (chan_async_state state, T msg, object exObj)
                                     {
-                                        recvRes.state = (chan_async_state)args[0];
-                                        if (chan_async_state.async_ok == recvRes.state)
+                                        recvRes.state = state;
+                                        if (chan_async_state.async_ok == state)
                                         {
-                                            recvRes.state = (chan_async_state)args[0];
-                                            if (chan_async_state.async_ok == recvRes.state)
-                                            {
-                                                recvRes.result = (csp_chan<R, T>.csp_result)(args[1]);
-                                                recvRes.msg = (T)args[2];
-                                            }
+                                            recvRes.msg = msg;
+                                            recvRes.result = (csp_chan<R, T>.csp_result)exObj;
                                         }
                                     }), waitHasNtf, ntfSign);
                                     await self.async_wait();

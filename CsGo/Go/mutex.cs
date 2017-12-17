@@ -502,7 +502,7 @@ namespace Go
                 shared_count tempCount;
                 if (_sharedMap.TryGetValue(id, out tempCount))
                 {
-                    base.cancel(id, functional.nil_handler);
+                    base.cancel(id, nil_action.action);
                     tempCount._count = 1;
                     unlock_shared(id, ntf);
                 }

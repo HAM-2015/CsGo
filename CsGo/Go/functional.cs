@@ -82,11 +82,15 @@ namespace Go
     public delegate void SameAction(params object[] args);
     public delegate R SameFunc<R>(params object[] args);
 
+    public abstract class nil_action { static public readonly Action action = () => { }; }
+    public abstract class nil_action<T1> { static public readonly Action<T1> action = (T1 p1) => { }; }
+    public abstract class nil_action<T1, T2> { static public readonly Action<T1, T2> action = (T1 p1, T2 p2) => { }; }
+    public abstract class nil_action<T1, T2, T3> { static public readonly Action<T1, T2, T3> action = (T1 p1, T2 p2, T3 p3) => { }; }
+    public abstract class any_action { static public readonly SameAction action = (object[] args) => { }; }
+
     public class functional
     {
         public static readonly placeholder _ = new placeholder();
-        static public readonly Action nil_handler = () => { };
-        static public readonly SameAction any_handler = (object[] args) => { };
 
         public static Action cast(SameAction handler)
         {
