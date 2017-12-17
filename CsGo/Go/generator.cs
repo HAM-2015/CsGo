@@ -4450,7 +4450,7 @@ namespace Go
             return (channel<T>)mb.mailbox;
         }
 
-        public void get_mailbox<T>(Action<channel<T>> cb, int id = 0)
+        private void get_mailbox<T>(Action<channel<T>> cb, int id)
         {
             strand.distribute(delegate ()
             {
@@ -4597,19 +4597,19 @@ namespace Go
             return null != mb ? await chan_send(mb, msg) : chan_async_state.async_fail;
         }
 
-        public Task<chan_async_state> send_msg(int id)
-        {
-            return send_msg(0, default(void_type));
-        }
-
         public Task<chan_async_state> send_msg<T>(T msg)
         {
             return send_msg(0, msg);
         }
 
-        public Task<chan_async_state> send_msg()
+        public Task<chan_async_state> send_void_msg(int id)
         {
-            return send_msg(0);
+            return send_msg(id, default(void_type));
+        }
+
+        public Task<chan_async_state> send_void_msg()
+        {
+            return send_msg(0, default(void_type));
         }
 
         public class receive_mail
