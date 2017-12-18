@@ -530,12 +530,12 @@ namespace Go
     public class condition_variable
     {
         shared_strand _strand;
-        LinkedList<Action> _waitQueue;
+        LinkedList<tuple<long, mutex, Action>> _waitQueue;
 
         public condition_variable(shared_strand strand)
         {
             _strand = strand;
-            _waitQueue = new LinkedList<Action>();
+            _waitQueue = new LinkedList<tuple<long, mutex, Action>>();
         }
 
         public condition_variable()
@@ -547,45 +547,57 @@ namespace Go
         private void init(shared_strand strand)
         {
             _strand = strand;
-            _waitQueue = new LinkedList<Action>();
+            _waitQueue = new LinkedList<tuple<long, mutex, Action>>();
         }
 
         public void wait(long id, mutex mutex, Action ntf)
         {
-            _strand.distribute(delegate ()
+            mutex.unlock(id, delegate ()
             {
-                _waitQueue.AddLast(delegate ()
+                _strand.distribute(delegate ()
                 {
-                    mutex.Lock(id, ntf);
+                    _waitQueue.AddLast(new tuple<long, mutex, Action>(id, mutex, delegate ()
+                    {
+                        mutex.Lock(id, ntf);
+                    }));
                 });
             });
         }
 
-        public void timed_wait(long id, int ms, mutex mutex, Action<chan_async_state> ntf)
+        public void timed_wait(long id, int ms, mutex mutex, Action<bool> ntf)
         {
-            _strand.distribute(delegate ()
+            mutex.unlock(id, delegate ()
             {
-                if (ms > 0)
+                _strand.distribute(delegate ()
                 {
-                    async_timer timer = new async_timer(_strand);
-                    LinkedListNode<Action> node = _waitQueue.AddLast(delegate ()
+                    if (ms > 0)
                     {
-                        timer.cancel();
+                        async_timer timer = new async_timer(_strand);
+                        LinkedListNode<tuple<long, mutex, Action>> node = _waitQueue.AddLast(new tuple<long, mutex, Action>(id, mutex, delegate ()
+                        {
+                            timer.cancel();
+                            mutex.Lock(id, delegate ()
+                            {
+                                ntf(true);
+                            });
+                        }));
+                        timer.timeout(ms, delegate ()
+                        {
+                            _waitQueue.Remove(node);
+                            mutex.Lock(id, delegate ()
+                            {
+                                ntf(false);
+                            });
+                        });
+                    }
+                    else
+                    {
                         mutex.Lock(id, delegate ()
                         {
-                            ntf(chan_async_state.async_ok);
+                            ntf(false);
                         });
-                    });
-                    timer.timeout(ms, delegate ()
-                    {
-                        _waitQueue.Remove(node);
-                        ntf(chan_async_state.async_overtime);
-                    });
-                }
-                else
-                {
-                    ntf(chan_async_state.async_overtime);
-                }
+                    }
+                });
             });
         }
 
@@ -595,7 +607,7 @@ namespace Go
             {
                 if (_waitQueue.Count > 0)
                 {
-                    Action ntf = _waitQueue.First.Value;
+                    Action ntf = _waitQueue.First.Value.value3;
                     _waitQueue.RemoveFirst();
                     ntf();
                 }
@@ -608,14 +620,29 @@ namespace Go
             {
                 if (_waitQueue.Count > 0)
                 {
-                    LinkedList<Action> waitQueue = _waitQueue;
-                    _waitQueue = new LinkedList<Action>();
-                    while (waitQueue.Count > 0)
+                    LinkedList<tuple<long, mutex, Action>> waitQueue = _waitQueue;
+                    _waitQueue = new LinkedList<tuple<long, mutex, Action>>();
+                    for (LinkedListNode<tuple<long, mutex, Action>> it = waitQueue.First; null != it; it = it.Next)
                     {
-                        waitQueue.First.Value.Invoke();
-                        waitQueue.RemoveFirst();
+                        it.Value.value3.Invoke();
                     }
                 }
+            });
+        }
+
+        public void cancel(long id, Action ntf)
+        {
+            _strand.distribute(delegate ()
+            {
+                for (LinkedListNode<tuple<long, mutex, Action>> it = _waitQueue.First; null != it; it = it.Next)
+                {
+                    if (id == it.Value.value1)
+                    {
+                        it.Value.value2.cancel(id, ntf);
+                        return;
+                    }
+                }
+                ntf();
             });
         }
     }

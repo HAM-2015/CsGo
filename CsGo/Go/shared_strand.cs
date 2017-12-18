@@ -191,6 +191,7 @@ namespace Go
         protected Mutex _mutex;
         protected LinkedList<Action> _readyQueue;
         protected LinkedList<Action> _waitQueue;
+        protected LinkedList<Action> _nextTick;
 
         public shared_strand()
         {
@@ -200,6 +201,7 @@ namespace Go
             _timer = new async_timer.steady_timer(this);
             _readyQueue = new LinkedList<Action>();
             _waitQueue = new LinkedList<Action>();
+            _nextTick = new LinkedList<Action>();
         }
 
         protected bool running_a_round(curr_strand currStrand)
@@ -212,15 +214,14 @@ namespace Go
                     currStrand.strand = null;
                     return false;
                 }
-                try
-                {
-                    _readyQueue.First.Value.Invoke();
-                }
-                catch (System.Exception ec)
-                {
-                    MessageBox.Show(String.Format("Message:\n{0}\n{1}", ec.Message, ec.StackTrace), "shared_strand 内部未捕获的异常!", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
+                functional.catch_invoke(_readyQueue.First.Value);
                 _readyQueue.RemoveFirst();
+                while (0 != _nextTick.Count)
+                {
+                    Action next = _nextTick.First.Value;
+                    _nextTick.RemoveFirst();
+                    functional.catch_invoke(next);
+                }
             }
             _mutex.WaitOne();
             if (0 != _waitQueue.Count)
@@ -329,6 +330,15 @@ namespace Go
         {
             curr_strand currStrand = _currStrand.Value;
             return null != currStrand ? currStrand.strand : null;
+        }
+
+        static public void next_tick(Action action)
+        {
+            shared_strand currStrand = work_strand();
+#if DEBUG
+            Trace.Assert(null != currStrand, "不正确的 next_tick 调用!");
+#endif
+            currStrand._nextTick.AddFirst(action);
         }
 
         public virtual bool wait_safe()

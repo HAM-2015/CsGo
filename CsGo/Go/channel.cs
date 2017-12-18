@@ -318,19 +318,34 @@ namespace Go
             timed_push(ms, nil_action<chan_async_state, object>.action, msg);
         }
 
+        public void discard()
+        {
+            pop(nil_action<chan_async_state, T, object>.action);
+        }
+
+        public void try_discard()
+        {
+            try_pop(nil_action<chan_async_state, T, object>.action);
+        }
+
+        public void timed_discard(int ms)
+        {
+            timed_pop(ms, nil_action<chan_async_state, T, object>.action);
+        }
+
         public Action<T> wrap()
         {
-            return (T p) => post(p);
+            return post;
         }
 
         public Action<T> wrap_try()
         {
-            return (T p) => try_post(p);
+            return try_post;
         }
 
         public Action<int, T> wrap_timed()
         {
-            return (int ms, T p) => timed_post(ms, p);
+            return timed_post;
         }
 
         public Action<T> wrap_timed(int ms)
@@ -356,6 +371,26 @@ namespace Go
         public Action wrap_timed_default(int ms)
         {
             return () => timed_post(ms, default(T));
+        }
+
+        public Action wrap_discard()
+        {
+            return discard;
+        }
+
+        public Action wrap_try_discard()
+        {
+            return try_discard;
+        }
+
+        public Action<int> wrap_timed_discard()
+        {
+            return timed_discard;
+        }
+
+        public Action wrap_timed_discard(int ms)
+        {
+            return () => timed_discard(ms);
         }
 
         public select_chan_base make_select_reader(Func<T, Task> handler)
