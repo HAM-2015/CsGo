@@ -59,24 +59,24 @@ namespace GoTest
             Console.WriteLine("receive chan3 {0}", await generator.chan_receive(_chan3));
             while (true)
             {
-                await generator.select_chans_once(generator.case_receive(_chan1, async delegate (long msg)
+                await generator.select().case_receive(_chan1, async delegate (long msg)
                 {
                     Console.WriteLine("select receive chan1 {0}", msg);
                     await generator.sleep(100);
-                }), generator.case_send(_chan2, system_tick.get_tick_us(), async delegate ()
+                }).case_send(_chan2, system_tick.get_tick_us(), async delegate ()
                 {
                     Console.WriteLine("select send chan2");
                     await generator.sleep(100);
-                }), generator.case_receive(_chan3, async delegate (long msg)
+                }).case_receive(_chan3, async delegate (long msg)
                 {
                     Console.WriteLine("select receive chan3 {0}", msg);
                     await generator.sleep(100);
-                }), generator.case_receive(_csp, async delegate (long msg)
+                }).case_receive(_csp, async delegate (long msg)
                 {
                     Console.WriteLine("select csp delay {0}", system_tick.get_tick_us() - msg);
                     await generator.sleep(100);
                     return system_tick.get_tick_us();
-                }));
+                }).loop();
             }
         }
 
@@ -97,11 +97,11 @@ namespace GoTest
 
         static async Task Consumer2()
         {
-            await generator.begin().receive(async delegate (int msg)
+            await generator.receive().case_of(async delegate (int msg)
             {
                 Console.WriteLine("                                   receive int {0}", msg);
                 await generator.sleep(1);
-            }).receive(async delegate (long msg)
+            }).case_of(async delegate (long msg)
             {
                 Console.WriteLine("                                   receive long {0}", msg);
                 await generator.sleep(1);
