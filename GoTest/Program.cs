@@ -76,7 +76,7 @@ namespace GoTest
                     Console.WriteLine("select csp delay {0}", system_tick.get_tick_us() - msg);
                     await generator.sleep(100);
                     return system_tick.get_tick_us();
-                }).loop();
+                }).end();
             }
         }
 

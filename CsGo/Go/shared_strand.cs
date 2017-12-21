@@ -183,6 +183,9 @@ namespace Go
             }
         }
         protected static readonly ThreadLocal<curr_strand> _currStrand = new ThreadLocal<curr_strand>();
+#if LIMIT_PERFOR
+        static internal int _limited_perfor = 10;
+#endif
 
         internal readonly async_timer.steady_timer _timer;
         internal generator currSelf = null;
@@ -206,6 +209,12 @@ namespace Go
 
         protected bool running_a_round(curr_strand currStrand)
         {
+#if LIMIT_PERFOR
+            if (0 != _limited_perfor)
+            {
+                Thread.Sleep(_limited_perfor);
+            }
+#endif
             currStrand.strand = this;
             while (0 != _readyQueue.Count)
             {

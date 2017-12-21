@@ -5818,7 +5818,6 @@ namespace Go
                     chan.begin();
                 }
                 bool selected = false;
-                bool overtime = false;
                 try
                 {
                     if (null == this_._selectChans)
@@ -5874,8 +5873,7 @@ namespace Go
                         }
                         else
                         {
-                            overtime = true;
-                            break;
+                            return false;
                         }
                     }
                 }
@@ -5894,7 +5892,7 @@ namespace Go
                         await unlock_suspend_and_stop();
                     }
                 }
-                return overtime;
+                return true;
             }
         }
 
