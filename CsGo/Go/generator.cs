@@ -4165,6 +4165,15 @@ namespace Go
                 {
                     nil_chan<chan_async_state> waitHasChan = new nil_chan<chan_async_state>();
                     Action<chan_async_state> waitHasNtf = waitHasChan.wrap();
+                    chan_recv_wrap<T> recvRes = default(chan_recv_wrap<T>);
+                    Action<chan_async_state, T, object> tryPopHandler = delegate (chan_async_state state, T msg, object _)
+                    {
+                        recvRes.state = state;
+                        if (chan_async_state.async_ok == state)
+                        {
+                            recvRes.result = msg;
+                        }
+                    };
                     selfMb.append_pop_notify(waitHasNtf, ntfSign);
                     while (true)
                     {
@@ -4172,15 +4181,8 @@ namespace Go
                         try
                         {
                             lock_suspend_and_stop();
-                            chan_recv_wrap<T> recvRes = default(chan_recv_wrap<T>);
-                            selfMb.try_pop_and_append_notify(self.async_callback(delegate (chan_async_state state, T msg, object _)
-                            {
-                                recvRes.state = state;
-                                if (chan_async_state.async_ok == state)
-                                {
-                                    recvRes.result = msg;
-                                }
-                            }), waitHasNtf, ntfSign);
+                            recvRes = default(chan_recv_wrap<T>);
+                            selfMb.try_pop_and_append_notify(self.async_callback(tryPopHandler), waitHasNtf, ntfSign);
                             await self.async_wait();
                             if (chan_async_state.async_ok == recvRes.state)
                             {
@@ -4321,6 +4323,15 @@ namespace Go
                             self._mailboxMap = _children.parent()._mailboxMap;
                             nil_chan<chan_async_state> waitHasChan = new nil_chan<chan_async_state>();
                             Action<chan_async_state> waitHasNtf = waitHasChan.wrap();
+                            chan_recv_wrap<T> recvRes = default(chan_recv_wrap<T>);
+                            Action<chan_async_state, T, object> tryPopHandler = delegate (chan_async_state state, T msg, object _)
+                            {
+                                recvRes.state = state;
+                                if (chan_async_state.async_ok == state)
+                                {
+                                    recvRes.result = msg;
+                                }
+                            };
                             chan.append_pop_notify(waitHasNtf, ntfSign);
                             while (_run)
                             {
@@ -4328,15 +4339,8 @@ namespace Go
                                 await mutex_lock_shared(_mutex);
                                 try
                                 {
-                                    chan_recv_wrap<T> recvRes = default(chan_recv_wrap<T>);
-                                    chan.try_pop_and_append_notify(self.async_callback(delegate (chan_async_state state, T msg, object _)
-                                    {
-                                        recvRes.state = state;
-                                        if (chan_async_state.async_ok == state)
-                                        {
-                                            recvRes.result = msg;
-                                        }
-                                    }), waitHasNtf, ntfSign);
+                                    recvRes = default(chan_recv_wrap<T>);
+                                    chan.try_pop_and_append_notify(self.async_callback(tryPopHandler), waitHasNtf, ntfSign);
                                     await self.async_wait();
                                     if (chan_async_state.async_ok == recvRes.state)
                                     {
@@ -4606,6 +4610,15 @@ namespace Go
                             self._mailboxMap = _children.parent()._mailboxMap;
                             nil_chan<chan_async_state> waitHasChan = new nil_chan<chan_async_state>();
                             Action<chan_async_state> waitHasNtf = waitHasChan.wrap();
+                            chan_recv_wrap<T> recvRes = default(chan_recv_wrap<T>);
+                            Action<chan_async_state, T, object> tryPopHandler = delegate (chan_async_state state, T msg, object _)
+                            {
+                                recvRes.state = state;
+                                if (chan_async_state.async_ok == state)
+                                {
+                                    recvRes.result = msg;
+                                }
+                            };
                             chan.append_pop_notify(waitHasNtf, ntfSign);
                             while (_run)
                             {
@@ -4613,15 +4626,8 @@ namespace Go
                                 await mutex_lock_shared(_mutex);
                                 try
                                 {
-                                    chan_recv_wrap<T> recvRes = default(chan_recv_wrap<T>);
-                                    chan.try_pop_and_append_notify(self.async_callback(delegate (chan_async_state state, T msg, object _)
-                                    {
-                                        recvRes.state = state;
-                                        if (chan_async_state.async_ok == state)
-                                        {
-                                            recvRes.result = msg;
-                                        }
-                                    }), waitHasNtf, ntfSign);
+                                    recvRes = default(chan_recv_wrap<T>);
+                                    chan.try_pop_and_append_notify(self.async_callback(tryPopHandler), waitHasNtf, ntfSign);
                                     await self.async_wait();
                                     if (chan_async_state.async_ok == recvRes.state)
                                     {
@@ -4951,6 +4957,16 @@ namespace Go
                             self._mailboxMap = _children.parent()._mailboxMap;
                             nil_chan<chan_async_state> waitHasChan = new nil_chan<chan_async_state>();
                             Action<chan_async_state> waitHasNtf = waitHasChan.wrap();
+                            csp_wait_wrap<R, T> recvRes = default(csp_wait_wrap<R, T>);
+                            Action<chan_async_state, T, object> tryPopHandler = delegate (chan_async_state state, T msg, object exObj)
+                            {
+                                recvRes.state = state;
+                                if (chan_async_state.async_ok == state)
+                                {
+                                    recvRes.msg = msg;
+                                    recvRes.result = (csp_chan<R, T>.csp_result)exObj;
+                                }
+                            };
                             chan.append_pop_notify(waitHasNtf, ntfSign);
                             while (_run)
                             {
@@ -4958,16 +4974,8 @@ namespace Go
                                 await mutex_lock_shared(_mutex);
                                 try
                                 {
-                                    csp_wait_wrap<R, T> recvRes = default(csp_wait_wrap<R, T>);
-                                    chan.try_pop_and_append_notify(self.async_callback(delegate (chan_async_state state, T msg, object exObj)
-                                    {
-                                        recvRes.state = state;
-                                        if (chan_async_state.async_ok == state)
-                                        {
-                                            recvRes.msg = msg;
-                                            recvRes.result = (csp_chan<R, T>.csp_result)exObj;
-                                        }
-                                    }), waitHasNtf, ntfSign);
+                                    recvRes = default(csp_wait_wrap<R, T>);
+                                    chan.try_pop_and_append_notify(self.async_callback(tryPopHandler), waitHasNtf, ntfSign);
                                     await self.async_wait();
                                     if (chan_async_state.async_ok == recvRes.state)
                                     {
@@ -5673,7 +5681,7 @@ namespace Go
                 {
                     select_chan_base chan = it.Value;
                     chan.ntfSign._selectOnce = false;
-                    chan.nextSelect = selectChans;
+                    chan.nextSelect = (chan_async_state state) => selectChans.post(chan);
                     chan.begin();
                 }
                 try
@@ -5732,7 +5740,7 @@ namespace Go
                 {
                     select_chan_base chan = it.Value;
                     chan.ntfSign._selectOnce = true;
-                    chan.nextSelect = selectChans;
+                    chan.nextSelect = (chan_async_state state) => selectChans.post(chan);
                     chan.begin();
                 }
                 bool selected = false;
@@ -5814,7 +5822,7 @@ namespace Go
                 {
                     select_chan_base chan = it.Value;
                     chan.ntfSign._selectOnce = true;
-                    chan.nextSelect = selectChans;
+                    chan.nextSelect = (chan_async_state state) => selectChans.post(chan);
                     chan.begin();
                 }
                 bool selected = false;
