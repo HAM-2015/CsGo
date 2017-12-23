@@ -581,7 +581,7 @@ namespace Go
                 do
                 {
                     long newOffset = 0;
-                    if (0 == SetFilePointerEx(fileHandle, offset, out newOffset, 0) && offset == newOffset)
+                    if (0 == SetFilePointerEx(fileHandle, offset, out newOffset, 0) || offset != newOffset)
                     {
                         break;
                     }
