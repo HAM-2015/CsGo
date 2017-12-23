@@ -73,6 +73,16 @@ namespace Go
             s = resSize;
             message = resMsg;
         }
+
+        static public implicit operator bool(socket_result src)
+        {
+            return src.ok;
+        }
+
+        static public implicit operator int(socket_result src)
+        {
+            return src.s;
+        }
     }
 
     public abstract class socket
@@ -395,6 +405,12 @@ namespace Go
             static extern SocketError WSASend(IntPtr socketHandle, IntPtr buffer, int bufferCount, out int bytesTransferred, SocketFlags socketFlags, SafeHandle overlapped, IntPtr completionRoutine);
             [DllImport("Ws2_32.dll", CharSet = CharSet.None, ExactSpelling = false, SetLastError = true)]
             static extern SocketError WSARecv(IntPtr socketHandle, IntPtr buffer, int bufferCount, out int bytesTransferred, ref SocketFlags socketFlags, SafeHandle overlapped, IntPtr completionRoutine);
+            [DllImport("Kernel32.dll", CharSet = CharSet.None, ExactSpelling = false, SetLastError = true)]
+            static extern int SetFilePointerEx(SafeHandle fileHandle, long liDistanceToMove, out long lpNewFilePointer, int dwMoveMethod);
+            [DllImport("Kernel32.dll", CharSet = CharSet.None, ExactSpelling = false, SetLastError = true)]
+            static extern int GetFileSizeEx(SafeHandle fileHandle, out long lpFileSize);
+            [DllImport("Mswsock.dll", CharSet = CharSet.None, ExactSpelling = false, SetLastError = true)]
+            static extern int TransmitFile(IntPtr socketHandle, SafeHandle fileHandle, int nNumberOfBytesToWrite, int nNumberOfBytesPerSend, SafeHandle overlapped, IntPtr mustBeZero, int dwFlags);
 
             static readonly Type _overlappedType = TypeReflection._systemAss.GetType("System.Net.Sockets.OverlappedAsyncResult");
             static readonly Type _cacheSetType = TypeReflection._systemAss.GetType("System.Net.Sockets.Socket+CacheSet");
@@ -495,12 +511,12 @@ namespace Go
                 return GCHandle.Alloc(WSABuffer, GCHandleType.Pinned).AddrOfPinnedObject();
             }
 
-            static public SocketError Send(Socket sck, IntPtr ptr, int offset, int size, SocketFlags socketFlags, AsyncCallback callback, object pinnedObj)
+            static public SocketError Send(Socket sck, IntPtr ptr, int offset, int size, SocketFlags socketFlags, AsyncCallback callback)
             {
                 IAsyncResult overlapped = MakeOverlappedAsyncResult(sck, callback);
                 StartPostingAsyncOp(overlapped);
                 object cacheSet = _socketCaches.Invoke(sck, null);
-                IntPtr WSABuffer = SetSendPointer(sck, overlapped, ptr, offset, size, cacheSet, pinnedObj);
+                IntPtr WSABuffer = SetSendPointer(sck, overlapped, ptr, offset, size, cacheSet, null);
                 int num = 0;
                 SafeHandle overlappedHandle = (SafeHandle)_overlappedOverlappedHandle.Invoke(overlapped, null);
                 SocketError lastWin32Error = WSASend(sck.Handle, WSABuffer, 1, out num, socketFlags, overlappedHandle, IntPtr.Zero);
@@ -525,12 +541,12 @@ namespace Go
                 return lastWin32Error;
             }
 
-            static public SocketError Recv(Socket sck, IntPtr ptr, int offset, int size, SocketFlags socketFlags, AsyncCallback callback, object pinnedObj)
+            static public SocketError Recv(Socket sck, IntPtr ptr, int offset, int size, SocketFlags socketFlags, AsyncCallback callback)
             {
                 IAsyncResult overlapped = MakeOverlappedAsyncResult(sck, callback);
                 StartPostingAsyncOp(overlapped);
                 object cacheSet = _socketCaches.Invoke(sck, null);
-                IntPtr WSABuffer = SetRecvPointer(sck, overlapped, ptr, offset, size, cacheSet, pinnedObj);
+                IntPtr WSABuffer = SetRecvPointer(sck, overlapped, ptr, offset, size, cacheSet, null);
                 int num = 0;
                 SafeHandle overlappedHandle = (SafeHandle)_overlappedOverlappedHandle.Invoke(overlapped, null);
                 SocketError lastWin32Error = WSARecv(sck.Handle, WSABuffer, 1, out num, ref socketFlags, overlappedHandle, IntPtr.Zero);
@@ -553,6 +569,58 @@ namespace Go
                 }
                 _sockektUpdateStatusAfterSocketError.Invoke(sck, new object[] { lastWin32Error });
                 _overlappedInvokeCallback.Invoke(overlapped, new object[] { new SocketException((int)lastWin32Error) });
+                return lastWin32Error;
+            }
+
+            static public SocketError SendFile(Socket sck, SafeHandle fileHandle, long offset, int size, AsyncCallback callback)
+            {
+                IAsyncResult overlapped = MakeOverlappedAsyncResult(sck, callback);
+                StartPostingAsyncOp(overlapped);
+                object cacheSet = _socketCaches.Invoke(sck, null);
+                SocketError lastWin32Error = SocketError.SocketError;
+                do
+                {
+                    long newOffset = 0;
+                    if (0 == SetFilePointerEx(fileHandle, offset, out newOffset, 0) && offset == newOffset)
+                    {
+                        break;
+                    }
+                    if (0 == size)
+                    {
+                        long fileSize = 0;
+                        if (0 == GetFileSizeEx(fileHandle, out fileSize))
+                        {
+                            break;
+                        }
+                        long tempSize = fileSize - offset;
+                        size = tempSize > int.MaxValue ? int.MaxValue : (int)tempSize;
+                        if (size <= 0)
+                        {
+                            break;
+                        }
+                    }
+                    lastWin32Error = SocketError.Success;
+                    SetSendPointer(sck, overlapped, IntPtr.Zero, 0, 0, cacheSet, null);
+                    SafeHandle overlappedHandle = (SafeHandle)_overlappedOverlappedHandle.Invoke(overlapped, null);
+                    if (0 == TransmitFile(sck.Handle, fileHandle, size, 0, overlappedHandle, IntPtr.Zero, 0x20 | 0x04))
+                    {
+                        lastWin32Error = (SocketError)Marshal.GetLastWin32Error();
+                    }
+                    if (SocketError.Success == lastWin32Error || SocketError.IOPending == lastWin32Error)
+                    {
+                        FinishPostingAsyncSendOp(sck, overlapped, cacheSet);
+                        return SocketError.Success;
+                    }
+                } while (false);
+                lastWin32Error = (SocketError)_overlappedCheckAsyncCallOverlappedResult.Invoke(overlapped, new object[] { lastWin32Error });
+                object oldCache = _cacheSendOverlappedCache.GetValue(cacheSet);
+                object[] overlappedCache = new object[] { oldCache };
+                _overlappedExtractCache.Invoke(overlapped, overlappedCache);
+                if (oldCache != overlappedCache[0])
+                {
+                    _cacheSendOverlappedCache.SetValue(cacheSet, overlappedCache[0]);
+                }
+                _sockektUpdateStatusAfterSocketError.Invoke(sck, new object[] { lastWin32Error });
                 return lastWin32Error;
             }
         }
@@ -638,7 +706,8 @@ namespace Go
                 {
                     try
                     {
-                        functional.catch_invoke(cb, new socket_result(true, _socket.EndReceive(ar)));
+                        int s = _socket.EndReceive(ar);
+                        functional.catch_invoke(cb, new socket_result(0 != s, s));
                     }
                     catch (System.Exception ec)
                     {
@@ -661,7 +730,8 @@ namespace Go
                 {
                     try
                     {
-                        functional.catch_invoke(cb, new socket_result(true, _socket.EndSend(ar)));
+                        int s = _socket.EndSend(ar);
+                        functional.catch_invoke(cb, new socket_result(0 != s, s));
                     }
                     catch (System.Exception ec)
                     {
@@ -676,33 +746,34 @@ namespace Go
             }
         }
 
-        public void async_send_file(string fileName, byte[] preBuffer, byte[] postBuffer, Action<socket_result> cb)
+        public void async_send_file(SafeHandle fileHandle, long offset, int size, Action<socket_result> cb, object pinnedObj = null)
         {
             try
             {
-                _socket.BeginSendFile(fileName, preBuffer, postBuffer, 0, delegate (IAsyncResult ar)
+                SocketError lastWin32Error = SocketAsyncIo.SendFile(_socket, fileHandle, offset, size, delegate (IAsyncResult ar)
                 {
                     try
                     {
-                        _socket.EndSendFile(ar);
-                        functional.catch_invoke(cb, new socket_result(true));
+                        object holdPin = pinnedObj;
+                        int s = _socket.EndSend(ar);
+                        functional.catch_invoke(cb, new socket_result(0 != s, s));
                     }
                     catch (System.Exception ec)
                     {
                         functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
                     }
-                }, null);
+                });
+                if (SocketError.Success != lastWin32Error)
+                {
+                    close();
+                    functional.catch_invoke(cb, new socket_result(false, (int)lastWin32Error));
+                }
             }
             catch (System.Exception ec)
             {
                 close();
                 functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
             }
-        }
-
-        public void async_send_file(string fileName, Action<socket_result> cb)
-        {
-            async_send_file(fileName, null, null, cb);
         }
 
         public void async_read_same(IntPtr ptr, int offset, int size, Action<socket_result> cb, object pinnedObj = null)
@@ -713,13 +784,15 @@ namespace Go
                 {
                     try
                     {
-                        functional.catch_invoke(cb, new socket_result(true, _socket.EndReceive(ar)));
+                        object holdPin = pinnedObj;
+                        int s = _socket.EndReceive(ar);
+                        functional.catch_invoke(cb, new socket_result(0 != s, s));
                     }
                     catch (System.Exception ec)
                     {
                         functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
                     }
-                }, pinnedObj);
+                });
                 if (SocketError.Success != lastWin32Error)
                 {
                     close();
@@ -741,13 +814,15 @@ namespace Go
                 {
                     try
                     {
-                        functional.catch_invoke(cb, new socket_result(true, _socket.EndSend(ar)));
+                        object holdPin = pinnedObj;
+                        int s = _socket.EndSend(ar);
+                        functional.catch_invoke(cb, new socket_result(0 != s, s));
                     }
                     catch (System.Exception ec)
                     {
                         functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
                     }
-                }, pinnedObj);
+                });
                 if (SocketError.Success != lastWin32Error)
                 {
                     close();
@@ -837,9 +912,14 @@ namespace Go
             return generator.async_call((Action<socket_result> cb) => async_write(ptr, offset, size, cb, pinnedObj));
         }
 
-        public Task<socket_result> send_file(string fileName, byte[] preBuffer = null, byte[] postBuffer = null)
+        public Task<socket_result> send_file(SafeHandle fileHandle, long offset = 0, int size = 0, object pinnedObj = null)
         {
-            return generator.async_call((Action<socket_result> cb) => async_send_file(fileName, preBuffer, postBuffer, cb));
+            return generator.async_call((Action<socket_result> cb) => async_send_file(fileHandle, offset, size, cb, pinnedObj));
+        }
+
+        public Task<socket_result> send_file(System.IO.FileStream file)
+        {
+            return generator.async_call((Action<socket_result> cb) => async_send_file(file.SafeFileHandle, file.Position, 0, cb, file));
         }
 
         public Task<socket_result> connect(string ip, int port)
@@ -981,7 +1061,8 @@ namespace Go
                 {
                     try
                     {
-                        functional.catch_invoke(cb, new socket_result(true, _socket.BaseStream.EndRead(ar)));
+                        int s = _socket.BaseStream.EndRead(ar);
+                        functional.catch_invoke(cb, new socket_result(0 != s, s));
                     }
                     catch (System.Exception ec)
                     {
@@ -1051,7 +1132,8 @@ namespace Go
                 {
                     try
                     {
-                        functional.catch_invoke(cb, new socket_result(true, _socket.EndRead(ar)));
+                        int s = _socket.EndRead(ar);
+                        functional.catch_invoke(cb, new socket_result(0 != s, s));
                     }
                     catch (System.Exception ec)
                     {
