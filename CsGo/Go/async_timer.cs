@@ -296,6 +296,7 @@ namespace Go
                                     }
                                     else
                                     {
+                                        shared_strand._limited_perfor = 0;
                                         min = max = 0;
                                     }
                                 }
