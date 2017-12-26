@@ -9,7 +9,7 @@ namespace Go
 {
     public class mutex
     {
-        class wait_node
+        struct wait_node
         {
             public Action<chan_async_state> _ntf;
             public long _id;
@@ -176,7 +176,7 @@ namespace Go
             st_upgrade
         };
 
-        class wait_node
+        struct wait_node
         {
             public Action<chan_async_state> _ntf;
             public long _waitHostID;

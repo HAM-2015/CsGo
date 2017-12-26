@@ -4097,14 +4097,13 @@ namespace Go
             return (channel<T>)mb.mailbox;
         }
 
-        private void get_mailbox<T>(Action<channel<T>> cb, int id)
+        public Task<channel<T>> get_mailbox<T>(int id = 0)
         {
-            strand.distribute(delegate ()
+            return send_strand(strand, delegate ()
             {
                 if (-1 == _lockSuspendCount)
                 {
-                    cb(null);
-                    return;
+                    return null;
                 }
                 if (null == _mailboxMap)
                 {
@@ -4116,17 +4115,8 @@ namespace Go
                     mb = new mail_pck(new msg_buff<T>(strand));
                     _mailboxMap.Add(calc_hash<T>(id), mb);
                 }
-                functional.catch_invoke(cb, (channel<T>)mb.mailbox);
+                return (channel<T>)mb.mailbox;
             });
-        }
-
-        public async Task<channel<T>> get_mailbox<T>(int id = 0)
-        {
-            generator host_ = self;
-            async_result_wrap<channel<T>> res = new async_result_wrap<channel<T>>();
-            get_mailbox(host_.async_result(res), id);
-            await host_.async_wait();
-            return res.value1;
         }
 
         static public async Task<bool> agent_mail<T>(generator agentGen, int id = 0)
@@ -5672,7 +5662,7 @@ namespace Go
                 return this;
             }
 
-            public async Task<bool> loop()
+            public async Task<bool> loop(action eachAferDo = null)
             {
                 generator this_ = self;
                 LinkedList<select_chan_base> chans = _chans;
@@ -5692,6 +5682,12 @@ namespace Go
                     }
                     this_._selectChans.AddFirst(chans);
                     int count = chans.Count;
+                    bool selected = false;
+                    Func<Task> stepOne = null == eachAferDo ? (Func<Task>)null : delegate ()
+                    {
+                        selected = true;
+                        return nil_wait();
+                    };
                     while (0 != count)
                     {
                         select_chan_base selectedChan = (await chan_receive(selectChans)).result;
@@ -5701,7 +5697,7 @@ namespace Go
                         }
                         try
                         {
-                            select_chan_state selState = await selectedChan.invoke();
+                            select_chan_state selState = await selectedChan.invoke(stepOne);
                             if (!selState.nextRound)
                             {
                                 count--;
@@ -5711,6 +5707,11 @@ namespace Go
                         {
                             count--;
                             await selectedChan.end();
+                        }
+                        if (selected)
+                        {
+                            selected = false;
+                            await eachAferDo();
                         }
                     }
                     return true;

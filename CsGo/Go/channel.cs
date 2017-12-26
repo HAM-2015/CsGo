@@ -65,10 +65,10 @@ namespace Go
 
         static protected void safe_callback(ref LinkedList<Action<chan_async_state>> callback, chan_async_state state)
         {
-            if (0 != callback.Count)
+            if (null != callback && 0 != callback.Count)
             {
                 LinkedList<Action<chan_async_state>> tempCb = callback;
-                callback = new LinkedList<Action<chan_async_state>>();
+                callback = chan_async_state.async_closed == state ? null : new LinkedList<Action<chan_async_state>>();
                 for (LinkedListNode<Action<chan_async_state>> it = tempCb.First; null != it; it = it.Next)
                 {
                     it.Value.Invoke(state);
@@ -80,15 +80,15 @@ namespace Go
         {
             LinkedList<Action<chan_async_state>> tempCb1 = null;
             LinkedList<Action<chan_async_state>> tempCb2 = null;
-            if (0 != callback1.Count)
+            if (null != callback1 && 0 != callback1.Count)
             {
                 tempCb1 = callback1;
-                callback1 = new LinkedList<Action<chan_async_state>>();
+                callback1 = chan_async_state.async_closed == state ? null : new LinkedList<Action<chan_async_state>>();
             }
-            if (0 != callback2.Count)
+            if (null != callback2 && 0 != callback2.Count)
             {
                 tempCb2 = callback2;
-                callback2 = new LinkedList<Action<chan_async_state>>();
+                callback2 = chan_async_state.async_closed == state ? null : new LinkedList<Action<chan_async_state>>();
             }
             if (null != tempCb1)
             {

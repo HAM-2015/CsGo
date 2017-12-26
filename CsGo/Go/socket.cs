@@ -580,21 +580,10 @@ namespace Go
                 SocketError lastWin32Error = SocketError.SocketError;
                 do
                 {
-                    long newOffset = 0;
-                    if (0 == SetFilePointerEx(fileHandle, offset, out newOffset, 0) || offset != newOffset)
+                    if (offset >= 0)
                     {
-                        break;
-                    }
-                    if (0 == size)
-                    {
-                        long fileSize = 0;
-                        if (0 == GetFileSizeEx(fileHandle, out fileSize))
-                        {
-                            break;
-                        }
-                        long tempSize = fileSize - offset;
-                        size = tempSize > int.MaxValue ? int.MaxValue : (int)tempSize;
-                        if (size <= 0)
+                        long newOffset = 0;
+                        if (0 == SetFilePointerEx(fileHandle, offset, out newOffset, 0) || offset != newOffset)
                         {
                             break;
                         }
@@ -919,7 +908,7 @@ namespace Go
 
         public Task<socket_result> send_file(System.IO.FileStream file)
         {
-            return generator.async_call((Action<socket_result> cb) => async_send_file(file.SafeFileHandle, file.Position, 0, cb, file));
+            return generator.async_call((Action<socket_result> cb) => async_send_file(file.SafeFileHandle, -1, 0, cb, file));
         }
 
         public Task<socket_result> connect(string ip, int port)
