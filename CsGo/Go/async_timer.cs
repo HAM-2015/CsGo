@@ -524,6 +524,20 @@ namespace Go
             _strand._timer.timeout(this);
         }
 
+        private void tick_timer(long absus)
+        {
+            int tmId = ++_timerCount;
+            _timerHandle.absus = absus;
+            _timerHandle.period = 0;
+            _strand.post(delegate ()
+            {
+                if (tmId == _timerCount)
+                {
+                    timer_handler();
+                }
+            });
+        }
+
         private void re_begin_timer(long absus, long period)
         {
             _timerCount++;
@@ -541,7 +555,14 @@ namespace Go
             _handler = handler;
             _strand.hold_work();
             _beginTick = system_tick.get_tick_us();
-            begin_timer(_beginTick + us, us);
+            if (0 < us)
+            {
+                begin_timer(_beginTick + us, us);
+            }
+            else
+            {
+                tick_timer(_beginTick);
+            }
         }
 
         public void deadline_us(long us, Action handler)
@@ -614,9 +635,14 @@ namespace Go
                 {
                     re_begin_timer(_beginTick + _timerHandle.period, _timerHandle.period);
                 }
-                else
+                else if (0 < us)
                 {
                     re_begin_timer(_beginTick + us, us);
+                }
+                else
+                {
+                    _strand._timer.cancel(this);
+                    tick_timer(_beginTick);
                 }
                 return true;
             }

@@ -208,6 +208,11 @@ namespace Go
         {
             result.complete(res);
         }
+
+        public void fail()
+        {
+            result.fail();
+        }
     }
 
     public class generator
@@ -1346,17 +1351,20 @@ namespace Go
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
-            _timer.timeout(ms, delegate ()
+            if (ms >= 0)
             {
-                if (null != timedHandler)
+                _timer.timeout(ms, delegate ()
                 {
-                    timedHandler();
-                }
-                else if (!multiCb.check())
-                {
-                    next(beginQuit);
-                }
-            });
+                    if (null != timedHandler)
+                    {
+                        timedHandler();
+                    }
+                    else if (!multiCb.check())
+                    {
+                        next(beginQuit);
+                    }
+                });
+            }
             return delegate (object[] args)
             {
                 if (multiCb.callbacked())
@@ -1378,14 +1386,17 @@ namespace Go
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
-            _timer.timeout(ms, delegate ()
+            if (ms >= 0)
             {
-                functional.catch_invoke(timedHandler);
-                if (!multiCb.check())
+                _timer.timeout(ms, delegate ()
                 {
-                    next(beginQuit);
-                }
-            });
+                    functional.catch_invoke(timedHandler);
+                    if (!multiCb.check())
+                    {
+                        next(beginQuit);
+                    }
+                });
+            }
             return delegate (object[] args)
             {
                 if (multiCb.callbacked())
@@ -1407,17 +1418,20 @@ namespace Go
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
-            _timer.timeout(ms, delegate ()
+            if (ms >= 0)
             {
-                if (null != timedHandler)
+                _timer.timeout(ms, delegate ()
                 {
-                    timedHandler();
-                }
-                else if (!multiCb.check())
-                {
-                    next(beginQuit);
-                }
-            });
+                    if (null != timedHandler)
+                    {
+                        timedHandler();
+                    }
+                    else if (!multiCb.check())
+                    {
+                        next(beginQuit);
+                    }
+                });
+            }
             return delegate (object[] args)
             {
                 if (multiCb.callbacked())
@@ -1440,14 +1454,17 @@ namespace Go
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
-            _timer.timeout(ms, delegate ()
+            if (ms >= 0)
             {
-                functional.catch_invoke(timedHandler);
-                if (!multiCb.check())
+                _timer.timeout(ms, delegate ()
                 {
-                    next(beginQuit);
-                }
-            });
+                    functional.catch_invoke(timedHandler);
+                    if (!multiCb.check())
+                    {
+                        next(beginQuit);
+                    }
+                });
+            }
             return delegate (object[] args)
             {
                 if (multiCb.callbacked())
@@ -1514,17 +1531,20 @@ namespace Go
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
-            _timer.timeout(ms, delegate ()
+            if (ms >= 0)
             {
-                if (null != timedHandler)
+                _timer.timeout(ms, delegate ()
                 {
-                    timedHandler();
-                }
-                else if (!multiCb.check())
-                {
-                    next(beginQuit);
-                }
-            });
+                    if (null != timedHandler)
+                    {
+                        timedHandler();
+                    }
+                    else if (!multiCb.check())
+                    {
+                        next(beginQuit);
+                    }
+                });
+            }
             return delegate ()
             {
                 if (multiCb.callbacked())
@@ -1547,14 +1567,17 @@ namespace Go
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
-            _timer.timeout(ms, delegate ()
+            if (ms >= 0)
             {
-                functional.catch_invoke(timedHandler);
-                if (!multiCb.check())
+                _timer.timeout(ms, delegate ()
                 {
-                    next(beginQuit);
-                }
-            });
+                    functional.catch_invoke(timedHandler);
+                    if (!multiCb.check())
+                    {
+                        next(beginQuit);
+                    }
+                });
+            }
             return delegate ()
             {
                 if (multiCb.callbacked())
@@ -1577,17 +1600,20 @@ namespace Go
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
-            _timer.timeout(ms, delegate ()
+            if (ms >= 0)
             {
-                if (null != timedHandler)
+                _timer.timeout(ms, delegate ()
                 {
-                    timedHandler();
-                }
-                else if (!multiCb.check())
-                {
-                    next(beginQuit);
-                }
-            });
+                    if (null != timedHandler)
+                    {
+                        timedHandler();
+                    }
+                    else if (!multiCb.check())
+                    {
+                        next(beginQuit);
+                    }
+                });
+            }
             return delegate (T1 p1)
             {
                 if (multiCb.callbacked())
@@ -1610,14 +1636,17 @@ namespace Go
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
-            _timer.timeout(ms, delegate ()
+            if (ms >= 0)
             {
-                functional.catch_invoke(timedHandler);
-                if (!multiCb.check())
+                _timer.timeout(ms, delegate ()
                 {
-                    next(beginQuit);
-                }
-            });
+                    functional.catch_invoke(timedHandler);
+                    if (!multiCb.check())
+                    {
+                        next(beginQuit);
+                    }
+                });
+            }
             return delegate (T1 p1)
             {
                 if (multiCb.callbacked())
@@ -1640,17 +1669,20 @@ namespace Go
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
-            _timer.timeout(ms, delegate ()
+            if (ms >= 0)
             {
-                if (null != timedHandler)
+                _timer.timeout(ms, delegate ()
                 {
-                    timedHandler();
-                }
-                else if (!multiCb.check())
-                {
-                    next(beginQuit);
-                }
-            });
+                    if (null != timedHandler)
+                    {
+                        timedHandler();
+                    }
+                    else if (!multiCb.check())
+                    {
+                        next(beginQuit);
+                    }
+                });
+            }
             return delegate (T1 p1, T2 p2)
             {
                 if (multiCb.callbacked())
@@ -1673,14 +1705,17 @@ namespace Go
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
-            _timer.timeout(ms, delegate ()
+            if (ms >= 0)
             {
-                functional.catch_invoke(timedHandler);
-                if (!multiCb.check())
+                _timer.timeout(ms, delegate ()
                 {
-                    next(beginQuit);
-                }
-            });
+                    functional.catch_invoke(timedHandler);
+                    if (!multiCb.check())
+                    {
+                        next(beginQuit);
+                    }
+                });
+            }
             return delegate (T1 p1, T2 p2)
             {
                 if (multiCb.callbacked())
@@ -1703,17 +1738,20 @@ namespace Go
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
-            _timer.timeout(ms, delegate ()
+            if (ms >= 0)
             {
-                if (null != timedHandler)
+                _timer.timeout(ms, delegate ()
                 {
-                    timedHandler();
-                }
-                else if (!multiCb.check())
-                {
-                    next(beginQuit);
-                }
-            });
+                    if (null != timedHandler)
+                    {
+                        timedHandler();
+                    }
+                    else if (!multiCb.check())
+                    {
+                        next(beginQuit);
+                    }
+                });
+            }
             return delegate (T1 p1, T2 p2, T3 p3)
             {
                 if (multiCb.callbacked())
@@ -1736,14 +1774,17 @@ namespace Go
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
-            _timer.timeout(ms, delegate ()
+            if (ms >= 0)
             {
-                functional.catch_invoke(timedHandler);
-                if (!multiCb.check())
+                _timer.timeout(ms, delegate ()
                 {
-                    next(beginQuit);
-                }
-            });
+                    functional.catch_invoke(timedHandler);
+                    if (!multiCb.check())
+                    {
+                        next(beginQuit);
+                    }
+                });
+            }
             return delegate (T1 p1, T2 p2, T3 p3)
             {
                 if (multiCb.callbacked())
@@ -2056,17 +2097,20 @@ namespace Go
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
-            _timer.timeout(ms, delegate ()
+            if (ms >= 0)
             {
-                if (null != timedHandler)
+                _timer.timeout(ms, delegate ()
                 {
-                    timedHandler();
-                }
-                else if (!multiCb.check())
-                {
-                    next(beginQuit);
-                }
-            });
+                    if (null != timedHandler)
+                    {
+                        timedHandler();
+                    }
+                    else if (!multiCb.check())
+                    {
+                        next(beginQuit);
+                    }
+                });
+            }
             return delegate ()
             {
                 if (multiCb.callbacked())
@@ -2088,17 +2132,20 @@ namespace Go
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
-            _timer.timeout(ms, delegate ()
+            if (ms >= 0)
             {
-                if (null != timedHandler)
+                _timer.timeout(ms, delegate ()
                 {
-                    timedHandler();
-                }
-                else if (!multiCb.check())
-                {
-                    next(beginQuit);
-                }
-            });
+                    if (null != timedHandler)
+                    {
+                        timedHandler();
+                    }
+                    else if (!multiCb.check())
+                    {
+                        next(beginQuit);
+                    }
+                });
+            }
             return delegate (T1 p1)
             {
                 if (multiCb.callbacked())
@@ -2121,17 +2168,20 @@ namespace Go
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
-            _timer.timeout(ms, delegate ()
+            if (ms >= 0)
             {
-                if (null != timedHandler)
+                _timer.timeout(ms, delegate ()
                 {
-                    timedHandler();
-                }
-                else if (!multiCb.check())
-                {
-                    next(beginQuit);
-                }
-            });
+                    if (null != timedHandler)
+                    {
+                        timedHandler();
+                    }
+                    else if (!multiCb.check())
+                    {
+                        next(beginQuit);
+                    }
+                });
+            }
             return delegate (T1 p1, T2 p2)
             {
                 if (multiCb.callbacked())
@@ -2155,17 +2205,20 @@ namespace Go
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
-            _timer.timeout(ms, delegate ()
+            if (ms >= 0)
             {
-                if (null != timedHandler)
+                _timer.timeout(ms, delegate ()
                 {
-                    timedHandler();
-                }
-                else if (!multiCb.check())
-                {
-                    next(beginQuit);
-                }
-            });
+                    if (null != timedHandler)
+                    {
+                        timedHandler();
+                    }
+                    else if (!multiCb.check())
+                    {
+                        next(beginQuit);
+                    }
+                });
+            }
             return delegate (T1 p1, T2 p2, T3 p3)
             {
                 if (multiCb.callbacked())
@@ -2190,14 +2243,17 @@ namespace Go
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
-            _timer.timeout(ms, delegate ()
+            if (ms >= 0)
             {
-                functional.catch_invoke(timedHandler);
-                if (!multiCb.check())
+                _timer.timeout(ms, delegate ()
                 {
-                    next(beginQuit);
-                }
-            });
+                    functional.catch_invoke(timedHandler);
+                    if (!multiCb.check())
+                    {
+                        next(beginQuit);
+                    }
+                });
+            }
             return delegate ()
             {
                 if (multiCb.callbacked())
@@ -2219,14 +2275,17 @@ namespace Go
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
-            _timer.timeout(ms, delegate ()
+            if (ms >= 0)
             {
-                functional.catch_invoke(timedHandler);
-                if (!multiCb.check())
+                _timer.timeout(ms, delegate ()
                 {
-                    next(beginQuit);
-                }
-            });
+                    functional.catch_invoke(timedHandler);
+                    if (!multiCb.check())
+                    {
+                        next(beginQuit);
+                    }
+                });
+            }
             return delegate (T1 p1)
             {
                 if (multiCb.callbacked())
@@ -2249,14 +2308,17 @@ namespace Go
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
-            _timer.timeout(ms, delegate ()
+            if (ms >= 0)
             {
-                functional.catch_invoke(timedHandler);
-                if (!multiCb.check())
+                _timer.timeout(ms, delegate ()
                 {
-                    next(beginQuit);
-                }
-            });
+                    functional.catch_invoke(timedHandler);
+                    if (!multiCb.check())
+                    {
+                        next(beginQuit);
+                    }
+                });
+            }
             return delegate (T1 p1, T2 p2)
             {
                 if (multiCb.callbacked())
@@ -2280,14 +2342,17 @@ namespace Go
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
-            _timer.timeout(ms, delegate ()
+            if (ms >= 0)
             {
-                functional.catch_invoke(timedHandler);
-                if (!multiCb.check())
+                _timer.timeout(ms, delegate ()
                 {
-                    next(beginQuit);
-                }
-            });
+                    functional.catch_invoke(timedHandler);
+                    if (!multiCb.check())
+                    {
+                        next(beginQuit);
+                    }
+                });
+            }
             return delegate (T1 p1, T2 p2, T3 p3)
             {
                 if (multiCb.callbacked())
@@ -2487,6 +2552,100 @@ namespace Go
             return is_closed;
         }
 
+        static public async Task<chan_async_state> chan_wait_free(channel_base chan)
+        {
+            generator this_ = self;
+            chan_notify_sign ntfSign = new chan_notify_sign();
+            chan_async_state result = chan_async_state.async_undefined;
+            try
+            {
+                lock_suspend();
+                chan.append_push_notify(this_.async_callback((chan_async_state state) => result = state), ntfSign);
+                await this_.async_wait();
+                await unlock_suspend();
+            }
+            catch (stop_exception)
+            {
+                chan.remove_push_notify(this_.async_callback(nil_action<chan_async_state>.action), ntfSign);
+                await this_.async_wait();
+                throw;
+            }
+            return result;
+        }
+
+        static public async Task<chan_async_state> chan_timed_wait_free(channel_base chan, int ms)
+        {
+            generator this_ = self;
+            chan_notify_sign ntfSign = new chan_notify_sign();
+            chan_async_state result = chan_async_state.async_overtime;
+            try
+            {
+                lock_suspend();
+                chan.append_push_notify(this_.timed_async_callback(ms, (chan_async_state state) => result = state), ntfSign);
+                await this_.async_wait();
+                if (chan_async_state.async_overtime == result)
+                {
+                    chan.remove_push_notify(this_.async_callback(nil_action<chan_async_state>.action), ntfSign);
+                    await this_.async_wait();
+                }
+                await unlock_suspend();
+            }
+            catch (stop_exception)
+            {
+                chan.remove_push_notify(this_.async_callback(nil_action<chan_async_state>.action), ntfSign);
+                await this_.async_wait();
+                throw;
+            }
+            return result;
+        }
+
+        static public async Task<chan_async_state> chan_wait_has(channel_base chan)
+        {
+            generator this_ = self;
+            chan_notify_sign ntfSign = new chan_notify_sign();
+            chan_async_state result = chan_async_state.async_undefined;
+            try
+            {
+                lock_suspend();
+                chan.append_pop_notify(this_.async_callback((chan_async_state state) => result = state), ntfSign);
+                await this_.async_wait();
+                await unlock_suspend();
+            }
+            catch (stop_exception)
+            {
+                chan.remove_pop_notify(this_.async_callback(nil_action<chan_async_state>.action), ntfSign);
+                await this_.async_wait();
+                throw;
+            }
+            return result;
+        }
+
+        static public async Task<chan_async_state> chan_timed_wait_has(channel_base chan, int ms)
+        {
+            generator this_ = self;
+            chan_notify_sign ntfSign = new chan_notify_sign();
+            chan_async_state result = chan_async_state.async_overtime;
+            try
+            {
+                lock_suspend();
+                chan.append_pop_notify(this_.timed_async_callback(ms, (chan_async_state state) => result = state), ntfSign);
+                await this_.async_wait();
+                if (chan_async_state.async_overtime == result)
+                {
+                    chan.remove_pop_notify(this_.async_callback(nil_action<chan_async_state>.action), ntfSign);
+                    await this_.async_wait();
+                }
+                await unlock_suspend();
+            }
+            catch (stop_exception)
+            {
+                chan.remove_pop_notify(this_.async_callback(nil_action<chan_async_state>.action), ntfSign);
+                await this_.async_wait();
+                throw;
+            }
+            return result;
+        }
+
         static public async Task<chan_async_state> chan_send<T>(channel<T> chan, T msg)
         {
             generator this_ = self;
@@ -2652,7 +2811,15 @@ namespace Go
             csp_wait_wrap<R, T> result = await csp_wait(chan);
             if (chan_async_state.async_ok == result.state)
             {
-                result.complete(await handler(result.msg));
+                try
+                {
+                    result.complete(await handler(result.msg));
+                }
+                catch (System.Exception)
+                {
+                    result.fail();
+                    throw;
+                }
             }
             return result.state;
         }
@@ -2662,7 +2829,15 @@ namespace Go
             csp_wait_wrap<R, tuple<T1, T2>> result = await csp_wait(chan);
             if (chan_async_state.async_ok == result.state)
             {
-                result.complete(await handler(result.msg.value1, result.msg.value2));
+                try
+                {
+                    result.complete(await handler(result.msg.value1, result.msg.value2));
+                }
+                catch (System.Exception)
+                {
+                    result.fail();
+                    throw;
+                }
             }
             return result.state;
         }
@@ -2672,7 +2847,15 @@ namespace Go
             csp_wait_wrap<R, tuple<T1, T2, T3>> result = await csp_wait(chan);
             if (chan_async_state.async_ok == result.state)
             {
-                result.complete(await handler(result.msg.value1, result.msg.value2, result.msg.value3));
+                try
+                {
+                    result.complete(await handler(result.msg.value1, result.msg.value2, result.msg.value3));
+                }
+                catch (System.Exception)
+                {
+                    result.fail();
+                    throw;
+                }
             }
             return result.state;
         }
@@ -2682,7 +2865,15 @@ namespace Go
             csp_wait_wrap<R, void_type> result = await csp_wait(chan);
             if (chan_async_state.async_ok == result.state)
             {
-                result.complete(await handler());
+                try
+                {
+                    result.complete(await handler());
+                }
+                catch (System.Exception)
+                {
+                    result.fail();
+                    throw;
+                }
             }
             return result.state;
         }
@@ -2692,8 +2883,16 @@ namespace Go
             csp_wait_wrap<void_type, T> result = await csp_wait(chan);
             if (chan_async_state.async_ok == result.state)
             {
-                await handler(result.msg);
-                result.complete(default(void_type));
+                try
+                {
+                    await handler(result.msg);
+                    result.complete(default(void_type));
+                }
+                catch (System.Exception)
+                {
+                    result.fail();
+                    throw;
+                }
             }
             return result.state;
         }
@@ -2703,8 +2902,16 @@ namespace Go
             csp_wait_wrap<void_type, tuple<T1, T2>> result = await csp_wait(chan);
             if (chan_async_state.async_ok == result.state)
             {
-                await handler(result.msg.value1, result.msg.value2);
-                result.complete(default(void_type));
+                try
+                {
+                    await handler(result.msg.value1, result.msg.value2);
+                    result.complete(default(void_type));
+                }
+                catch (System.Exception)
+                {
+                    result.fail();
+                    throw;
+                }
             }
             return result.state;
         }
@@ -2714,8 +2921,16 @@ namespace Go
             csp_wait_wrap<void_type, tuple<T1, T2, T3>> result = await csp_wait(chan);
             if (chan_async_state.async_ok == result.state)
             {
-                await handler(result.msg.value1, result.msg.value2, result.msg.value3);
-                result.complete(default(void_type));
+                try
+                {
+                    await handler(result.msg.value1, result.msg.value2, result.msg.value3);
+                    result.complete(default(void_type));
+                }
+                catch (System.Exception)
+                {
+                    result.fail();
+                    throw;
+                }
             }
             return result.state;
         }
@@ -2725,8 +2940,16 @@ namespace Go
             csp_wait_wrap<void_type, void_type> result = await csp_wait(chan);
             if (chan_async_state.async_ok == result.state)
             {
-                await handler();
-                result.complete(default(void_type));
+                try
+                {
+                    await handler();
+                    result.complete(default(void_type));
+                }
+                catch (System.Exception)
+                {
+                    result.fail();
+                    throw;
+                }
             }
             return result.state;
         }
@@ -2774,7 +2997,15 @@ namespace Go
             csp_wait_wrap<R, T> result = await csp_try_wait(chan);
             if (chan_async_state.async_ok == result.state)
             {
-                result.complete(await handler(result.msg));
+                try
+                {
+                    result.complete(await handler(result.msg));
+                }
+                catch (System.Exception)
+                {
+                    result.fail();
+                    throw;
+                }
             }
             return result.state;
         }
@@ -2784,7 +3015,15 @@ namespace Go
             csp_wait_wrap<R, tuple<T1, T2>> result = await csp_try_wait(chan);
             if (chan_async_state.async_ok == result.state)
             {
-                result.complete(await handler(result.msg.value1, result.msg.value2));
+                try
+                {
+                    result.complete(await handler(result.msg.value1, result.msg.value2));
+                }
+                catch (System.Exception)
+                {
+                    result.fail();
+                    throw;
+                }
             }
             return result.state;
         }
@@ -2794,7 +3033,15 @@ namespace Go
             csp_wait_wrap<R, tuple<T1, T2, T3>> result = await csp_try_wait(chan);
             if (chan_async_state.async_ok == result.state)
             {
-                result.complete(await handler(result.msg.value1, result.msg.value2, result.msg.value3));
+                try
+                {
+                    result.complete(await handler(result.msg.value1, result.msg.value2, result.msg.value3));
+                }
+                catch (System.Exception)
+                {
+                    result.fail();
+                    throw;
+                }
             }
             return result.state;
         }
@@ -2804,8 +3051,16 @@ namespace Go
             csp_wait_wrap<R, void_type> result = await csp_try_wait(chan);
             if (chan_async_state.async_ok == result.state)
             {
-                await handler();
-                result.complete(default(R));
+                try
+                {
+                    await handler();
+                    result.complete(default(R));
+                }
+                catch (System.Exception)
+                {
+                    result.fail();
+                    throw;
+                }
             }
             return result.state;
         }
@@ -2815,8 +3070,16 @@ namespace Go
             csp_wait_wrap<void_type, T> result = await csp_try_wait(chan);
             if (chan_async_state.async_ok == result.state)
             {
-                await handler(result.msg);
-                result.complete(default(void_type));
+                try
+                {
+                    await handler(result.msg);
+                    result.complete(default(void_type));
+                }
+                catch (System.Exception)
+                {
+                    result.fail();
+                    throw;
+                }
             }
             return result.state;
         }
@@ -2826,8 +3089,16 @@ namespace Go
             csp_wait_wrap<void_type, void_type> result = await csp_try_wait(chan);
             if (chan_async_state.async_ok == result.state)
             {
-                await handler();
-                result.complete(default(void_type));
+                try
+                {
+                    await handler();
+                    result.complete(default(void_type));
+                }
+                catch (System.Exception)
+                {
+                    result.fail();
+                    throw;
+                }
             }
             return result.state;
         }
@@ -2875,7 +3146,15 @@ namespace Go
             csp_wait_wrap<R, T> result = await csp_timed_wait(chan, ms);
             if (chan_async_state.async_ok == result.state)
             {
-                result.complete(await handler(result.msg));
+                try
+                {
+                    result.complete(await handler(result.msg));
+                }
+                catch (System.Exception)
+                {
+                    result.fail();
+                    throw;
+                }
             }
             return result.state;
         }
@@ -2885,7 +3164,15 @@ namespace Go
             csp_wait_wrap<R, tuple<T1, T2>> result = await csp_timed_wait(chan, ms);
             if (chan_async_state.async_ok == result.state)
             {
-                result.complete(await handler(result.msg.value1, result.msg.value2));
+                try
+                {
+                    result.complete(await handler(result.msg.value1, result.msg.value2));
+                }
+                catch (System.Exception)
+                {
+                    result.fail();
+                    throw;
+                }
             }
             return result.state;
         }
@@ -2895,7 +3182,15 @@ namespace Go
             csp_wait_wrap<R, tuple<T1, T2, T3>> result = await csp_timed_wait(chan, ms);
             if (chan_async_state.async_ok == result.state)
             {
-                result.complete(await handler(result.msg.value1, result.msg.value2, result.msg.value3));
+                try
+                {
+                    result.complete(await handler(result.msg.value1, result.msg.value2, result.msg.value3));
+                }
+                catch (System.Exception)
+                {
+                    result.fail();
+                    throw;
+                }
             }
             return result.state;
         }
@@ -2905,7 +3200,15 @@ namespace Go
             csp_wait_wrap<R, void_type> result = await csp_timed_wait(chan, ms);
             if (chan_async_state.async_ok == result.state)
             {
-                result.complete(await handler());
+                try
+                {
+                    result.complete(await handler());
+                }
+                catch (System.Exception)
+                {
+                    result.fail();
+                    throw;
+                }
             }
             return result.state;
         }
@@ -2915,8 +3218,16 @@ namespace Go
             csp_wait_wrap<void_type, T> result = await csp_timed_wait(chan, ms);
             if (chan_async_state.async_ok == result.state)
             {
-                await handler(result.msg);
-                result.complete(default(void_type));
+                try
+                {
+                    await handler(result.msg);
+                    result.complete(default(void_type));
+                }
+                catch (System.Exception)
+                {
+                    result.fail();
+                    throw;
+                }
             }
             return result.state;
         }
@@ -2926,8 +3237,16 @@ namespace Go
             csp_wait_wrap<void_type, tuple<T1, T2>> result = await csp_timed_wait(chan, ms);
             if (chan_async_state.async_ok == result.state)
             {
-                await handler(result.msg.value1, result.msg.value2);
-                result.complete(default(void_type));
+                try
+                {
+                    await handler(result.msg.value1, result.msg.value2);
+                    result.complete(default(void_type));
+                }
+                catch (System.Exception)
+                {
+                    result.fail();
+                    throw;
+                }
             }
             return result.state;
         }
@@ -2937,8 +3256,16 @@ namespace Go
             csp_wait_wrap<void_type, tuple<T1, T2, T3>> result = await csp_timed_wait(chan, ms);
             if (chan_async_state.async_ok == result.state)
             {
-                await handler(result.msg.value1, result.msg.value2, result.msg.value3);
-                result.complete(default(void_type));
+                try
+                {
+                    await handler(result.msg.value1, result.msg.value2, result.msg.value3);
+                    result.complete(default(void_type));
+                }
+                catch (System.Exception)
+                {
+                    result.fail();
+                    throw;
+                }
             }
             return result.state;
         }
@@ -2948,8 +3275,16 @@ namespace Go
             csp_wait_wrap<void_type, void_type> result = await csp_timed_wait(chan, ms);
             if (chan_async_state.async_ok == result.state)
             {
-                await handler();
-                result.complete(default(void_type));
+                try
+                {
+                    await handler();
+                    result.complete(default(void_type));
+                }
+                catch (System.Exception)
+                {
+                    result.fail();
+                    throw;
+                }
             }
             return result.state;
         }
@@ -3813,11 +4148,49 @@ namespace Go
             return this_.async_wait();
         }
 
+        static public async Task stop_others(params generator[] otherGens)
+        {
+            if (0 != otherGens.Length)
+            {
+                generator this_ = self;
+                msg_buff<void_type> waitStop = new msg_buff<void_type>(this_.strand);
+                Action ntf = waitStop.wrap_default();
+                int count = otherGens.Length;
+                for (int i = 0; i < count; i++)
+                {
+                    otherGens[i].stop(ntf);
+                }
+                while (0 != count--)
+                {
+                    await chan_receive(waitStop);
+                }
+            }
+        }
+
         static public Task wait_other(generator otherGen)
         {
             generator this_ = self;
             otherGen.append_stop_callback(this_.async_result());
             return this_.async_wait();
+        }
+
+        static public async Task wait_others(params generator[] otherGens)
+        {
+            if (0 != otherGens.Length)
+            {
+                generator this_ = self;
+                msg_buff<void_type> waitStop = new msg_buff<void_type>(this_.strand);
+                Action ntf = waitStop.wrap_default();
+                int count = otherGens.Length;
+                for (int i = 0; i < count; i++)
+                {
+                    otherGens[i].append_stop_callback(ntf);
+                }
+                while (0 != count--)
+                {
+                    await chan_receive(waitStop);
+                }
+            }
         }
 
         static public async Task<bool> timed_wait_other(int ms, generator otherGen)
@@ -3836,6 +4209,64 @@ namespace Go
                 }
             }
             return !overtime;
+        }
+
+        static public async Task<generator> wait_others_one(params generator[] otherGens)
+        {
+            if (0 != otherGens.Length)
+            {
+                generator this_ = self;
+                msg_buff<tuple<generator, LinkedListNode<Action>>> waitRemove = new msg_buff<tuple<generator, LinkedListNode<Action>>>(this_.strand);
+                async_result_wrap<generator> res = new async_result_wrap<generator>();
+                Action<generator> ntf = this_.safe_async_result(res);
+                Action<tuple<generator, LinkedListNode<Action>>> removeNtf = waitRemove.wrap();
+                int count = otherGens.Length;
+                for (int i = 0; i < count; i++)
+                {
+                    generator ele = otherGens[i];
+                    ele.append_stop_callback(() => ntf(ele), (LinkedListNode<Action> node) => removeNtf(tuple.make(ele, node)));
+                }
+                await this_.async_wait();
+                while (0 != count--)
+                {
+                    tuple<generator, LinkedListNode<Action>> node = (await chan_receive(waitRemove)).result;
+                    if (null != node.value2)
+                    {
+                        node.value1.remove_stop_callback(node.value2);
+                    }
+                }
+                return res.value1;
+            }
+            return null;
+        }
+
+        static public async Task<generator> timed_wait_others_one(int ms, params generator[] otherGens)
+        {
+            if (0 != otherGens.Length)
+            {
+                generator this_ = self;
+                msg_buff<tuple<generator, LinkedListNode<Action>>> waitRemove = new msg_buff<tuple<generator, LinkedListNode<Action>>>(this_.strand);
+                async_result_wrap<generator> res = new async_result_wrap<generator>();
+                Action<generator> ntf = this_.timed_async_result(ms, res);
+                Action<tuple<generator, LinkedListNode<Action>>> removeNtf = waitRemove.wrap();
+                int count = otherGens.Length;
+                for (int i = 0; i < count; i++)
+                {
+                    generator ele = otherGens[i];
+                    ele.append_stop_callback(() => ntf(ele), (LinkedListNode<Action> node) => removeNtf(tuple.make(ele, node)));
+                }
+                await this_.async_wait();
+                while (0 != count--)
+                {
+                    tuple<generator, LinkedListNode<Action>> node = (await chan_receive(waitRemove)).result;
+                    if (null != node.value2)
+                    {
+                        node.value1.remove_stop_callback(node.value2);
+                    }
+                }
+                return res.value1;
+            }
+            return null;
         }
 
         static public Task wait_group(wait_group wg)
@@ -5818,7 +6249,10 @@ namespace Go
                 generator this_ = self;
                 LinkedList<select_chan_base> chans = _chans;
                 msg_buff<select_chan_base> selectChans = new msg_buff<select_chan_base>(this_.strand);
-                this_._timer.timeout(ms, selectChans.wrap_default());
+                if (ms >= 0)
+                {
+                    this_._timer.timeout(ms, selectChans.wrap_default());
+                }
                 for (LinkedListNode<select_chan_base> it = chans.First; null != it; it = it.Next)
                 {
                     select_chan_base chan = it.Value;
