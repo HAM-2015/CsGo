@@ -147,9 +147,7 @@ namespace Go
                 _tempResult = default(chan_recv_wrap<T>);
                 _chan.try_pop_and_append_notify(_host.async_callback(_tryPushHandler), nextSelect, ntfSign, _token);
                 await _host.async_wait();
-                select_chan_state chanState;
-                chanState.failed = false;
-                chanState.nextRound = true;
+                select_chan_state chanState = new select_chan_state() { failed = false, nextRound = true };
                 if (chan_async_state.async_ok == _tempResult.state)
                 {
                     if (null != stepOne)
@@ -224,9 +222,7 @@ namespace Go
                 _tempResult = chan_async_state.async_undefined;
                 _chan.try_push_and_append_notify(_host.async_callback(_tryPushHandler), nextSelect, ntfSign, _msg());
                 await _host.async_wait();
-                select_chan_state chanState;
-                chanState.failed = false;
-                chanState.nextRound = true;
+                select_chan_state chanState = new select_chan_state() { failed = false, nextRound = true };
                 if (chan_async_state.async_ok == _tempResult)
                 {
                     if (null != stepOne)
@@ -395,38 +391,22 @@ namespace Go
 
         internal select_chan_base make_select_reader(Func<T, Task> handler)
         {
-            select_chan_reader sel = new select_chan_reader();
-            sel._chan = this;
-            sel._handler = handler;
-            return sel;
+            return new select_chan_reader() { _chan = this, _handler = handler };
         }
 
         internal select_chan_base make_select_reader(Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler)
         {
-            select_chan_reader sel = new select_chan_reader();
-            sel._chan = this;
-            sel._handler = handler;
-            sel._errHandler = errHandler;
-            return sel;
+            return new select_chan_reader() { _chan = this, _handler = handler, _errHandler = errHandler };
         }
 
         internal select_chan_base make_select_writer(Func<T> msg, Func<Task> handler)
         {
-            select_chan_writer sel = new select_chan_writer();
-            sel._chan = this;
-            sel._msg = msg;
-            sel._handler = handler;
-            return sel;
+            return new select_chan_writer() { _chan = this, _msg = msg, _handler = handler };
         }
 
         internal select_chan_base make_select_writer(Func<T> msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler)
         {
-            select_chan_writer sel = new select_chan_writer();
-            sel._chan = this;
-            sel._msg = msg;
-            sel._handler = handler;
-            sel._errHandler = errHandler;
-            return sel;
+            return new select_chan_writer() { _chan = this, _msg = msg, _handler = handler, _errHandler = errHandler };
         }
 
         internal select_chan_base make_select_writer(async_result_wrap<T> msg, Func<Task> handler)
@@ -2034,11 +2014,7 @@ namespace Go
 
         internal override select_chan_base make_select_reader(Func<T, Task> handler, broadcast_chan_token token)
         {
-            select_chan_reader sel = new select_chan_reader();
-            sel._token = token;
-            sel._chan = this;
-            sel._handler = handler;
-            return sel;
+            return new select_chan_reader() { _token = token, _chan = this, _handler = handler };
         }
 
         public override chan_type type()
@@ -2473,9 +2449,7 @@ namespace Go
                 _tempResult = default(csp_wait_wrap<R, T>);
                 _chan.try_pop_and_append_notify(_host.async_callback(_tryPopHandler), nextSelect, ntfSign);
                 await _host.async_wait();
-                select_chan_state chanState;
-                chanState.failed = false;
-                chanState.nextRound = true;
+                select_chan_state chanState = new select_chan_state() { failed = false, nextRound = true };
                 if (chan_async_state.async_ok == _tempResult.state)
                 {
                     if (null != stepOne)
@@ -2566,9 +2540,7 @@ namespace Go
                 _tempResult = default(csp_invoke_wrap<R>);
                 _chan.try_push_and_append_notify(_host.async_callback(_tryPushHandler), nextSelect, ntfSign, _msg());
                 await _host.async_wait();
-                select_chan_state chanState;
-                chanState.failed = false;
-                chanState.nextRound = true;
+                select_chan_state chanState = new select_chan_state() { failed = false, nextRound = true };
                 if (chan_async_state.async_ok == _tempResult.state)
                 {
                     if (null != stepOne)
@@ -2648,38 +2620,22 @@ namespace Go
 
         internal select_chan_base make_select_reader(Func<csp_result, T, Task> handler)
         {
-            select_csp_reader sel = new select_csp_reader();
-            sel._chan = this;
-            sel._handler = handler;
-            return sel;
+            return new select_csp_reader() { _chan = this, _handler = handler };
         }
 
         internal select_chan_base make_select_reader(Func<csp_result, T, Task> handler, Func<chan_async_state, Task<bool>> errHandler)
         {
-            select_csp_reader sel = new select_csp_reader();
-            sel._chan = this;
-            sel._handler = handler;
-            sel._errHandler = errHandler;
-            return sel;
+            return new select_csp_reader() { _chan = this, _handler = handler, _errHandler = errHandler };
         }
 
         internal select_chan_base make_select_writer(Func<T> msg, Func<R, Task> handler)
         {
-            select_csp_writer sel = new select_csp_writer();
-            sel._chan = this;
-            sel._msg = msg;
-            sel._handler = handler;
-            return sel;
+            return new select_csp_writer() { _chan = this, _msg = msg, _handler = handler };
         }
 
         internal select_chan_base make_select_writer(Func<T> msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler)
         {
-            select_csp_writer sel = new select_csp_writer();
-            sel._chan = this;
-            sel._msg = msg;
-            sel._handler = handler;
-            sel._errHandler = errHandler;
-            return sel;
+            return new select_csp_writer() { _chan = this, _msg = msg, _handler = handler, _errHandler = errHandler };
         }
 
         internal select_chan_base make_select_writer(async_result_wrap<T> msg, Func<R, Task> handler)

@@ -94,11 +94,7 @@ namespace Go
 
         static public MapNode<TKey, TValue> NewNode(TKey key, TValue value)
         {
-            Node newNode = new Node(false);
-            newNode.key = key;
-            newNode.value = value;
-            newNode.color = rb_color.red;
-            return newNode;
+            return new Node(false) { key = key, value = value, color = rb_color.red };
         }
 
         public MapNode<TKey, TValue> ReNewNode(MapNode<TKey, TValue> oldNode, TKey key, TValue value)

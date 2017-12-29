@@ -13,12 +13,6 @@ namespace Go
         {
             public Action<chan_async_state> _ntf;
             public long _id;
-
-            public wait_node(Action<chan_async_state> ntf, long id)
-            {
-                _ntf = ntf;
-                _id = id;
-            }
         }
 
         shared_strand _strand;
@@ -57,7 +51,7 @@ namespace Go
                 }
                 else
                 {
-                    _waitQueue.AddLast(new wait_node((chan_async_state) => ntf(), id));
+                    _waitQueue.AddLast(new wait_node() { _ntf = (chan_async_state) => ntf(), _id = id });
                 }
             });
         }
@@ -92,11 +86,15 @@ namespace Go
                 else if (ms > 0)
                 {
                     async_timer timer = new async_timer(_strand);
-                    LinkedListNode<wait_node> it = _waitQueue.AddLast(new wait_node(delegate (chan_async_state state)
+                    LinkedListNode<wait_node> it = _waitQueue.AddLast(new wait_node()
                     {
-                        timer.cancel();
-                        ntf(state);
-                    }, id));
+                        _ntf = delegate (chan_async_state state)
+                        {
+                            timer.cancel();
+                            ntf(state);
+                        },
+                        _id = id
+                    });
                     timer.timeout(ms, delegate ()
                     {
                         Action<chan_async_state> waitNtf = it.Value._ntf;
@@ -181,13 +179,6 @@ namespace Go
             public Action<chan_async_state> _ntf;
             public long _waitHostID;
             public lock_status _status;
-
-            public wait_node(Action<chan_async_state> ntf, long id, lock_status st)
-            {
-                _ntf = ntf;
-                _waitHostID = id;
-                _status = st;
-            }
         };
 
         class shared_count
@@ -222,7 +213,7 @@ namespace Go
                 }
                 else
                 {
-                    _waitQueue.AddLast(new wait_node((chan_async_state) => ntf(), id, lock_status.st_unique));
+                    _waitQueue.AddLast(new wait_node() { _ntf = (chan_async_state) => ntf(), _waitHostID = id, _status = lock_status.st_unique });
                 }
             });
         }
@@ -257,11 +248,16 @@ namespace Go
                 else if (ms > 0)
                 {
                     async_timer timer = new async_timer(self_strand());
-                    LinkedListNode<wait_node> it = _waitQueue.AddLast(new wait_node(delegate (chan_async_state state)
+                    LinkedListNode<wait_node> it = _waitQueue.AddLast(new wait_node()
                     {
-                        timer.cancel();
-                        ntf(state);
-                    }, id, lock_status.st_unique));
+                        _ntf = delegate (chan_async_state state)
+                        {
+                            timer.cancel();
+                            ntf(state);
+                        },
+                        _waitHostID = id,
+                        _status = lock_status.st_unique
+                    });
                     timer.timeout(ms, delegate ()
                     {
                         Action<chan_async_state> waitNtf = it.Value._ntf;
@@ -298,7 +294,7 @@ namespace Go
                 }
                 else
                 {
-                    _waitQueue.AddLast(new wait_node((chan_async_state) => ntf(), id, lock_status.st_shared));
+                    _waitQueue.AddLast(new wait_node() { _ntf = (chan_async_state) => ntf(), _waitHostID = id, _status = lock_status.st_shared });
                 }
             });
         }
@@ -314,7 +310,7 @@ namespace Go
                 }
                 else
                 {
-                    _waitQueue.AddLast(new wait_node((chan_async_state) => ntf(), id, lock_status.st_shared));
+                    _waitQueue.AddLast(new wait_node() { _ntf = (chan_async_state) => ntf(), _waitHostID = id, _status = lock_status.st_shared });
                 }
             });
         }
@@ -347,11 +343,16 @@ namespace Go
                 else if (ms > 0)
                 {
                     async_timer timer = new async_timer(self_strand());
-                    LinkedListNode<wait_node> it = _waitQueue.AddLast(new wait_node(delegate (chan_async_state state)
+                    LinkedListNode<wait_node> it = _waitQueue.AddLast(new wait_node()
                     {
-                        timer.cancel();
-                        ntf(state);
-                    }, id, lock_status.st_shared));
+                        _ntf = delegate (chan_async_state state)
+                        {
+                            timer.cancel();
+                            ntf(state);
+                        },
+                        _waitHostID = id,
+                        _status = lock_status.st_shared
+                    });
                     timer.timeout(ms, delegate ()
                     {
                         Action<chan_async_state> waitNtf = it.Value._ntf;
