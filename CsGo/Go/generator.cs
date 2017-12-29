@@ -204,9 +204,9 @@ namespace Go
         public chan_async_state state;
         public T msg;
 
-        public void complete(R res)
+        public bool complete(R res)
         {
-            result.complete(res);
+            return result.complete(res);
         }
 
         public void fail()
@@ -2456,6 +2456,12 @@ namespace Go
             return null != this_ ? this_.strand : null;
         }
 
+        static public async_timer self_timer()
+        {
+            generator this_ = self;
+            return this_._timer;
+        }
+
         public shared_strand strand
         {
             get
@@ -2803,6 +2809,10 @@ namespace Go
                 }
             }));
             await this_.async_wait();
+            if (chan_async_state.async_ok == result.state)
+            {
+                result.result.start_invoke_timer(this_);
+            }
             return result;
         }
 
@@ -2989,6 +2999,10 @@ namespace Go
                 }
             }));
             await this_.async_wait();
+            if (chan_async_state.async_ok == result.state)
+            {
+                result.result.start_invoke_timer(this_);
+            }
             return result;
         }
 
@@ -3046,15 +3060,14 @@ namespace Go
             return result.state;
         }
 
-        static public async Task<chan_async_state> csp_try_wait<R>(csp_chan<R, void_type> chan, Func<Task> handler)
+        static public async Task<chan_async_state> csp_try_wait<R>(csp_chan<R, void_type> chan, Func<Task<R>> handler)
         {
             csp_wait_wrap<R, void_type> result = await csp_try_wait(chan);
             if (chan_async_state.async_ok == result.state)
             {
                 try
                 {
-                    await handler();
-                    result.complete(default(R));
+                    result.complete(await handler());
                 }
                 catch (System.Exception)
                 {
@@ -3073,6 +3086,44 @@ namespace Go
                 try
                 {
                     await handler(result.msg);
+                    result.complete(default(void_type));
+                }
+                catch (System.Exception)
+                {
+                    result.fail();
+                    throw;
+                }
+            }
+            return result.state;
+        }
+
+        static public async Task<chan_async_state> csp_try_wait<T1, T2>(csp_chan<void_type, tuple<T1, T2>> chan, Func<T1, T2, Task> handler)
+        {
+            csp_wait_wrap<void_type, tuple<T1, T2>> result = await csp_try_wait(chan);
+            if (chan_async_state.async_ok == result.state)
+            {
+                try
+                {
+                    await handler(result.msg.value1, result.msg.value2);
+                    result.complete(default(void_type));
+                }
+                catch (System.Exception)
+                {
+                    result.fail();
+                    throw;
+                }
+            }
+            return result.state;
+        }
+
+        static public async Task<chan_async_state> csp_try_wait<T1, T2, T3>(csp_chan<void_type, tuple<T1, T2, T3>> chan, Func<T1, T2, T3, Task> handler)
+        {
+            csp_wait_wrap<void_type, tuple<T1, T2, T3>> result = await csp_try_wait(chan);
+            if (chan_async_state.async_ok == result.state)
+            {
+                try
+                {
+                    await handler(result.msg.value1, result.msg.value2, result.msg.value3);
                     result.complete(default(void_type));
                 }
                 catch (System.Exception)
@@ -3103,11 +3154,11 @@ namespace Go
             return result.state;
         }
 
-        static public async Task<csp_invoke_wrap<R>> csp_timed_invoke<R, T>(csp_chan<R, T> chan, int ms, T msg)
+        static public async Task<csp_invoke_wrap<R>> csp_timed_invoke<R, T>(csp_chan<R, T> chan, tuple<int, int> ms, T msg)
         {
             generator this_ = self;
             csp_invoke_wrap<R> result = default(csp_invoke_wrap<R>);
-            chan.timed_push(ms, this_.async_callback(delegate (chan_async_state state, object exObj)
+            chan.timed_push(ms.value1, ms.value2, this_.async_callback(delegate (chan_async_state state, object exObj)
             {
                 result.state = state;
                 if (chan_async_state.async_ok == state)
@@ -3117,6 +3168,16 @@ namespace Go
             }), msg);
             await this_.async_wait();
             return result;
+        }
+
+        static public Task<csp_invoke_wrap<R>> csp_timed_invoke<R, T>(csp_chan<R, T> chan, int ms, T msg)
+        {
+            return csp_timed_invoke(chan, tuple.make(ms, -1), msg);
+        }
+
+        static public Task<csp_invoke_wrap<R>> csp_timed_invoke<R>(csp_chan<R, void_type> chan, tuple<int, int> ms)
+        {
+            return csp_timed_invoke(chan, ms, default(void_type));
         }
 
         static public Task<csp_invoke_wrap<R>> csp_timed_invoke<R>(csp_chan<R, void_type> chan, int ms)
@@ -3138,6 +3199,10 @@ namespace Go
                 }
             }));
             await this_.async_wait();
+            if (chan_async_state.async_ok == result.state)
+            {
+                result.result.start_invoke_timer(this_);
+            }
             return result;
         }
 

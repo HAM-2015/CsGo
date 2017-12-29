@@ -12,6 +12,7 @@ namespace Go
         async_undefined = -1,
         async_ok = 0,
         async_fail,
+        async_csp_fail,
         async_cancel,
         async_closed,
         async_overtime
@@ -2366,52 +2367,76 @@ namespace Go
     {
         struct send_pck
         {
-            public Action<chan_async_state, object> _ntf;
+            public Action<chan_async_state, object> _notify;
             public T _msg;
+            public int _invokeMs;
             async_timer _timer;
 
-            public void set(Action<chan_async_state, object> ntf, T msg, async_timer timer)
+            public void set(Action<chan_async_state, object> ntf, T msg, async_timer timer, int ms = -1)
             {
-                _ntf = ntf;
+                _notify = ntf;
                 _msg = msg;
+                _invokeMs = ms;
                 _timer = timer;
             }
 
-            public void set(Action<chan_async_state, object> ntf, T msg)
+            public void set(Action<chan_async_state, object> ntf, T msg, int ms = -1)
             {
-                _ntf = ntf;
+                _notify = ntf;
                 _msg = msg;
+                _invokeMs = ms;
                 _timer = null;
             }
 
             public void cancel_timer()
             {
-                if (null != _timer)
-                {
-                    _timer.cancel();
-                }
+                _timer?.cancel();
             }
         }
 
-        public struct csp_result
+        public class csp_result
         {
-            Action<chan_async_state, object> _notify;
+            internal int _invokeMs;
+            internal Action<chan_async_state, object> _notify;
+            async_timer _invokeTimer;
 
-            public csp_result(Action<chan_async_state, object> notify)
+            internal csp_result(int ms, Action<chan_async_state, object> notify)
             {
+                _invokeMs = ms;
                 _notify = notify;
+                _invokeTimer = null;
             }
 
-            public void complete(R res)
+            internal void start_invoke_timer(generator host)
             {
-                _notify?.Invoke(chan_async_state.async_ok, res);
-                _notify = null;
+                if (_invokeMs >= 0)
+                {
+                    _invokeTimer = new async_timer(host.strand);
+                    _invokeTimer.timeout(_invokeMs, fail);
+                }
+            }
+
+            public bool complete(R res)
+            {
+                _invokeTimer?.cancel();
+                _invokeTimer = null;
+                if (null != _notify)
+                {
+                    Action<chan_async_state, object> ntf = _notify;
+                    _notify = null;
+                    ntf.Invoke(chan_async_state.async_ok, res);
+                    return true;
+                }
+                return false;
             }
 
             public void fail()
             {
-                _notify?.Invoke(chan_async_state.async_fail, default(T));
+                _invokeTimer?.cancel();
+                _invokeTimer = null;
+                Action<chan_async_state, object> ntf = _notify;
                 _notify = null;
+                ntf?.Invoke(chan_async_state.async_csp_fail, default(T));
             }
         }
 
@@ -2459,6 +2484,7 @@ namespace Go
                     }
                     try
                     {
+                        _tempResult.result.start_invoke_timer(_host);
                         await _handler(_tempResult.result, _tempResult.msg);
                     }
                     catch (System.Exception)
@@ -2683,6 +2709,11 @@ namespace Go
 
         public override void push(Action<chan_async_state, object> ntf, T msg)
         {
+            push(-1, ntf, msg);
+        }
+
+        public void push(int invokeMs, Action<chan_async_state, object> ntf, T msg)
+        {
             _strand.distribute(delegate ()
             {
                 if (_closed)
@@ -2708,7 +2739,7 @@ namespace Go
                 {
                     _msgIsTryPush = false;
                     _has = true;
-                    _msg.set(ntf, msg);
+                    _msg.set(ntf, msg, invokeMs);
                     if (0 != _waitQueue.Count)
                     {
                         Action<chan_async_state> handler = _waitQueue.First.Value;
@@ -2734,7 +2765,7 @@ namespace Go
                         _sendQueue.RemoveFirst();
                         sendWait(chan_async_state.async_ok);
                     }
-                    ntf(chan_async_state.async_ok, pck._msg, new csp_result(pck._ntf));
+                    ntf(chan_async_state.async_ok, pck._msg, new csp_result(pck._invokeMs, pck._notify));
                 }
                 else if (_closed)
                 {
@@ -2810,7 +2841,7 @@ namespace Go
                         _sendQueue.RemoveFirst();
                         sendWait(chan_async_state.async_ok);
                     }
-                    ntf(chan_async_state.async_ok, pck._msg, new csp_result(pck._ntf));
+                    ntf(chan_async_state.async_ok, pck._msg, new csp_result(pck._invokeMs, pck._notify));
                 }
                 else if (_closed)
                 {
@@ -2824,6 +2855,11 @@ namespace Go
         }
 
         public override void timed_push(int ms, Action<chan_async_state, object> ntf, T msg)
+        {
+            timed_push(ms, -1, ntf, msg);
+        }
+
+        public void timed_push(int ms, int invokeMs, Action<chan_async_state, object> ntf, T msg)
         {
             _strand.distribute(delegate ()
             {
@@ -2842,7 +2878,7 @@ namespace Go
                             timer.cancel();
                             if (chan_async_state.async_ok == state)
                             {
-                                push(ntf, msg);
+                                push(invokeMs, ntf, msg);
                             }
                             else
                             {
@@ -2862,7 +2898,7 @@ namespace Go
                         {
                             if (chan_async_state.async_ok == state)
                             {
-                                push(ntf, msg);
+                                push(invokeMs, ntf, msg);
                             }
                             else
                             {
@@ -2880,11 +2916,11 @@ namespace Go
                     _msgIsTryPush = false;
                     _has = true;
                     async_timer timer = new async_timer(_strand);
-                    _msg.set(ntf, msg, timer);
+                    _msg.set(ntf, msg, timer, invokeMs);
                     timer.timeout(ms, delegate ()
                     {
                         _msg.cancel_timer();
-                        Action<chan_async_state, object> ntf_ = _msg._ntf;
+                        Action<chan_async_state, object> ntf_ = _msg._notify;
                         _has = false;
                         ntf_(chan_async_state.async_overtime, null);
                     });
@@ -2899,7 +2935,7 @@ namespace Go
                 {
                     _msgIsTryPush = false;
                     _has = true;
-                    _msg.set(ntf, msg);
+                    _msg.set(ntf, msg, invokeMs);
                     if (0 != _waitQueue.Count)
                     {
                         Action<chan_async_state> handler = _waitQueue.First.Value;
@@ -2913,7 +2949,7 @@ namespace Go
                     {
                         _msgIsTryPush = true;
                         _has = true;
-                        _msg.set(ntf, msg);
+                        _msg.set(ntf, msg, invokeMs);
                         Action<chan_async_state> handler = _waitQueue.First.Value;
                         _waitQueue.RemoveFirst();
                         handler(chan_async_state.async_ok);
@@ -2941,7 +2977,7 @@ namespace Go
                         _sendQueue.RemoveFirst();
                         sendWait(chan_async_state.async_ok);
                     }
-                    ntf(chan_async_state.async_ok, pck._msg, new csp_result(pck._ntf));
+                    ntf(chan_async_state.async_ok, pck._msg, new csp_result(pck._invokeMs, pck._notify));
                 }
                 else if (_closed)
                 {
@@ -3053,7 +3089,7 @@ namespace Go
                     {
                         append_pop_notify(msgNtf, ntfSign);
                     }
-                    cb(chan_async_state.async_ok, pck._msg, new csp_result(pck._ntf));
+                    cb(chan_async_state.async_ok, pck._msg, new csp_result(pck._invokeMs, pck._notify));
                 }
                 else if (_closed)
                 {
@@ -3089,7 +3125,7 @@ namespace Go
                     else if (_msgIsTryPush)
                     {
                         _msg.cancel_timer();
-                        Action<chan_async_state, object> ntf_ = _msg._ntf;
+                        Action<chan_async_state, object> ntf_ = _msg._notify;
                         _has = false;
                         ntf_(chan_async_state.async_fail, null);
                         if (0 != _sendQueue.Count)
@@ -3199,7 +3235,7 @@ namespace Go
                 if (_has)
                 {
                     _msg.cancel_timer();
-                    hasMsg = _msg._ntf;
+                    hasMsg = _msg._notify;
                     _has = false;
                 }
                 safe_callback(ref _sendQueue, ref _waitQueue, chan_async_state.async_closed);
@@ -3216,7 +3252,7 @@ namespace Go
                 if (_has)
                 {
                     _msg.cancel_timer();
-                    hasMsg = _msg._ntf;
+                    hasMsg = _msg._notify;
                     _has = false;
                 }
                 safe_callback(ref _sendQueue, ref _waitQueue, chan_async_state.async_cancel);
