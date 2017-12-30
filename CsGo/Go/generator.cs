@@ -157,7 +157,7 @@ namespace Go
     public struct chan_recv_wrap<T>
     {
         public chan_async_state state;
-        public T result;
+        public T msg;
 
         public static implicit operator T(chan_recv_wrap<T> rval)
         {
@@ -165,13 +165,13 @@ namespace Go
             {
                 throw new chan_exception(rval.state, rval);
             }
-            return rval.result;
+            return rval.msg;
         }
 
         public override string ToString()
         {
             return chan_async_state.async_ok == state ?
-                string.Format("chan_recv_wrap<{0}>.result={1}", typeof(T).Name, result) :
+                string.Format("chan_recv_wrap<{0}>.msg={1}", typeof(T).Name, msg) :
                 string.Format("chan_recv_wrap<{0}>.state={1}", typeof(T).Name, state);
         }
     }
@@ -212,6 +212,13 @@ namespace Go
         public void fail()
         {
             result.fail();
+        }
+
+        public override string ToString()
+        {
+            return chan_async_state.async_ok == state ?
+                string.Format("csp_wait_wrap<{0},{1}>.msg={2}", typeof(R).Name, typeof(T).Name, msg) :
+                string.Format("csp_wait_wrap<{0},{1}>.state={2}", typeof(R).Name, typeof(T).Name, state);
         }
     }
 
@@ -2697,7 +2704,7 @@ namespace Go
                 result.state = state;
                 if (chan_async_state.async_ok == state)
                 {
-                    result.result = msg;
+                    result.msg = msg;
                 }
             }), token);
             await this_.async_wait();
@@ -2732,7 +2739,7 @@ namespace Go
                 result.state = state;
                 if (chan_async_state.async_ok == state)
                 {
-                    result.result = msg;
+                    result.msg = msg;
                 }
             }), token);
             await this_.async_wait();
@@ -2767,7 +2774,7 @@ namespace Go
                 result.state = state;
                 if (chan_async_state.async_ok == state)
                 {
-                    result.result = msg;
+                    result.msg = msg;
                 }
             }), token);
             await this_.async_wait();
@@ -3431,7 +3438,7 @@ namespace Go
             {
                 throw new chan_exception(wrap.state, obj);
             }
-            return wrap.result;
+            return wrap.msg;
         }
 
         static public T check_chan<T>(csp_invoke_wrap<T> wrap, object obj = null)
@@ -4294,7 +4301,7 @@ namespace Go
                 await this_.async_wait();
                 while (0 != count--)
                 {
-                    tuple<generator, LinkedListNode<Action>> node = (await chan_receive(waitRemove)).result;
+                    tuple<generator, LinkedListNode<Action>> node = (await chan_receive(waitRemove)).msg;
                     if (null != node.value2)
                     {
                         node.value1.remove_stop_callback(node.value2);
@@ -4323,7 +4330,7 @@ namespace Go
                 await this_.async_wait();
                 while (0 != count--)
                 {
-                    tuple<generator, LinkedListNode<Action>> node = (await chan_receive(waitRemove)).result;
+                    tuple<generator, LinkedListNode<Action>> node = (await chan_receive(waitRemove)).msg;
                     if (null != node.value2)
                     {
                         node.value1.remove_stop_callback(node.value2);
@@ -4657,7 +4664,7 @@ namespace Go
                         recvRes.state = state;
                         if (chan_async_state.async_ok == state)
                         {
-                            recvRes.result = msg;
+                            recvRes.msg = msg;
                         }
                     };
                     selfMb.append_pop_notify(waitHasNtf, ntfSign);
@@ -4672,7 +4679,7 @@ namespace Go
                             await self.async_wait();
                             if (chan_async_state.async_ok == recvRes.state)
                             {
-                                recvRes.state = await chan_send(agentMb, recvRes.result);
+                                recvRes.state = await chan_send(agentMb, recvRes.msg);
                             }
                             if (chan_async_state.async_closed == recvRes.state)
                             {
@@ -4783,7 +4790,7 @@ namespace Go
                                 chan_recv_wrap<T> res = await chan_receive(chan);
                                 if (chan_async_state.async_ok == res.state)
                                 {
-                                    await handler(res.result);
+                                    await handler(res.msg);
                                 }
                                 else if (null == errHandler || await errHandler(res.state))
                                 {
@@ -4815,7 +4822,7 @@ namespace Go
                                 recvRes.state = state;
                                 if (chan_async_state.async_ok == state)
                                 {
-                                    recvRes.result = msg;
+                                    recvRes.msg = msg;
                                 }
                             };
                             chan.append_pop_notify(waitHasNtf, ntfSign);
@@ -4830,7 +4837,7 @@ namespace Go
                                     await self.async_wait();
                                     if (chan_async_state.async_ok == recvRes.state)
                                     {
-                                        await handler(recvRes.result);
+                                        await handler(recvRes.msg);
                                     }
                                     else if (null != errHandler && await errHandler(recvRes.state))
                                     {
@@ -4893,7 +4900,7 @@ namespace Go
                             self._mailboxMap = _children.parent()._mailboxMap;
                             if (chan_async_state.async_ok == res.state)
                             {
-                                await handler(res.result);
+                                await handler(res.msg);
                             }
                             else if (chan_async_state.async_overtime == res.state)
                             {
@@ -4931,7 +4938,7 @@ namespace Go
                                         chan_recv_wrap<T> recvRes = await chan_try_receive(chan);
                                         if (chan_async_state.async_ok == recvRes.state)
                                         {
-                                            await handler(recvRes.result); break;
+                                            await handler(recvRes.msg); break;
                                         }
                                         else if ((null != errHandler && await errHandler(recvRes.state)) || chan_async_state.async_closed == recvRes.state) { break; }
                                         if (0 <= ms && 0 >= (ms = (int)(endTick - system_tick.get_tick_ms())))
@@ -4998,7 +5005,7 @@ namespace Go
                         chan_recv_wrap<T> res = await chan_try_receive(chan);
                         if (chan_async_state.async_ok == res.state)
                         {
-                            await handler(res.result);
+                            await handler(res.msg);
                         }
                         else if (null == errHandler || await errHandler(res.state)) { }
                     }
@@ -5070,7 +5077,7 @@ namespace Go
                                 chan_recv_wrap<T> res = await chan_receive(chan, token);
                                 if (chan_async_state.async_ok == res.state)
                                 {
-                                    await handler(res.result);
+                                    await handler(res.msg);
                                 }
                                 else if (null == errHandler || await errHandler(res.state))
                                 {
@@ -5102,7 +5109,7 @@ namespace Go
                                 recvRes.state = state;
                                 if (chan_async_state.async_ok == state)
                                 {
-                                    recvRes.result = msg;
+                                    recvRes.msg = msg;
                                 }
                             };
                             chan.append_pop_notify(waitHasNtf, ntfSign);
@@ -5117,7 +5124,7 @@ namespace Go
                                     await self.async_wait();
                                     if (chan_async_state.async_ok == recvRes.state)
                                     {
-                                        await handler(recvRes.result);
+                                        await handler(recvRes.msg);
                                     }
                                     else if (null != errHandler && await errHandler(recvRes.state))
                                     {
@@ -5201,7 +5208,7 @@ namespace Go
                             self._mailboxMap = _children.parent()._mailboxMap;
                             if (chan_async_state.async_ok == res.state)
                             {
-                                await handler(res.result);
+                                await handler(res.msg);
                             }
                             else if (chan_async_state.async_overtime == res.state)
                             {
@@ -5239,7 +5246,7 @@ namespace Go
                                         chan_recv_wrap<T> recvRes = await chan_try_receive(chan);
                                         if (chan_async_state.async_ok == recvRes.state)
                                         {
-                                            await handler(recvRes.result); break;
+                                            await handler(recvRes.msg); break;
                                         }
                                         else if ((null != errHandler && await errHandler(recvRes.state)) || chan_async_state.async_closed == recvRes.state) { break; }
                                         if (0 <= ms && 0 >= (ms = (int)(endTick - system_tick.get_tick_ms())))
@@ -5326,7 +5333,7 @@ namespace Go
                         chan_recv_wrap<T> res = await chan_try_receive(chan, null != token ? token : new broadcast_chan_token());
                         if (chan_async_state.async_ok == res.state)
                         {
-                            await handler(res.result);
+                            await handler(res.msg);
                         }
                         else if (null == errHandler || await errHandler(res.state)) { }
                     }
@@ -6186,7 +6193,7 @@ namespace Go
                     };
                     while (0 != count)
                     {
-                        select_chan_base selectedChan = (await chan_receive(selectChans)).result;
+                        select_chan_base selectedChan = (await chan_receive(selectChans)).msg;
                         if (selectedChan.disabled())
                         {
                             continue;
@@ -6251,7 +6258,7 @@ namespace Go
                     int count = chans.Count;
                     while (0 != count)
                     {
-                        select_chan_base selectedChan = (await chan_receive(selectChans)).result;
+                        select_chan_base selectedChan = (await chan_receive(selectChans)).msg;
                         if (selectedChan.disabled())
                         {
                             continue;
@@ -6336,7 +6343,7 @@ namespace Go
                     int count = chans.Count;
                     while (0 != count)
                     {
-                        select_chan_base selectedChan = (await chan_receive(selectChans)).result;
+                        select_chan_base selectedChan = (await chan_receive(selectChans)).msg;
                         if (null != selectedChan)
                         {
                             if (selectedChan.disabled())
@@ -6846,7 +6853,7 @@ namespace Go
                     }
                     for (int i = 0; i < count; i++)
                     {
-                        child gen = (await chan_receive(waitStop)).result;
+                        child gen = (await chan_receive(waitStop)).msg;
                         if (null != gen._childNode)
                         {
                             _children.Remove(gen._childNode);
@@ -6904,7 +6911,7 @@ namespace Go
                     }
                     for (int i = 0; i < count; i++)
                     {
-                        child gen = (await chan_receive(waitStop)).result;
+                        child gen = (await chan_receive(waitStop)).msg;
                         if (null != gen._childNode)
                         {
                             _children.Remove(gen._childNode);
@@ -6972,7 +6979,7 @@ namespace Go
                     }
                     while (0 != count--)
                     {
-                        child gen = (await chan_receive(waitStop)).result;
+                        child gen = (await chan_receive(waitStop)).msg;
                         if (null != gen._childNode)
                         {
                             _children.Remove(gen._childNode);
@@ -7022,7 +7029,7 @@ namespace Go
                     }
                     for (int i = 0; i < count; i++)
                     {
-                        Tuple<children, child> oneRes = (await chan_receive(waitStop)).result;
+                        Tuple<children, child> oneRes = (await chan_receive(waitStop)).msg;
                         if (null != oneRes.Item2._childNode)
                         {
                             oneRes.Item1._children.Remove(oneRes.Item2._childNode);
@@ -7068,7 +7075,7 @@ namespace Go
                         }
                         while (0 != count--)
                         {
-                            tuple<child, LinkedListNode<Action>> node = (await chan_receive(waitRemove)).result;
+                            tuple<child, LinkedListNode<Action>> node = (await chan_receive(waitRemove)).msg;
                             if (null != node.value2)
                             {
                                 node.value1.remove_stop_callback(node.value2);
@@ -7114,7 +7121,7 @@ namespace Go
                         }
                         while (0 != count--)
                         {
-                            tuple<child, LinkedListNode<Action>> node = (await chan_receive(waitRemove)).result;
+                            tuple<child, LinkedListNode<Action>> node = (await chan_receive(waitRemove)).msg;
                             if (null != node.value2)
                             {
                                 node.value1.remove_stop_callback(node.value2);
@@ -7147,7 +7154,7 @@ namespace Go
                     }
                     while (0 != count--)
                     {
-                        child gen = (await chan_receive(waitStop)).result;
+                        child gen = (await chan_receive(waitStop)).msg;
                         if (null != gen._childNode)
                         {
                             _children.Remove(gen._childNode);
@@ -7187,7 +7194,7 @@ namespace Go
                 while (true)
                 {
                     chan_recv_wrap<gen_pck> pck = await generator.chan_receive(_queue);
-                    await generator.depth_call(pck.result.strand, pck.result.action);
+                    await generator.depth_call(pck.msg.strand, pck.msg.action);
                 }
             });
             _runGen.run();
@@ -7229,7 +7236,7 @@ namespace Go
                     generator.lock_stop();
                     try
                     {
-                        await pck.result();
+                        await pck.msg();
                     }
                     catch (Exception ec)
                     {

@@ -140,7 +140,7 @@ namespace Go
                         _tempResult.state = state;
                         if (chan_async_state.async_ok == state)
                         {
-                            _tempResult.result = msg;
+                            _tempResult.msg = msg;
                         }
                     };
                 }
@@ -154,7 +154,7 @@ namespace Go
                     {
                         await stepOne();
                     }
-                    await _handler(_tempResult.result);
+                    await _handler(_tempResult.msg);
                 }
                 else if (null != _errHandler)
                 {
