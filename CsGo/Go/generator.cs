@@ -383,6 +383,7 @@ namespace Go
         Dictionary<long, mail_pck> _mailboxMap;
         Action<bool> _suspendCb;
         LinkedList<children> _children;
+        chan_notify_sign _ioSign;
         mutli_callback _multiCb;
         pull_task _pullTask;
         children _agentMng;
@@ -520,6 +521,7 @@ namespace Go
             _yieldCount = 0;
             _suspendCb = suspendCb;
             _pullTask = new pull_task();
+            _ioSign = new chan_notify_sign();
             _timer = new async_timer(strand);
             strand.hold_work();
             strand.distribute(async delegate ()
@@ -2568,18 +2570,17 @@ namespace Go
         static public async Task<chan_async_state> chan_wait_free(channel_base chan)
         {
             generator this_ = self;
-            chan_notify_sign ntfSign = new chan_notify_sign();
             chan_async_state result = chan_async_state.async_undefined;
             try
             {
                 lock_suspend();
-                chan.append_push_notify(this_.async_callback((chan_async_state state) => result = state), ntfSign);
+                chan.append_push_notify(this_.async_callback((chan_async_state state) => result = state), this_._ioSign);
                 await this_.async_wait();
                 await unlock_suspend();
             }
             catch (stop_exception)
             {
-                chan.remove_push_notify(this_.async_callback(nil_action<chan_async_state>.action), ntfSign);
+                chan.remove_push_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
                 await this_.async_wait();
                 throw;
             }
@@ -2589,23 +2590,22 @@ namespace Go
         static public async Task<chan_async_state> chan_timed_wait_free(channel_base chan, int ms)
         {
             generator this_ = self;
-            chan_notify_sign ntfSign = new chan_notify_sign();
             chan_async_state result = chan_async_state.async_overtime;
             try
             {
                 lock_suspend();
-                chan.append_push_notify(this_.timed_async_callback(ms, (chan_async_state state) => result = state), ntfSign);
+                chan.append_push_notify(this_.timed_async_callback(ms, (chan_async_state state) => result = state), this_._ioSign);
                 await this_.async_wait();
                 if (chan_async_state.async_overtime == result)
                 {
-                    chan.remove_push_notify(this_.async_callback(nil_action<chan_async_state>.action), ntfSign);
+                    chan.remove_push_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
                     await this_.async_wait();
                 }
                 await unlock_suspend();
             }
             catch (stop_exception)
             {
-                chan.remove_push_notify(this_.async_callback(nil_action<chan_async_state>.action), ntfSign);
+                chan.remove_push_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
                 await this_.async_wait();
                 throw;
             }
@@ -2615,18 +2615,17 @@ namespace Go
         static public async Task<chan_async_state> chan_wait_has(channel_base chan)
         {
             generator this_ = self;
-            chan_notify_sign ntfSign = new chan_notify_sign();
             chan_async_state result = chan_async_state.async_undefined;
             try
             {
                 lock_suspend();
-                chan.append_pop_notify(this_.async_callback((chan_async_state state) => result = state), ntfSign);
+                chan.append_pop_notify(this_.async_callback((chan_async_state state) => result = state), this_._ioSign);
                 await this_.async_wait();
                 await unlock_suspend();
             }
             catch (stop_exception)
             {
-                chan.remove_pop_notify(this_.async_callback(nil_action<chan_async_state>.action), ntfSign);
+                chan.remove_pop_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
                 await this_.async_wait();
                 throw;
             }
@@ -2636,23 +2635,22 @@ namespace Go
         static public async Task<chan_async_state> chan_timed_wait_has(channel_base chan, int ms)
         {
             generator this_ = self;
-            chan_notify_sign ntfSign = new chan_notify_sign();
             chan_async_state result = chan_async_state.async_overtime;
             try
             {
                 lock_suspend();
-                chan.append_pop_notify(this_.timed_async_callback(ms, (chan_async_state state) => result = state), ntfSign);
+                chan.append_pop_notify(this_.timed_async_callback(ms, (chan_async_state state) => result = state), this_._ioSign);
                 await this_.async_wait();
                 if (chan_async_state.async_overtime == result)
                 {
-                    chan.remove_pop_notify(this_.async_callback(nil_action<chan_async_state>.action), ntfSign);
+                    chan.remove_pop_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
                     await this_.async_wait();
                 }
                 await unlock_suspend();
             }
             catch (stop_exception)
             {
-                chan.remove_pop_notify(this_.async_callback(nil_action<chan_async_state>.action), ntfSign);
+                chan.remove_pop_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
                 await this_.async_wait();
                 throw;
             }
@@ -2663,8 +2661,17 @@ namespace Go
         {
             generator this_ = self;
             chan_async_state result = chan_async_state.async_undefined;
-            chan.push(this_.async_callback((chan_async_state state, object _) => result = state), msg);
-            await this_.async_wait();
+            try
+            {
+                chan.push(this_.async_callback((chan_async_state state, object _) => result = state), msg, this_._ioSign);
+                await this_.async_wait();
+            }
+            catch (stop_exception)
+            {
+                chan.remove_push_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
+                await this_.async_wait();
+                throw;
+            }
             return result;
         }
 
@@ -2699,15 +2706,24 @@ namespace Go
         {
             generator this_ = self;
             chan_recv_wrap<T> result = default(chan_recv_wrap<T>);
-            chan.pop(this_.async_callback(delegate (chan_async_state state, T msg, object _)
+            try
             {
-                result.state = state;
-                if (chan_async_state.async_ok == state)
+                chan.pop(this_.async_callback(delegate (chan_async_state state, T msg, object _)
                 {
-                    result.msg = msg;
-                }
-            }), token);
-            await this_.async_wait();
+                    result.state = state;
+                    if (chan_async_state.async_ok == state)
+                    {
+                        result.msg = msg;
+                    }
+                }), this_._ioSign, token);
+                await this_.async_wait();
+            }
+            catch (stop_exception)
+            {
+                chan.remove_pop_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
+                await this_.async_wait();
+                throw;
+            }
             return result;
         }
 
@@ -2715,8 +2731,17 @@ namespace Go
         {
             generator this_ = self;
             chan_async_state result = chan_async_state.async_undefined;
-            chan.try_push(this_.async_callback((chan_async_state state, object _) => result = state), msg);
-            await this_.async_wait();
+            try
+            {
+                chan.try_push(this_.async_callback((chan_async_state state, object _) => result = state), msg, this_._ioSign);
+                await this_.async_wait();
+            }
+            catch (stop_exception)
+            {
+                chan.remove_push_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
+                await this_.async_wait();
+                throw;
+            }
             return result;
         }
 
@@ -2734,15 +2759,24 @@ namespace Go
         {
             generator this_ = self;
             chan_recv_wrap<T> result = default(chan_recv_wrap<T>);
-            chan.try_pop(this_.async_callback(delegate (chan_async_state state, T msg, object _)
+            try
             {
-                result.state = state;
-                if (chan_async_state.async_ok == state)
+                chan.try_pop(this_.async_callback(delegate (chan_async_state state, T msg, object _)
                 {
-                    result.msg = msg;
-                }
-            }), token);
-            await this_.async_wait();
+                    result.state = state;
+                    if (chan_async_state.async_ok == state)
+                    {
+                        result.msg = msg;
+                    }
+                }), this_._ioSign, token);
+                await this_.async_wait();
+            }
+            catch (stop_exception)
+            {
+                chan.remove_pop_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
+                await this_.async_wait();
+                throw;
+            }
             return result;
         }
 
@@ -2750,8 +2784,17 @@ namespace Go
         {
             generator this_ = self;
             chan_async_state result = chan_async_state.async_undefined;
-            chan.timed_push(ms, this_.async_callback((chan_async_state state, object _) => result = state), msg);
-            await this_.async_wait();
+            try
+            {
+                chan.timed_push(ms, this_.async_callback((chan_async_state state, object _) => result = state), msg, this_._ioSign);
+                await this_.async_wait();
+            }
+            catch (stop_exception)
+            {
+                chan.remove_push_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
+                await this_.async_wait();
+                throw;
+            }
             return result;
         }
 
@@ -2769,15 +2812,24 @@ namespace Go
         {
             generator this_ = self;
             chan_recv_wrap<T> result = default(chan_recv_wrap<T>);
-            chan.timed_pop(ms, this_.async_callback(delegate (chan_async_state state, T msg, object _)
+            try
             {
-                result.state = state;
-                if (chan_async_state.async_ok == state)
+                chan.timed_pop(ms, this_.async_callback(delegate (chan_async_state state, T msg, object _)
                 {
-                    result.msg = msg;
-                }
-            }), token);
-            await this_.async_wait();
+                    result.state = state;
+                    if (chan_async_state.async_ok == state)
+                    {
+                        result.msg = msg;
+                    }
+                }), this_._ioSign, token);
+                await this_.async_wait();
+            }
+            catch (stop_exception)
+            {
+                chan.remove_pop_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
+                await this_.async_wait();
+                throw;
+            }
             return result;
         }
 
@@ -2785,15 +2837,24 @@ namespace Go
         {
             generator this_ = self;
             csp_invoke_wrap<R> result = default(csp_invoke_wrap<R>);
-            chan.push(this_.async_callback(delegate (chan_async_state state, object exObj)
+            try
             {
-                result.state = state;
-                if (chan_async_state.async_ok == state)
+                chan.push(this_.async_callback(delegate (chan_async_state state, object exObj)
                 {
-                    result.result = (R)exObj;
-                }
-            }), msg);
-            await this_.async_wait();
+                    result.state = state;
+                    if (chan_async_state.async_ok == state)
+                    {
+                        result.result = (R)exObj;
+                    }
+                }), msg, this_._ioSign);
+                await this_.async_wait();
+            }
+            catch (stop_exception)
+            {
+                chan.remove_push_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
+                await this_.async_wait();
+                throw;
+            }
             return result;
         }
 
@@ -2806,16 +2867,29 @@ namespace Go
         {
             generator this_ = self;
             csp_wait_wrap<R, T> result = default(csp_wait_wrap<R, T>);
-            chan.pop(this_.async_callback(delegate (chan_async_state state, T msg, object exObj)
+            try
             {
-                result.state = state;
-                if (chan_async_state.async_ok == state)
+                chan.pop(this_.async_callback(delegate (chan_async_state state, T msg, object exObj)
                 {
-                    result.msg = msg;
-                    result.result = (csp_chan<R, T>.csp_result)exObj;
+                    result.state = state;
+                    if (chan_async_state.async_ok == state)
+                    {
+                        result.msg = msg;
+                        result.result = (csp_chan<R, T>.csp_result)exObj;
+                    }
+                }), this_._ioSign);
+                await this_.async_wait();
+            }
+            catch (stop_exception)
+            {
+                chan.remove_pop_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
+                await this_.async_wait();
+                if (chan_async_state.async_ok == result.state)
+                {
+                    result.fail();
                 }
-            }));
-            await this_.async_wait();
+                throw;
+            }
             if (chan_async_state.async_ok == result.state)
             {
                 result.result.start_invoke_timer(this_);
@@ -2975,15 +3049,24 @@ namespace Go
         {
             generator this_ = self;
             csp_invoke_wrap<R> result = default(csp_invoke_wrap<R>);
-            chan.try_push(this_.async_callback(delegate (chan_async_state state, object exObj)
+            try
             {
-                result.state = state;
-                if (chan_async_state.async_ok == state)
+                chan.try_push(this_.async_callback(delegate (chan_async_state state, object exObj)
                 {
-                    result.result = (R)exObj;
-                }
-            }), msg);
-            await this_.async_wait();
+                    result.state = state;
+                    if (chan_async_state.async_ok == state)
+                    {
+                        result.result = (R)exObj;
+                    }
+                }), msg, this_._ioSign);
+                await this_.async_wait();
+            }
+            catch (stop_exception)
+            {
+                chan.remove_push_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
+                await this_.async_wait();
+                throw;
+            }
             return result;
         }
 
@@ -2996,16 +3079,29 @@ namespace Go
         {
             generator this_ = self;
             csp_wait_wrap<R, T> result = default(csp_wait_wrap<R, T>);
-            chan.try_pop(this_.async_callback(delegate (chan_async_state state, T msg, object exObj)
+            try
             {
-                result.state = state;
-                if (chan_async_state.async_ok == state)
+                chan.try_pop(this_.async_callback(delegate (chan_async_state state, T msg, object exObj)
                 {
-                    result.msg = msg;
-                    result.result = (csp_chan<R, T>.csp_result)exObj;
+                    result.state = state;
+                    if (chan_async_state.async_ok == state)
+                    {
+                        result.msg = msg;
+                        result.result = (csp_chan<R, T>.csp_result)exObj;
+                    }
+                }), this_._ioSign);
+                await this_.async_wait();
+            }
+            catch (stop_exception)
+            {
+                chan.remove_pop_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
+                await this_.async_wait();
+                if (chan_async_state.async_ok == result.state)
+                {
+                    result.fail();
                 }
-            }));
-            await this_.async_wait();
+                throw;
+            }
             if (chan_async_state.async_ok == result.state)
             {
                 result.result.start_invoke_timer(this_);
@@ -3165,15 +3261,24 @@ namespace Go
         {
             generator this_ = self;
             csp_invoke_wrap<R> result = default(csp_invoke_wrap<R>);
-            chan.timed_push(ms.value1, ms.value2, this_.async_callback(delegate (chan_async_state state, object exObj)
+            try
             {
-                result.state = state;
-                if (chan_async_state.async_ok == state)
+                chan.timed_push(ms.value1, ms.value2, this_.async_callback(delegate (chan_async_state state, object exObj)
                 {
-                    result.result = (R)exObj;
-                }
-            }), msg);
-            await this_.async_wait();
+                    result.state = state;
+                    if (chan_async_state.async_ok == state)
+                    {
+                        result.result = (R)exObj;
+                    }
+                }), msg, this_._ioSign);
+                await this_.async_wait();
+            }
+            catch (stop_exception)
+            {
+                chan.remove_push_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
+                await this_.async_wait();
+                throw;
+            }
             return result;
         }
 
@@ -3196,16 +3301,29 @@ namespace Go
         {
             generator this_ = self;
             csp_wait_wrap<R, T> result = default(csp_wait_wrap<R, T>);
-            chan.timed_pop(ms, this_.async_callback(delegate (chan_async_state state, T msg, object exObj)
+            try
             {
-                result.state = state;
-                if (chan_async_state.async_ok == state)
+                chan.timed_pop(ms, this_.async_callback(delegate (chan_async_state state, T msg, object exObj)
                 {
-                    result.msg = msg;
-                    result.result = (csp_chan<R, T>.csp_result)exObj;
+                    result.state = state;
+                    if (chan_async_state.async_ok == state)
+                    {
+                        result.msg = msg;
+                        result.result = (csp_chan<R, T>.csp_result)exObj;
+                    }
+                }), this_._ioSign);
+                await this_.async_wait();
+            }
+            catch (stop_exception)
+            {
+                chan.remove_pop_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
+                await this_.async_wait();
+                if (chan_async_state.async_ok == result.state)
+                {
+                    result.fail();
                 }
-            }));
-            await this_.async_wait();
+                throw;
+            }
             if (chan_async_state.async_ok == result.state)
             {
                 result.result.start_invoke_timer(this_);
@@ -3375,7 +3493,7 @@ namespace Go
                         Interlocked.Increment(ref count);
                     }
                     wg.done();
-                }, msg);
+                }, msg, null);
             }
             wg.async_wait(this_.async_result());
             await this_.async_wait();
@@ -3396,7 +3514,7 @@ namespace Go
                         Interlocked.Increment(ref count);
                     }
                     wg.done();
-                }, msg);
+                }, msg, null);
             }
             wg.async_wait(this_.async_result());
             await this_.async_wait();
@@ -3417,7 +3535,7 @@ namespace Go
                         Interlocked.Increment(ref count);
                     }
                     wg.done();
-                }, msg);
+                }, msg, null);
             }
             wg.async_wait(this_.async_result());
             await this_.async_wait();
@@ -4787,12 +4905,12 @@ namespace Go
                             self._mailboxMap = _children.parent()._mailboxMap;
                             while (_run)
                             {
-                                chan_recv_wrap<T> res = await chan_receive(chan);
-                                if (chan_async_state.async_ok == res.state)
+                                chan_recv_wrap<T> recvRes = await chan_receive(chan);
+                                if (chan_async_state.async_ok == recvRes.state)
                                 {
-                                    await handler(res.msg);
+                                    await handler(recvRes.msg);
                                 }
-                                else if (null == errHandler || await errHandler(res.state))
+                                else if (null == errHandler || await errHandler(recvRes.state))
                                 {
                                     break;
                                 }
@@ -4813,6 +4931,7 @@ namespace Go
                         chan_notify_sign ntfSign = new chan_notify_sign();
                         try
                         {
+                            lock_suspend();
                             self._mailboxMap = _children.parent()._mailboxMap;
                             nil_chan<chan_async_state> waitHasChan = new nil_chan<chan_async_state>();
                             Action<chan_async_state> waitHasNtf = waitHasChan.wrap();
@@ -4835,17 +4954,25 @@ namespace Go
                                     recvRes = default(chan_recv_wrap<T>);
                                     chan.try_pop_and_append_notify(self.async_callback(tryPopHandler), waitHasNtf, ntfSign);
                                     await self.async_wait();
-                                    if (chan_async_state.async_ok == recvRes.state)
+                                    try
                                     {
-                                        await handler(recvRes.msg);
+                                        await unlock_suspend();
+                                        if (chan_async_state.async_ok == recvRes.state)
+                                        {
+                                            await handler(recvRes.msg);
+                                        }
+                                        else if (null != errHandler && await errHandler(recvRes.state))
+                                        {
+                                            break;
+                                        }
+                                        else if (chan_async_state.async_closed == recvRes.state)
+                                        {
+                                            break;
+                                        }
                                     }
-                                    else if (null != errHandler && await errHandler(recvRes.state))
+                                    finally
                                     {
-                                        break;
-                                    }
-                                    else if (chan_async_state.async_closed == recvRes.state)
-                                    {
-                                        break;
+                                        lock_suspend();
                                     }
                                 }
                                 finally
@@ -4861,8 +4988,8 @@ namespace Go
                         }
                         finally
                         {
+                            lock_stop();
                             self._mailboxMap = null;
-                            lock_suspend_and_stop();
                             chan.remove_pop_notify(self.async_ignore<chan_async_state>(), ntfSign);
                             await self.async_wait();
                             await unlock_suspend_and_stop();
@@ -4894,19 +5021,19 @@ namespace Go
                     generator self = generator.self;
                     if (null == _mutex)
                     {
-                        chan_recv_wrap<T> res = await chan_timed_receive(chan, ms);
+                        chan_recv_wrap<T> recvRes = await chan_timed_receive(chan, ms);
                         try
                         {
                             self._mailboxMap = _children.parent()._mailboxMap;
-                            if (chan_async_state.async_ok == res.state)
+                            if (chan_async_state.async_ok == recvRes.state)
                             {
-                                await handler(res.msg);
+                                await handler(recvRes.msg);
                             }
-                            else if (chan_async_state.async_overtime == res.state)
+                            else if (chan_async_state.async_overtime == recvRes.state)
                             {
                                 await timedHandler();
                             }
-                            else if (null == errHandler || await errHandler(res.state)) { }
+                            else if (null == errHandler || await errHandler(recvRes.state)) { }
                         }
                         catch (stop_this_receive_exception) { }
                         catch (stop_all_receive_exception)
@@ -4923,6 +5050,7 @@ namespace Go
                         chan_notify_sign ntfSign = new chan_notify_sign();
                         try
                         {
+                            lock_suspend();
                             self._mailboxMap = _children.parent()._mailboxMap;
                             long endTick = system_tick.get_tick_ms() + ms;
                             while (_run)
@@ -4936,14 +5064,22 @@ namespace Go
                                     if (!overtime)
                                     {
                                         chan_recv_wrap<T> recvRes = await chan_try_receive(chan);
-                                        if (chan_async_state.async_ok == recvRes.state)
+                                        try
                                         {
-                                            await handler(recvRes.msg); break;
+                                            await unlock_suspend();
+                                            if (chan_async_state.async_ok == recvRes.state)
+                                            {
+                                                await handler(recvRes.msg); break;
+                                            }
+                                            else if ((null != errHandler && await errHandler(recvRes.state)) || chan_async_state.async_closed == recvRes.state) { break; }
+                                            if (0 <= ms && 0 >= (ms = (int)(endTick - system_tick.get_tick_ms())))
+                                            {
+                                                await timedHandler(); break;
+                                            }
                                         }
-                                        else if ((null != errHandler && await errHandler(recvRes.state)) || chan_async_state.async_closed == recvRes.state) { break; }
-                                        if (0 <= ms && 0 >= (ms = (int)(endTick - system_tick.get_tick_ms())))
+                                        finally
                                         {
-                                            await timedHandler(); break;
+                                            lock_suspend();
                                         }
                                     }
                                     else
@@ -4964,8 +5100,8 @@ namespace Go
                         }
                         finally
                         {
+                            lock_stop();
                             self._mailboxMap = null;
-                            lock_suspend_and_stop();
                             chan.remove_pop_notify(self.async_ignore<chan_async_state>(), ntfSign);
                             await self.async_wait();
                             await unlock_suspend_and_stop();
@@ -5002,12 +5138,12 @@ namespace Go
                     try
                     {
                         self._mailboxMap = _children.parent()._mailboxMap;
-                        chan_recv_wrap<T> res = await chan_try_receive(chan);
-                        if (chan_async_state.async_ok == res.state)
+                        chan_recv_wrap<T> recvRes = await chan_try_receive(chan);
+                        if (chan_async_state.async_ok == recvRes.state)
                         {
-                            await handler(res.msg);
+                            await handler(recvRes.msg);
                         }
-                        else if (null == errHandler || await errHandler(res.state)) { }
+                        else if (null == errHandler || await errHandler(recvRes.state)) { }
                     }
                     catch (stop_this_receive_exception) { }
                     catch (stop_all_receive_exception)
@@ -5074,12 +5210,12 @@ namespace Go
                             self._mailboxMap = _children.parent()._mailboxMap;
                             while (_run)
                             {
-                                chan_recv_wrap<T> res = await chan_receive(chan, token);
-                                if (chan_async_state.async_ok == res.state)
+                                chan_recv_wrap<T> recvRes = await chan_receive(chan, token);
+                                if (chan_async_state.async_ok == recvRes.state)
                                 {
-                                    await handler(res.msg);
+                                    await handler(recvRes.msg);
                                 }
-                                else if (null == errHandler || await errHandler(res.state))
+                                else if (null == errHandler || await errHandler(recvRes.state))
                                 {
                                     break;
                                 }
@@ -5100,6 +5236,7 @@ namespace Go
                         chan_notify_sign ntfSign = new chan_notify_sign();
                         try
                         {
+                            lock_suspend();
                             self._mailboxMap = _children.parent()._mailboxMap;
                             nil_chan<chan_async_state> waitHasChan = new nil_chan<chan_async_state>();
                             Action<chan_async_state> waitHasNtf = waitHasChan.wrap();
@@ -5122,17 +5259,25 @@ namespace Go
                                     recvRes = default(chan_recv_wrap<T>);
                                     chan.try_pop_and_append_notify(self.async_callback(tryPopHandler), waitHasNtf, ntfSign);
                                     await self.async_wait();
-                                    if (chan_async_state.async_ok == recvRes.state)
+                                    try
                                     {
-                                        await handler(recvRes.msg);
+                                        await unlock_suspend();
+                                        if (chan_async_state.async_ok == recvRes.state)
+                                        {
+                                            await handler(recvRes.msg);
+                                        }
+                                        else if (null != errHandler && await errHandler(recvRes.state))
+                                        {
+                                            break;
+                                        }
+                                        else if (chan_async_state.async_closed == recvRes.state)
+                                        {
+                                            break;
+                                        }
                                     }
-                                    else if (null != errHandler && await errHandler(recvRes.state))
+                                    finally
                                     {
-                                        break;
-                                    }
-                                    else if (chan_async_state.async_closed == recvRes.state)
-                                    {
-                                        break;
+                                        lock_suspend();
                                     }
                                 }
                                 finally
@@ -5148,8 +5293,8 @@ namespace Go
                         }
                         finally
                         {
+                            lock_stop();
                             self._mailboxMap = null;
-                            lock_suspend_and_stop();
                             chan.remove_pop_notify(self.async_ignore<chan_async_state>(), ntfSign);
                             await self.async_wait();
                             await unlock_suspend_and_stop();
@@ -5202,19 +5347,19 @@ namespace Go
                     token = null != token ? token : new broadcast_chan_token();
                     if (null == _mutex)
                     {
-                        chan_recv_wrap<T> res = await chan_timed_receive(chan, ms, token);
+                        chan_recv_wrap<T> recvRes = await chan_timed_receive(chan, ms, token);
                         try
                         {
                             self._mailboxMap = _children.parent()._mailboxMap;
-                            if (chan_async_state.async_ok == res.state)
+                            if (chan_async_state.async_ok == recvRes.state)
                             {
-                                await handler(res.msg);
+                                await handler(recvRes.msg);
                             }
-                            else if (chan_async_state.async_overtime == res.state)
+                            else if (chan_async_state.async_overtime == recvRes.state)
                             {
                                 await timedHandler();
                             }
-                            else if (null == errHandler || await errHandler(res.state)) { }
+                            else if (null == errHandler || await errHandler(recvRes.state)) { }
                         }
                         catch (stop_this_receive_exception) { }
                         catch (stop_all_receive_exception)
@@ -5231,6 +5376,7 @@ namespace Go
                         chan_notify_sign ntfSign = new chan_notify_sign();
                         try
                         {
+                            lock_suspend();
                             self._mailboxMap = _children.parent()._mailboxMap;
                             long endTick = system_tick.get_tick_ms() + ms;
                             while (_run)
@@ -5244,14 +5390,22 @@ namespace Go
                                     if (!overtime)
                                     {
                                         chan_recv_wrap<T> recvRes = await chan_try_receive(chan);
-                                        if (chan_async_state.async_ok == recvRes.state)
+                                        try
                                         {
-                                            await handler(recvRes.msg); break;
+                                            await unlock_suspend();
+                                            if (chan_async_state.async_ok == recvRes.state)
+                                            {
+                                                await handler(recvRes.msg); break;
+                                            }
+                                            else if ((null != errHandler && await errHandler(recvRes.state)) || chan_async_state.async_closed == recvRes.state) { break; }
+                                            if (0 <= ms && 0 >= (ms = (int)(endTick - system_tick.get_tick_ms())))
+                                            {
+                                                await timedHandler(); break;
+                                            }
                                         }
-                                        else if ((null != errHandler && await errHandler(recvRes.state)) || chan_async_state.async_closed == recvRes.state) { break; }
-                                        if (0 <= ms && 0 >= (ms = (int)(endTick - system_tick.get_tick_ms())))
+                                        finally
                                         {
-                                            await timedHandler(); break;
+                                            lock_suspend();
                                         }
                                     }
                                     else
@@ -5272,8 +5426,8 @@ namespace Go
                         }
                         finally
                         {
+                            lock_stop();
                             self._mailboxMap = null;
-                            lock_suspend_and_stop();
                             chan.remove_pop_notify(self.async_ignore<chan_async_state>(), ntfSign);
                             await self.async_wait();
                             await unlock_suspend_and_stop();
@@ -5330,12 +5484,12 @@ namespace Go
                     try
                     {
                         self._mailboxMap = _children.parent()._mailboxMap;
-                        chan_recv_wrap<T> res = await chan_try_receive(chan, null != token ? token : new broadcast_chan_token());
-                        if (chan_async_state.async_ok == res.state)
+                        chan_recv_wrap<T> recvRes = await chan_try_receive(chan, null != token ? token : new broadcast_chan_token());
+                        if (chan_async_state.async_ok == recvRes.state)
                         {
-                            await handler(res.msg);
+                            await handler(recvRes.msg);
                         }
-                        else if (null == errHandler || await errHandler(res.state)) { }
+                        else if (null == errHandler || await errHandler(recvRes.state)) { }
                     }
                     catch (stop_this_receive_exception) { }
                     catch (stop_all_receive_exception)
@@ -5421,12 +5575,12 @@ namespace Go
                             self._mailboxMap = _children.parent()._mailboxMap;
                             while (_run)
                             {
-                                csp_wait_wrap<R, T> res = await csp_wait(chan);
-                                if (chan_async_state.async_ok == res.state)
+                                csp_wait_wrap<R, T> recvRes = await csp_wait(chan);
+                                if (chan_async_state.async_ok == recvRes.state)
                                 {
-                                    await handler(res.result, res.msg);
+                                    await handler(recvRes.result, recvRes.msg);
                                 }
-                                else if (null == errHandler || await errHandler(res.state))
+                                else if (null == errHandler || await errHandler(recvRes.state))
                                 {
                                     break;
                                 }
@@ -5447,6 +5601,7 @@ namespace Go
                         chan_notify_sign ntfSign = new chan_notify_sign();
                         try
                         {
+                            lock_suspend();
                             self._mailboxMap = _children.parent()._mailboxMap;
                             nil_chan<chan_async_state> waitHasChan = new nil_chan<chan_async_state>();
                             Action<chan_async_state> waitHasNtf = waitHasChan.wrap();
@@ -5470,17 +5625,25 @@ namespace Go
                                     recvRes = default(csp_wait_wrap<R, T>);
                                     chan.try_pop_and_append_notify(self.async_callback(tryPopHandler), waitHasNtf, ntfSign);
                                     await self.async_wait();
-                                    if (chan_async_state.async_ok == recvRes.state)
+                                    try
                                     {
-                                        await handler(recvRes.result, recvRes.msg);
+                                        await unlock_suspend();
+                                        if (chan_async_state.async_ok == recvRes.state)
+                                        {
+                                            await handler(recvRes.result, recvRes.msg);
+                                        }
+                                        else if (null != errHandler && await errHandler(recvRes.state))
+                                        {
+                                            break;
+                                        }
+                                        else if (chan_async_state.async_closed == recvRes.state)
+                                        {
+                                            break;
+                                        }
                                     }
-                                    else if (null != errHandler && await errHandler(recvRes.state))
+                                    finally
                                     {
-                                        break;
-                                    }
-                                    else if (chan_async_state.async_closed == recvRes.state)
-                                    {
-                                        break;
+                                        lock_suspend();
                                     }
                                 }
                                 finally
@@ -5496,8 +5659,8 @@ namespace Go
                         }
                         finally
                         {
+                            lock_stop();
                             self._mailboxMap = null;
-                            lock_suspend_and_stop();
                             chan.remove_pop_notify(self.async_ignore<chan_async_state>(), ntfSign);
                             await self.async_wait();
                             await unlock_suspend_and_stop();
@@ -5569,19 +5732,19 @@ namespace Go
                     generator self = generator.self;
                     if (null == _mutex)
                     {
-                        csp_wait_wrap<R, T> res = await csp_timed_wait(chan, ms);
+                        csp_wait_wrap<R, T> recvRes = await csp_timed_wait(chan, ms);
                         try
                         {
                             self._mailboxMap = _children.parent()._mailboxMap;
-                            if (chan_async_state.async_ok == res.state)
+                            if (chan_async_state.async_ok == recvRes.state)
                             {
-                                await handler(res.result, res.msg);
+                                await handler(recvRes.result, recvRes.msg);
                             }
-                            else if (chan_async_state.async_overtime == res.state)
+                            else if (chan_async_state.async_overtime == recvRes.state)
                             {
                                 await timedHandler();
                             }
-                            else if (null == errHandler || await errHandler(res.state)) { }
+                            else if (null == errHandler || await errHandler(recvRes.state)) { }
                         }
                         catch (stop_this_receive_exception) { }
                         catch (stop_all_receive_exception)
@@ -5598,6 +5761,7 @@ namespace Go
                         chan_notify_sign ntfSign = new chan_notify_sign();
                         try
                         {
+                            lock_suspend();
                             self._mailboxMap = _children.parent()._mailboxMap;
                             long endTick = system_tick.get_tick_ms() + ms;
                             while (_run)
@@ -5611,14 +5775,22 @@ namespace Go
                                     if (!overtime)
                                     {
                                         csp_wait_wrap<R, T> recvRes = await csp_try_wait(chan);
-                                        if (chan_async_state.async_ok == recvRes.state)
+                                        try
                                         {
-                                            await handler(recvRes.result, recvRes.msg); break;
+                                            await unlock_suspend();
+                                            if (chan_async_state.async_ok == recvRes.state)
+                                            {
+                                                await handler(recvRes.result, recvRes.msg); break;
+                                            }
+                                            else if ((null != errHandler && await errHandler(recvRes.state)) || chan_async_state.async_closed == recvRes.state) { break; }
+                                            if (0 <= ms && 0 >= (ms = (int)(endTick - system_tick.get_tick_ms())))
+                                            {
+                                                await timedHandler(); break;
+                                            }
                                         }
-                                        else if ((null != errHandler && await errHandler(recvRes.state)) || chan_async_state.async_closed == recvRes.state) { break; }
-                                        if (0 <= ms && 0 >= (ms = (int)(endTick - system_tick.get_tick_ms())))
+                                        finally
                                         {
-                                            await timedHandler(); break;
+                                            lock_suspend();
                                         }
                                     }
                                     else
@@ -5639,8 +5811,8 @@ namespace Go
                         }
                         finally
                         {
+                            lock_stop();
                             self._mailboxMap = null;
-                            lock_suspend_and_stop();
                             chan.remove_pop_notify(self.async_ignore<chan_async_state>(), ntfSign);
                             await self.async_wait();
                             await unlock_suspend_and_stop();
@@ -5717,12 +5889,12 @@ namespace Go
                     try
                     {
                         self._mailboxMap = _children.parent()._mailboxMap;
-                        csp_wait_wrap<R, T> res = await csp_try_wait(chan);
-                        if (chan_async_state.async_ok == res.state)
+                        csp_wait_wrap<R, T> recvRes = await csp_try_wait(chan);
+                        if (chan_async_state.async_ok == recvRes.state)
                         {
-                            await handler(res.result, res.msg);
+                            await handler(recvRes.result, recvRes.msg);
                         }
-                        else if (null == errHandler || await errHandler(res.state)) { }
+                        else if (null == errHandler || await errHandler(recvRes.state)) { }
                     }
                     catch (stop_this_receive_exception) { }
                     catch (stop_all_receive_exception)
@@ -6179,6 +6351,7 @@ namespace Go
                 }
                 try
                 {
+                    lock_suspend();
                     if (null == this_._selectChans)
                     {
                         this_._selectChans = new LinkedList<LinkedList<select_chan_base>>();
@@ -6225,8 +6398,8 @@ namespace Go
                 }
                 finally
                 {
+                    lock_stop();
                     this_._selectChans.RemoveFirst();
-                    lock_suspend_and_stop();
                     for (LinkedListNode<select_chan_base> it = chans.First; null != it; it = it.Next)
                     {
                         await it.Value.end();
@@ -6250,6 +6423,7 @@ namespace Go
                 bool selected = false;
                 try
                 {
+                    lock_suspend();
                     if (null == this_._selectChans)
                     {
                         this_._selectChans = new LinkedList<LinkedList<select_chan_base>>();
@@ -6302,16 +6476,16 @@ namespace Go
                 catch (stop_select_exception) { }
                 finally
                 {
+                    lock_stop();
                     this_._selectChans.RemoveFirst();
                     if (!selected)
                     {
-                        lock_suspend_and_stop();
                         for (LinkedListNode<select_chan_base> it = chans.First; null != it; it = it.Next)
                         {
                             await it.Value.end();
                         }
-                        await unlock_suspend_and_stop();
                     }
+                    await unlock_suspend_and_stop();
                 }
                 return selected;
             }
@@ -6335,6 +6509,7 @@ namespace Go
                 bool selected = false;
                 try
                 {
+                    lock_suspend();
                     if (null == this_._selectChans)
                     {
                         this_._selectChans = new LinkedList<LinkedList<select_chan_base>>();
@@ -6395,17 +6570,17 @@ namespace Go
                 catch (stop_select_exception) { }
                 finally
                 {
+                    lock_stop();
                     this_._selectChans.RemoveFirst();
                     if (!selected)
                     {
                         this_._timer.cancel();
-                        lock_suspend_and_stop();
                         for (LinkedListNode<select_chan_base> it = chans.First; null != it; it = it.Next)
                         {
                             await it.Value.end();
                         }
-                        await unlock_suspend_and_stop();
                     }
+                    await unlock_suspend_and_stop();
                 }
                 return true;
             }
