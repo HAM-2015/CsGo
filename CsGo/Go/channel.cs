@@ -852,12 +852,12 @@ namespace Go
                 {
                     _waitQueue.Remove(ntfSign._ntfNode);
                     ntfSign._ntfNode = null;
-                }
-                if (0 != _buffer.Count && 0 != _waitQueue.Count)
-                {
-                    notify_pck wtNtf = _waitQueue.First.Value;
-                    _waitQueue.RemoveFirst();
-                    wtNtf.Invoke(chan_async_state.async_ok);
+                    if (0 != _buffer.Count && 0 != _waitQueue.Count)
+                    {
+                        notify_pck wtNtf = _waitQueue.First.Value;
+                        _waitQueue.RemoveFirst();
+                        wtNtf.Invoke(chan_async_state.async_ok);
+                    }
                 }
                 ntf(effect ? chan_async_state.async_ok : chan_async_state.async_fail);
             });
@@ -1363,12 +1363,12 @@ namespace Go
                 {
                     _popWait.Remove(ntfSign._ntfNode);
                     ntfSign._ntfNode = null;
-                }
-                if (0 != _buffer.Count && 0 != _popWait.Count)
-                {
-                    notify_pck popNtf = _popWait.First.Value;
-                    _popWait.RemoveFirst();
-                    popNtf.Invoke(chan_async_state.async_ok);
+                    if (0 != _buffer.Count && 0 != _popWait.Count)
+                    {
+                        notify_pck popNtf = _popWait.First.Value;
+                        _popWait.RemoveFirst();
+                        popNtf.Invoke(chan_async_state.async_ok);
+                    }
                 }
                 ntf(effect ? chan_async_state.async_ok : chan_async_state.async_fail);
             });
@@ -1443,12 +1443,12 @@ namespace Go
                 {
                     _pushWait.Remove(ntfSign._ntfNode);
                     ntfSign._ntfNode = null;
-                }
-                if (_buffer.Count != _length && 0 != _pushWait.Count)
-                {
-                    notify_pck pushNtf = _pushWait.First.Value;
-                    _pushWait.RemoveFirst();
-                    pushNtf.Invoke(chan_async_state.async_ok);
+                    if (_buffer.Count != _length && 0 != _pushWait.Count)
+                    {
+                        notify_pck pushNtf = _pushWait.First.Value;
+                        _pushWait.RemoveFirst();
+                        pushNtf.Invoke(chan_async_state.async_ok);
+                    }
                 }
                 ntf(effect ? chan_async_state.async_ok : chan_async_state.async_fail);
             });
@@ -2482,10 +2482,7 @@ namespace Go
                 {
                     _popWait.Remove(ntfSign._ntfNode);
                     ntfSign._ntfNode = null;
-                }
-                if (_has)
-                {
-                    if (0 != _popWait.Count)
+                    if (_has && 0 != _popWait.Count)
                     {
                         notify_pck popNtf = _popWait.First.Value;
                         _popWait.RemoveFirst();
