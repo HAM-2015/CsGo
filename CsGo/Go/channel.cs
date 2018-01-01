@@ -44,6 +44,7 @@ namespace Go
         public option_node _ntfNode;
         public bool _selectOnce = false;
         public bool _disable = false;
+        public bool _success = false;
 
         public void set(option_node node)
         {
@@ -53,6 +54,11 @@ namespace Go
         public void clear()
         {
             _ntfNode = null;
+        }
+
+        public void reset_success()
+        {
+            _success = false;
         }
 
         static public void set_node(chan_notify_sign sign, option_node node)
@@ -645,6 +651,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
+                ntfSign?.reset_success();
                 if (_closed)
                 {
                     ntf(chan_async_state.async_closed, null);
@@ -665,6 +672,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
+                ntfSign?.reset_success();
                 if (0 != _buffer.Count)
                 {
                     T msg = _buffer.First();
@@ -705,6 +713,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
+                ntfSign?.reset_success();
                 if (0 != _buffer.Count)
                 {
                     T msg = _buffer.First();
@@ -731,6 +740,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
+                ntfSign?.reset_success();
                 if (0 != _buffer.Count)
                 {
                     T msg = _buffer.First();
@@ -809,6 +819,7 @@ namespace Go
                         ntf = delegate (chan_async_state state)
                         {
                             ntfSign._ntfNode = null;
+                            ntfSign._success = chan_async_state.async_ok == state;
                             ntf(state);
                         }
                     });
@@ -820,6 +831,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
+                ntfSign.reset_success();
                 if (0 != _buffer.Count)
                 {
                     T msg = _buffer.First();
@@ -848,18 +860,20 @@ namespace Go
             _strand.distribute(delegate ()
             {
                 bool effect = null != ntfSign._ntfNode;
+                bool success = ntfSign._success;
+                ntfSign._success = false;
                 if (effect)
                 {
                     _waitQueue.Remove(ntfSign._ntfNode);
                     ntfSign._ntfNode = null;
-                    if (0 != _buffer.Count && 0 != _waitQueue.Count)
-                    {
-                        notify_pck wtNtf = _waitQueue.First.Value;
-                        _waitQueue.RemoveFirst();
-                        wtNtf.Invoke(chan_async_state.async_ok);
-                    }
                 }
-                ntf(effect ? chan_async_state.async_ok : chan_async_state.async_fail);
+                if (success && 0 != _buffer.Count && 0 != _waitQueue.Count)
+                {
+                    notify_pck wtNtf = _waitQueue.First.Value;
+                    _waitQueue.RemoveFirst();
+                    wtNtf.Invoke(chan_async_state.async_ok);
+                }
+                ntf(effect || success ? chan_async_state.async_ok : chan_async_state.async_fail);
             });
         }
 
@@ -880,6 +894,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
+                ntfSign.reset_success();
                 if (_closed)
                 {
                     msgNtf(chan_async_state.async_closed);
@@ -993,6 +1008,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
+                ntfSign?.reset_success();
                 if (_closed)
                 {
                     ntf(chan_async_state.async_closed, null);
@@ -1069,6 +1085,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
+                ntfSign?.reset_success();
                 if (0 != _buffer.Count)
                 {
                     T msg = _buffer.First();
@@ -1110,6 +1127,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
+                ntfSign?.reset_success();
                 if (_closed)
                 {
                     ntf(chan_async_state.async_closed, null);
@@ -1137,6 +1155,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
+                ntfSign?.reset_success();
                 if (0 != _buffer.Count)
                 {
                     T msg = _buffer.First();
@@ -1164,6 +1183,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
+                ntfSign?.reset_success();
                 if (_buffer.Count == _length)
                 {
                     if (ms >= 0)
@@ -1231,6 +1251,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
+                ntfSign?.reset_success();
                 if (0 != _buffer.Count)
                 {
                     T msg = _buffer.First();
@@ -1315,6 +1336,7 @@ namespace Go
                         ntf = delegate (chan_async_state state)
                         {
                             ntfSign._ntfNode = null;
+                            ntfSign._success = chan_async_state.async_ok == state;
                             ntf(state);
                         }
                     });
@@ -1326,6 +1348,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
+                ntfSign.reset_success();
                 if (0 != _buffer.Count)
                 {
                     T msg = _buffer.First();
@@ -1359,18 +1382,20 @@ namespace Go
             _strand.distribute(delegate ()
             {
                 bool effect = null != ntfSign._ntfNode;
+                bool success = ntfSign._success;
+                ntfSign._success = false;
                 if (effect)
                 {
                     _popWait.Remove(ntfSign._ntfNode);
                     ntfSign._ntfNode = null;
-                    if (0 != _buffer.Count && 0 != _popWait.Count)
-                    {
-                        notify_pck popNtf = _popWait.First.Value;
-                        _popWait.RemoveFirst();
-                        popNtf.Invoke(chan_async_state.async_ok);
-                    }
                 }
-                ntf(effect ? chan_async_state.async_ok : chan_async_state.async_fail);
+                if (success && 0 != _buffer.Count && 0 != _popWait.Count)
+                {
+                    notify_pck popNtf = _popWait.First.Value;
+                    _popWait.RemoveFirst();
+                    popNtf.Invoke(chan_async_state.async_ok);
+                }
+                ntf(effect || success ? chan_async_state.async_ok : chan_async_state.async_fail);
             });
         }
 
@@ -1394,6 +1419,7 @@ namespace Go
                         ntf = delegate (chan_async_state state)
                         {
                             ntfSign._ntfNode = null;
+                            ntfSign._success = chan_async_state.async_ok == state;
                             ntf(state);
                         }
                     });
@@ -1405,6 +1431,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
+                ntfSign.reset_success();
                 if (_closed)
                 {
                     msgNtf(chan_async_state.async_closed);
@@ -1439,18 +1466,20 @@ namespace Go
             _strand.distribute(delegate ()
             {
                 bool effect = null != ntfSign._ntfNode;
+                bool success = ntfSign._success;
+                ntfSign._success = false;
                 if (effect)
                 {
                     _pushWait.Remove(ntfSign._ntfNode);
                     ntfSign._ntfNode = null;
-                    if (_buffer.Count != _length && 0 != _pushWait.Count)
-                    {
-                        notify_pck pushNtf = _pushWait.First.Value;
-                        _pushWait.RemoveFirst();
-                        pushNtf.Invoke(chan_async_state.async_ok);
-                    }
                 }
-                ntf(effect ? chan_async_state.async_ok : chan_async_state.async_fail);
+                if (success && _buffer.Count != _length && 0 != _pushWait.Count)
+                {
+                    notify_pck pushNtf = _pushWait.First.Value;
+                    _pushWait.RemoveFirst();
+                    pushNtf.Invoke(chan_async_state.async_ok);
+                }
+                ntf(effect || success ? chan_async_state.async_ok : chan_async_state.async_fail);
             });
         }
 
@@ -1544,6 +1573,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
+                ntfSign?.reset_success();
                 if (_closed)
                 {
                     ntf(chan_async_state.async_closed, null);
@@ -1599,6 +1629,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
+                ntfSign?.reset_success();
                 if (_has)
                 {
                     T msg = _msg;
@@ -1643,6 +1674,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
+                ntfSign?.reset_success();
                 if (_closed)
                 {
                     ntf(chan_async_state.async_closed, null);
@@ -1687,6 +1719,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
+                ntfSign?.reset_success();
                 if (_has)
                 {
                     T msg = _msg;
@@ -1734,6 +1767,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
+                ntfSign?.reset_success();
                 if (_closed)
                 {
                     ntf(chan_async_state.async_closed, null);
@@ -1856,6 +1890,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
+                ntfSign?.reset_success();
                 if (_has)
                 {
                     T msg = _msg;
@@ -1949,6 +1984,7 @@ namespace Go
                         ntf = delegate (chan_async_state state)
                         {
                             ntfSign._ntfNode = null;
+                            ntfSign._success = chan_async_state.async_ok == state;
                             ntf(state);
                         }
                     });
@@ -1966,6 +2002,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
+                ntfSign.reset_success();
                 if (_has)
                 {
                     T msg = _msg;
@@ -2020,29 +2057,31 @@ namespace Go
             _strand.distribute(delegate ()
             {
                 bool effect = null != ntfSign._ntfNode;
+                bool success = ntfSign._success;
+                ntfSign._success = false;
                 if (effect)
                 {
                     _isTryPop &= _popWait.First != ntfSign._ntfNode;
                     _popWait.Remove(ntfSign._ntfNode);
                     ntfSign._ntfNode = null;
-                    if (_has)
+                }
+                if (success && _has)
+                {
+                    if (0 != _popWait.Count)
                     {
-                        if (0 != _popWait.Count)
-                        {
-                            notify_pck popNtf = _popWait.First.Value;
-                            _popWait.RemoveFirst();
-                            popNtf.Invoke(chan_async_state.async_ok);
-                        }
-                        else if (0 != _pushWait.Count && _isTryPush)
-                        {
-                            _has = false;
-                            notify_pck pushNtf = _pushWait.First.Value;
-                            _pushWait.RemoveFirst();
-                            pushNtf.Invoke(chan_async_state.async_fail);
-                        }
+                        notify_pck popNtf = _popWait.First.Value;
+                        _popWait.RemoveFirst();
+                        popNtf.Invoke(chan_async_state.async_ok);
+                    }
+                    else if (0 != _pushWait.Count && _isTryPush)
+                    {
+                        _has = false;
+                        notify_pck pushNtf = _pushWait.First.Value;
+                        _pushWait.RemoveFirst();
+                        pushNtf.Invoke(chan_async_state.async_fail);
                     }
                 }
-                ntf(effect ? chan_async_state.async_ok : chan_async_state.async_fail);
+                ntf(effect || success ? chan_async_state.async_ok : chan_async_state.async_fail);
             });
         }
 
@@ -2066,6 +2105,7 @@ namespace Go
                         ntf = delegate (chan_async_state state)
                         {
                             ntfSign._ntfNode = null;
+                            ntfSign._success = chan_async_state.async_ok == state;
                             ntf(state);
                         }
                     });
@@ -2077,6 +2117,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
+                ntfSign.reset_success();
                 if (_closed)
                 {
                     msgNtf(chan_async_state.async_closed);
@@ -2124,28 +2165,30 @@ namespace Go
             _strand.distribute(delegate ()
             {
                 bool effect = null != ntfSign._ntfNode;
+                bool success = ntfSign._success;
+                ntfSign._success = false;
                 if (effect)
                 {
                     _isTryPush &= _pushWait.First != ntfSign._ntfNode;
                     _pushWait.Remove(ntfSign._ntfNode);
                     ntfSign._ntfNode = null;
-                    if (!_has)
+                }
+                if (success && !_has)
+                {
+                    if (0 != _pushWait.Count)
                     {
-                        if (0 != _pushWait.Count)
-                        {
-                            notify_pck pushNtf = _pushWait.First.Value;
-                            _pushWait.RemoveFirst();
-                            pushNtf.Invoke(chan_async_state.async_ok);
-                        }
-                        else if (0 != _popWait.Count && _isTryPop)
-                        {
-                            notify_pck popNtf = _popWait.First.Value;
-                            _popWait.RemoveFirst();
-                            popNtf.Invoke(chan_async_state.async_fail);
-                        }
+                        notify_pck pushNtf = _pushWait.First.Value;
+                        _pushWait.RemoveFirst();
+                        pushNtf.Invoke(chan_async_state.async_ok);
+                    }
+                    else if (0 != _popWait.Count && _isTryPop)
+                    {
+                        notify_pck popNtf = _popWait.First.Value;
+                        _popWait.RemoveFirst();
+                        popNtf.Invoke(chan_async_state.async_fail);
                     }
                 }
-                ntf(effect ? chan_async_state.async_ok : chan_async_state.async_fail);
+                ntf(effect || success ? chan_async_state.async_ok : chan_async_state.async_fail);
             });
         }
 
@@ -2250,6 +2293,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
+                ntfSign?.reset_success();
                 if (_closed)
                 {
                     ntf(chan_async_state.async_closed, null);
@@ -2278,6 +2322,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
+                ntfSign?.reset_success();
                 if (_has && token._lastId != _pushCount)
                 {
                     if (!token.is_default())
@@ -2325,6 +2370,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
+                ntfSign?.reset_success();
                 if (_has && token._lastId != _pushCount)
                 {
                     if (!token.is_default())
@@ -2356,6 +2402,7 @@ namespace Go
 
         internal override void timed_pop(int ms, Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign, broadcast_chan_token token)
         {
+            ntfSign?.reset_success();
             _timed_check_pop(system_tick.get_tick_ms() + ms, ntf, ntfSign, token);
         }
 
@@ -2441,6 +2488,7 @@ namespace Go
                     ntf = delegate (chan_async_state state)
                     {
                         ntfSign._ntfNode = null;
+                        ntfSign._success = chan_async_state.async_ok == state;
                         ntf(state);
                     }
                 });
@@ -2457,6 +2505,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
+                ntfSign.reset_success();
                 if (_append_pop_notify(msgNtf, ntfSign, token))
                 {
                     cb(chan_async_state.async_ok, _msg, null);
@@ -2478,18 +2527,20 @@ namespace Go
             _strand.distribute(delegate ()
             {
                 bool effect = null != ntfSign._ntfNode;
+                bool success = ntfSign._success;
+                ntfSign._success = false;
                 if (effect)
                 {
                     _popWait.Remove(ntfSign._ntfNode);
                     ntfSign._ntfNode = null;
-                    if (_has && 0 != _popWait.Count)
-                    {
-                        notify_pck popNtf = _popWait.First.Value;
-                        _popWait.RemoveFirst();
-                        popNtf.Invoke(chan_async_state.async_ok);
-                    }
                 }
-                ntf(effect ? chan_async_state.async_ok : chan_async_state.async_fail);
+                if (success && _has && 0 != _popWait.Count)
+                {
+                    notify_pck popNtf = _popWait.First.Value;
+                    _popWait.RemoveFirst();
+                    popNtf.Invoke(chan_async_state.async_ok);
+                }
+                ntf(effect || success ? chan_async_state.async_ok : chan_async_state.async_fail);
             });
         }
 
@@ -2510,6 +2561,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
+                ntfSign.reset_success();
                 if (_closed)
                 {
                     msgNtf(chan_async_state.async_closed);
@@ -2951,6 +3003,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
+                ntfSign?.reset_success();
                 if (_closed)
                 {
                     ntf(chan_async_state.async_closed, null);
@@ -2991,6 +3044,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
+                ntfSign?.reset_success();
                 if (_msg._has)
                 {
                     send_pck pck = _msg;
@@ -3037,8 +3091,14 @@ namespace Go
 
         internal override void try_push(Action<chan_async_state, object> ntf, T msg, chan_notify_sign ntfSign)
         {
+            try_push(-1, ntf, msg, ntfSign);
+        }
+
+        internal void try_push(int invokeMs, Action<chan_async_state, object> ntf, T msg, chan_notify_sign ntfSign)
+        {
             _strand.distribute(delegate ()
             {
+                ntfSign?.reset_success();
                 if (_closed)
                 {
                     ntf(chan_async_state.async_closed, null);
@@ -3051,7 +3111,7 @@ namespace Go
                 else if (0 != _waitQueue.Count)
                 {
                     _isTryMsg = true;
-                    _msg.set(ntf, msg);
+                    _msg.set(ntf, msg, invokeMs);
                     notify_pck handler = _waitQueue.First.Value;
                     _waitQueue.RemoveFirst();
                     handler.Invoke(chan_async_state.async_ok);
@@ -3067,6 +3127,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
+                ntfSign?.reset_success();
                 if (_msg._has)
                 {
                     send_pck pck = _msg;
@@ -3123,6 +3184,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
+                ntfSign?.reset_success();
                 if (_closed)
                 {
                     ntf(chan_async_state.async_closed, null);
@@ -3211,6 +3273,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
+                ntfSign?.reset_success();
                 if (_msg._has)
                 {
                     send_pck pck = _msg;
@@ -3308,6 +3371,7 @@ namespace Go
                         ntf = delegate (chan_async_state state)
                         {
                             ntfSign._ntfNode = null;
+                            ntfSign._success = chan_async_state.async_ok == state;
                             ntf(state);
                         }
                     });
@@ -3325,6 +3389,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
+                ntfSign.reset_success();
                 if (_msg._has)
                 {
                     send_pck pck = _msg;
@@ -3383,29 +3448,31 @@ namespace Go
             _strand.distribute(delegate ()
             {
                 bool effect = null != ntfSign._ntfNode;
+                bool success = ntfSign._success;
+                ntfSign._success = false;
                 if (effect)
                 {
                     _isTryPop &= _waitQueue.First != ntfSign._ntfNode;
                     _waitQueue.Remove(ntfSign._ntfNode);
                     ntfSign._ntfNode = null;
-                    if (_msg._has)
+                }
+                if (success && _msg._has)
+                {
+                    if (0 != _waitQueue.Count)
                     {
-                        if (0 != _waitQueue.Count)
-                        {
-                            notify_pck popNtf = _waitQueue.First.Value;
-                            _waitQueue.RemoveFirst();
-                            popNtf.Invoke(chan_async_state.async_ok);
-                        }
-                        else if (_isTryMsg)
-                        {
-                            _isTryMsg = false;
-                            _msg.cancel_timer();
-                            Action<chan_async_state, object> ntf_ = _msg._notify;
-                            ntf_(chan_async_state.async_fail, null);
-                        }
+                        notify_pck popNtf = _waitQueue.First.Value;
+                        _waitQueue.RemoveFirst();
+                        popNtf.Invoke(chan_async_state.async_ok);
+                    }
+                    else if (_isTryMsg)
+                    {
+                        _isTryMsg = false;
+                        _msg.cancel_timer();
+                        Action<chan_async_state, object> ntf_ = _msg._notify;
+                        ntf_(chan_async_state.async_fail, null);
                     }
                 }
-                ntf(effect ? chan_async_state.async_ok : chan_async_state.async_fail);
+                ntf(effect || success ? chan_async_state.async_ok : chan_async_state.async_fail);
             });
         }
 
@@ -3429,6 +3496,7 @@ namespace Go
                         ntf = delegate (chan_async_state state)
                         {
                             ntfSign._ntfNode = null;
+                            ntfSign._success = chan_async_state.async_ok == state;
                             ntf(state);
                         }
                     });
@@ -3440,6 +3508,7 @@ namespace Go
         {
             _strand.distribute(delegate ()
             {
+                ntfSign.reset_success();
                 if (_closed)
                 {
                     msgNtf(chan_async_state.async_closed);
@@ -3471,27 +3540,29 @@ namespace Go
             _strand.distribute(delegate ()
             {
                 bool effect = null != ntfSign._ntfNode;
+                bool success = ntfSign._success;
+                ntfSign._success = false;
                 if (effect)
                 {
                     _sendQueue.Remove(ntfSign._ntfNode);
                     ntfSign._ntfNode = null;
-                    if (!_msg._has)
+                }
+                if (success && !_msg._has)
+                {
+                    if (0 != _sendQueue.Count)
                     {
-                        if (0 != _sendQueue.Count)
-                        {
-                            notify_pck sendNtf = _sendQueue.First.Value;
-                            _sendQueue.RemoveFirst();
-                            sendNtf.Invoke(chan_async_state.async_ok);
-                        }
-                        else if (0 != _waitQueue.Count && _isTryPop)
-                        {
-                            notify_pck popNtf = _waitQueue.First.Value;
-                            _waitQueue.RemoveFirst();
-                            popNtf.Invoke(chan_async_state.async_fail);
-                        }
+                        notify_pck sendNtf = _sendQueue.First.Value;
+                        _sendQueue.RemoveFirst();
+                        sendNtf.Invoke(chan_async_state.async_ok);
+                    }
+                    else if (0 != _waitQueue.Count && _isTryPop)
+                    {
+                        notify_pck popNtf = _waitQueue.First.Value;
+                        _waitQueue.RemoveFirst();
+                        popNtf.Invoke(chan_async_state.async_fail);
                     }
                 }
-                ntf(effect ? chan_async_state.async_ok : chan_async_state.async_fail);
+                ntf(effect || success ? chan_async_state.async_ok : chan_async_state.async_fail);
             });
         }
 

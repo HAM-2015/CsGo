@@ -546,7 +546,7 @@ namespace Go
             _strand._timer.re_timeout(this);
         }
 
-        public void timeout_us(long us, Action handler)
+        public long timeout_us(long us, Action handler)
         {
 #if DEBUG
             Trace.Assert(_strand.running_in_this_thread() && null == _handler && null != handler);
@@ -563,9 +563,10 @@ namespace Go
             {
                 tick_timer(_beginTick);
             }
+            return _beginTick;
         }
 
-        public void deadline_us(long us, Action handler)
+        public long deadline_us(long us, Action handler)
         {
 #if DEBUG
             Trace.Assert(_strand.running_in_this_thread() && null == _handler && null != handler);
@@ -574,35 +575,43 @@ namespace Go
             _handler = handler;
             _strand.hold_work();
             _beginTick = system_tick.get_tick_us();
-            begin_timer(us, us - _beginTick);
+            if (_beginTick < us)
+            {
+                begin_timer(us, us - _beginTick);
+            }
+            else
+            {
+                tick_timer(_beginTick);
+            }
+            return _beginTick;
         }
 
-        public void timeout(int ms, Action handler)
+        public long timeout(int ms, Action handler)
         {
-            timeout_us((long)ms * 1000, handler);
+            return timeout_us((long)ms * 1000, handler);
         }
 
-        public void deadline(long ms, Action handler)
+        public long deadline(long ms, Action handler)
         {
-            deadline_us(ms * 1000, handler);
+            return deadline_us(ms * 1000, handler);
         }
 
-        public void interval(int ms, Action handler, bool immed = false)
+        public long interval(int ms, Action handler, bool immed = false)
         {
-            interval_us((long)ms * 1000, handler, immed);
+            return interval_us((long)ms * 1000, handler, immed);
         }
 
-        public void interval2(int ms1, int ms2, Action handler, bool immed = false)
+        public long interval2(int ms1, int ms2, Action handler, bool immed = false)
         {
-            interval2_us((long)ms1 * 1000, (long)ms2 * 1000, handler, immed);
+            return interval2_us((long)ms1 * 1000, (long)ms2 * 1000, handler, immed);
         }
 
-        public void interval_us(long us, Action handler, bool immed = false)
+        public long interval_us(long us, Action handler, bool immed = false)
         {
-            interval2_us(us, us, handler, immed);
+            return interval2_us(us, us, handler, immed);
         }
 
-        public void interval2_us(long us1, long us2, Action handler, bool immed = false)
+        public long interval2_us(long us1, long us2, Action handler, bool immed = false)
         {
 #if DEBUG
             Trace.Assert(_strand.running_in_this_thread() && null == _handler && null != handler);
@@ -616,6 +625,7 @@ namespace Go
             {
                 handler();
             }
+            return _beginTick;
         }
 
         public bool restart(int ms = -1)
