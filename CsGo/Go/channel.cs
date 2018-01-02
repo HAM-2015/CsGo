@@ -156,7 +156,7 @@ namespace Go
             public channel<T> _chan;
             public Func<T, Task> _handler;
             public Func<chan_async_state, Task<bool>> _errHandler;
-            public Func<T, Task> _lostHandler;
+            public chan_lost_msg<T> _lostMsg;
             chan_recv_wrap<T> _tempResult = default(chan_recv_wrap<T>);
             Action<chan_async_state, T, object> _tryPushHandler;
             generator _host;
@@ -165,6 +165,7 @@ namespace Go
             {
                 ntfSign._disable = false;
                 _host = generator.self;
+                _lostMsg?.clear();
                 _chan.append_pop_notify(nextSelect, ntfSign);
             }
 
@@ -191,9 +192,9 @@ namespace Go
                 {
                     _chan.remove_pop_notify(_host.async_ignore<chan_async_state>(), ntfSign);
                     await _host.async_wait();
-                    if (chan_async_state.async_ok == _tempResult.state && null != _lostHandler)
+                    if (chan_async_state.async_ok == _tempResult.state)
                     {
-                        await _lostHandler(_tempResult.msg);
+                        _lostMsg?.set(_tempResult.msg);
                     }
                     throw;
                 }
@@ -207,6 +208,7 @@ namespace Go
                     try
                     {
                         await generator.unlock_suspend();
+                        _lostMsg?.clear();
                         await _handler(_tempResult.msg);
                     }
                     finally
@@ -267,6 +269,7 @@ namespace Go
             public Func<T> _msg;
             public Func<Task> _handler;
             public Func<chan_async_state, Task<bool>> _errHandler;
+            public chan_lost_msg<T> _lostMsg;
             chan_async_state _tempResult = chan_async_state.async_undefined;
             Action<chan_async_state, object> _tryPushHandler;
             generator _host;
@@ -275,6 +278,7 @@ namespace Go
             {
                 ntfSign._disable = false;
                 _host = generator.self;
+                _lostMsg?.clear();
                 _chan.append_push_notify(nextSelect, ntfSign);
             }
 
@@ -284,9 +288,23 @@ namespace Go
                 {
                     _tryPushHandler = (chan_async_state state, object _) => _tempResult = state;
                 }
-                _tempResult = chan_async_state.async_undefined;
-                _chan.try_push_and_append_notify(_host.async_callback(_tryPushHandler), nextSelect, ntfSign, _msg());
-                await _host.async_wait();
+                T msg = _msg();
+                try
+                {
+                    _tempResult = chan_async_state.async_undefined;
+                    _chan.try_push_and_append_notify(_host.async_callback(_tryPushHandler), nextSelect, ntfSign, msg);
+                    await _host.async_wait();
+                }
+                catch (generator.stop_exception)
+                {
+                    _chan.remove_push_notify(_host.async_callback(nil_action<chan_async_state>.action), ntfSign);
+                    await _host.async_wait();
+                    if (chan_async_state.async_ok != _tempResult)
+                    {
+                        _lostMsg?.set(msg);
+                    }
+                    throw;
+                }
                 select_chan_state chanState = new select_chan_state() { failed = false, nextRound = true };
                 if (chan_async_state.async_ok == _tempResult)
                 {
@@ -309,6 +327,7 @@ namespace Go
                     try
                     {
                         await generator.unlock_suspend();
+                        _lostMsg?.clear();
                         chanState.failed = await _errHandler(_tempResult);
                     }
                     finally
@@ -469,29 +488,29 @@ namespace Go
             return () => timed_discard(ms);
         }
 
-        internal select_chan_base make_select_reader(Func<T, Task> handler, Func<T, Task> lostHandler = null)
+        internal select_chan_base make_select_reader(Func<T, Task> handler, chan_lost_msg<T> lostMsg)
         {
-            return new select_chan_reader() { _chan = this, _handler = handler, _lostHandler = lostHandler };
+            return new select_chan_reader() { _chan = this, _handler = handler, _lostMsg = lostMsg };
         }
 
-        internal select_chan_base make_select_reader(Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler, Func<T, Task> lostHandler = null)
+        internal select_chan_base make_select_reader(Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler, chan_lost_msg<T> lostMsg)
         {
-            return new select_chan_reader() { _chan = this, _handler = handler, _errHandler = errHandler, _lostHandler = lostHandler };
+            return new select_chan_reader() { _chan = this, _handler = handler, _errHandler = errHandler, _lostMsg = lostMsg };
         }
 
-        internal select_chan_base make_select_writer(Func<T> msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler)
+        internal select_chan_base make_select_writer(Func<T> msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler, chan_lost_msg<T> lostMsg)
         {
-            return new select_chan_writer() { _chan = this, _msg = msg, _handler = handler, _errHandler = errHandler };
+            return new select_chan_writer() { _chan = this, _msg = msg, _handler = handler, _errHandler = errHandler, _lostMsg = lostMsg };
         }
 
-        internal select_chan_base make_select_writer(async_result_wrap<T> msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler)
+        internal select_chan_base make_select_writer(async_result_wrap<T> msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler, chan_lost_msg<T> lostMsg)
         {
-            return make_select_writer(() => msg.value1, handler, errHandler);
+            return make_select_writer(() => msg.value1, handler, errHandler, lostMsg);
         }
 
-        internal select_chan_base make_select_writer(T msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler)
+        internal select_chan_base make_select_writer(T msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler, chan_lost_msg<T> lostMsg)
         {
-            return make_select_writer(() => msg, handler, errHandler);
+            return make_select_writer(() => msg, handler, errHandler, lostMsg);
         }
 
         internal virtual void pop(Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign, broadcast_chan_token token)
@@ -519,14 +538,14 @@ namespace Go
             try_pop_and_append_notify(cb, msgNtf, ntfSign);
         }
 
-        internal virtual select_chan_base make_select_reader(Func<T, Task> handler, broadcast_chan_token token)
+        internal virtual select_chan_base make_select_reader(Func<T, Task> handler, broadcast_chan_token token, chan_lost_msg<T> lostMsg)
         {
-            return make_select_reader(handler);
+            return make_select_reader(handler, lostMsg);
         }
 
-        internal virtual select_chan_base make_select_reader(Func<T, Task> handler, broadcast_chan_token token, Func<chan_async_state, Task<bool>> errHandler)
+        internal virtual select_chan_base make_select_reader(Func<T, Task> handler, broadcast_chan_token token, Func<chan_async_state, Task<bool>> errHandler, chan_lost_msg<T> lostMsg)
         {
-            return make_select_reader(handler, errHandler);
+            return make_select_reader(handler, errHandler, lostMsg);
         }
     }
 
@@ -866,13 +885,13 @@ namespace Go
                     _waitQueue.Remove(ntfSign._ntfNode);
                     ntfSign._ntfNode = null;
                 }
-                if (success && 0 != _buffer.Count && 0 != _waitQueue.Count)
+                else if (success && 0 != _buffer.Count && 0 != _waitQueue.Count)
                 {
                     notify_pck wtNtf = _waitQueue.First.Value;
                     _waitQueue.RemoveFirst();
                     wtNtf.Invoke(chan_async_state.async_ok);
                 }
-                ntf(effect || success ? chan_async_state.async_ok : chan_async_state.async_fail);
+                ntf(effect ? chan_async_state.async_ok : chan_async_state.async_fail);
             });
         }
 
@@ -1388,13 +1407,13 @@ namespace Go
                     _popWait.Remove(ntfSign._ntfNode);
                     ntfSign._ntfNode = null;
                 }
-                if (success && 0 != _buffer.Count && 0 != _popWait.Count)
+                else if (success && 0 != _buffer.Count && 0 != _popWait.Count)
                 {
                     notify_pck popNtf = _popWait.First.Value;
                     _popWait.RemoveFirst();
                     popNtf.Invoke(chan_async_state.async_ok);
                 }
-                ntf(effect || success ? chan_async_state.async_ok : chan_async_state.async_fail);
+                ntf(effect ? chan_async_state.async_ok : chan_async_state.async_fail);
             });
         }
 
@@ -1472,13 +1491,13 @@ namespace Go
                     _pushWait.Remove(ntfSign._ntfNode);
                     ntfSign._ntfNode = null;
                 }
-                if (success && _buffer.Count != _length && 0 != _pushWait.Count)
+                else if (success && _buffer.Count != _length && 0 != _pushWait.Count)
                 {
                     notify_pck pushNtf = _pushWait.First.Value;
                     _pushWait.RemoveFirst();
                     pushNtf.Invoke(chan_async_state.async_ok);
                 }
-                ntf(effect || success ? chan_async_state.async_ok : chan_async_state.async_fail);
+                ntf(effect ? chan_async_state.async_ok : chan_async_state.async_fail);
             });
         }
 
@@ -2064,7 +2083,7 @@ namespace Go
                     _popWait.Remove(ntfSign._ntfNode);
                     ntfSign._ntfNode = null;
                 }
-                if (success && _has)
+                else if (success && _has)
                 {
                     if (0 != _popWait.Count)
                     {
@@ -2080,7 +2099,7 @@ namespace Go
                         pushNtf.Invoke(chan_async_state.async_fail);
                     }
                 }
-                ntf(effect || success ? chan_async_state.async_ok : chan_async_state.async_fail);
+                ntf(effect ? chan_async_state.async_ok : chan_async_state.async_fail);
             });
         }
 
@@ -2172,7 +2191,7 @@ namespace Go
                     _pushWait.Remove(ntfSign._ntfNode);
                     ntfSign._ntfNode = null;
                 }
-                if (success && !_has)
+                else if (success && !_has)
                 {
                     if (0 != _pushWait.Count)
                     {
@@ -2187,7 +2206,7 @@ namespace Go
                         popNtf.Invoke(chan_async_state.async_fail);
                     }
                 }
-                ntf(effect || success ? chan_async_state.async_ok : chan_async_state.async_fail);
+                ntf(effect ? chan_async_state.async_ok : chan_async_state.async_fail);
             });
         }
 
@@ -2278,14 +2297,14 @@ namespace Go
             _closed = false;
         }
 
-        internal override select_chan_base make_select_reader(Func<T, Task> handler, broadcast_chan_token token)
+        internal override select_chan_base make_select_reader(Func<T, Task> handler, broadcast_chan_token token, chan_lost_msg<T> lostMsg)
         {
-            return new select_chan_reader() { _token = token, _chan = this, _handler = handler };
+            return new select_chan_reader() { _token = token, _chan = this, _handler = handler, _lostMsg = lostMsg };
         }
 
-        internal override select_chan_base make_select_reader(Func<T, Task> handler, broadcast_chan_token token, Func<chan_async_state, Task<bool>> errHandler)
+        internal override select_chan_base make_select_reader(Func<T, Task> handler, broadcast_chan_token token, Func<chan_async_state, Task<bool>> errHandler, chan_lost_msg<T> lostMsg)
         {
-            return new select_chan_reader() { _token = token, _chan = this, _handler = handler, _errHandler = errHandler };
+            return new select_chan_reader() { _token = token, _chan = this, _handler = handler, _errHandler = errHandler, _lostMsg = lostMsg };
         }
 
         public override chan_type type()
@@ -2538,13 +2557,13 @@ namespace Go
                     _popWait.Remove(ntfSign._ntfNode);
                     ntfSign._ntfNode = null;
                 }
-                if (success && _has && 0 != _popWait.Count)
+                else if (success && _has && 0 != _popWait.Count)
                 {
                     notify_pck popNtf = _popWait.First.Value;
                     _popWait.RemoveFirst();
                     popNtf.Invoke(chan_async_state.async_ok);
                 }
-                ntf(effect || success ? chan_async_state.async_ok : chan_async_state.async_fail);
+                ntf(effect ? chan_async_state.async_ok : chan_async_state.async_fail);
             });
         }
 
@@ -2715,7 +2734,7 @@ namespace Go
             public csp_chan<R, T> _chan;
             public Func<csp_result, T, Task> _handler;
             public Func<chan_async_state, Task<bool>> _errHandler;
-            public Func<T, Task> _lostHandler;
+            public chan_lost_msg<T> _lostMsg;
             csp_wait_wrap<R, T> _tempResult = default(csp_wait_wrap<R, T>);
             Action<chan_async_state, T, object> _tryPopHandler;
             generator _host;
@@ -2724,6 +2743,7 @@ namespace Go
             {
                 ntfSign._disable = false;
                 _host = generator.self;
+                _lostMsg?.clear();
                 _chan.append_pop_notify(nextSelect, ntfSign);
             }
 
@@ -2741,9 +2761,9 @@ namespace Go
                         }
                     };
                 }
-                _tempResult = csp_wait_wrap<R, T>.undefined();
                 try
                 {
+                    _tempResult = csp_wait_wrap<R, T>.undefined();
                     _chan.try_pop_and_append_notify(_host.async_callback(_tryPopHandler), nextSelect, ntfSign);
                     await _host.async_wait();
                 }
@@ -2753,10 +2773,7 @@ namespace Go
                     await _host.async_wait();
                     if (chan_async_state.async_ok == _tempResult.state)
                     {
-                        if (null != _lostHandler)
-                        {
-                            await _lostHandler(_tempResult.msg);
-                        }
+                        _lostMsg?.set(_tempResult.msg);
                         _tempResult.fail();
                     }
                     throw;
@@ -2772,6 +2789,7 @@ namespace Go
                     {
                         _tempResult.result.start_invoke_timer(_host);
                         await generator.unlock_suspend();
+                        _lostMsg?.clear();
                         await _handler(_tempResult.result, _tempResult.msg);
                     }
                     catch (csp_fail_exception)
@@ -2842,6 +2860,7 @@ namespace Go
             public Func<R, Task> _handler;
             public Func<chan_async_state, Task<bool>> _errHandler;
             public Action<chan_async_state, object> _lostHandler;
+            public chan_lost_msg<T> _lostMsg;
             csp_invoke_wrap<R> _tempResult = default(csp_invoke_wrap<R>);
             Action<chan_async_state, object> _tryPushHandler;
             generator _host;
@@ -2850,6 +2869,7 @@ namespace Go
             {
                 ntfSign._disable = false;
                 _host = generator.self;
+                _lostMsg?.clear();
                 _chan.append_push_notify(nextSelect, ntfSign);
             }
 
@@ -2866,9 +2886,24 @@ namespace Go
                         }
                     };
                 }
-                _tempResult = csp_invoke_wrap<R>.undefined();
-                _chan.try_push_and_append_notify(null == _lostHandler ? _host.async_callback(_tryPushHandler) : _host.safe_async_callback(_tryPushHandler, _lostHandler), nextSelect, ntfSign, _msg());
-                await _host.async_wait();
+                T msg = _msg();
+                try
+                {
+                    _tempResult = csp_invoke_wrap<R>.undefined();
+                    _chan.try_push_and_append_notify(null == _lostHandler ? _host.async_callback(_tryPushHandler) : _host.safe_async_callback(_tryPushHandler, _lostHandler), nextSelect, ntfSign, msg);
+                    await _host.async_wait();
+                }
+                catch (generator.stop_exception)
+                {
+                    chan_async_state rmState = chan_async_state.async_undefined;
+                    _chan.remove_push_notify(_host.async_callback(null == _lostMsg ? nil_action<chan_async_state>.action : (chan_async_state state) => rmState = state), ntfSign);
+                    await _host.async_wait();
+                    if (chan_async_state.async_ok == rmState)
+                    {
+                        _lostMsg?.set(msg);
+                    }
+                    throw;
+                }
                 select_chan_state chanState = new select_chan_state() { failed = false, nextRound = true };
                 if (chan_async_state.async_ok == _tempResult.state)
                 {
@@ -2879,6 +2914,7 @@ namespace Go
                     try
                     {
                         await generator.unlock_suspend();
+                        _lostMsg?.clear();
                         await _handler(_tempResult.result);
                     }
                     finally
@@ -2963,17 +2999,17 @@ namespace Go
             _closed = false;
         }
 
-        internal select_chan_base make_select_reader(Func<csp_result, T, Task> handler, Func<T, Task> lostHandler = null)
+        internal select_chan_base make_select_reader(Func<csp_result, T, Task> handler, chan_lost_msg<T> lostMsg)
         {
-            return new select_csp_reader() { _chan = this, _handler = handler, _lostHandler = lostHandler };
+            return new select_csp_reader() { _chan = this, _handler = handler, _lostMsg = lostMsg };
         }
 
-        internal select_chan_base make_select_reader(Func<csp_result, T, Task> handler, Func<chan_async_state, Task<bool>> errHandler, Func<T, Task> lostHandler = null)
+        internal select_chan_base make_select_reader(Func<csp_result, T, Task> handler, Func<chan_async_state, Task<bool>> errHandler, chan_lost_msg<T> lostMsg)
         {
-            return new select_csp_reader() { _chan = this, _handler = handler, _errHandler = errHandler, _lostHandler = lostHandler };
+            return new select_csp_reader() { _chan = this, _handler = handler, _errHandler = errHandler, _lostMsg = lostMsg };
         }
 
-        internal select_chan_base make_select_writer(Func<T> msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler, Action<R> lostHandler = null)
+        internal select_chan_base make_select_writer(Func<T> msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler, Action<R> lostHandler, chan_lost_msg<T> lostMsg)
         {
             return new select_csp_writer()
             {
@@ -2981,6 +3017,7 @@ namespace Go
                 _msg = msg,
                 _handler = handler,
                 _errHandler = errHandler,
+                _lostMsg = lostMsg,
                 _lostHandler = null == lostHandler ? (Action<chan_async_state, object>)null : delegate (chan_async_state state, object exObj)
                 {
                     if (chan_async_state.async_ok == state)
@@ -2991,14 +3028,14 @@ namespace Go
             };
         }
 
-        internal select_chan_base make_select_writer(async_result_wrap<T> msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler, Action<R> lostHandler = null)
+        internal select_chan_base make_select_writer(async_result_wrap<T> msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler, Action<R> lostHandler, chan_lost_msg<T> lostMsg)
         {
-            return make_select_writer(() => msg.value1, handler, errHandler, lostHandler);
+            return make_select_writer(() => msg.value1, handler, errHandler, lostHandler, lostMsg);
         }
 
-        internal select_chan_base make_select_writer(T msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler, Action<R> lostHandler = null)
+        internal select_chan_base make_select_writer(T msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler, Action<R> lostHandler, chan_lost_msg<T> lostMsg)
         {
-            return make_select_writer(() => msg, handler, errHandler, lostHandler);
+            return make_select_writer(() => msg, handler, errHandler, lostHandler, lostMsg);
         }
 
         public override chan_type type()
@@ -3468,7 +3505,7 @@ namespace Go
                     _waitQueue.Remove(ntfSign._ntfNode);
                     ntfSign._ntfNode = null;
                 }
-                if (success && _msg._has)
+                else if (success && _msg._has)
                 {
                     if (0 != _waitQueue.Count)
                     {
@@ -3484,7 +3521,7 @@ namespace Go
                         ntf_(chan_async_state.async_fail, null);
                     }
                 }
-                ntf(effect || success ? chan_async_state.async_ok : chan_async_state.async_fail);
+                ntf(effect ? chan_async_state.async_ok : chan_async_state.async_fail);
             });
         }
 
@@ -3559,7 +3596,7 @@ namespace Go
                     _sendQueue.Remove(ntfSign._ntfNode);
                     ntfSign._ntfNode = null;
                 }
-                if (success && !_msg._has)
+                else if (success && !_msg._has)
                 {
                     if (0 != _sendQueue.Count)
                     {
@@ -3574,7 +3611,7 @@ namespace Go
                         popNtf.Invoke(chan_async_state.async_fail);
                     }
                 }
-                ntf(effect || success ? chan_async_state.async_ok : chan_async_state.async_fail);
+                ntf(effect ? chan_async_state.async_ok : chan_async_state.async_fail);
             });
         }
 
