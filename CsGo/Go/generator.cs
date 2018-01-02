@@ -154,10 +154,20 @@ namespace Go
         }
     }
 
+    public class csp_fail_exception : System.Exception
+    {
+        public static readonly csp_fail_exception val = new csp_fail_exception();
+    }
+
     public struct chan_recv_wrap<T>
     {
         public chan_async_state state;
         public T msg;
+
+        public static chan_recv_wrap<T> undefined()
+        {
+            return new chan_recv_wrap<T> { state = chan_async_state.async_undefined };
+        }
 
         public static implicit operator T(chan_recv_wrap<T> rval)
         {
@@ -181,6 +191,11 @@ namespace Go
         public chan_async_state state;
         public T result;
 
+        public static csp_invoke_wrap<T> undefined()
+        {
+            return new csp_invoke_wrap<T> { state = chan_async_state.async_undefined };
+        }
+
         public static implicit operator T(csp_invoke_wrap<T> rval)
         {
             if (chan_async_state.async_ok != rval.state)
@@ -203,6 +218,11 @@ namespace Go
         public csp_chan<R, T>.csp_result result;
         public chan_async_state state;
         public T msg;
+
+        public static csp_wait_wrap<R, T> undefined()
+        {
+            return new csp_wait_wrap<R, T> { state = chan_async_state.async_undefined };
+        }
 
         public bool complete(R res)
         {
@@ -1356,7 +1376,7 @@ namespace Go
             };
         }
 
-        public SameAction timed_async_same_callback(int ms, Action timedHandler = null)
+        public SameAction timed_async_same_callback(int ms, Action timedHandler = null, SameAction lostHandler = null)
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
@@ -1378,6 +1398,7 @@ namespace Go
             {
                 if (multiCb.callbacked())
                 {
+                    lostHandler?.Invoke();
                     return;
                 }
                 strand.distribute(delegate ()
@@ -1387,11 +1408,12 @@ namespace Go
                         _timer.cancel();
                         no_check_next();
                     }
+                    else lostHandler?.Invoke();
                 });
             };
         }
 
-        public SameAction timed_async_same_callback2(int ms, Action timedHandler = null)
+        public SameAction timed_async_same_callback2(int ms, Action timedHandler = null, SameAction lostHandler = null)
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
@@ -1410,6 +1432,7 @@ namespace Go
             {
                 if (multiCb.callbacked())
                 {
+                    lostHandler?.Invoke();
                     return;
                 }
                 strand.distribute(delegate ()
@@ -1419,11 +1442,12 @@ namespace Go
                         _timer.cancel();
                         no_check_next();
                     }
+                    else lostHandler?.Invoke();
                 });
             };
         }
 
-        public SameAction timed_async_same_callback(int ms, SameAction handler, Action timedHandler = null)
+        public SameAction timed_async_same_callback(int ms, SameAction handler, Action timedHandler = null, SameAction lostHandler = null)
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
@@ -1445,6 +1469,7 @@ namespace Go
             {
                 if (multiCb.callbacked())
                 {
+                    lostHandler?.Invoke();
                     return;
                 }
                 strand.distribute(delegate ()
@@ -1455,11 +1480,12 @@ namespace Go
                         handler(args);
                         no_check_next();
                     }
+                    else lostHandler?.Invoke();
                 });
             };
         }
 
-        public SameAction timed_async_same_callback2(int ms, SameAction handler, Action timedHandler = null)
+        public SameAction timed_async_same_callback2(int ms, SameAction handler, Action timedHandler = null, SameAction lostHandler = null)
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
@@ -1478,6 +1504,7 @@ namespace Go
             {
                 if (multiCb.callbacked())
                 {
+                    lostHandler?.Invoke();
                     return;
                 }
                 strand.distribute(delegate ()
@@ -1488,6 +1515,7 @@ namespace Go
                         handler(args);
                         no_check_next();
                     }
+                    else lostHandler?.Invoke();
                 });
             };
         }
@@ -1536,7 +1564,7 @@ namespace Go
             };
         }
 
-        public Action timed_async_callback(int ms, Action handler, Action timedHandler = null)
+        public Action timed_async_callback(int ms, Action handler, Action timedHandler = null, Action lostHandler = null)
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
@@ -1558,6 +1586,7 @@ namespace Go
             {
                 if (multiCb.callbacked())
                 {
+                    lostHandler?.Invoke();
                     return;
                 }
                 strand.distribute(delegate ()
@@ -1568,11 +1597,12 @@ namespace Go
                         handler();
                         no_check_next();
                     }
+                    else lostHandler?.Invoke();
                 });
             };
         }
 
-        public Action timed_async_callback2(int ms, Action handler, Action timedHandler = null)
+        public Action timed_async_callback2(int ms, Action handler, Action timedHandler = null, Action lostHandler = null)
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
@@ -1591,6 +1621,7 @@ namespace Go
             {
                 if (multiCb.callbacked())
                 {
+                    lostHandler?.Invoke();
                     return;
                 }
                 strand.distribute(delegate ()
@@ -1601,11 +1632,12 @@ namespace Go
                         handler();
                         no_check_next();
                     }
+                    else lostHandler?.Invoke();
                 });
             };
         }
 
-        public Action<T1> timed_async_callback<T1>(int ms, Action<T1> handler, Action timedHandler = null)
+        public Action<T1> timed_async_callback<T1>(int ms, Action<T1> handler, Action timedHandler = null, Action<T1> lostHandler = null)
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
@@ -1627,6 +1659,7 @@ namespace Go
             {
                 if (multiCb.callbacked())
                 {
+                    lostHandler?.Invoke(p1);
                     return;
                 }
                 strand.distribute(delegate ()
@@ -1637,11 +1670,12 @@ namespace Go
                         handler(p1);
                         no_check_next();
                     }
+                    else lostHandler?.Invoke(p1);
                 });
             };
         }
 
-        public Action<T1> timed_async_callback2<T1>(int ms, Action<T1> handler, Action timedHandler = null)
+        public Action<T1> timed_async_callback2<T1>(int ms, Action<T1> handler, Action timedHandler = null, Action<T1> lostHandler = null)
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
@@ -1660,6 +1694,7 @@ namespace Go
             {
                 if (multiCb.callbacked())
                 {
+                    lostHandler?.Invoke(p1);
                     return;
                 }
                 strand.distribute(delegate ()
@@ -1670,11 +1705,12 @@ namespace Go
                         handler(p1);
                         no_check_next();
                     }
+                    else lostHandler?.Invoke(p1);
                 });
             };
         }
 
-        public Action<T1, T2> timed_async_callback<T1, T2>(int ms, Action<T1, T2> handler, Action timedHandler = null)
+        public Action<T1, T2> timed_async_callback<T1, T2>(int ms, Action<T1, T2> handler, Action timedHandler = null, Action<T1, T2> lostHandler = null)
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
@@ -1696,6 +1732,7 @@ namespace Go
             {
                 if (multiCb.callbacked())
                 {
+                    lostHandler?.Invoke(p1, p2);
                     return;
                 }
                 strand.distribute(delegate ()
@@ -1706,11 +1743,12 @@ namespace Go
                         handler(p1, p2);
                         no_check_next();
                     }
+                    else lostHandler?.Invoke(p1, p2);
                 });
             };
         }
 
-        public Action<T1, T2> timed_async_callback2<T1, T2>(int ms, Action<T1, T2> handler, Action timedHandler = null)
+        public Action<T1, T2> timed_async_callback2<T1, T2>(int ms, Action<T1, T2> handler, Action timedHandler = null, Action<T1, T2> lostHandler = null)
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
@@ -1729,6 +1767,7 @@ namespace Go
             {
                 if (multiCb.callbacked())
                 {
+                    lostHandler?.Invoke(p1, p2);
                     return;
                 }
                 strand.distribute(delegate ()
@@ -1739,11 +1778,12 @@ namespace Go
                         handler(p1, p2);
                         no_check_next();
                     }
+                    else lostHandler?.Invoke(p1, p2);
                 });
             };
         }
 
-        public Action<T1, T2, T3> timed_async_callback<T1, T2, T3>(int ms, Action<T1, T2, T3> handler, Action timedHandler = null)
+        public Action<T1, T2, T3> timed_async_callback<T1, T2, T3>(int ms, Action<T1, T2, T3> handler, Action timedHandler = null, Action<T1, T2, T3> lostHandler = null)
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
@@ -1765,6 +1805,7 @@ namespace Go
             {
                 if (multiCb.callbacked())
                 {
+                    lostHandler?.Invoke(p1, p2, p3);
                     return;
                 }
                 strand.distribute(delegate ()
@@ -1775,11 +1816,12 @@ namespace Go
                         handler(p1, p2, p3);
                         no_check_next();
                     }
+                    else lostHandler?.Invoke(p1, p2, p3);
                 });
             };
         }
 
-        public Action<T1, T2, T3> timed_async_callback2<T1, T2, T3>(int ms, Action<T1, T2, T3> handler, Action timedHandler = null)
+        public Action<T1, T2, T3> timed_async_callback2<T1, T2, T3>(int ms, Action<T1, T2, T3> handler, Action timedHandler = null, Action<T1, T2, T3> lostHandler = null)
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
@@ -1798,6 +1840,7 @@ namespace Go
             {
                 if (multiCb.callbacked())
                 {
+                    lostHandler?.Invoke(p1, p2, p3);
                     return;
                 }
                 strand.distribute(delegate ()
@@ -1808,11 +1851,12 @@ namespace Go
                         handler(p1, p2, p3);
                         no_check_next();
                     }
+                    else lostHandler?.Invoke(p1, p2, p3);
                 });
             };
         }
 
-        public SameAction safe_async_same_callback()
+        public SameAction safe_async_same_callback(SameAction lostHandler = null)
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
@@ -1820,6 +1864,7 @@ namespace Go
             {
                 if (multiCb.callbacked())
                 {
+                    lostHandler?.Invoke(args);
                     return;
                 }
                 strand.distribute(delegate ()
@@ -1828,11 +1873,12 @@ namespace Go
                     {
                         next(beginQuit);
                     }
+                    else lostHandler?.Invoke(args);
                 });
             };
         }
 
-        public SameAction safe_async_same_callback(SameAction handler)
+        public SameAction safe_async_same_callback(SameAction handler, SameAction lostHandler = null)
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
@@ -1840,6 +1886,7 @@ namespace Go
             {
                 if (multiCb.callbacked())
                 {
+                    lostHandler?.Invoke(args);
                     return;
                 }
                 strand.distribute(delegate ()
@@ -1849,11 +1896,12 @@ namespace Go
                         handler(args);
                         no_check_next();
                     }
+                    else lostHandler?.Invoke(args);
                 });
             };
         }
 
-        public Action safe_async_callback(Action handler)
+        public Action safe_async_callback(Action handler, Action lostHandler = null)
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
@@ -1861,6 +1909,7 @@ namespace Go
             {
                 if (multiCb.callbacked())
                 {
+                    lostHandler?.Invoke();
                     return;
                 }
                 strand.distribute(delegate ()
@@ -1870,11 +1919,12 @@ namespace Go
                         handler();
                         no_check_next();
                     }
+                    else lostHandler?.Invoke();
                 });
             };
         }
 
-        public Action<T1> safe_async_callback<T1>(Action<T1> handler)
+        public Action<T1> safe_async_callback<T1>(Action<T1> handler, Action<T1> lostHandler = null)
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
@@ -1882,6 +1932,7 @@ namespace Go
             {
                 if (multiCb.callbacked())
                 {
+                    lostHandler?.Invoke(p1);
                     return;
                 }
                 strand.distribute(delegate ()
@@ -1891,11 +1942,12 @@ namespace Go
                         handler(p1);
                         no_check_next();
                     }
+                    else lostHandler?.Invoke(p1);
                 });
             };
         }
 
-        public Action<T1, T2> safe_async_callback<T1, T2>(Action<T1, T2> handler)
+        public Action<T1, T2> safe_async_callback<T1, T2>(Action<T1, T2> handler, Action<T1, T2> lostHandler = null)
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
@@ -1903,6 +1955,7 @@ namespace Go
             {
                 if (multiCb.callbacked())
                 {
+                    lostHandler?.Invoke(p1, p2);
                     return;
                 }
                 strand.distribute(delegate ()
@@ -1912,11 +1965,12 @@ namespace Go
                         handler(p1, p2);
                         no_check_next();
                     }
+                    else lostHandler?.Invoke(p1, p2);
                 });
             };
         }
 
-        public Action<T1, T2, T3> safe_async_callback<T1, T2, T3>(Action<T1, T2, T3> handler)
+        public Action<T1, T2, T3> safe_async_callback<T1, T2, T3>(Action<T1, T2, T3> handler, Action<T1, T2, T3> lostHandler = null)
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
@@ -1924,6 +1978,7 @@ namespace Go
             {
                 if (multiCb.callbacked())
                 {
+                    lostHandler?.Invoke(p1, p2, p3);
                     return;
                 }
                 strand.distribute(delegate ()
@@ -1933,6 +1988,7 @@ namespace Go
                         handler(p1, p2, p3);
                         no_check_next();
                     }
+                    else lostHandler?.Invoke(p1, p2, p3);
                 });
             };
         }
@@ -2704,17 +2760,17 @@ namespace Go
             return result;
         }
 
-        static public Task<chan_recv_wrap<T>> chan_receive<T>(channel<T> chan)
+        static public Task<chan_recv_wrap<T>> chan_receive<T>(channel<T> chan, Func<T, Task> lostHandler = null)
         {
-            return chan_receive(chan, broadcast_chan_token._defToken);
+            return chan_receive(chan, broadcast_chan_token._defToken, lostHandler);
         }
 
-        static public async Task<chan_recv_wrap<T>> chan_receive<T>(channel<T> chan, broadcast_chan_token token)
+        static public async Task<chan_recv_wrap<T>> chan_receive<T>(channel<T> chan, broadcast_chan_token token, Func<T, Task> lostHandler = null)
         {
             generator this_ = self;
+            chan_recv_wrap<T> result = chan_recv_wrap<T>.undefined();
             try
             {
-                chan_recv_wrap<T> result = default(chan_recv_wrap<T>);
                 chan.pop(this_.async_callback(delegate (chan_async_state state, T msg, object _)
                 {
                     result.state = state;
@@ -2730,6 +2786,10 @@ namespace Go
             {
                 chan.remove_pop_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
                 await this_.async_wait();
+                if (chan_async_state.async_ok == result.state && null != lostHandler)
+                {
+                    await lostHandler(result.msg);
+                }
                 throw;
             }
         }
@@ -2757,17 +2817,17 @@ namespace Go
             return chan_try_send(chan, default(void_type));
         }
 
-        static public Task<chan_recv_wrap<T>> chan_try_receive<T>(channel<T> chan)
+        static public Task<chan_recv_wrap<T>> chan_try_receive<T>(channel<T> chan, Func<T, Task> lostHandler = null)
         {
-            return chan_try_receive(chan, broadcast_chan_token._defToken);
+            return chan_try_receive(chan, broadcast_chan_token._defToken, lostHandler);
         }
 
-        static public async Task<chan_recv_wrap<T>> chan_try_receive<T>(channel<T> chan, broadcast_chan_token token)
+        static public async Task<chan_recv_wrap<T>> chan_try_receive<T>(channel<T> chan, broadcast_chan_token token, Func<T, Task> lostHandler = null)
         {
             generator this_ = self;
+            chan_recv_wrap<T> result = chan_recv_wrap<T>.undefined();
             try
             {
-                chan_recv_wrap<T> result = default(chan_recv_wrap<T>);
                 chan.try_pop(this_.async_callback(delegate (chan_async_state state, T msg, object _)
                 {
                     result.state = state;
@@ -2783,6 +2843,10 @@ namespace Go
             {
                 chan.remove_pop_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
                 await this_.async_wait();
+                if (chan_async_state.async_ok == result.state && null != lostHandler)
+                {
+                    await lostHandler(result.msg);
+                }
                 throw;
             }
         }
@@ -2810,17 +2874,17 @@ namespace Go
             return chan_timed_send(chan, ms, default(void_type));
         }
 
-        static public Task<chan_recv_wrap<T>> chan_timed_receive<T>(channel<T> chan, int ms)
+        static public Task<chan_recv_wrap<T>> chan_timed_receive<T>(channel<T> chan, int ms, Func<T, Task> lostHandler = null)
         {
-            return chan_timed_receive(chan, ms, broadcast_chan_token._defToken);
+            return chan_timed_receive(chan, ms, broadcast_chan_token._defToken, lostHandler);
         }
 
-        static public async Task<chan_recv_wrap<T>> chan_timed_receive<T>(channel<T> chan, int ms, broadcast_chan_token token)
+        static public async Task<chan_recv_wrap<T>> chan_timed_receive<T>(channel<T> chan, int ms, broadcast_chan_token token, Func<T, Task> lostHandler = null)
         {
             generator this_ = self;
+            chan_recv_wrap<T> result = chan_recv_wrap<T>.undefined();
             try
             {
-                chan_recv_wrap<T> result = default(chan_recv_wrap<T>);
                 chan.timed_pop(ms, this_.async_callback(delegate (chan_async_state state, T msg, object _)
                 {
                     result.state = state;
@@ -2836,22 +2900,39 @@ namespace Go
             {
                 chan.remove_pop_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
                 await this_.async_wait();
+                if (chan_async_state.async_ok == result.state && null != lostHandler)
+                {
+                    await lostHandler(result.msg);
+                }
                 throw;
             }
         }
 
-        static public async Task<csp_invoke_wrap<R>> csp_invoke<R, T>(csp_chan<R, T> chan, T msg, int invokeMs = -1)
+        static public async Task<csp_invoke_wrap<R>> csp_invoke<R, T>(csp_chan<R, T> chan, T msg, int invokeMs = -1, Action<R> lostHandler = null)
         {
             generator this_ = self;
             try
             {
-                csp_invoke_wrap<R> result = default(csp_invoke_wrap<R>);
-                chan.push(invokeMs, this_.async_callback(delegate (chan_async_state state, object exObj)
+                csp_invoke_wrap<R> result = csp_invoke_wrap<R>.undefined();
+                chan.push(invokeMs, null == lostHandler ? this_.async_callback(delegate (chan_async_state state, object exObj)
                 {
                     result.state = state;
                     if (chan_async_state.async_ok == state)
                     {
                         result.result = (R)exObj;
+                    }
+                }) : this_.safe_async_callback(delegate (chan_async_state state, object exObj)
+                {
+                    result.state = state;
+                    if (chan_async_state.async_ok == state)
+                    {
+                        result.result = (R)exObj;
+                    }
+                }, delegate (chan_async_state state, object exObj)
+                {
+                    if (chan_async_state.async_ok == state)
+                    {
+                        lostHandler((R)exObj);
                     }
                 }), msg, this_._ioSign);
                 await this_.async_wait();
@@ -2865,15 +2946,15 @@ namespace Go
             }
         }
 
-        static public Task<csp_invoke_wrap<R>> csp_invoke<R>(csp_chan<R, void_type> chan, int invokeMs = -1)
+        static public Task<csp_invoke_wrap<R>> csp_invoke<R>(csp_chan<R, void_type> chan, int invokeMs = -1, Action<R> lostHandler = null)
         {
-            return csp_invoke(chan, default(void_type), invokeMs);
+            return csp_invoke(chan, default(void_type), invokeMs, lostHandler);
         }
 
-        static public async Task<csp_wait_wrap<R, T>> csp_wait<R, T>(csp_chan<R, T> chan)
+        static public async Task<csp_wait_wrap<R, T>> csp_wait<R, T>(csp_chan<R, T> chan, Func<T, Task> lostHandler = null)
         {
             generator this_ = self;
-            csp_wait_wrap<R, T> result = default(csp_wait_wrap<R, T>);
+            csp_wait_wrap<R, T> result = csp_wait_wrap<R, T>.undefined();
             try
             {
                 chan.pop(this_.async_callback(delegate (chan_async_state state, T msg, object exObj)
@@ -2898,22 +2979,35 @@ namespace Go
                 await this_.async_wait();
                 if (chan_async_state.async_ok == result.state)
                 {
+                    if (null != lostHandler)
+                    {
+                        await lostHandler(result.msg);
+                    }
                     result.fail();
                 }
                 throw;
             }
         }
 
-        static public async Task<chan_async_state> csp_wait<R, T>(csp_chan<R, T> chan, Func<T, Task<R>> handler)
+        static public void csp_fail()
         {
-            csp_wait_wrap<R, T> result = await csp_wait(chan);
+            throw csp_fail_exception.val;
+        }
+
+        static public async Task<chan_async_state> csp_wait<R, T>(csp_chan<R, T> chan, Func<T, Task<R>> handler, Func<T, Task> lostHandler = null)
+        {
+            csp_wait_wrap<R, T> result = await csp_wait(chan, lostHandler);
             if (chan_async_state.async_ok == result.state)
             {
                 try
                 {
                     result.complete(await handler(result.msg));
                 }
-                catch (System.Exception)
+                catch (csp_fail_exception)
+                {
+                    result.fail();
+                }
+                catch (stop_exception)
                 {
                     result.fail();
                     throw;
@@ -2931,7 +3025,11 @@ namespace Go
                 {
                     result.complete(await handler(result.msg.value1, result.msg.value2));
                 }
-                catch (System.Exception)
+                catch (csp_fail_exception)
+                {
+                    result.fail();
+                }
+                catch (stop_exception)
                 {
                     result.fail();
                     throw;
@@ -2944,30 +3042,39 @@ namespace Go
         {
             csp_wait_wrap<R, tuple<T1, T2, T3>> result = await csp_wait(chan);
             if (chan_async_state.async_ok == result.state)
-            {
-                try
+                if (chan_async_state.async_ok == result.state)
                 {
-                    result.complete(await handler(result.msg.value1, result.msg.value2, result.msg.value3));
+                    try
+                    {
+                        result.complete(await handler(result.msg.value1, result.msg.value2, result.msg.value3));
+                    }
+                    catch (csp_fail_exception)
+                    {
+                        result.fail();
+                    }
+                    catch (stop_exception)
+                    {
+                        result.fail();
+                        throw;
+                    }
                 }
-                catch (System.Exception)
-                {
-                    result.fail();
-                    throw;
-                }
-            }
             return result.state;
         }
 
-        static public async Task<chan_async_state> csp_wait<R>(csp_chan<R, void_type> chan, Func<Task<R>> handler)
+        static public async Task<chan_async_state> csp_wait<R>(csp_chan<R, void_type> chan, Func<Task<R>> handler, Func<Task> lostHandler = null)
         {
-            csp_wait_wrap<R, void_type> result = await csp_wait(chan);
+            csp_wait_wrap<R, void_type> result = await csp_wait(chan, null == lostHandler ? (Func<void_type, Task>)null : (void_type _) => lostHandler());
             if (chan_async_state.async_ok == result.state)
             {
                 try
                 {
                     result.complete(await handler());
                 }
-                catch (System.Exception)
+                catch (csp_fail_exception)
+                {
+                    result.fail();
+                }
+                catch (stop_exception)
                 {
                     result.fail();
                     throw;
@@ -2976,9 +3083,9 @@ namespace Go
             return result.state;
         }
 
-        static public async Task<chan_async_state> csp_wait<T>(csp_chan<void_type, T> chan, Func<T, Task> handler)
+        static public async Task<chan_async_state> csp_wait<T>(csp_chan<void_type, T> chan, Func<T, Task> handler, Func<T, Task> lostHandler = null)
         {
-            csp_wait_wrap<void_type, T> result = await csp_wait(chan);
+            csp_wait_wrap<void_type, T> result = await csp_wait(chan, lostHandler);
             if (chan_async_state.async_ok == result.state)
             {
                 try
@@ -2986,7 +3093,11 @@ namespace Go
                     await handler(result.msg);
                     result.complete(default(void_type));
                 }
-                catch (System.Exception)
+                catch (csp_fail_exception)
+                {
+                    result.fail();
+                }
+                catch (stop_exception)
                 {
                     result.fail();
                     throw;
@@ -3005,7 +3116,11 @@ namespace Go
                     await handler(result.msg.value1, result.msg.value2);
                     result.complete(default(void_type));
                 }
-                catch (System.Exception)
+                catch (csp_fail_exception)
+                {
+                    result.fail();
+                }
+                catch (stop_exception)
                 {
                     result.fail();
                     throw;
@@ -3024,7 +3139,11 @@ namespace Go
                     await handler(result.msg.value1, result.msg.value2, result.msg.value3);
                     result.complete(default(void_type));
                 }
-                catch (System.Exception)
+                catch (csp_fail_exception)
+                {
+                    result.fail();
+                }
+                catch (stop_exception)
                 {
                     result.fail();
                     throw;
@@ -3033,9 +3152,9 @@ namespace Go
             return result.state;
         }
 
-        static public async Task<chan_async_state> csp_wait(csp_chan<void_type, void_type> chan, Func<Task> handler)
+        static public async Task<chan_async_state> csp_wait(csp_chan<void_type, void_type> chan, Func<Task> handler, Func<Task> lostHandler = null)
         {
-            csp_wait_wrap<void_type, void_type> result = await csp_wait(chan);
+            csp_wait_wrap<void_type, void_type> result = await csp_wait(chan, null == lostHandler ? (Func<void_type, Task>)null : (void_type _) => lostHandler());
             if (chan_async_state.async_ok == result.state)
             {
                 try
@@ -3043,7 +3162,11 @@ namespace Go
                     await handler();
                     result.complete(default(void_type));
                 }
-                catch (System.Exception)
+                catch (csp_fail_exception)
+                {
+                    result.fail();
+                }
+                catch (stop_exception)
                 {
                     result.fail();
                     throw;
@@ -3052,18 +3175,31 @@ namespace Go
             return result.state;
         }
 
-        static public async Task<csp_invoke_wrap<R>> csp_try_invoke<R, T>(csp_chan<R, T> chan, T msg, int invokeMs = -1)
+        static public async Task<csp_invoke_wrap<R>> csp_try_invoke<R, T>(csp_chan<R, T> chan, T msg, int invokeMs = -1, Action<R> lostHandler = null)
         {
             generator this_ = self;
             try
             {
-                csp_invoke_wrap<R> result = default(csp_invoke_wrap<R>);
-                chan.try_push(invokeMs, this_.async_callback(delegate (chan_async_state state, object exObj)
+                csp_invoke_wrap<R> result = csp_invoke_wrap<R>.undefined();
+                chan.try_push(invokeMs, null == lostHandler ? this_.async_callback(delegate (chan_async_state state, object exObj)
                 {
                     result.state = state;
                     if (chan_async_state.async_ok == state)
                     {
                         result.result = (R)exObj;
+                    }
+                }) : this_.safe_async_callback(delegate (chan_async_state state, object exObj)
+                {
+                    result.state = state;
+                    if (chan_async_state.async_ok == state)
+                    {
+                        result.result = (R)exObj;
+                    }
+                }, delegate (chan_async_state state, object exObj)
+                {
+                    if (chan_async_state.async_ok == state)
+                    {
+                        lostHandler((R)exObj);
                     }
                 }), msg, this_._ioSign);
                 await this_.async_wait();
@@ -3077,15 +3213,15 @@ namespace Go
             }
         }
 
-        static public Task<csp_invoke_wrap<R>> csp_try_invoke<R>(csp_chan<R, void_type> chan, int invokeMs = -1)
+        static public Task<csp_invoke_wrap<R>> csp_try_invoke<R>(csp_chan<R, void_type> chan, int invokeMs = -1, Action<R> lostHandler = null)
         {
-            return csp_try_invoke(chan, default(void_type), invokeMs);
+            return csp_try_invoke(chan, default(void_type), invokeMs, lostHandler);
         }
 
-        static public async Task<csp_wait_wrap<R, T>> csp_try_wait<R, T>(csp_chan<R, T> chan)
+        static public async Task<csp_wait_wrap<R, T>> csp_try_wait<R, T>(csp_chan<R, T> chan, Func<T, Task> lostHandler = null)
         {
             generator this_ = self;
-            csp_wait_wrap<R, T> result = default(csp_wait_wrap<R, T>);
+            csp_wait_wrap<R, T> result = csp_wait_wrap<R, T>.undefined();
             try
             {
                 chan.try_pop(this_.async_callback(delegate (chan_async_state state, T msg, object exObj)
@@ -3110,22 +3246,30 @@ namespace Go
                 await this_.async_wait();
                 if (chan_async_state.async_ok == result.state)
                 {
+                    if (null != lostHandler)
+                    {
+                        await lostHandler(result.msg);
+                    }
                     result.fail();
                 }
                 throw;
             }
         }
 
-        static public async Task<chan_async_state> csp_try_wait<R, T>(csp_chan<R, T> chan, Func<T, Task<R>> handler)
+        static public async Task<chan_async_state> csp_try_wait<R, T>(csp_chan<R, T> chan, Func<T, Task<R>> handler, Func<T, Task> lostHandler = null)
         {
-            csp_wait_wrap<R, T> result = await csp_try_wait(chan);
+            csp_wait_wrap<R, T> result = await csp_try_wait(chan, lostHandler);
             if (chan_async_state.async_ok == result.state)
             {
                 try
                 {
                     result.complete(await handler(result.msg));
                 }
-                catch (System.Exception)
+                catch (csp_fail_exception)
+                {
+                    result.fail();
+                }
+                catch (stop_exception)
                 {
                     result.fail();
                     throw;
@@ -3143,7 +3287,11 @@ namespace Go
                 {
                     result.complete(await handler(result.msg.value1, result.msg.value2));
                 }
-                catch (System.Exception)
+                catch (csp_fail_exception)
+                {
+                    result.fail();
+                }
+                catch (stop_exception)
                 {
                     result.fail();
                     throw;
@@ -3161,7 +3309,11 @@ namespace Go
                 {
                     result.complete(await handler(result.msg.value1, result.msg.value2, result.msg.value3));
                 }
-                catch (System.Exception)
+                catch (csp_fail_exception)
+                {
+                    result.fail();
+                }
+                catch (stop_exception)
                 {
                     result.fail();
                     throw;
@@ -3170,16 +3322,20 @@ namespace Go
             return result.state;
         }
 
-        static public async Task<chan_async_state> csp_try_wait<R>(csp_chan<R, void_type> chan, Func<Task<R>> handler)
+        static public async Task<chan_async_state> csp_try_wait<R>(csp_chan<R, void_type> chan, Func<Task<R>> handler, Func<Task> lostHandler = null)
         {
-            csp_wait_wrap<R, void_type> result = await csp_try_wait(chan);
+            csp_wait_wrap<R, void_type> result = await csp_try_wait(chan, null == lostHandler ? (Func<void_type, Task>)null : (void_type _) => lostHandler());
             if (chan_async_state.async_ok == result.state)
             {
                 try
                 {
                     result.complete(await handler());
                 }
-                catch (System.Exception)
+                catch (csp_fail_exception)
+                {
+                    result.fail();
+                }
+                catch (stop_exception)
                 {
                     result.fail();
                     throw;
@@ -3188,9 +3344,9 @@ namespace Go
             return result.state;
         }
 
-        static public async Task<chan_async_state> csp_try_wait<T>(csp_chan<void_type, T> chan, Func<T, Task> handler)
+        static public async Task<chan_async_state> csp_try_wait<T>(csp_chan<void_type, T> chan, Func<T, Task> handler, Func<T, Task> lostHandler = null)
         {
-            csp_wait_wrap<void_type, T> result = await csp_try_wait(chan);
+            csp_wait_wrap<void_type, T> result = await csp_try_wait(chan, lostHandler);
             if (chan_async_state.async_ok == result.state)
             {
                 try
@@ -3198,7 +3354,11 @@ namespace Go
                     await handler(result.msg);
                     result.complete(default(void_type));
                 }
-                catch (System.Exception)
+                catch (csp_fail_exception)
+                {
+                    result.fail();
+                }
+                catch (stop_exception)
                 {
                     result.fail();
                     throw;
@@ -3217,7 +3377,11 @@ namespace Go
                     await handler(result.msg.value1, result.msg.value2);
                     result.complete(default(void_type));
                 }
-                catch (System.Exception)
+                catch (csp_fail_exception)
+                {
+                    result.fail();
+                }
+                catch (stop_exception)
                 {
                     result.fail();
                     throw;
@@ -3236,7 +3400,11 @@ namespace Go
                     await handler(result.msg.value1, result.msg.value2, result.msg.value3);
                     result.complete(default(void_type));
                 }
-                catch (System.Exception)
+                catch (csp_fail_exception)
+                {
+                    result.fail();
+                }
+                catch (stop_exception)
                 {
                     result.fail();
                     throw;
@@ -3245,9 +3413,9 @@ namespace Go
             return result.state;
         }
 
-        static public async Task<chan_async_state> csp_try_wait(csp_chan<void_type, void_type> chan, Func<Task> handler)
+        static public async Task<chan_async_state> csp_try_wait(csp_chan<void_type, void_type> chan, Func<Task> handler, Func<Task> lostHandler = null)
         {
-            csp_wait_wrap<void_type, void_type> result = await csp_try_wait(chan);
+            csp_wait_wrap<void_type, void_type> result = await csp_try_wait(chan, null == lostHandler ? (Func<void_type, Task>)null : (void_type _) => lostHandler());
             if (chan_async_state.async_ok == result.state)
             {
                 try
@@ -3255,7 +3423,11 @@ namespace Go
                     await handler();
                     result.complete(default(void_type));
                 }
-                catch (System.Exception)
+                catch (csp_fail_exception)
+                {
+                    result.fail();
+                }
+                catch (stop_exception)
                 {
                     result.fail();
                     throw;
@@ -3264,18 +3436,31 @@ namespace Go
             return result.state;
         }
 
-        static public async Task<csp_invoke_wrap<R>> csp_timed_invoke<R, T>(csp_chan<R, T> chan, tuple<int, int> ms, T msg)
+        static public async Task<csp_invoke_wrap<R>> csp_timed_invoke<R, T>(csp_chan<R, T> chan, tuple<int, int> ms, T msg, Action<R> lostHandler = null)
         {
             generator this_ = self;
             try
             {
-                csp_invoke_wrap<R> result = default(csp_invoke_wrap<R>);
-                chan.timed_push(ms.value1, ms.value2, this_.async_callback(delegate (chan_async_state state, object exObj)
+                csp_invoke_wrap<R> result = csp_invoke_wrap<R>.undefined();
+                chan.timed_push(ms.value1, ms.value2, null == lostHandler ? this_.async_callback(delegate (chan_async_state state, object exObj)
                 {
                     result.state = state;
                     if (chan_async_state.async_ok == state)
                     {
                         result.result = (R)exObj;
+                    }
+                }) : this_.safe_async_callback(delegate (chan_async_state state, object exObj)
+                {
+                    result.state = state;
+                    if (chan_async_state.async_ok == state)
+                    {
+                        result.result = (R)exObj;
+                    }
+                }, delegate (chan_async_state state, object exObj)
+                {
+                    if (chan_async_state.async_ok == state)
+                    {
+                        lostHandler((R)exObj);
                     }
                 }), msg, this_._ioSign);
                 await this_.async_wait();
@@ -3289,25 +3474,25 @@ namespace Go
             }
         }
 
-        static public Task<csp_invoke_wrap<R>> csp_timed_invoke<R, T>(csp_chan<R, T> chan, int ms, T msg)
+        static public Task<csp_invoke_wrap<R>> csp_timed_invoke<R, T>(csp_chan<R, T> chan, int ms, T msg, Action<R> lostHandler = null)
         {
-            return csp_timed_invoke(chan, tuple.make(ms, -1), msg);
+            return csp_timed_invoke(chan, tuple.make(ms, -1), msg, lostHandler);
         }
 
-        static public Task<csp_invoke_wrap<R>> csp_timed_invoke<R>(csp_chan<R, void_type> chan, tuple<int, int> ms)
+        static public Task<csp_invoke_wrap<R>> csp_timed_invoke<R>(csp_chan<R, void_type> chan, tuple<int, int> ms, Action<R> lostHandler = null)
         {
-            return csp_timed_invoke(chan, ms, default(void_type));
+            return csp_timed_invoke(chan, ms, default(void_type), lostHandler);
         }
 
-        static public Task<csp_invoke_wrap<R>> csp_timed_invoke<R>(csp_chan<R, void_type> chan, int ms)
+        static public Task<csp_invoke_wrap<R>> csp_timed_invoke<R>(csp_chan<R, void_type> chan, int ms, Action<R> lostHandler = null)
         {
-            return csp_timed_invoke(chan, ms, default(void_type));
+            return csp_timed_invoke(chan, ms, default(void_type), lostHandler);
         }
 
-        static public async Task<csp_wait_wrap<R, T>> csp_timed_wait<R, T>(csp_chan<R, T> chan, int ms)
+        static public async Task<csp_wait_wrap<R, T>> csp_timed_wait<R, T>(csp_chan<R, T> chan, int ms, Func<T, Task> lostHandler = null)
         {
             generator this_ = self;
-            csp_wait_wrap<R, T> result = default(csp_wait_wrap<R, T>);
+            csp_wait_wrap<R, T> result = csp_wait_wrap<R, T>.undefined();
             try
             {
                 chan.timed_pop(ms, this_.async_callback(delegate (chan_async_state state, T msg, object exObj)
@@ -3332,22 +3517,30 @@ namespace Go
                 await this_.async_wait();
                 if (chan_async_state.async_ok == result.state)
                 {
+                    if (null != lostHandler)
+                    {
+                        await lostHandler(result.msg);
+                    }
                     result.fail();
                 }
                 throw;
             }
         }
 
-        static public async Task<chan_async_state> csp_timed_wait<R, T>(csp_chan<R, T> chan, int ms, Func<T, Task<R>> handler)
+        static public async Task<chan_async_state> csp_timed_wait<R, T>(csp_chan<R, T> chan, int ms, Func<T, Task<R>> handler, Func<T, Task> lostHandler = null)
         {
-            csp_wait_wrap<R, T> result = await csp_timed_wait(chan, ms);
+            csp_wait_wrap<R, T> result = await csp_timed_wait(chan, ms, lostHandler);
             if (chan_async_state.async_ok == result.state)
             {
                 try
                 {
                     result.complete(await handler(result.msg));
                 }
-                catch (System.Exception)
+                catch (csp_fail_exception)
+                {
+                    result.fail();
+                }
+                catch (stop_exception)
                 {
                     result.fail();
                     throw;
@@ -3365,7 +3558,11 @@ namespace Go
                 {
                     result.complete(await handler(result.msg.value1, result.msg.value2));
                 }
-                catch (System.Exception)
+                catch (csp_fail_exception)
+                {
+                    result.fail();
+                }
+                catch (stop_exception)
                 {
                     result.fail();
                     throw;
@@ -3383,7 +3580,11 @@ namespace Go
                 {
                     result.complete(await handler(result.msg.value1, result.msg.value2, result.msg.value3));
                 }
-                catch (System.Exception)
+                catch (csp_fail_exception)
+                {
+                    result.fail();
+                }
+                catch (stop_exception)
                 {
                     result.fail();
                     throw;
@@ -3392,16 +3593,20 @@ namespace Go
             return result.state;
         }
 
-        static public async Task<chan_async_state> csp_timed_wait<R>(csp_chan<R, void_type> chan, int ms, Func<Task<R>> handler)
+        static public async Task<chan_async_state> csp_timed_wait<R>(csp_chan<R, void_type> chan, int ms, Func<Task<R>> handler, Func<Task> lostHandler = null)
         {
-            csp_wait_wrap<R, void_type> result = await csp_timed_wait(chan, ms);
+            csp_wait_wrap<R, void_type> result = await csp_timed_wait(chan, ms, null == lostHandler ? (Func<void_type, Task>)null : (void_type _) => lostHandler());
             if (chan_async_state.async_ok == result.state)
             {
                 try
                 {
                     result.complete(await handler());
                 }
-                catch (System.Exception)
+                catch (csp_fail_exception)
+                {
+                    result.fail();
+                }
+                catch (stop_exception)
                 {
                     result.fail();
                     throw;
@@ -3410,9 +3615,9 @@ namespace Go
             return result.state;
         }
 
-        static public async Task<chan_async_state> csp_timed_wait<T>(csp_chan<void_type, T> chan, int ms, Func<T, Task> handler)
+        static public async Task<chan_async_state> csp_timed_wait<T>(csp_chan<void_type, T> chan, int ms, Func<T, Task> handler, Func<T, Task> lostHandler = null)
         {
-            csp_wait_wrap<void_type, T> result = await csp_timed_wait(chan, ms);
+            csp_wait_wrap<void_type, T> result = await csp_timed_wait(chan, ms, lostHandler);
             if (chan_async_state.async_ok == result.state)
             {
                 try
@@ -3420,7 +3625,11 @@ namespace Go
                     await handler(result.msg);
                     result.complete(default(void_type));
                 }
-                catch (System.Exception)
+                catch (csp_fail_exception)
+                {
+                    result.fail();
+                }
+                catch (stop_exception)
                 {
                     result.fail();
                     throw;
@@ -3439,7 +3648,11 @@ namespace Go
                     await handler(result.msg.value1, result.msg.value2);
                     result.complete(default(void_type));
                 }
-                catch (System.Exception)
+                catch (csp_fail_exception)
+                {
+                    result.fail();
+                }
+                catch (stop_exception)
                 {
                     result.fail();
                     throw;
@@ -3458,7 +3671,11 @@ namespace Go
                     await handler(result.msg.value1, result.msg.value2, result.msg.value3);
                     result.complete(default(void_type));
                 }
-                catch (System.Exception)
+                catch (csp_fail_exception)
+                {
+                    result.fail();
+                }
+                catch (stop_exception)
                 {
                     result.fail();
                     throw;
@@ -3467,9 +3684,9 @@ namespace Go
             return result.state;
         }
 
-        static public async Task<chan_async_state> csp_timed_wait(csp_chan<void_type, void_type> chan, int ms, Func<Task> handler)
+        static public async Task<chan_async_state> csp_timed_wait(csp_chan<void_type, void_type> chan, int ms, Func<Task> handler, Func<Task> lostHandler = null)
         {
-            csp_wait_wrap<void_type, void_type> result = await csp_timed_wait(chan, ms);
+            csp_wait_wrap<void_type, void_type> result = await csp_timed_wait(chan, ms, null == lostHandler ? (Func<void_type, Task>)null : (void_type _) => lostHandler());
             if (chan_async_state.async_ok == result.state)
             {
                 try
@@ -3477,7 +3694,11 @@ namespace Go
                     await handler();
                     result.complete(default(void_type));
                 }
-                catch (System.Exception)
+                catch (csp_fail_exception)
+                {
+                    result.fail();
+                }
+                catch (stop_exception)
                 {
                     result.fail();
                     throw;
@@ -4783,7 +5004,7 @@ namespace Go
                 {
                     nil_chan<chan_async_state> waitHasChan = new nil_chan<chan_async_state>();
                     Action<chan_async_state> waitHasNtf = waitHasChan.wrap();
-                    chan_recv_wrap<T> recvRes = default(chan_recv_wrap<T>);
+                    chan_recv_wrap<T> recvRes = chan_recv_wrap<T>.undefined();
                     Action<chan_async_state, T, object> tryPopHandler = delegate (chan_async_state state, T msg, object _)
                     {
                         recvRes.state = state;
@@ -4799,7 +5020,7 @@ namespace Go
                         try
                         {
                             lock_suspend_and_stop();
-                            recvRes = default(chan_recv_wrap<T>);
+                            recvRes = chan_recv_wrap<T>.undefined();
                             selfMb.try_pop_and_append_notify(self.async_callback(tryPopHandler), waitHasNtf, ntfSign);
                             await self.async_wait();
                             if (chan_async_state.async_ok == recvRes.state)
@@ -4895,12 +5116,12 @@ namespace Go
                 _mutex = forceStopAll ? null : new shared_mutex(self.strand);
             }
 
-            public receive_mail case_of(channel<void_type> chan, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail case_of(channel<void_type> chan, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Func<Task> lostHandler = null)
             {
-                return case_of(chan, (void_type _) => handler(), errHandler);
+                return case_of(chan, (void_type _) => handler(), errHandler, null == lostHandler ? (Func<void_type, Task>)null : (void_type _) => lostHandler());
             }
 
-            public receive_mail case_of<T>(channel<T> chan, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail case_of<T>(channel<T> chan, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Func<T, Task> lostHandler = null)
             {
                 _children.go(async delegate ()
                 {
@@ -4912,7 +5133,7 @@ namespace Go
                             self._mailboxMap = _children.parent()._mailboxMap;
                             while (_run)
                             {
-                                chan_recv_wrap<T> recvRes = await chan_receive(chan);
+                                chan_recv_wrap<T> recvRes = await chan_receive(chan, lostHandler);
                                 if (chan_async_state.async_ok == recvRes.state)
                                 {
                                     await handler(recvRes.msg);
@@ -4942,7 +5163,7 @@ namespace Go
                             self._mailboxMap = _children.parent()._mailboxMap;
                             nil_chan<chan_async_state> waitHasChan = new nil_chan<chan_async_state>();
                             Action<chan_async_state> waitHasNtf = waitHasChan.wrap();
-                            chan_recv_wrap<T> recvRes = default(chan_recv_wrap<T>);
+                            chan_recv_wrap<T> recvRes = chan_recv_wrap<T>.undefined();
                             Action<chan_async_state, T, object> tryPopHandler = delegate (chan_async_state state, T msg, object _)
                             {
                                 recvRes.state = state;
@@ -4958,9 +5179,22 @@ namespace Go
                                 await mutex_lock_shared(_mutex);
                                 try
                                 {
-                                    recvRes = default(chan_recv_wrap<T>);
-                                    chan.try_pop_and_append_notify(self.async_callback(tryPopHandler), waitHasNtf, ntfSign);
-                                    await self.async_wait();
+                                    try
+                                    {
+                                        recvRes = chan_recv_wrap<T>.undefined();
+                                        chan.try_pop_and_append_notify(self.async_callback(tryPopHandler), waitHasNtf, ntfSign);
+                                        await self.async_wait();
+                                    }
+                                    catch (stop_exception)
+                                    {
+                                        chan.remove_pop_notify(self.async_ignore<chan_async_state>(), ntfSign);
+                                        await self.async_wait();
+                                        if (chan_async_state.async_ok == recvRes.state && null != lostHandler)
+                                        {
+                                            await lostHandler(recvRes.msg);
+                                        }
+                                        throw;
+                                    }
                                     try
                                     {
                                         await unlock_suspend();
@@ -5006,29 +5240,29 @@ namespace Go
                 return this;
             }
 
-            public receive_mail case_of<T1, T2>(channel<tuple<T1, T2>> chan, Func<T1, T2, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail case_of<T1, T2>(channel<tuple<T1, T2>> chan, Func<T1, T2, Task> handler)
             {
-                return case_of(chan, (tuple<T1, T2> msg) => handler(msg.value1, msg.value2), errHandler);
+                return case_of(chan, (tuple<T1, T2> msg) => handler(msg.value1, msg.value2));
             }
 
-            public receive_mail case_of<T1, T2, T3>(channel<tuple<T1, T2, T3>> chan, Func<T1, T2, T3, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail case_of<T1, T2, T3>(channel<tuple<T1, T2, T3>> chan, Func<T1, T2, T3, Task> handler)
             {
-                return case_of(chan, (tuple<T1, T2, T3> msg) => handler(msg.value1, msg.value2, msg.value3), errHandler);
+                return case_of(chan, (tuple<T1, T2, T3> msg) => handler(msg.value1, msg.value2, msg.value3));
             }
 
-            public receive_mail timed_case_of(channel<void_type> chan, int ms, Func<Task> timedHandler, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail timed_case_of(channel<void_type> chan, int ms, Func<Task> timedHandler, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Func<Task> lostHandler = null)
             {
-                return timed_case_of(chan, ms, timedHandler, (void_type _) => handler(), errHandler);
+                return timed_case_of(chan, ms, timedHandler, (void_type _) => handler(), errHandler, null == lostHandler ? (Func<void_type, Task>)null : (void_type _) => lostHandler());
             }
 
-            public receive_mail timed_case_of<T>(channel<T> chan, int ms, Func<Task> timedHandler, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail timed_case_of<T>(channel<T> chan, int ms, Func<Task> timedHandler, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Func<T, Task> lostHandler = null)
             {
                 _children.go(async delegate ()
                 {
                     generator self = generator.self;
                     if (null == _mutex)
                     {
-                        chan_recv_wrap<T> recvRes = await chan_timed_receive(chan, ms);
+                        chan_recv_wrap<T> recvRes = await chan_timed_receive(chan, ms, lostHandler);
                         try
                         {
                             self._mailboxMap = _children.parent()._mailboxMap;
@@ -5070,7 +5304,7 @@ namespace Go
                                 {
                                     if (!overtime)
                                     {
-                                        chan_recv_wrap<T> recvRes = await chan_try_receive(chan);
+                                        chan_recv_wrap<T> recvRes = await chan_try_receive(chan, lostHandler);
                                         try
                                         {
                                             await unlock_suspend();
@@ -5118,22 +5352,22 @@ namespace Go
                 return this;
             }
 
-            public receive_mail timed_case_of<T1, T2>(channel<tuple<T1, T2>> chan, int ms, Func<Task> timedHandler, Func<T1, T2, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail timed_case_of<T1, T2>(channel<tuple<T1, T2>> chan, int ms, Func<Task> timedHandler, Func<T1, T2, Task> handler)
             {
-                return timed_case_of(chan, ms, timedHandler, (tuple<T1, T2> msg) => handler(msg.value1, msg.value2), errHandler);
+                return timed_case_of(chan, ms, timedHandler, (tuple<T1, T2> msg) => handler(msg.value1, msg.value2));
             }
 
-            public receive_mail timed_case_of<T1, T2, T3>(channel<tuple<T1, T2, T3>> chan, int ms, Func<Task> timedHandler, Func<T1, T2, T3, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail timed_case_of<T1, T2, T3>(channel<tuple<T1, T2, T3>> chan, int ms, Func<Task> timedHandler, Func<T1, T2, T3, Task> handler)
             {
-                return timed_case_of(chan, ms, timedHandler, (tuple<T1, T2, T3> msg) => handler(msg.value1, msg.value2, msg.value3), errHandler);
+                return timed_case_of(chan, ms, timedHandler, (tuple<T1, T2, T3> msg) => handler(msg.value1, msg.value2, msg.value3));
             }
 
-            public receive_mail try_case_of(channel<void_type> chan, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail try_case_of(channel<void_type> chan, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Func<Task> lostHandler = null)
             {
-                return try_case_of(chan, (void_type _) => handler(), errHandler);
+                return try_case_of(chan, (void_type _) => handler(), errHandler, null == lostHandler ? (Func<void_type, Task>)null : (void_type _) => lostHandler());
             }
 
-            public receive_mail try_case_of<T>(channel<T> chan, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail try_case_of<T>(channel<T> chan, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Func<T, Task> lostHandler = null)
             {
                 _children.go(async delegate ()
                 {
@@ -5145,7 +5379,7 @@ namespace Go
                     try
                     {
                         self._mailboxMap = _children.parent()._mailboxMap;
-                        chan_recv_wrap<T> recvRes = await chan_try_receive(chan);
+                        chan_recv_wrap<T> recvRes = await chan_try_receive(chan, lostHandler);
                         if (chan_async_state.async_ok == recvRes.state)
                         {
                             await handler(recvRes.msg);
@@ -5169,42 +5403,37 @@ namespace Go
                 return this;
             }
 
-            public receive_mail try_case_of<T1, T2>(channel<tuple<T1, T2>> chan, Func<T1, T2, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail try_case_of<T1, T2>(channel<tuple<T1, T2>> chan, Func<T1, T2, Task> handler)
             {
-                return try_case_of(chan, (tuple<T1, T2> msg) => handler(msg.value1, msg.value2), errHandler);
+                return try_case_of(chan, (tuple<T1, T2> msg) => handler(msg.value1, msg.value2));
             }
 
-            public receive_mail try_case_of<T1, T2, T3>(channel<tuple<T1, T2, T3>> chan, Func<T1, T2, T3, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail try_case_of<T1, T2, T3>(channel<tuple<T1, T2, T3>> chan, Func<T1, T2, T3, Task> handler)
             {
-                return try_case_of(chan, (tuple<T1, T2, T3> msg) => handler(msg.value1, msg.value2, msg.value3), errHandler);
+                return try_case_of(chan, (tuple<T1, T2, T3> msg) => handler(msg.value1, msg.value2, msg.value3));
             }
 
-            public receive_mail case_of(broadcast_chan<void_type> chan, Func<Task> handler, broadcast_chan_token token = null)
+            public receive_mail case_of(broadcast_chan<void_type> chan, Func<Task> handler, broadcast_chan_token token = null, Func<chan_async_state, Task<bool>> errHandler = null)
             {
-                return case_of(chan, (void_type _) => handler(), token);
+                return case_of(chan, (void_type _) => handler(), token, errHandler);
             }
 
             public receive_mail case_of<T>(broadcast_chan<T> chan, Func<T, Task> handler, broadcast_chan_token token = null)
             {
-                return case_of(chan, handler, null, token);
+                return case_of(chan, handler, token);
             }
 
             public receive_mail case_of<T1, T2>(broadcast_chan<tuple<T1, T2>> chan, Func<T1, T2, Task> handler, broadcast_chan_token token = null)
             {
-                return case_of(chan, handler, null, token);
+                return case_of(chan, (tuple<T1, T2> msg) => handler(msg.value1, msg.value2), token);
             }
 
             public receive_mail case_of<T1, T2, T3>(broadcast_chan<tuple<T1, T2, T3>> chan, Func<T1, T2, T3, Task> handler, broadcast_chan_token token = null)
             {
-                return case_of(chan, handler, null, token);
+                return case_of(chan, (tuple<T1, T2, T3> msg) => handler(msg.value1, msg.value2, msg.value3), token);
             }
 
-            public receive_mail case_of(broadcast_chan<void_type> chan, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler, broadcast_chan_token token = null)
-            {
-                return case_of(chan, (void_type _) => handler(), errHandler, token);
-            }
-
-            public receive_mail case_of<T>(broadcast_chan<T> chan, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler, broadcast_chan_token token = null)
+            public receive_mail case_of<T>(broadcast_chan<T> chan, Func<T, Task> handler, broadcast_chan_token token = null, Func<chan_async_state, Task<bool>> errHandler = null)
             {
                 _children.go(async delegate ()
                 {
@@ -5247,7 +5476,7 @@ namespace Go
                             self._mailboxMap = _children.parent()._mailboxMap;
                             nil_chan<chan_async_state> waitHasChan = new nil_chan<chan_async_state>();
                             Action<chan_async_state> waitHasNtf = waitHasChan.wrap();
-                            chan_recv_wrap<T> recvRes = default(chan_recv_wrap<T>);
+                            chan_recv_wrap<T> recvRes = chan_recv_wrap<T>.undefined();
                             Action<chan_async_state, T, object> tryPopHandler = delegate (chan_async_state state, T msg, object _)
                             {
                                 recvRes.state = state;
@@ -5263,7 +5492,7 @@ namespace Go
                                 await mutex_lock_shared(_mutex);
                                 try
                                 {
-                                    recvRes = default(chan_recv_wrap<T>);
+                                    recvRes = chan_recv_wrap<T>.undefined();
                                     chan.try_pop_and_append_notify(self.async_callback(tryPopHandler), waitHasNtf, ntfSign);
                                     await self.async_wait();
                                     try
@@ -5311,42 +5540,27 @@ namespace Go
                 return this;
             }
 
-            public receive_mail case_of<T1, T2>(broadcast_chan<tuple<T1, T2>> chan, Func<T1, T2, Task> handler, Func<chan_async_state, Task<bool>> errHandler, broadcast_chan_token token = null)
+            public receive_mail timed_case_of(broadcast_chan<void_type> chan, int ms, Func<Task> timedHandler, Func<Task> handler, broadcast_chan_token token = null, Func<chan_async_state, Task<bool>> errHandler = null)
             {
-                return case_of(chan, (tuple<T1, T2> msg) => handler(msg.value1, msg.value2), errHandler);
-            }
-
-            public receive_mail case_of<T1, T2, T3>(broadcast_chan<tuple<T1, T2, T3>> chan, Func<T1, T2, T3, Task> handler, Func<chan_async_state, Task<bool>> errHandler, broadcast_chan_token token = null)
-            {
-                return case_of(chan, (tuple<T1, T2, T3> msg) => handler(msg.value1, msg.value2, msg.value3), errHandler);
-            }
-
-            public receive_mail timed_case_of(broadcast_chan<void_type> chan, int ms, Func<Task> timedHandler, Func<Task> handler, broadcast_chan_token token = null)
-            {
-                return timed_case_of(chan, ms, timedHandler, (void_type _) => handler(), token);
+                return timed_case_of(chan, ms, timedHandler, (void_type _) => handler(), token, errHandler);
             }
 
             public receive_mail timed_case_of<T>(broadcast_chan<T> chan, int ms, Func<Task> timedHandler, Func<T, Task> handler, broadcast_chan_token token = null)
             {
-                return timed_case_of(chan, ms, timedHandler, handler, null, token);
+                return timed_case_of(chan, ms, timedHandler, handler, token);
             }
 
             public receive_mail timed_case_of<T1, T2>(broadcast_chan<tuple<T1, T2>> chan, int ms, Func<Task> timedHandler, Func<T1, T2, Task> handler, broadcast_chan_token token = null)
             {
-                return timed_case_of(chan, ms, timedHandler, handler, null, token);
+                return timed_case_of(chan, ms, timedHandler, (tuple<T1, T2> msg) => handler(msg.value1, msg.value2), token);
             }
 
             public receive_mail timed_case_of<T1, T2, T3>(broadcast_chan<tuple<T1, T2, T3>> chan, int ms, Func<Task> timedHandler, Func<T1, T2, T3, Task> handler, broadcast_chan_token token = null)
             {
-                return timed_case_of(chan, ms, timedHandler, handler, null, token);
+                return timed_case_of(chan, ms, timedHandler, (tuple<T1, T2, T3> msg) => handler(msg.value1, msg.value2, msg.value3), token);
             }
 
-            public receive_mail timed_case_of(broadcast_chan<void_type> chan, int ms, Func<Task> timedHandler, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler, broadcast_chan_token token = null)
-            {
-                return timed_case_of(chan, ms, timedHandler, (void_type _) => handler(), errHandler, token);
-            }
-
-            public receive_mail timed_case_of<T>(broadcast_chan<T> chan, int ms, Func<Task> timedHandler, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler, broadcast_chan_token token = null)
+            public receive_mail timed_case_of<T>(broadcast_chan<T> chan, int ms, Func<Task> timedHandler, Func<T, Task> handler, broadcast_chan_token token = null, Func<chan_async_state, Task<bool>> errHandler = null)
             {
                 _children.go(async delegate ()
                 {
@@ -5444,42 +5658,27 @@ namespace Go
                 return this;
             }
 
-            public receive_mail timed_case_of<T1, T2>(broadcast_chan<tuple<T1, T2>> chan, int ms, Func<Task> timedHandler, Func<T1, T2, Task> handler, Func<chan_async_state, Task<bool>> errHandler, broadcast_chan_token token = null)
+            public receive_mail try_case_of(broadcast_chan<void_type> chan, Func<Task> handler, broadcast_chan_token token = null, Func<chan_async_state, Task<bool>> errHandler = null)
             {
-                return timed_case_of(chan, ms, timedHandler, (tuple<T1, T2> msg) => handler(msg.value1, msg.value2), errHandler);
-            }
-
-            public receive_mail timed_case_of<T1, T2, T3>(broadcast_chan<tuple<T1, T2, T3>> chan, int ms, Func<Task> timedHandler, Func<T1, T2, T3, Task> handler, Func<chan_async_state, Task<bool>> errHandler, broadcast_chan_token token = null)
-            {
-                return timed_case_of(chan, ms, timedHandler, (tuple<T1, T2, T3> msg) => handler(msg.value1, msg.value2, msg.value3), errHandler);
-            }
-
-            public receive_mail try_case_of(broadcast_chan<void_type> chan, Func<Task> handler, broadcast_chan_token token = null)
-            {
-                return try_case_of(chan, (void_type _) => handler(), token);
+                return try_case_of(chan, (void_type _) => handler(), token, errHandler);
             }
 
             public receive_mail try_case_of<T>(broadcast_chan<T> chan, Func<T, Task> handler, broadcast_chan_token token = null)
             {
-                return try_case_of(chan, handler, null, token);
+                return try_case_of(chan, handler, token);
             }
 
             public receive_mail try_case_of<T1, T2>(broadcast_chan<tuple<T1, T2>> chan, Func<T1, T2, Task> handler, broadcast_chan_token token = null)
             {
-                return try_case_of(chan, handler, null, token);
+                return try_case_of(chan, (tuple<T1, T2> msg) => handler(msg.value1, msg.value2), token);
             }
 
             public receive_mail try_case_of<T1, T2, T3>(broadcast_chan<tuple<T1, T2, T3>> chan, Func<T1, T2, T3, Task> handler, broadcast_chan_token token = null)
             {
-                return try_case_of(chan, handler, null, token);
+                return try_case_of(chan, (tuple<T1, T2, T3> msg) => handler(msg.value1, msg.value2, msg.value3), token);
             }
 
-            public receive_mail try_case_of(broadcast_chan<void_type> chan, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler, broadcast_chan_token token = null)
-            {
-                return try_case_of(chan, (void_type _) => handler(), errHandler, token);
-            }
-
-            public receive_mail try_case_of<T>(broadcast_chan<T> chan, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler, broadcast_chan_token token = null)
+            public receive_mail try_case_of<T>(broadcast_chan<T> chan, Func<T, Task> handler, broadcast_chan_token token = null, Func<chan_async_state, Task<bool>> errHandler = null)
             {
                 _children.go(async delegate ()
                 {
@@ -5515,62 +5714,52 @@ namespace Go
                 return this;
             }
 
-            public receive_mail try_case_of<T1, T2>(broadcast_chan<tuple<T1, T2>> chan, Func<T1, T2, Task> handler, Func<chan_async_state, Task<bool>> errHandler, broadcast_chan_token token = null)
+            public receive_mail case_of<R>(csp_chan<R, void_type> chan, Func<Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null, Func<Task> lostHandler = null)
             {
-                return try_case_of(chan, (tuple<T1, T2> msg) => handler(msg.value1, msg.value2), errHandler);
+                return case_of(chan, async (csp_chan<R, void_type>.csp_result res, void_type _) => res.complete(await handler()), errHandler, null == lostHandler ? (Func<void_type, Task>)null : (void_type _) => lostHandler());
             }
 
-            public receive_mail try_case_of<T1, T2, T3>(broadcast_chan<tuple<T1, T2, T3>> chan, Func<T1, T2, T3, Task> handler, Func<chan_async_state, Task<bool>> errHandler, broadcast_chan_token token = null)
+            public receive_mail case_of<T>(csp_chan<void_type, T> chan, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Func<T, Task> lostHandler = null)
             {
-                return try_case_of(chan, (tuple<T1, T2, T3> msg) => handler(msg.value1, msg.value2, msg.value3), errHandler);
+                return case_of(chan, async (csp_chan<void_type, T>.csp_result res, T msg) => { await handler(msg); res.complete(default(void_type)); }, errHandler, lostHandler);
             }
 
-            public receive_mail case_of<R>(csp_chan<R, void_type> chan, Func<Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail case_of<T1, T2>(csp_chan<void_type, tuple<T1, T2>> chan, Func<T1, T2, Task> handler)
             {
-                return case_of(chan, async (csp_chan<R, void_type>.csp_result res, void_type _) => res.complete(await handler()), errHandler);
+                return case_of(chan, async (csp_chan<void_type, tuple<T1, T2>>.csp_result res, tuple<T1, T2> msg) => { await handler(msg.value1, msg.value2); res.complete(default(void_type)); });
             }
 
-            public receive_mail case_of<T>(csp_chan<void_type, T> chan, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail case_of<T1, T2, T3>(csp_chan<void_type, tuple<T1, T2, T3>> chan, Func<T1, T2, T3, Task> handler)
             {
-                return case_of(chan, async (csp_chan<void_type, T>.csp_result res, T msg) => { await handler(msg); res.complete(default(void_type)); }, errHandler);
+                return case_of(chan, async (csp_chan<void_type, tuple<T1, T2, T3>>.csp_result res, tuple<T1, T2, T3> msg) => { await handler(msg.value1, msg.value2, msg.value3); res.complete(default(void_type)); });
             }
 
-            public receive_mail case_of<T1, T2>(csp_chan<void_type, tuple<T1, T2>> chan, Func<T1, T2, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail case_of(csp_chan<void_type, void_type> chan, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Func<Task> lostHandler = null)
             {
-                return case_of(chan, async (csp_chan<void_type, tuple<T1, T2>>.csp_result res, tuple<T1, T2> msg) => { await handler(msg.value1, msg.value2); res.complete(default(void_type)); }, errHandler);
+                return case_of(chan, async (csp_chan<void_type, void_type>.csp_result res, void_type _) => { await handler(); res.complete(default(void_type)); }, errHandler, null == lostHandler ? (Func<void_type, Task>)null : (void_type _) => lostHandler());
             }
 
-            public receive_mail case_of<T1, T2, T3>(csp_chan<void_type, tuple<T1, T2, T3>> chan, Func<T1, T2, T3, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail case_of<R, T>(csp_chan<R, T> chan, Func<T, Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null, Func<T, Task> lostHandler = null)
             {
-                return case_of(chan, async (csp_chan<void_type, tuple<T1, T2, T3>>.csp_result res, tuple<T1, T2, T3> msg) => { await handler(msg.value1, msg.value2, msg.value3); res.complete(default(void_type)); }, errHandler);
+                return case_of(chan, async (csp_chan<R, T>.csp_result res, T msg) => res.complete(await handler(msg)), errHandler, lostHandler);
             }
 
-            public receive_mail case_of(csp_chan<void_type, void_type> chan, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail case_of<R, T1, T2>(csp_chan<R, tuple<T1, T2>> chan, Func<T1, T2, Task<R>> handler)
             {
-                return case_of(chan, async (csp_chan<void_type, void_type>.csp_result res, void_type _) => { await handler(); res.complete(default(void_type)); }, errHandler);
+                return case_of(chan, async (csp_chan<R, tuple<T1, T2>>.csp_result res, tuple<T1, T2> msg) => res.complete(await handler(msg.value1, msg.value2)));
             }
 
-            public receive_mail case_of<R, T>(csp_chan<R, T> chan, Func<T, Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail case_of<R, T1, T2, T3>(csp_chan<R, tuple<T1, T2, T3>> chan, Func<T1, T2, T3, Task<R>> handler)
             {
-                return case_of(chan, async (csp_chan<R, T>.csp_result res, T msg) => res.complete(await handler(msg)), errHandler);
+                return case_of(chan, async (csp_chan<R, tuple<T1, T2, T3>>.csp_result res, tuple<T1, T2, T3> msg) => res.complete(await handler(msg.value1, msg.value2, msg.value3)));
             }
 
-            public receive_mail case_of<R, T1, T2>(csp_chan<R, tuple<T1, T2>> chan, Func<T1, T2, Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail case_of<R>(csp_chan<R, void_type> chan, Func<csp_chan<R, void_type>.csp_result, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Func<Task> lostHandler = null)
             {
-                return case_of(chan, async (csp_chan<R, tuple<T1, T2>>.csp_result res, tuple<T1, T2> msg) => res.complete(await handler(msg.value1, msg.value2)), errHandler);
+                return case_of(chan, (csp_chan<R, void_type>.csp_result res, void_type _) => handler(res), errHandler, null == lostHandler ? (Func<void_type, Task>)null : (void_type _) => lostHandler());
             }
 
-            public receive_mail case_of<R, T1, T2, T3>(csp_chan<R, tuple<T1, T2, T3>> chan, Func<T1, T2, T3, Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null)
-            {
-                return case_of(chan, async (csp_chan<R, tuple<T1, T2, T3>>.csp_result res, tuple<T1, T2, T3> msg) => res.complete(await handler(msg.value1, msg.value2, msg.value3)), errHandler);
-            }
-
-            public receive_mail case_of<R>(csp_chan<R, void_type> chan, Func<csp_chan<R, void_type>.csp_result, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
-            {
-                return case_of(chan, (csp_chan<R, void_type>.csp_result res, void_type _) => handler(res), errHandler);
-            }
-
-            public receive_mail case_of<R, T>(csp_chan<R, T> chan, Func<csp_chan<R, T>.csp_result, T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail case_of<R, T>(csp_chan<R, T> chan, Func<csp_chan<R, T>.csp_result, T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Func<T, Task> lostHandler = null)
             {
                 _children.go(async delegate ()
                 {
@@ -5582,7 +5771,7 @@ namespace Go
                             self._mailboxMap = _children.parent()._mailboxMap;
                             while (_run)
                             {
-                                csp_wait_wrap<R, T> recvRes = await csp_wait(chan);
+                                csp_wait_wrap<R, T> recvRes = await csp_wait(chan, lostHandler);
                                 if (chan_async_state.async_ok == recvRes.state)
                                 {
                                     await handler(recvRes.result, recvRes.msg);
@@ -5612,7 +5801,7 @@ namespace Go
                             self._mailboxMap = _children.parent()._mailboxMap;
                             nil_chan<chan_async_state> waitHasChan = new nil_chan<chan_async_state>();
                             Action<chan_async_state> waitHasNtf = waitHasChan.wrap();
-                            csp_wait_wrap<R, T> recvRes = default(csp_wait_wrap<R, T>);
+                            csp_wait_wrap<R, T> recvRes = csp_wait_wrap<R, T>.undefined();
                             Action<chan_async_state, T, object> tryPopHandler = delegate (chan_async_state state, T msg, object exObj)
                             {
                                 recvRes.state = state;
@@ -5629,9 +5818,23 @@ namespace Go
                                 await mutex_lock_shared(_mutex);
                                 try
                                 {
-                                    recvRes = default(csp_wait_wrap<R, T>);
-                                    chan.try_pop_and_append_notify(self.async_callback(tryPopHandler), waitHasNtf, ntfSign);
-                                    await self.async_wait();
+                                    recvRes = csp_wait_wrap<R, T>.undefined();
+                                    try
+                                    {
+                                        chan.try_pop_and_append_notify(self.async_callback(tryPopHandler), waitHasNtf, ntfSign);
+                                        await self.async_wait();
+                                    }
+                                    catch (stop_exception)
+                                    {
+                                        chan.remove_pop_notify(self.async_ignore<chan_async_state>(), ntfSign);
+                                        await self.async_wait();
+                                        if (chan_async_state.async_ok == recvRes.state && null != lostHandler)
+                                        {
+                                            await lostHandler(recvRes.msg);
+                                            recvRes.fail();
+                                        }
+                                        throw;
+                                    }
                                     try
                                     {
                                         await unlock_suspend();
@@ -5677,69 +5880,69 @@ namespace Go
                 return this;
             }
 
-            public receive_mail case_of<R, T1, T2>(csp_chan<R, tuple<T1, T2>> chan, Func<csp_chan<R, tuple<T1, T2>>.csp_result, T1, T2, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail case_of<R, T1, T2>(csp_chan<R, tuple<T1, T2>> chan, Func<csp_chan<R, tuple<T1, T2>>.csp_result, T1, T2, Task> handler)
             {
-                return case_of(chan, (csp_chan<R, tuple<T1, T2>>.csp_result result, tuple<T1, T2> msg) => handler(result, msg.value1, msg.value2), errHandler);
+                return case_of(chan, (csp_chan<R, tuple<T1, T2>>.csp_result result, tuple<T1, T2> msg) => handler(result, msg.value1, msg.value2));
             }
 
-            public receive_mail case_of<R, T1, T2, T3>(csp_chan<R, tuple<T1, T2, T3>> chan, Func<csp_chan<R, tuple<T1, T2, T3>>.csp_result, T1, T2, T3, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail case_of<R, T1, T2, T3>(csp_chan<R, tuple<T1, T2, T3>> chan, Func<csp_chan<R, tuple<T1, T2, T3>>.csp_result, T1, T2, T3, Task> handler)
             {
-                return case_of(chan, (csp_chan<R, tuple<T1, T2, T3>>.csp_result result, tuple<T1, T2, T3> msg) => handler(result, msg.value1, msg.value2, msg.value3), errHandler);
+                return case_of(chan, (csp_chan<R, tuple<T1, T2, T3>>.csp_result result, tuple<T1, T2, T3> msg) => handler(result, msg.value1, msg.value2, msg.value3));
             }
 
-            public receive_mail timed_case_of<R>(csp_chan<R, void_type> chan, int ms, Func<Task> timedHandler, Func<Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail timed_case_of<R>(csp_chan<R, void_type> chan, int ms, Func<Task> timedHandler, Func<Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null, Func<Task> lostHandler = null)
             {
-                return timed_case_of(chan, ms, timedHandler, async (csp_chan<R, void_type>.csp_result res, void_type _) => res.complete(await handler()), errHandler);
+                return timed_case_of(chan, ms, timedHandler, async (csp_chan<R, void_type>.csp_result res, void_type _) => res.complete(await handler()), errHandler, null == lostHandler ? (Func<void_type, Task>)null : (void_type _) => lostHandler());
             }
 
-            public receive_mail timed_case_of<T>(csp_chan<void_type, T> chan, int ms, Func<Task> timedHandler, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail timed_case_of<T>(csp_chan<void_type, T> chan, int ms, Func<Task> timedHandler, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Func<T, Task> lostHandler = null)
             {
-                return timed_case_of(chan, ms, timedHandler, async (csp_chan<void_type, T>.csp_result res, T msg) => { await handler(msg); res.complete(default(void_type)); }, errHandler);
+                return timed_case_of(chan, ms, timedHandler, async (csp_chan<void_type, T>.csp_result res, T msg) => { await handler(msg); res.complete(default(void_type)); }, errHandler, lostHandler);
             }
 
-            public receive_mail timed_case_of<T1, T2>(csp_chan<void_type, tuple<T1, T2>> chan, int ms, Func<Task> timedHandler, Func<T1, T2, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail timed_case_of<T1, T2>(csp_chan<void_type, tuple<T1, T2>> chan, int ms, Func<Task> timedHandler, Func<T1, T2, Task> handler)
             {
-                return timed_case_of(chan, ms, timedHandler, async (csp_chan<void_type, tuple<T1, T2>>.csp_result res, tuple<T1, T2> msg) => { await handler(msg.value1, msg.value2); res.complete(default(void_type)); }, errHandler);
+                return timed_case_of(chan, ms, timedHandler, async (csp_chan<void_type, tuple<T1, T2>>.csp_result res, tuple<T1, T2> msg) => { await handler(msg.value1, msg.value2); res.complete(default(void_type)); });
             }
 
-            public receive_mail timed_case_of<T1, T2, T3>(csp_chan<void_type, tuple<T1, T2, T3>> chan, int ms, Func<Task> timedHandler, Func<T1, T2, T3, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail timed_case_of<T1, T2, T3>(csp_chan<void_type, tuple<T1, T2, T3>> chan, int ms, Func<Task> timedHandler, Func<T1, T2, T3, Task> handler)
             {
-                return timed_case_of(chan, ms, timedHandler, async (csp_chan<void_type, tuple<T1, T2, T3>>.csp_result res, tuple<T1, T2, T3> msg) => { await handler(msg.value1, msg.value2, msg.value3); res.complete(default(void_type)); }, errHandler);
+                return timed_case_of(chan, ms, timedHandler, async (csp_chan<void_type, tuple<T1, T2, T3>>.csp_result res, tuple<T1, T2, T3> msg) => { await handler(msg.value1, msg.value2, msg.value3); res.complete(default(void_type)); });
             }
 
-            public receive_mail timed_case_of(csp_chan<void_type, void_type> chan, int ms, Func<Task> timedHandler, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail timed_case_of(csp_chan<void_type, void_type> chan, int ms, Func<Task> timedHandler, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Func<Task> lostHandler = null)
             {
-                return timed_case_of(chan, ms, timedHandler, async (csp_chan<void_type, void_type>.csp_result res, void_type _) => { await handler(); res.complete(default(void_type)); }, errHandler);
+                return timed_case_of(chan, ms, timedHandler, async (csp_chan<void_type, void_type>.csp_result res, void_type _) => { await handler(); res.complete(default(void_type)); }, errHandler, null == lostHandler ? (Func<void_type, Task>)null : (void_type _) => lostHandler());
             }
 
-            public receive_mail timed_case_of<R, T>(csp_chan<R, T> chan, int ms, Func<Task> timedHandler, Func<T, Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail timed_case_of<R, T>(csp_chan<R, T> chan, int ms, Func<Task> timedHandler, Func<T, Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null, Func<T, Task> lostHandler = null)
             {
-                return timed_case_of(chan, ms, timedHandler, async (csp_chan<R, T>.csp_result res, T msg) => res.complete(await handler(msg)), errHandler);
+                return timed_case_of(chan, ms, timedHandler, async (csp_chan<R, T>.csp_result res, T msg) => res.complete(await handler(msg)), errHandler, lostHandler);
             }
 
-            public receive_mail timed_case_of<R, T1, T2>(csp_chan<R, tuple<T1, T2>> chan, int ms, Func<Task> timedHandler, Func<T1, T2, Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail timed_case_of<R, T1, T2>(csp_chan<R, tuple<T1, T2>> chan, int ms, Func<Task> timedHandler, Func<T1, T2, Task<R>> handler)
             {
-                return timed_case_of(chan, ms, timedHandler, async (csp_chan<R, tuple<T1, T2>>.csp_result res, tuple<T1, T2> msg) => res.complete(await handler(msg.value1, msg.value2)), errHandler);
+                return timed_case_of(chan, ms, timedHandler, async (csp_chan<R, tuple<T1, T2>>.csp_result res, tuple<T1, T2> msg) => res.complete(await handler(msg.value1, msg.value2)));
             }
 
-            public receive_mail timed_case_of<R, T1, T2, T3>(csp_chan<R, tuple<T1, T2, T3>> chan, int ms, Func<Task> timedHandler, Func<T1, T2, T3, Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail timed_case_of<R, T1, T2, T3>(csp_chan<R, tuple<T1, T2, T3>> chan, int ms, Func<Task> timedHandler, Func<T1, T2, T3, Task<R>> handler)
             {
-                return timed_case_of(chan, ms, timedHandler, async (csp_chan<R, tuple<T1, T2, T3>>.csp_result res, tuple<T1, T2, T3> msg) => res.complete(await handler(msg.value1, msg.value2, msg.value3)), errHandler);
+                return timed_case_of(chan, ms, timedHandler, async (csp_chan<R, tuple<T1, T2, T3>>.csp_result res, tuple<T1, T2, T3> msg) => res.complete(await handler(msg.value1, msg.value2, msg.value3)));
             }
 
-            public receive_mail timed_case_of<R>(csp_chan<R, void_type> chan, int ms, Func<Task> timedHandler, Func<csp_chan<R, void_type>.csp_result, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail timed_case_of<R>(csp_chan<R, void_type> chan, int ms, Func<Task> timedHandler, Func<csp_chan<R, void_type>.csp_result, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Func<Task> lostHandler = null)
             {
-                return timed_case_of(chan, ms, timedHandler, (csp_chan<R, void_type>.csp_result res, void_type _) => handler(res), errHandler);
+                return timed_case_of(chan, ms, timedHandler, (csp_chan<R, void_type>.csp_result res, void_type _) => handler(res), errHandler, null == lostHandler ? (Func<void_type, Task>)null : (void_type _) => lostHandler());
             }
 
-            public receive_mail timed_case_of<R, T>(csp_chan<R, T> chan, int ms, Func<Task> timedHandler, Func<csp_chan<R, T>.csp_result, T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail timed_case_of<R, T>(csp_chan<R, T> chan, int ms, Func<Task> timedHandler, Func<csp_chan<R, T>.csp_result, T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Func<T, Task> lostHandler = null)
             {
                 _children.go(async delegate ()
                 {
                     generator self = generator.self;
                     if (null == _mutex)
                     {
-                        csp_wait_wrap<R, T> recvRes = await csp_timed_wait(chan, ms);
+                        csp_wait_wrap<R, T> recvRes = await csp_timed_wait(chan, ms, lostHandler);
                         try
                         {
                             self._mailboxMap = _children.parent()._mailboxMap;
@@ -5781,7 +5984,7 @@ namespace Go
                                 {
                                     if (!overtime)
                                     {
-                                        csp_wait_wrap<R, T> recvRes = await csp_try_wait(chan);
+                                        csp_wait_wrap<R, T> recvRes = await csp_try_wait(chan, lostHandler);
                                         try
                                         {
                                             await unlock_suspend();
@@ -5829,62 +6032,62 @@ namespace Go
                 return this;
             }
 
-            public receive_mail timed_case_of<R, T1, T2>(csp_chan<R, tuple<T1, T2>> chan, int ms, Func<Task> timedHandler, Func<csp_chan<R, tuple<T1, T2>>.csp_result, T1, T2, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail timed_case_of<R, T1, T2>(csp_chan<R, tuple<T1, T2>> chan, int ms, Func<Task> timedHandler, Func<csp_chan<R, tuple<T1, T2>>.csp_result, T1, T2, Task> handler)
             {
-                return timed_case_of(chan, ms, timedHandler, (csp_chan<R, tuple<T1, T2>>.csp_result result, tuple<T1, T2> msg) => handler(result, msg.value1, msg.value2), errHandler);
+                return timed_case_of(chan, ms, timedHandler, (csp_chan<R, tuple<T1, T2>>.csp_result result, tuple<T1, T2> msg) => handler(result, msg.value1, msg.value2));
             }
 
-            public receive_mail timed_case_of<R, T1, T2, T3>(csp_chan<R, tuple<T1, T2, T3>> chan, int ms, Func<Task> timedHandler, Func<csp_chan<R, tuple<T1, T2, T3>>.csp_result, T1, T2, T3, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail timed_case_of<R, T1, T2, T3>(csp_chan<R, tuple<T1, T2, T3>> chan, int ms, Func<Task> timedHandler, Func<csp_chan<R, tuple<T1, T2, T3>>.csp_result, T1, T2, T3, Task> handler)
             {
-                return timed_case_of(chan, ms, timedHandler, (csp_chan<R, tuple<T1, T2, T3>>.csp_result result, tuple<T1, T2, T3> msg) => handler(result, msg.value1, msg.value2, msg.value3), errHandler);
+                return timed_case_of(chan, ms, timedHandler, (csp_chan<R, tuple<T1, T2, T3>>.csp_result result, tuple<T1, T2, T3> msg) => handler(result, msg.value1, msg.value2, msg.value3));
             }
 
-            public receive_mail try_case_of<R>(csp_chan<R, void_type> chan, Func<Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail try_case_of<R>(csp_chan<R, void_type> chan, Func<Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null, Func<Task> lostHandler = null)
             {
-                return try_case_of(chan, async (csp_chan<R, void_type>.csp_result res, void_type _) => res.complete(await handler()), errHandler);
+                return try_case_of(chan, async (csp_chan<R, void_type>.csp_result res, void_type _) => res.complete(await handler()), errHandler, null == lostHandler ? (Func<void_type, Task>)null : (void_type _) => lostHandler());
             }
 
-            public receive_mail try_case_of<T>(csp_chan<void_type, T> chan, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail try_case_of<T>(csp_chan<void_type, T> chan, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Func<T, Task> lostHandler = null)
             {
-                return try_case_of(chan, async (csp_chan<void_type, T>.csp_result res, T msg) => { await handler(msg); res.complete(default(void_type)); }, errHandler);
+                return try_case_of(chan, async (csp_chan<void_type, T>.csp_result res, T msg) => { await handler(msg); res.complete(default(void_type)); }, errHandler, lostHandler);
             }
 
-            public receive_mail try_case_of<T1, T2>(csp_chan<void_type, tuple<T1, T2>> chan, Func<T1, T2, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail try_case_of<T1, T2>(csp_chan<void_type, tuple<T1, T2>> chan, Func<T1, T2, Task> handler)
             {
-                return try_case_of(chan, async (csp_chan<void_type, tuple<T1, T2>>.csp_result res, tuple<T1, T2> msg) => { await handler(msg.value1, msg.value2); res.complete(default(void_type)); }, errHandler);
+                return try_case_of(chan, async (csp_chan<void_type, tuple<T1, T2>>.csp_result res, tuple<T1, T2> msg) => { await handler(msg.value1, msg.value2); res.complete(default(void_type)); });
             }
 
-            public receive_mail try_case_of<T1, T2, T3>(csp_chan<void_type, tuple<T1, T2, T3>> chan, Func<T1, T2, T3, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail try_case_of<T1, T2, T3>(csp_chan<void_type, tuple<T1, T2, T3>> chan, Func<T1, T2, T3, Task> handler)
             {
-                return try_case_of(chan, async (csp_chan<void_type, tuple<T1, T2, T3>>.csp_result res, tuple<T1, T2, T3> msg) => { await handler(msg.value1, msg.value2, msg.value3); res.complete(default(void_type)); }, errHandler);
+                return try_case_of(chan, async (csp_chan<void_type, tuple<T1, T2, T3>>.csp_result res, tuple<T1, T2, T3> msg) => { await handler(msg.value1, msg.value2, msg.value3); res.complete(default(void_type)); });
             }
 
-            public receive_mail try_case_of(csp_chan<void_type, void_type> chan, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail try_case_of(csp_chan<void_type, void_type> chan, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Func<Task> lostHandler = null)
             {
-                return try_case_of(chan, async (csp_chan<void_type, void_type>.csp_result res, void_type _) => { await handler(); res.complete(default(void_type)); }, errHandler);
+                return try_case_of(chan, async (csp_chan<void_type, void_type>.csp_result res, void_type _) => { await handler(); res.complete(default(void_type)); }, errHandler, null == lostHandler ? (Func<void_type, Task>)null : (void_type _) => lostHandler());
             }
 
-            public receive_mail try_case_of<R, T>(csp_chan<R, T> chan, Func<T, Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail try_case_of<R, T>(csp_chan<R, T> chan, Func<T, Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null, Func<T, Task> lostHandler = null)
             {
-                return try_case_of(chan, async (csp_chan<R, T>.csp_result res, T msg) => res.complete(await handler(msg)), errHandler);
+                return try_case_of(chan, async (csp_chan<R, T>.csp_result res, T msg) => res.complete(await handler(msg)), errHandler, lostHandler);
             }
 
-            public receive_mail try_case_of<R, T1, T2>(csp_chan<R, tuple<T1, T2>> chan, Func<T1, T2, Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail try_case_of<R, T1, T2>(csp_chan<R, tuple<T1, T2>> chan, Func<T1, T2, Task<R>> handler)
             {
-                return try_case_of(chan, async (csp_chan<R, tuple<T1, T2>>.csp_result res, tuple<T1, T2> msg) => res.complete(await handler(msg.value1, msg.value2)), errHandler);
+                return try_case_of(chan, async (csp_chan<R, tuple<T1, T2>>.csp_result res, tuple<T1, T2> msg) => res.complete(await handler(msg.value1, msg.value2)));
             }
 
-            public receive_mail try_case_of<R, T1, T2, T3>(csp_chan<R, tuple<T1, T2, T3>> chan, Func<T1, T2, T3, Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail try_case_of<R, T1, T2, T3>(csp_chan<R, tuple<T1, T2, T3>> chan, Func<T1, T2, T3, Task<R>> handler)
             {
-                return try_case_of(chan, async (csp_chan<R, tuple<T1, T2, T3>>.csp_result res, tuple<T1, T2, T3> msg) => res.complete(await handler(msg.value1, msg.value2, msg.value3)), errHandler);
+                return try_case_of(chan, async (csp_chan<R, tuple<T1, T2, T3>>.csp_result res, tuple<T1, T2, T3> msg) => res.complete(await handler(msg.value1, msg.value2, msg.value3)));
             }
 
-            public receive_mail try_case_of<R>(csp_chan<R, void_type> chan, Func<csp_chan<R, void_type>.csp_result, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail try_case_of<R>(csp_chan<R, void_type> chan, Func<csp_chan<R, void_type>.csp_result, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Func<Task> lostHandler = null)
             {
-                return try_case_of(chan, (csp_chan<R, void_type>.csp_result res, void_type _) => handler(res), errHandler);
+                return try_case_of(chan, (csp_chan<R, void_type>.csp_result res, void_type _) => handler(res), errHandler, null == lostHandler ? (Func<void_type, Task>)null : (void_type _) => lostHandler());
             }
 
-            public receive_mail try_case_of<R, T>(csp_chan<R, T> chan, Func<csp_chan<R, T>.csp_result, T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail try_case_of<R, T>(csp_chan<R, T> chan, Func<csp_chan<R, T>.csp_result, T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Func<T, Task> lostHandler = null)
             {
                 _children.go(async delegate ()
                 {
@@ -5896,7 +6099,7 @@ namespace Go
                     try
                     {
                         self._mailboxMap = _children.parent()._mailboxMap;
-                        csp_wait_wrap<R, T> recvRes = await csp_try_wait(chan);
+                        csp_wait_wrap<R, T> recvRes = await csp_try_wait(chan, lostHandler);
                         if (chan_async_state.async_ok == recvRes.state)
                         {
                             await handler(recvRes.result, recvRes.msg);
@@ -5920,134 +6123,134 @@ namespace Go
                 return this;
             }
 
-            public receive_mail try_case_of<R, T1, T2>(csp_chan<R, tuple<T1, T2>> chan, Func<csp_chan<R, tuple<T1, T2>>.csp_result, T1, T2, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail try_case_of<R, T1, T2>(csp_chan<R, tuple<T1, T2>> chan, Func<csp_chan<R, tuple<T1, T2>>.csp_result, T1, T2, Task> handler)
             {
-                return try_case_of(chan, (csp_chan<R, tuple<T1, T2>>.csp_result result, tuple<T1, T2> msg) => handler(result, msg.value1, msg.value2), errHandler);
+                return try_case_of(chan, (csp_chan<R, tuple<T1, T2>>.csp_result result, tuple<T1, T2> msg) => handler(result, msg.value1, msg.value2));
             }
 
-            public receive_mail try_case_of<R, T1, T2, T3>(csp_chan<R, tuple<T1, T2, T3>> chan, Func<csp_chan<R, tuple<T1, T2, T3>>.csp_result, T1, T2, T3, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail try_case_of<R, T1, T2, T3>(csp_chan<R, tuple<T1, T2, T3>> chan, Func<csp_chan<R, tuple<T1, T2, T3>>.csp_result, T1, T2, T3, Task> handler)
             {
-                return try_case_of(chan, (csp_chan<R, tuple<T1, T2, T3>>.csp_result result, tuple<T1, T2, T3> msg) => handler(result, msg.value1, msg.value2, msg.value3), errHandler);
+                return try_case_of(chan, (csp_chan<R, tuple<T1, T2, T3>>.csp_result result, tuple<T1, T2, T3> msg) => handler(result, msg.value1, msg.value2, msg.value3));
             }
 
-            public receive_mail case_of<T>(int id, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail case_of<T>(int id, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Func<T, Task> lostHandler = null)
             {
-                return case_of(self_mailbox<T>(id), handler, errHandler);
+                return case_of(self_mailbox<T>(id), handler, errHandler, lostHandler);
             }
 
-            public receive_mail case_of<T1, T2>(int id, Func<T1, T2, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail case_of<T1, T2>(int id, Func<T1, T2, Task> handler)
             {
-                return case_of(self_mailbox<tuple<T1, T2>>(id), handler, errHandler);
+                return case_of(self_mailbox<tuple<T1, T2>>(id), handler);
             }
 
-            public receive_mail case_of<T1, T2, T3>(int id, Func<T1, T2, T3, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail case_of<T1, T2, T3>(int id, Func<T1, T2, T3, Task> handler)
             {
-                return case_of(self_mailbox<tuple<T1, T2, T3>>(id), handler, errHandler);
+                return case_of(self_mailbox<tuple<T1, T2, T3>>(id), handler);
             }
 
-            public receive_mail timed_case_of<T>(int id, int ms, Func<Task> timedHandler, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail timed_case_of<T>(int id, int ms, Func<Task> timedHandler, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Func<T, Task> lostHandler = null)
             {
-                return timed_case_of(self_mailbox<T>(id), ms, timedHandler, handler, errHandler);
+                return timed_case_of(self_mailbox<T>(id), ms, timedHandler, handler, errHandler, lostHandler);
             }
 
-            public receive_mail timed_case_of<T1, T2>(int id, int ms, Func<Task> timedHandler, Func<T1, T2, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail timed_case_of<T1, T2>(int id, int ms, Func<Task> timedHandler, Func<T1, T2, Task> handler)
             {
-                return timed_case_of(self_mailbox<tuple<T1, T2>>(id), ms, timedHandler, handler, errHandler);
+                return timed_case_of(self_mailbox<tuple<T1, T2>>(id), ms, timedHandler, handler);
             }
 
-            public receive_mail timed_case_of<T1, T2, T3>(int id, int ms, Func<Task> timedHandler, Func<T1, T2, T3, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail timed_case_of<T1, T2, T3>(int id, int ms, Func<Task> timedHandler, Func<T1, T2, T3, Task> handler)
             {
-                return timed_case_of(self_mailbox<tuple<T1, T2, T3>>(id), ms, timedHandler, handler, errHandler);
+                return timed_case_of(self_mailbox<tuple<T1, T2, T3>>(id), ms, timedHandler, handler);
             }
 
-            public receive_mail try_case_of<T>(int id, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail try_case_of<T>(int id, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Func<T, Task> lostHandler = null)
             {
-                return try_case_of(self_mailbox<T>(id), handler, errHandler);
+                return try_case_of(self_mailbox<T>(id), handler, errHandler, lostHandler);
             }
 
-            public receive_mail try_case_of<T1, T2>(int id, Func<T1, T2, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail try_case_of<T1, T2>(int id, Func<T1, T2, Task> handler)
             {
-                return try_case_of(self_mailbox<tuple<T1, T2>>(id), handler, errHandler);
+                return try_case_of(self_mailbox<tuple<T1, T2>>(id), handler);
             }
 
-            public receive_mail try_case_of<T1, T2, T3>(int id, Func<T1, T2, T3, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail try_case_of<T1, T2, T3>(int id, Func<T1, T2, T3, Task> handler)
             {
-                return try_case_of(self_mailbox<tuple<T1, T2, T3>>(id), handler, errHandler);
+                return try_case_of(self_mailbox<tuple<T1, T2, T3>>(id), handler);
             }
 
-            public receive_mail case_of<T>(Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail case_of<T>(Func<T, Task> handler)
             {
-                return case_of(0, handler, errHandler);
+                return case_of(0, handler);
             }
 
-            public receive_mail case_of<T1, T2>(Func<T1, T2, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail case_of<T1, T2>(Func<T1, T2, Task> handler)
             {
-                return case_of(0, handler, errHandler);
+                return case_of(0, handler);
             }
 
-            public receive_mail case_of<T1, T2, T3>(Func<T1, T2, T3, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail case_of<T1, T2, T3>(Func<T1, T2, T3, Task> handler)
             {
-                return case_of(0, handler, errHandler);
+                return case_of(0, handler);
             }
 
-            public receive_mail timed_case_of<T>(int ms, Func<Task> timedHandler, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail timed_case_of<T>(int ms, Func<Task> timedHandler, Func<T, Task> handler)
             {
-                return timed_case_of(0, ms, timedHandler, handler, errHandler);
+                return timed_case_of(0, ms, timedHandler, handler);
             }
 
-            public receive_mail timed_case_of<T1, T2>(int ms, Func<Task> timedHandler, Func<T1, T2, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail timed_case_of<T1, T2>(int ms, Func<Task> timedHandler, Func<T1, T2, Task> handler)
             {
-                return timed_case_of(0, ms, timedHandler, handler, errHandler);
+                return timed_case_of(0, ms, timedHandler, handler);
             }
 
-            public receive_mail timed_case_of<T1, T2, T3>(int ms, Func<Task> timedHandler, Func<T1, T2, T3, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail timed_case_of<T1, T2, T3>(int ms, Func<Task> timedHandler, Func<T1, T2, T3, Task> handler)
             {
-                return timed_case_of(0, ms, timedHandler, handler, errHandler);
+                return timed_case_of(0, ms, timedHandler, handler);
             }
 
-            public receive_mail try_case_of<T>(Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail try_case_of<T>(Func<T, Task> handler)
             {
-                return try_case_of(0, handler, errHandler);
+                return try_case_of(0, handler);
             }
 
-            public receive_mail try_case_of<T1, T2>(Func<T1, T2, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail try_case_of<T1, T2>(Func<T1, T2, Task> handler)
             {
-                return try_case_of(0, handler, errHandler);
+                return try_case_of(0, handler);
             }
 
-            public receive_mail try_case_of<T1, T2, T3>(Func<T1, T2, T3, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail try_case_of<T1, T2, T3>(Func<T1, T2, T3, Task> handler)
             {
-                return try_case_of(0, handler, errHandler);
+                return try_case_of(0, handler);
             }
 
-            public receive_mail case_of(int id, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail case_of(int id, Func<Task> handler)
             {
-                return case_of(self_mailbox<void_type>(id), handler, errHandler);
+                return case_of(self_mailbox<void_type>(id), handler);
             }
 
-            public receive_mail timed_case_of(int id, int ms, Func<Task> timedHandler, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail timed_case_of(int id, int ms, Func<Task> timedHandler, Func<Task> handler)
             {
-                return timed_case_of(self_mailbox<void_type>(id), ms, timedHandler, handler, errHandler);
+                return timed_case_of(self_mailbox<void_type>(id), ms, timedHandler, handler);
             }
 
-            public receive_mail try_case_of(int id, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail try_case_of(int id, Func<Task> handler)
             {
-                return try_case_of(self_mailbox<void_type>(id), handler, errHandler);
+                return try_case_of(self_mailbox<void_type>(id), handler);
             }
 
-            public receive_mail case_of(Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail case_of(Func<Task> handler)
             {
-                return case_of(0, handler, errHandler);
+                return case_of(0, handler);
             }
 
-            public receive_mail timed_case_of(int ms, Func<Task> timedHandler, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail timed_case_of(int ms, Func<Task> timedHandler, Func<Task> handler)
             {
-                return timed_case_of(0, ms, timedHandler, handler, errHandler);
+                return timed_case_of(0, ms, timedHandler, handler);
             }
 
-            public receive_mail try_case_of(Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public receive_mail try_case_of(Func<Task> handler)
             {
-                return try_case_of(0, handler, errHandler);
+                return try_case_of(0, handler);
             }
 
             public async Task end()
@@ -6104,57 +6307,57 @@ namespace Go
                 _chans = chans;
             }
 
-            public select_chans case_recv_mail<T>(Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public select_chans case_recv_mail<T>(Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Func<T, Task> lostHandler = null)
             {
-                return case_receive(self_mailbox<T>(), handler, errHandler);
+                return case_receive(self_mailbox<T>(), handler, errHandler, lostHandler);
             }
 
-            public select_chans case_recv_mail<T1, T2>(Func<T1, T2, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public select_chans case_recv_mail<T1, T2>(Func<T1, T2, Task> handler)
             {
-                return case_receive(self_mailbox<tuple<T1, T2>>(), handler, errHandler);
+                return case_receive(self_mailbox<tuple<T1, T2>>(), handler);
             }
 
-            public select_chans case_recv_mail<T1, T2, T3>(Func<T1, T2, T3, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public select_chans case_recv_mail<T1, T2, T3>(Func<T1, T2, T3, Task> handler)
             {
-                return case_receive(self_mailbox<tuple<T1, T2, T3>>(), handler, errHandler);
+                return case_receive(self_mailbox<tuple<T1, T2, T3>>(), handler);
             }
 
-            public select_chans case_recv_mail<T>(int id, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public select_chans case_recv_mail<T>(int id, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Func<T, Task> lostHandler = null)
             {
-                return case_receive(self_mailbox<T>(id), handler, errHandler);
+                return case_receive(self_mailbox<T>(id), handler, errHandler, lostHandler);
             }
 
-            public select_chans case_recv_mail<T1, T2>(int id, Func<T1, T2, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public select_chans case_recv_mail<T1, T2>(int id, Func<T1, T2, Task> handler)
             {
-                return case_receive(self_mailbox<tuple<T1, T2>>(id), handler, errHandler);
+                return case_receive(self_mailbox<tuple<T1, T2>>(id), handler);
             }
 
-            public select_chans case_recv_mail<T1, T2, T3>(int id, Func<T1, T2, T3, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public select_chans case_recv_mail<T1, T2, T3>(int id, Func<T1, T2, T3, Task> handler)
             {
-                return case_receive(self_mailbox<tuple<T1, T2, T3>>(id), handler, errHandler);
+                return case_receive(self_mailbox<tuple<T1, T2, T3>>(id), handler);
             }
 
-            public select_chans case_receive<T>(channel<T> chan, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public select_chans case_receive<T>(channel<T> chan, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Func<T, Task> lostHandler = null)
             {
-                _chans.AddLast(chan.make_select_reader(handler, errHandler));
+                _chans.AddLast(chan.make_select_reader(handler, errHandler, lostHandler));
                 return this;
             }
 
-            public select_chans case_receive<T1, T2>(channel<tuple<T1, T2>> chan, Func<T1, T2, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public select_chans case_receive<T1, T2>(channel<tuple<T1, T2>> chan, Func<T1, T2, Task> handler)
             {
-                _chans.AddLast(chan.make_select_reader((tuple<T1, T2> msg) => handler(msg.value1, msg.value2), errHandler));
+                _chans.AddLast(chan.make_select_reader((tuple<T1, T2> msg) => handler(msg.value1, msg.value2)));
                 return this;
             }
 
-            public select_chans case_receive<T1, T2, T3>(channel<tuple<T1, T2, T3>> chan, Func<T1, T2, T3, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public select_chans case_receive<T1, T2, T3>(channel<tuple<T1, T2, T3>> chan, Func<T1, T2, T3, Task> handler)
             {
-                _chans.AddLast(chan.make_select_reader((tuple<T1, T2, T3> msg) => handler(msg.value1, msg.value2, msg.value3), errHandler));
+                _chans.AddLast(chan.make_select_reader((tuple<T1, T2, T3> msg) => handler(msg.value1, msg.value2, msg.value3)));
                 return this;
             }
 
-            public select_chans case_receive(channel<void_type> chan, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public select_chans case_receive(channel<void_type> chan, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Func<Task> lostHandler = null)
             {
-                _chans.AddLast(chan.make_select_reader((void_type _) => handler(), errHandler));
+                _chans.AddLast(chan.make_select_reader((void_type _) => handler(), errHandler, null == lostHandler ? (Func<void_type, Task>)null : (void_type _) => lostHandler()));
                 return this;
             }
 
@@ -6200,147 +6403,129 @@ namespace Go
                 return this;
             }
 
-            public select_chans case_receive<T>(broadcast_chan<T> chan, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler, broadcast_chan_token token)
+            public select_chans case_receive<T>(broadcast_chan<T> chan, Func<T, Task> handler, broadcast_chan_token token, Func<chan_async_state, Task<bool>> errHandler = null)
             {
-                _chans.AddLast(chan.make_select_reader(handler, errHandler, token));
+                _chans.AddLast(chan.make_select_reader(handler, token, errHandler));
                 return this;
             }
 
-            public select_chans case_receive<T1, T2>(broadcast_chan<tuple<T1, T2>> chan, Func<T1, T2, Task> handler, Func<chan_async_state, Task<bool>> errHandler, broadcast_chan_token token)
+            public select_chans case_receive(broadcast_chan<void_type> chan, Func<Task> handler, broadcast_chan_token token, Func<chan_async_state, Task<bool>> errHandler = null)
             {
-                _chans.AddLast(chan.make_select_reader((tuple<T1, T2> msg) => handler(msg.value1, msg.value2), errHandler, token));
+                _chans.AddLast(chan.make_select_reader((void_type _) => handler(), token, errHandler));
                 return this;
             }
 
-            public select_chans case_receive<T1, T2, T3>(broadcast_chan<tuple<T1, T2, T3>> chan, Func<T1, T2, T3, Task> handler, Func<chan_async_state, Task<bool>> errHandler, broadcast_chan_token token)
+            public select_chans case_receive<R, T>(csp_chan<R, T> chan, Func<csp_chan<R, T>.csp_result, T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Func<T, Task> lostHandler = null)
             {
-                _chans.AddLast(chan.make_select_reader((tuple<T1, T2, T3> msg) => handler(msg.value1, msg.value2, msg.value3), errHandler, token));
+                _chans.AddLast(chan.make_select_reader(handler, errHandler, lostHandler));
                 return this;
             }
 
-            public select_chans case_receive(broadcast_chan<void_type> chan, Func<Task> handler, broadcast_chan_token token)
+            public select_chans case_receive<R, T1, T2>(csp_chan<R, tuple<T1, T2>> chan, Func<csp_chan<R, tuple<T1, T2>>.csp_result, T1, T2, Task> handler)
             {
-                _chans.AddLast(chan.make_select_reader((void_type _) => handler(), token));
+                _chans.AddLast(chan.make_select_reader((csp_chan<R, tuple<T1, T2>>.csp_result result, tuple<T1, T2> msg) => handler(result, msg.value1, msg.value2)));
                 return this;
             }
 
-            public select_chans case_receive(broadcast_chan<void_type> chan, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler, broadcast_chan_token token)
+            public select_chans case_receive<R, T1, T2, T3>(csp_chan<R, tuple<T1, T2, T3>> chan, Func<csp_chan<R, tuple<T1, T2, T3>>.csp_result, T1, T2, T3, Task> handler)
             {
-                _chans.AddLast(chan.make_select_reader((void_type _) => handler(), errHandler, token));
+                _chans.AddLast(chan.make_select_reader((csp_chan<R, tuple<T1, T2, T3>>.csp_result result, tuple<T1, T2, T3> msg) => handler(result, msg.value1, msg.value2, msg.value3)));
                 return this;
             }
 
-            public select_chans case_receive<R, T>(csp_chan<R, T> chan, Func<csp_chan<R, T>.csp_result, T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public select_chans case_receive<R, T>(csp_chan<R, T> chan, Func<T, Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null, Func<T, Task> lostHandler = null)
             {
-                _chans.AddLast(chan.make_select_reader(handler, errHandler));
+                _chans.AddLast(chan.make_select_reader(async (csp_chan<R, T>.csp_result res, T msg) => res.complete(await handler(msg)), errHandler, lostHandler));
                 return this;
             }
 
-            public select_chans case_receive<R, T1, T2>(csp_chan<R, tuple<T1, T2>> chan, Func<csp_chan<R, tuple<T1, T2>>.csp_result, T1, T2, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public select_chans case_receive<R, T1, T2>(csp_chan<R, tuple<T1, T2>> chan, Func<T1, T2, Task<R>> handler)
             {
-                _chans.AddLast(chan.make_select_reader((csp_chan<R, tuple<T1, T2>>.csp_result result, tuple<T1, T2> msg) => handler(result, msg.value1, msg.value2), errHandler));
+                _chans.AddLast(chan.make_select_reader(async (csp_chan<R, tuple<T1, T2>>.csp_result res, tuple<T1, T2> msg) => res.complete(await handler(msg.value1, msg.value2))));
                 return this;
             }
 
-            public select_chans case_receive<R, T1, T2, T3>(csp_chan<R, tuple<T1, T2, T3>> chan, Func<csp_chan<R, tuple<T1, T2, T3>>.csp_result, T1, T2, T3, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public select_chans case_receive<R, T1, T2, T3>(csp_chan<R, tuple<T1, T2, T3>> chan, Func<T1, T2, T3, Task<R>> handler)
             {
-                _chans.AddLast(chan.make_select_reader((csp_chan<R, tuple<T1, T2, T3>>.csp_result result, tuple<T1, T2, T3> msg) => handler(result, msg.value1, msg.value2, msg.value3), errHandler));
+                _chans.AddLast(chan.make_select_reader(async (csp_chan<R, tuple<T1, T2, T3>>.csp_result res, tuple<T1, T2, T3> msg) => res.complete(await handler(msg.value1, msg.value2, msg.value3))));
                 return this;
             }
 
-            public select_chans case_receive<R, T>(csp_chan<R, T> chan, Func<T, Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public select_chans case_receive<R>(csp_chan<R, void_type> chan, Func<Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null, Func<Task> lostHandler = null)
             {
-                _chans.AddLast(chan.make_select_reader(async (csp_chan<R, T>.csp_result res, T msg) => res.complete(await handler(msg)), errHandler));
+                _chans.AddLast(chan.make_select_reader(async (csp_chan<R, void_type>.csp_result res, void_type _) => res.complete(await handler()), errHandler, null == lostHandler ? (Func<void_type, Task>)null : (void_type _) => lostHandler()));
                 return this;
             }
 
-            public select_chans case_receive<R, T1, T2>(csp_chan<R, tuple<T1, T2>> chan, Func<T1, T2, Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public select_chans case_receive<T>(csp_chan<void_type, T> chan, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Func<T, Task> lostHandler = null)
             {
-                _chans.AddLast(chan.make_select_reader(async (csp_chan<R, tuple<T1, T2>>.csp_result res, tuple<T1, T2> msg) => res.complete(await handler(msg.value1, msg.value2)), errHandler));
+                _chans.AddLast(chan.make_select_reader(async (csp_chan<void_type, T>.csp_result res, T msg) => { await handler(msg); res.complete(default(void_type)); }, errHandler, lostHandler));
                 return this;
             }
 
-            public select_chans case_receive<R, T1, T2, T3>(csp_chan<R, tuple<T1, T2, T3>> chan, Func<T1, T2, T3, Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public select_chans case_receive<T1, T2>(csp_chan<void_type, tuple<T1, T2>> chan, Func<T1, T2, Task> handler)
             {
-                _chans.AddLast(chan.make_select_reader(async (csp_chan<R, tuple<T1, T2, T3>>.csp_result res, tuple<T1, T2, T3> msg) => res.complete(await handler(msg.value1, msg.value2, msg.value3)), errHandler));
+                _chans.AddLast(chan.make_select_reader(async (csp_chan<void_type, tuple<T1, T2>>.csp_result res, tuple<T1, T2> msg) => { await handler(msg.value1, msg.value2); res.complete(default(void_type)); }));
                 return this;
             }
 
-            public select_chans case_receive<R>(csp_chan<R, void_type> chan, Func<Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public select_chans case_receive<T1, T2, T3>(csp_chan<void_type, tuple<T1, T2, T3>> chan, Func<T1, T2, T3, Task> handler)
             {
-                _chans.AddLast(chan.make_select_reader(async (csp_chan<R, void_type>.csp_result res, void_type _) => res.complete(await handler()), errHandler));
+                _chans.AddLast(chan.make_select_reader(async (csp_chan<void_type, tuple<T1, T2, T3>>.csp_result res, tuple<T1, T2, T3> msg) => { await handler(msg.value1, msg.value2, msg.value3); res.complete(default(void_type)); }));
                 return this;
             }
 
-            public select_chans case_receive<T>(csp_chan<void_type, T> chan, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public select_chans case_receive(csp_chan<void_type, void_type> chan, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Func<Task> lostHandler = null)
             {
-                _chans.AddLast(chan.make_select_reader(async (csp_chan<void_type, T>.csp_result res, T msg) => { await handler(msg); res.complete(default(void_type)); }, errHandler));
+                _chans.AddLast(chan.make_select_reader(async (csp_chan<void_type, void_type>.csp_result res, void_type _) => { await handler(); res.complete(default(void_type)); }, errHandler, null == lostHandler ? (Func<void_type, Task>)null : (void_type _) => lostHandler()));
                 return this;
             }
 
-            public select_chans case_receive<T1, T2>(csp_chan<void_type, tuple<T1, T2>> chan, Func<T1, T2, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public select_chans case_send<R, T>(csp_chan<R, T> chan, Func<T> msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Action<R> lostHandler = null)
             {
-                _chans.AddLast(chan.make_select_reader(async (csp_chan<void_type, tuple<T1, T2>>.csp_result res, tuple<T1, T2> msg) => { await handler(msg.value1, msg.value2); res.complete(default(void_type)); }, errHandler));
+                _chans.AddLast(chan.make_select_writer(msg, handler, errHandler, lostHandler));
                 return this;
             }
 
-            public select_chans case_receive<T1, T2, T3>(csp_chan<void_type, tuple<T1, T2, T3>> chan, Func<T1, T2, T3, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public select_chans case_send<R, T>(csp_chan<R, T> chan, async_result_wrap<T> msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Action<R> lostHandler = null)
             {
-                _chans.AddLast(chan.make_select_reader(async (csp_chan<void_type, tuple<T1, T2, T3>>.csp_result res, tuple<T1, T2, T3> msg) => { await handler(msg.value1, msg.value2, msg.value3); res.complete(default(void_type)); }, errHandler));
+                _chans.AddLast(chan.make_select_writer(msg, handler, errHandler, lostHandler));
                 return this;
             }
 
-            public select_chans case_receive(csp_chan<void_type, void_type> chan, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public select_chans case_send<R, T>(csp_chan<R, T> chan, T msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Action<R> lostHandler = null)
             {
-                _chans.AddLast(chan.make_select_reader(async (csp_chan<void_type, void_type>.csp_result res, void_type _) => { await handler(); res.complete(default(void_type)); }, errHandler));
+                _chans.AddLast(chan.make_select_writer(msg, handler, errHandler, lostHandler));
                 return this;
             }
 
-            public select_chans case_send<R, T>(csp_chan<R, T> chan, Func<T> msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public select_chans case_send<R>(csp_chan<R, void_type> chan, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Action<R> lostHandler = null)
             {
-                _chans.AddLast(chan.make_select_writer(msg, handler, errHandler));
+                _chans.AddLast(chan.make_select_writer(default(void_type), handler, errHandler, lostHandler));
                 return this;
             }
 
-            public select_chans case_send<R, T>(csp_chan<R, T> chan, async_result_wrap<T> msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public select_chans case_send<T>(csp_chan<void_type, T> chan, Func<T> msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Action<void_type> lostHandler = null)
             {
-                _chans.AddLast(chan.make_select_writer(msg, handler, errHandler));
+                _chans.AddLast(chan.make_select_writer(msg, (void_type _) => handler(), errHandler, lostHandler));
                 return this;
             }
 
-            public select_chans case_send<R, T>(csp_chan<R, T> chan, T msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public select_chans case_send<T>(csp_chan<void_type, T> chan, async_result_wrap<T> msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Action<void_type> lostHandler = null)
             {
-                _chans.AddLast(chan.make_select_writer(msg, handler, errHandler));
+                _chans.AddLast(chan.make_select_writer(msg, (void_type _) => handler(), errHandler, lostHandler));
                 return this;
             }
 
-            public select_chans case_send<R>(csp_chan<R, void_type> chan, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public select_chans case_send<T>(csp_chan<void_type, T> chan, T msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Action<void_type> lostHandler = null)
             {
-                _chans.AddLast(chan.make_select_writer(default(void_type), handler, errHandler));
+                _chans.AddLast(chan.make_select_writer(msg, (void_type _) => handler(), errHandler, lostHandler));
                 return this;
             }
 
-            public select_chans case_send<T>(csp_chan<void_type, T> chan, Func<T> msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
+            public select_chans case_send(csp_chan<void_type, void_type> chan, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Action<void_type> lostHandler = null)
             {
-                _chans.AddLast(chan.make_select_writer(msg, (void_type _) => handler(), errHandler));
-                return this;
-            }
-
-            public select_chans case_send<T>(csp_chan<void_type, T> chan, async_result_wrap<T> msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
-            {
-                _chans.AddLast(chan.make_select_writer(msg, (void_type _) => handler(), errHandler));
-                return this;
-            }
-
-            public select_chans case_send<T>(csp_chan<void_type, T> chan, T msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
-            {
-                _chans.AddLast(chan.make_select_writer(msg, (void_type _) => handler(), errHandler));
-                return this;
-            }
-
-            public select_chans case_send(csp_chan<void_type, void_type> chan, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null)
-            {
-                _chans.AddLast(chan.make_select_writer(default(void_type), (void_type _) => handler(), errHandler));
+                _chans.AddLast(chan.make_select_writer(default(void_type), (void_type _) => handler(), errHandler, lostHandler));
                 return this;
             }
 
