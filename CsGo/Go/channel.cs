@@ -31,7 +31,13 @@ namespace Go
 
     struct notify_pck
     {
+        public async_timer timer;
         public Action<chan_async_state> ntf;
+
+        public void cancel_timer()
+        {
+            timer?.cancel();
+        }
 
         public void Invoke(chan_async_state state)
         {
@@ -962,6 +968,7 @@ namespace Go
                     async_timer timer = new async_timer(_strand);
                     option_node node = _waitQueue.AddLast(0, new notify_pck()
                     {
+                        timer = timer,
                         ntf = delegate (chan_async_state state)
                         {
                             ntfSign?.clear();
@@ -1068,7 +1075,7 @@ namespace Go
                 ntfSign._success = false;
                 if (effect)
                 {
-                    _waitQueue.Remove(ntfSign._ntfNode);
+                    _waitQueue.Remove(ntfSign._ntfNode).cancel_timer();
                     ntfSign._ntfNode = default(option_node);
                 }
                 else if (success && 0 != _buffer.Count && !_waitQueue.Empty)
@@ -1383,6 +1390,7 @@ namespace Go
                         async_timer timer = new async_timer(_strand);
                         option_node node = _pushWait.AddLast(0, new notify_pck()
                         {
+                            timer = timer,
                             ntf = delegate (chan_async_state state)
                             {
                                 ntfSign?.clear();
@@ -1459,6 +1467,7 @@ namespace Go
                     async_timer timer = new async_timer(_strand);
                     option_node node = _popWait.AddLast(0, new notify_pck()
                     {
+                        timer = timer,
                         ntf = delegate (chan_async_state state)
                         {
                             ntfSign?.clear();
@@ -1568,7 +1577,7 @@ namespace Go
                 ntfSign._success = false;
                 if (effect)
                 {
-                    _popWait.Remove(ntfSign._ntfNode);
+                    _popWait.Remove(ntfSign._ntfNode).cancel_timer();
                     ntfSign._ntfNode = default(option_node);
                 }
                 else if (success && 0 != _buffer.Count && !_popWait.Empty)
@@ -1648,7 +1657,7 @@ namespace Go
                 ntfSign._success = false;
                 if (effect)
                 {
-                    _pushWait.Remove(ntfSign._ntfNode);
+                    _pushWait.Remove(ntfSign._ntfNode).cancel_timer();
                     ntfSign._ntfNode = default(option_node);
                 }
                 else if (success && _buffer.Count != _length && !_pushWait.Empty)
@@ -1940,6 +1949,7 @@ namespace Go
                         async_timer timer = new async_timer(_strand);
                         option_node node = _pushWait.AddLast(0, new notify_pck()
                         {
+                            timer = timer,
                             ntf = delegate (chan_async_state state)
                             {
                                 ntfSign?.clear();
@@ -1987,6 +1997,7 @@ namespace Go
                     async_timer timer = new async_timer(_strand);
                     option_node node = _pushWait.AddFirst(0, new notify_pck()
                     {
+                        timer = timer,
                         ntf = delegate (chan_async_state state)
                         {
                             ntfSign?.clear();
@@ -2055,6 +2066,7 @@ namespace Go
                     async_timer timer = new async_timer(_strand);
                     option_node node = _popWait.AddLast(0, new notify_pck()
                     {
+                        timer = timer,
                         ntf = delegate (chan_async_state state)
                         {
                             ntfSign?.clear();
@@ -2196,7 +2208,7 @@ namespace Go
                 if (effect)
                 {
                     _isTryPop &= _popWait.First._node != ntfSign._ntfNode._node;
-                    _popWait.Remove(ntfSign._ntfNode);
+                    _popWait.Remove(ntfSign._ntfNode).cancel_timer();
                     ntfSign._ntfNode = default(option_node);
                 }
                 else if (success && _has)
@@ -2296,7 +2308,7 @@ namespace Go
                 if (effect)
                 {
                     _isTryPush &= _pushWait.First._node != ntfSign._ntfNode._node;
-                    _pushWait.Remove(ntfSign._ntfNode);
+                    _pushWait.Remove(ntfSign._ntfNode).cancel_timer();
                     ntfSign._ntfNode = default(option_node);
                 }
                 else if (success && !_has)
@@ -2548,6 +2560,7 @@ namespace Go
                     async_timer timer = new async_timer(_strand);
                     option_node node = _popWait.AddLast(0, new notify_pck()
                     {
+                        timer = timer,
                         ntf = delegate (chan_async_state state)
                         {
                             ntfSign?.clear();
@@ -2650,7 +2663,7 @@ namespace Go
                 ntfSign._success = false;
                 if (effect)
                 {
-                    _popWait.Remove(ntfSign._ntfNode);
+                    _popWait.Remove(ntfSign._ntfNode).cancel_timer();
                     ntfSign._ntfNode = default(option_node);
                 }
                 else if (success && _has && !_popWait.Empty)
@@ -3329,6 +3342,7 @@ namespace Go
                         async_timer timer = new async_timer(_strand);
                         option_node node = _sendQueue.AddLast(0, new notify_pck()
                         {
+                            timer = timer,
                             ntf = delegate (chan_async_state state)
                             {
                                 ntfSign?.clear();
@@ -3420,6 +3434,7 @@ namespace Go
                     async_timer timer = new async_timer(_strand);
                     option_node node = _waitQueue.AddLast(0, new notify_pck()
                     {
+                        timer = timer,
                         ntf = delegate (chan_async_state state)
                         {
                             ntfSign?.clear();
@@ -3565,7 +3580,7 @@ namespace Go
                 if (effect)
                 {
                     _isTryPop &= _waitQueue.First._node != ntfSign._ntfNode._node;
-                    _waitQueue.Remove(ntfSign._ntfNode);
+                    _waitQueue.Remove(ntfSign._ntfNode).cancel_timer();
                     ntfSign._ntfNode = default(option_node);
                 }
                 else if (success && _msg._has)
@@ -3652,7 +3667,7 @@ namespace Go
                 ntfSign._success = false;
                 if (effect)
                 {
-                    _sendQueue.Remove(ntfSign._ntfNode);
+                    _sendQueue.Remove(ntfSign._ntfNode).cancel_timer();
                     ntfSign._ntfNode = default(option_node);
                 }
                 else if (success && !_msg._has)
