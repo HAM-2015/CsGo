@@ -6326,6 +6326,11 @@ namespace Go
                     }
                 }
             }
+
+            public Func<Task> wrap()
+            {
+                return end;
+            }
         }
 
         static public receive_mail receive(bool forceStopAll = true)
@@ -6625,8 +6630,16 @@ namespace Go
                         }
                         if (selected)
                         {
-                            selected = false;
-                            await eachAferDo();
+                            try
+                            {
+                                selected = false;
+                                await unlock_suspend();
+                                await eachAferDo();
+                            }
+                            finally
+                            {
+                                lock_suspend();
+                            }
                         }
                     }
                     return true;
@@ -6822,6 +6835,31 @@ namespace Go
                     await unlock_suspend_and_stop();
                 }
                 return true;
+            }
+
+            public Func<action, Task<bool>> wrap_loop()
+            {
+                return loop;
+            }
+
+            public Func<Task<bool>> wrap()
+            {
+                return end;
+            }
+
+            public Func<int, Task<bool>> wrap_timed()
+            {
+                return timed;
+            }
+
+            public Func<Task<bool>> wrap_loop(action eachAferDo)
+            {
+                return functional.bind(loop, eachAferDo);
+            }
+
+            public Func<Task<bool>> wrap_timed(int ms)
+            {
+                return functional.bind(timed, ms);
             }
         }
 

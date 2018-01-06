@@ -88,6 +88,12 @@ namespace Go
     public abstract class nil_action<T1, T2, T3> { static public readonly Action<T1, T2, T3> action = (T1 p1, T2 p2, T3 p3) => { }; }
     public abstract class any_action { static public readonly SameAction action = (object[] args) => { }; }
 
+    public abstract class nil_func { static public readonly Func<Task> func = () => generator.nil_wait(); }
+    public abstract class nil_func<T1> { static public readonly Func<T1, Task> func = (T1 p1) => generator.nil_wait(); }
+    public abstract class nil_func<T1, T2> { static public readonly Func<T1, T2, Task> func = (T1 p1, T2 p2) => generator.nil_wait(); }
+    public abstract class nil_func<T1, T2, T3> { static public readonly Func<T1, T2, T3, Task> func = (T1 p1, T2 p2, T3 p3) => generator.nil_wait(); }
+    public abstract class any_func { static public readonly SameFunc<Task> func = (object[] args) => generator.nil_wait(); }
+
     public class functional
     {
         public static readonly placeholder _ = new placeholder();
