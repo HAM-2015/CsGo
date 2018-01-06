@@ -11,8 +11,8 @@ namespace Go
 
     public enum chan_async_state
     {
-        async_undefined = -1,
-        async_ok = 0,
+        async_undefined,
+        async_ok,
         async_fail,
         async_csp_fail,
         async_cancel,
@@ -360,7 +360,6 @@ namespace Go
             {
                 ntfSign._disable = false;
                 _host = generator.self;
-                _lostMsg?.clear();
                 _chan.append_pop_notify(nextSelect, ntfSign);
             }
 
@@ -474,7 +473,6 @@ namespace Go
             {
                 ntfSign._disable = false;
                 _host = generator.self;
-                _lostMsg?.clear();
                 _chan.append_push_notify(nextSelect, ntfSign);
             }
 
@@ -2850,7 +2848,6 @@ namespace Go
             {
                 ntfSign._disable = false;
                 _host = generator.self;
-                _lostMsg?.clear();
                 _chan.append_pop_notify(nextSelect, ntfSign);
             }
 
@@ -2977,7 +2974,6 @@ namespace Go
             {
                 ntfSign._disable = false;
                 _host = generator.self;
-                _lostMsg?.clear();
                 _chan.append_push_notify(nextSelect, ntfSign);
             }
 
