@@ -187,7 +187,8 @@ namespace Go
         static internal int _limited_perfor = 10;
 #endif
 
-        internal readonly async_timer.steady_timer _timer;
+        internal readonly async_timer.steady_timer _sysTimer;
+        internal readonly async_timer.steady_timer _utcTimer;
         internal generator currSelf = null;
         protected volatile bool _locked;
         protected volatile int _pauseState;
@@ -201,7 +202,8 @@ namespace Go
             _locked = false;
             _pauseState = 0;
             _mutex = new Mutex();
-            _timer = new async_timer.steady_timer(this);
+            _sysTimer = new async_timer.steady_timer(this, false);
+            _utcTimer = new async_timer.steady_timer(this, true);
             _readyQueue = new LinkedList<Action>();
             _waitQueue = new LinkedList<Action>();
             _nextTick = new LinkedList<Action>();

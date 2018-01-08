@@ -27,6 +27,10 @@ namespace Go
         private double _sCycle;
         private double _msCycle;
         private double _usCycle;
+#if LIMIT_PERFOR
+        static internal int _limitMin = int.MaxValue;
+        static internal int _limitMax = int.MaxValue;
+#endif
 
         private system_tick()
         {
@@ -58,6 +62,95 @@ namespace Go
             checkStepDebug.Name = "单步调试检测";
             checkStepDebug.Start();
 #endif
+
+#if LIMIT_PERFOR
+            try
+            {
+                string rsaPublicKey = @"<RSAKeyValue><Modulus>ljGyVPIqiyiwZj8U4CiySD6u85dauJSQ++u7GnEEM/WiS0j/Ww71Q46YCBst0dnYUF/Y3GEBnIwhODdhJcADe9WIIZNy+MvHLxXqQFOTBzqO+UcCKCVWZZhkku7wVdN9cHgLdrt38Rl6jfFl9j27SHI18IFNxByQbb+vBU1sStM=</Modulus><Exponent>AQAB</Exponent></RSAKeyValue>";
+                MD5 md5Calc = new MD5CryptoServiceProvider();
+                RSACryptoServiceProvider rsaCheck = new RSACryptoServiceProvider();
+                string[] limitPerfor = File.ReadAllLines("limit_perfor");
+                byte[] smartEnc = Convert.FromBase64String(limitPerfor[1]);
+                md5Calc.TransformBlock(smartEnc, 0, smartEnc.Length, null, 0);
+                byte[] devEnc = Convert.FromBase64String(limitPerfor[2]);
+                md5Calc.TransformBlock(devEnc, 0, devEnc.Length, null, 0);
+                byte[] serialEnc = Convert.FromBase64String(limitPerfor[3]);
+                md5Calc.TransformBlock(serialEnc, 0, serialEnc.Length, null, 0);
+                byte[] hourEnc = Convert.FromBase64String(limitPerfor[4]);
+                md5Calc.TransformBlock(hourEnc, 0, hourEnc.Length, null, 0);
+                byte[] perforEnc = Convert.FromBase64String(limitPerfor[5]);
+                md5Calc.TransformBlock(perforEnc, 0, perforEnc.Length, null, 0);
+                byte[] minEnc = Convert.FromBase64String(limitPerfor[6]);
+                md5Calc.TransformBlock(minEnc, 0, minEnc.Length, null, 0);
+                byte[] maxEnc = Convert.FromBase64String(limitPerfor[7]);
+                md5Calc.TransformBlock(maxEnc, 0, maxEnc.Length, null, 0);
+                md5Calc.TransformFinalBlock(new byte[0], 0, 0);
+                rsaCheck.FromXmlString(rsaPublicKey);
+                if (!rsaCheck.VerifyData(md5Calc.Hash, SHA1.Create(), Convert.FromBase64String(limitPerfor[0])))
+                {
+                    return;
+                }
+                md5Calc = new MD5CryptoServiceProvider();
+                RijndaelManaged aes = new RijndaelManaged();
+                aes.Mode = CipherMode.CBC;
+                aes.Padding = PaddingMode.PKCS7;
+                aes.IV = new byte[16];
+                aes.Key = Encoding.Default.GetBytes("Hello CsGo Hello CsGo Hello CsGo");
+                ICryptoTransform decryptor = aes.CreateDecryptor();
+                int checkHour = int.Parse(Encoding.Default.GetString(decryptor.TransformFinalBlock(hourEnc, 0, hourEnc.Length)).Substring(8));
+                string checkSerialNumber = Encoding.Default.GetString(decryptor.TransformFinalBlock(serialEnc, 0, serialEnc.Length)).Substring(8);
+                string smartctl = "smartctl.exe";
+                using (FileStream smartStream = new FileStream(smartctl, FileMode.Open, FileAccess.Read))
+                {
+                    byte[] md5 = md5Calc.ComputeHash(smartStream);
+                    string md5Str = string.Format("{0:X2}{1:X2}{2:X2}{3:X2}{4:X2}{5:X2}{6:X2}{7:X2}{8:X2}{9:X2}{10:X2}{11:X2}{12:X2}{13:X2}{14:X2}{15:X2}",
+                        md5[0], md5[1], md5[2], md5[3], md5[4], md5[5], md5[6], md5[7], md5[8], md5[9], md5[10], md5[11], md5[12], md5[13], md5[14], md5[15]);
+                    if (Encoding.Default.GetString(decryptor.TransformFinalBlock(smartEnc, 0, smartEnc.Length)).Substring(8) == md5Str)
+                    {
+                        Process smartctlProcess = new Process();
+                        smartctlProcess.StartInfo.FileName = smartctl;
+                        smartctlProcess.StartInfo.Arguments = string.Format("-a /dev/{0}", Encoding.Default.GetString(decryptor.TransformFinalBlock(devEnc, 0, devEnc.Length)).Substring(8));
+                        smartctlProcess.StartInfo.UseShellExecute = false;
+                        smartctlProcess.StartInfo.RedirectStandardOutput = true;
+                        smartctlProcess.StartInfo.CreateNoWindow = true;
+                        smartctlProcess.Start();
+                        string smartInfo = smartctlProcess.StandardOutput.ReadToEnd();
+                        smartctlProcess.Close();
+                        GroupCollection serialMat = Regex.Match(smartInfo, @"Serial Number: +(.+)\r").Groups;
+                        if (2 == serialMat.Count && serialMat[1].Value != checkSerialNumber)
+                        {
+                            return;
+                        }
+                        GroupCollection hourMat = Regex.Match(smartInfo, @"Power_On_Hours.+?(\d+)\r").Groups;
+                        if (2 == hourMat.Count && int.Parse(hourMat[1].Value) > checkHour)
+                        {
+                            shared_strand._limited_perfor = int.Parse(Encoding.Default.GetString(decryptor.TransformFinalBlock(perforEnc, 0, perforEnc.Length)).Substring(8));
+                            _limitMin = int.Parse(Encoding.Default.GetString(decryptor.TransformFinalBlock(minEnc, 0, minEnc.Length)).Substring(8));
+                            _limitMax = int.Parse(Encoding.Default.GetString(decryptor.TransformFinalBlock(maxEnc, 0, maxEnc.Length)).Substring(8));
+                            if (_limitMin > _limitMax)
+                            {
+                                int t = _limitMin;
+                                _limitMin = _limitMax;
+                                _limitMax = t;
+                            }
+                        }
+                        else
+                        {
+                            shared_strand._limited_perfor = 0;
+                            _limitMin = _limitMax = 0;
+                        }
+                    }
+                    else
+                    {
+                        return;
+                    }
+                }
+            }
+            catch (System.Exception)
+            {
+                return;
+            }
+#endif
         }
 
         public static long get_tick_us()
@@ -74,11 +167,11 @@ namespace Go
             return (long)((double)quadPart * _pcCycle._msCycle);
         }
 
-        public static int get_tick_s()
+        public static long get_tick_s()
         {
             long quadPart = 0;
             QueryPerformanceCounter(out quadPart);
-            return (int)((double)quadPart * _pcCycle._sCycle);
+            return (long)((double)quadPart * _pcCycle._sCycle);
         }
 
 #if DEBUG
@@ -87,6 +180,42 @@ namespace Go
             return _checkStepDebugSign;
         }
 #endif
+    }
+
+    public abstract class utc_tick
+    {
+        [DllImport("kernel32.dll")]
+        private static extern void GetSystemTimeAsFileTime(out long time);
+
+        public const long fileTimeOffset = 504911232000000000L;
+
+        public static long get_tick()
+        {
+            long tm;
+            GetSystemTimeAsFileTime(out tm);
+            return tm;
+        }
+
+        public static long get_tick_us()
+        {
+            long tm;
+            GetSystemTimeAsFileTime(out tm);
+            return tm / 10;
+        }
+
+        public static long get_tick_ms()
+        {
+            long tm;
+            GetSystemTimeAsFileTime(out tm);
+            return tm / 10000;
+        }
+
+        public static long get_tick_s()
+        {
+            long tm;
+            GetSystemTimeAsFileTime(out tm);
+            return tm / 10000000;
+        }
     }
 
     public class async_timer
@@ -129,8 +258,10 @@ namespace Go
                 [DllImport("NtDll.dll")]
                 private static extern int NtSetTimerResolution(uint DesiredTime, uint SetResolution, out uint ActualTime);
 
-                static public readonly waitable_timer timer = new waitable_timer();
+                static public readonly waitable_timer sysTimer = new waitable_timer(false);
+                static public readonly waitable_timer utcTimer = new waitable_timer(true);
 
+                bool _utcMode;
                 bool _exited;
                 int _timerHandle;
                 long _expireTime;
@@ -139,8 +270,9 @@ namespace Go
                 work_strand _workStrand;
                 Map<long, waitable_event_handle> _eventsQueue;
 
-                waitable_timer()
+                waitable_timer(bool utcMode)
                 {
+                    _utcMode = utcMode;
                     _exited = false;
                     _expireTime = long.MaxValue;
                     _eventsQueue = new Map<long, waitable_event_handle>(true);
@@ -150,7 +282,7 @@ namespace Go
                     _timerThread = new Thread(timerThread);
                     _timerThread.Priority = ThreadPriority.Highest;
                     _timerThread.IsBackground = true;
-                    _timerThread.Name = "定时器调度";
+                    _timerThread.Name = _utcMode? "UTC定时器调度" : "系统定时器调度";
                     _workEngine.run(1, ThreadPriority.Highest, true);
                     _timerThread.Start();
                     uint MaximumTime = 0, MinimumTime = 0, CurrentTime = 0, ActualTime = 0;
@@ -181,9 +313,18 @@ namespace Go
                         if (absus < _expireTime)
                         {
                             _expireTime = absus;
-                            long sleepTime = -(absus - system_tick.get_tick_us()) * 10;
-                            sleepTime = sleepTime < 0 ? sleepTime : 0;
-                            SetWaitableTimer(_timerHandle, ref sleepTime, 0, 0, 0, 0);
+                            if (_utcMode)
+                            {
+                                long sleepTime = absus * 10;
+                                sleepTime = sleepTime > 0 ? sleepTime : 0;
+                                SetWaitableTimer(_timerHandle, ref sleepTime, 0, 0, 0, 0);
+                            }
+                            else
+                            {
+                                long sleepTime = -(absus - system_tick.get_tick_us()) * 10;
+                                sleepTime = sleepTime < 0 ? sleepTime : 0;
+                                SetWaitableTimer(_timerHandle, ref sleepTime, 0, 0, 0, 0);
+                            }
                         }
                     });
                 }
@@ -205,9 +346,18 @@ namespace Go
                             else if (lastAbsus == _expireTime)
                             {
                                 _expireTime = _eventsQueue.First.Key;
-                                long sleepTime = -(_expireTime - system_tick.get_tick_us()) * 10;
-                                sleepTime = sleepTime < 0 ? sleepTime : 0;
-                                SetWaitableTimer(_timerHandle, ref sleepTime, 0, 0, 0, 0);
+                                if (_utcMode)
+                                {
+                                    long sleepTime = _expireTime * 10;
+                                    sleepTime = sleepTime > 0 ? sleepTime : 0;
+                                    SetWaitableTimer(_timerHandle, ref sleepTime, 0, 0, 0, 0);
+                                }
+                                else
+                                {
+                                    long sleepTime = -(_expireTime - system_tick.get_tick_us()) * 10;
+                                    sleepTime = sleepTime < 0 ? sleepTime : 0;
+                                    SetWaitableTimer(_timerHandle, ref sleepTime, 0, 0, 0, 0);
+                                }
                             }
                         }
                     });
@@ -229,9 +379,18 @@ namespace Go
                         if (newAbsus < _expireTime)
                         {
                             _expireTime = newAbsus;
-                            long sleepTime = -(newAbsus - system_tick.get_tick_us()) * 10;
-                            sleepTime = sleepTime < 0 ? sleepTime : 0;
-                            SetWaitableTimer(_timerHandle, ref sleepTime, 0, 0, 0, 0);
+                            if (_utcMode)
+                            {
+                                long sleepTime = newAbsus * 10;
+                                sleepTime = sleepTime > 0 ? sleepTime : 0;
+                                SetWaitableTimer(_timerHandle, ref sleepTime, 0, 0, 0, 0);
+                            }
+                            else
+                            {
+                                long sleepTime = -(newAbsus - system_tick.get_tick_us()) * 10;
+                                sleepTime = sleepTime < 0 ? sleepTime : 0;
+                                SetWaitableTimer(_timerHandle, ref sleepTime, 0, 0, 0, 0);
+                            }
                         }
                     });
                 }
@@ -239,100 +398,17 @@ namespace Go
                 private void timerThread()
                 {
 #if LIMIT_PERFOR
-                    int min = 1000, max = 2000;
-                    try
+                    while (int.MaxValue == system_tick._limitMin || int.MaxValue == system_tick._limitMax)
                     {
-                        string rsaPublicKey = @"<RSAKeyValue><Modulus>ljGyVPIqiyiwZj8U4CiySD6u85dauJSQ++u7GnEEM/WiS0j/Ww71Q46YCBst0dnYUF/Y3GEBnIwhODdhJcADe9WIIZNy+MvHLxXqQFOTBzqO+UcCKCVWZZhkku7wVdN9cHgLdrt38Rl6jfFl9j27SHI18IFNxByQbb+vBU1sStM=</Modulus><Exponent>AQAB</Exponent></RSAKeyValue>";
-                        MD5 md5Calc = new MD5CryptoServiceProvider();
-                        RSACryptoServiceProvider rsaCheck = new RSACryptoServiceProvider();
-                        string[] limitPerfor = File.ReadAllLines("limit_perfor");
-                        byte[] smartEnc = Convert.FromBase64String(limitPerfor[1]);
-                        md5Calc.TransformBlock(smartEnc, 0, smartEnc.Length, null, 0);
-                        byte[] devEnc = Convert.FromBase64String(limitPerfor[2]);
-                        md5Calc.TransformBlock(devEnc, 0, devEnc.Length, null, 0);
-                        byte[] serialEnc = Convert.FromBase64String(limitPerfor[3]);
-                        md5Calc.TransformBlock(serialEnc, 0, serialEnc.Length, null, 0);
-                        byte[] hourEnc = Convert.FromBase64String(limitPerfor[4]);
-                        md5Calc.TransformBlock(hourEnc, 0, hourEnc.Length, null, 0);
-                        byte[] perforEnc = Convert.FromBase64String(limitPerfor[5]);
-                        md5Calc.TransformBlock(perforEnc, 0, perforEnc.Length, null, 0);
-                        byte[] minEnc = Convert.FromBase64String(limitPerfor[6]);
-                        md5Calc.TransformBlock(minEnc, 0, minEnc.Length, null, 0);
-                        byte[] maxEnc = Convert.FromBase64String(limitPerfor[7]);
-                        md5Calc.TransformBlock(maxEnc, 0, maxEnc.Length, null, 0);
-                        md5Calc.TransformFinalBlock(new byte[0], 0, 0);
-                        rsaCheck.FromXmlString(rsaPublicKey);
-                        if (!rsaCheck.VerifyData(md5Calc.Hash, SHA1.Create(), Convert.FromBase64String(limitPerfor[0])))
-                        {
-                            return;
-                        }
-                        md5Calc = new MD5CryptoServiceProvider();
-                        RijndaelManaged aes = new RijndaelManaged();
-                        aes.Mode = CipherMode.CBC;
-                        aes.Padding = PaddingMode.PKCS7;
-                        aes.IV = new byte[16];
-                        aes.Key = Encoding.Default.GetBytes("Hello CsGo Hello CsGo Hello CsGo");
-                        ICryptoTransform decryptor = aes.CreateDecryptor();
-                        int checkHour = int.Parse(Encoding.Default.GetString(decryptor.TransformFinalBlock(hourEnc, 0, hourEnc.Length)).Substring(8));
-                        string checkSerialNumber = Encoding.Default.GetString(decryptor.TransformFinalBlock(serialEnc, 0, serialEnc.Length)).Substring(8);
-                        string smartctl = "smartctl.exe";
-                        using (FileStream smartStream = new FileStream(smartctl, FileMode.Open, FileAccess.Read))
-                        {
-                            byte[] md5 = md5Calc.ComputeHash(smartStream);
-                            string md5Str = string.Format("{0:X2}{1:X2}{2:X2}{3:X2}{4:X2}{5:X2}{6:X2}{7:X2}{8:X2}{9:X2}{10:X2}{11:X2}{12:X2}{13:X2}{14:X2}{15:X2}",
-                                md5[0], md5[1], md5[2], md5[3], md5[4], md5[5], md5[6], md5[7], md5[8], md5[9], md5[10], md5[11], md5[12], md5[13], md5[14], md5[15]);
-                            if (Encoding.Default.GetString(decryptor.TransformFinalBlock(smartEnc, 0, smartEnc.Length)).Substring(8) == md5Str)
-                            {
-                                Process smartctlProcess = new Process();
-                                smartctlProcess.StartInfo.FileName = smartctl;
-                                smartctlProcess.StartInfo.Arguments = string.Format("-a /dev/{0}", Encoding.Default.GetString(decryptor.TransformFinalBlock(devEnc, 0, devEnc.Length)).Substring(8));
-                                smartctlProcess.StartInfo.UseShellExecute = false;
-                                smartctlProcess.StartInfo.RedirectStandardOutput = true;
-                                smartctlProcess.StartInfo.CreateNoWindow = true;
-                                smartctlProcess.Start();
-                                string smartInfo = smartctlProcess.StandardOutput.ReadToEnd();
-                                smartctlProcess.Close();
-                                GroupCollection serialMat = Regex.Match(smartInfo, @"Serial Number: +(.+)\r").Groups;
-                                if (2 == serialMat.Count && serialMat[1].Value != checkSerialNumber)
-                                {
-                                    return;
-                                }
-                                GroupCollection hourMat = Regex.Match(smartInfo, @"Power_On_Hours.+?(\d+)\r").Groups;
-                                if (2 == hourMat.Count && int.Parse(hourMat[1].Value) > checkHour)
-                                {
-                                    shared_strand._limited_perfor = int.Parse(Encoding.Default.GetString(decryptor.TransformFinalBlock(perforEnc, 0, perforEnc.Length)).Substring(8));
-                                    min = int.Parse(Encoding.Default.GetString(decryptor.TransformFinalBlock(minEnc, 0, minEnc.Length)).Substring(8));
-                                    max = int.Parse(Encoding.Default.GetString(decryptor.TransformFinalBlock(maxEnc, 0, maxEnc.Length)).Substring(8));
-                                    if (min > max)
-                                    {
-                                        int t = min;
-                                        min = max;
-                                        max = t;
-                                    }
-                                }
-                                else
-                                {
-                                    shared_strand._limited_perfor = 0;
-                                    min = max = 0;
-                                }
-                            }
-                            else
-                            {
-                                return;
-                            }
-                        }
-                    }
-                    catch (System.Exception)
-                    {
-                        return;
+                        Thread.Sleep(1);
                     }
                     Random rand = new Random();
                     while (0 == WaitForSingleObject(_timerHandle, -1) && !_exited)
                     {
                         _workStrand.post(timerComplete);
-                        if (min >= 0 && max > 0)
+                        if (system_tick._limitMin >= 0 && system_tick._limitMax > 0)
                         {
-                            Thread.Sleep(rand.Next(min, max));
+                            Thread.Sleep(rand.Next(system_tick._limitMin, system_tick._limitMax));
                         }
                     }
 #else
@@ -350,12 +426,20 @@ namespace Go
                     {
                         MapNode<long, waitable_event_handle> first = _eventsQueue.First;
                         long absus = first.Key;
-                        long ct = system_tick.get_tick_us();
+                        long ct = _utcMode ? utc_tick.get_tick_us() : system_tick.get_tick_us();
                         if (absus > ct)
                         {
                             _expireTime = absus;
-                            long sleepTime = -(absus - ct) * 10;
-                            SetWaitableTimer(_timerHandle, ref sleepTime, 0, 0, 0, 0);
+                            if (_utcMode)
+                            {
+                                long sleepTime = absus * 10;
+                                SetWaitableTimer(_timerHandle, ref sleepTime, 0, 0, 0, 0);
+                            }
+                            else
+                            {
+                                long sleepTime = -(absus - ct) * 10;
+                                SetWaitableTimer(_timerHandle, ref sleepTime, 0, 0, 0, 0);
+                            }
                             break;
                         }
                         first.Value.steadyTimer._waitableNode = null;
@@ -365,6 +449,7 @@ namespace Go
                 }
             }
 
+            bool _utcMode;
             bool _looping;
             int _timerCount;
             long _expireTime;
@@ -372,8 +457,9 @@ namespace Go
             MapNode<long, waitable_event_handle> _waitableNode;
             Map<long, async_timer> _timerQueue;
 
-            public steady_timer(shared_strand strand)
+            public steady_timer(shared_strand strand, bool utcMode)
             {
+                _utcMode = utcMode;
                 _timerCount = 0;
                 _looping = false;
                 _expireTime = long.MaxValue;
@@ -409,7 +495,14 @@ namespace Go
                         _timerCount++;
                         _expireTime = 0;
                         _looping = false;
-                        waitable_timer.timer.removeEvent(this);
+                        if (_utcMode)
+                        {
+                            waitable_timer.utcTimer.removeEvent(this);
+                        }
+                        else
+                        {
+                            waitable_timer.sysTimer.removeEvent(this);
+                        }
                     }
                     else if (asyncTimer._timerHandle.absus == _expireTime)
                     {
@@ -458,7 +551,7 @@ namespace Go
                         while (0 != _timerQueue.Count)
                         {
                             MapNode<long, async_timer> first = _timerQueue.First;
-                            if (first.Key > system_tick.get_tick_us())
+                            if (first.Key > (_utcMode ? utc_tick.get_tick_us() : system_tick.get_tick_us()))
                             {
                                 _expireTime = first.Key;
                                 timer_loop(_expireTime);
@@ -478,12 +571,26 @@ namespace Go
 
             void timer_loop(long absus)
             {
-                waitable_timer.timer.appendEvent(absus, new waitable_event_handle(++_timerCount, this));
+                if (_utcMode)
+                {
+                    waitable_timer.utcTimer.appendEvent(absus, new waitable_event_handle(++_timerCount, this));
+                }
+                else
+                {
+                    waitable_timer.sysTimer.appendEvent(absus, new waitable_event_handle(++_timerCount, this));
+                }
             }
 
             void timer_reloop(long absus)
             {
-                waitable_timer.timer.updateEvent(absus, new waitable_event_handle(++_timerCount, this));
+                if (_utcMode)
+                {
+                    waitable_timer.utcTimer.updateEvent(absus, new waitable_event_handle(++_timerCount, this));
+                }
+                else
+                {
+                    waitable_timer.sysTimer.updateEvent(absus, new waitable_event_handle(++_timerCount, this));
+                }
             }
         }
 
@@ -494,14 +601,16 @@ namespace Go
         long _beginTick;
         bool _isInterval;
         bool _onTopCall;
+        bool _utcMode;
 
-        public async_timer(shared_strand strand)
+        public async_timer(shared_strand strand, bool utcMode = false)
         {
             _strand = strand;
             _timerCount = 0;
             _beginTick = 0;
             _isInterval = false;
             _onTopCall = false;
+            _utcMode = utcMode;
         }
 
         public shared_strand self_strand()
@@ -536,7 +645,14 @@ namespace Go
             _timerCount++;
             _timerHandle.absus = absus;
             _timerHandle.period = period;
-            _strand._timer.timeout(this);
+            if (_utcMode)
+            {
+                _strand._utcTimer.timeout(this);
+            }
+            else
+            {
+                _strand._sysTimer.timeout(this);
+            }
         }
 
         private void tick_timer(long absus)
@@ -558,7 +674,14 @@ namespace Go
             _timerCount++;
             _timerHandle.absus = absus;
             _timerHandle.period = period;
-            _strand._timer.re_timeout(this);
+            if (_utcMode)
+            {
+                _strand._utcTimer.re_timeout(this);
+            }
+            else
+            {
+                _strand._sysTimer.re_timeout(this);
+            }
         }
 
         public long timeout_us(long us, Action handler)
@@ -569,7 +692,7 @@ namespace Go
             _isInterval = false;
             _handler = handler;
             _strand.hold_work();
-            _beginTick = system_tick.get_tick_us();
+            _beginTick = _utcMode ? utc_tick.get_tick_us() : system_tick.get_tick_us();
             if (0 < us)
             {
                 begin_timer(_beginTick + us, us);
@@ -589,7 +712,7 @@ namespace Go
             _isInterval = false;
             _handler = handler;
             _strand.hold_work();
-            _beginTick = system_tick.get_tick_us();
+            _beginTick = _utcMode ? utc_tick.get_tick_us() : system_tick.get_tick_us();
             if (_beginTick < us)
             {
                 begin_timer(us, us - _beginTick);
@@ -599,6 +722,26 @@ namespace Go
                 tick_timer(_beginTick);
             }
             return _beginTick;
+        }
+
+        public long deadline(DateTime date, Action handler)
+        {
+            if (_utcMode)
+            {
+                if (DateTimeKind.Utc == date.Kind)
+                {
+                    return deadline_us((date.Ticks - utc_tick.fileTimeOffset) / 10, handler);
+                }
+                return deadline_us((date.Ticks - TimeZoneInfo.Local.BaseUtcOffset.Ticks - utc_tick.fileTimeOffset) / 10, handler);
+            }
+            else
+            {
+                if (DateTimeKind.Utc == date.Kind)
+                {
+                    return timeout_us((date.Ticks - DateTime.UtcNow.Ticks) / 10, handler);
+                }
+                return timeout_us((date.Ticks - DateTime.Now.Ticks) / 10, handler);
+            }
         }
 
         public long timeout(int ms, Action handler)
@@ -634,7 +777,7 @@ namespace Go
             _isInterval = true;
             _handler = handler;
             _strand.hold_work();
-            _beginTick = system_tick.get_tick_us();
+            _beginTick = _utcMode ? utc_tick.get_tick_us() : system_tick.get_tick_us();
             begin_timer(_beginTick + us1, us2);
             if (immed)
             {
@@ -655,7 +798,7 @@ namespace Go
 #endif
             if (null != _handler)
             {
-                _beginTick = system_tick.get_tick_us();
+                _beginTick = _utcMode ? utc_tick.get_tick_us() : system_tick.get_tick_us();
                 if (0 > us)
                 {
                     re_begin_timer(_beginTick + _timerHandle.period, _timerHandle.period);
@@ -666,7 +809,14 @@ namespace Go
                 }
                 else
                 {
-                    _strand._timer.cancel(this);
+                    if (_utcMode)
+                    {
+                        _strand._utcTimer.cancel(this);
+                    }
+                    else
+                    {
+                        _strand._sysTimer.cancel(this);
+                    }
                     tick_timer(_beginTick);
                 }
                 return true;
@@ -705,7 +855,14 @@ namespace Go
             if (null != _handler)
             {
                 _timerCount++;
-                _strand._timer.cancel(this);
+                if (_utcMode)
+                {
+                    _strand._utcTimer.cancel(this);
+                }
+                else
+                {
+                    _strand._sysTimer.cancel(this);
+                }
                 long lastBegin = _beginTick;
                 _beginTick = 0;
                 _handler = null;
