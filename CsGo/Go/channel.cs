@@ -434,7 +434,7 @@ namespace Go
                     try
                     {
                         await generator.unlock_suspend();
-                        if (!await _errHandler(state))
+                        if (!await _errHandler(state) && chan_async_state.async_closed != state)
                         {
                             _chan.append_pop_notify(nextSelect, ntfSign, _chanTimeout);
                             return false;
@@ -545,7 +545,7 @@ namespace Go
                     try
                     {
                         await generator.unlock_suspend();
-                        if (!await _errHandler(state))
+                        if (!await _errHandler(state) && chan_async_state.async_closed != state)
                         {
                             _chan.append_push_notify(nextSelect, ntfSign, _chanTimeout);
                             return false;
@@ -3116,7 +3116,7 @@ namespace Go
                     try
                     {
                         await generator.unlock_suspend();
-                        if (!await _errHandler(state))
+                        if (!await _errHandler(state) && chan_async_state.async_closed != state)
                         {
                             _chan.append_pop_notify(nextSelect, ntfSign, _chanTimeout);
                             return false;
@@ -3237,7 +3237,7 @@ namespace Go
                     try
                     {
                         await generator.unlock_suspend();
-                        if (!await _errHandler(state))
+                        if (!await _errHandler(state) && chan_async_state.async_closed != state)
                         {
                             _chan.append_push_notify(nextSelect, ntfSign, _chanTimeout);
                             return false;

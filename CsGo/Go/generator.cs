@@ -5193,7 +5193,11 @@ namespace Go
                                 {
                                     await handler(recvRes.msg);
                                 }
-                                else if (null == errHandler || await errHandler(recvRes.state))
+                                else if (null != errHandler && await errHandler(recvRes.state))
+                                {
+                                    break;
+                                }
+                                else if (chan_async_state.async_closed == recvRes.state)
                                 {
                                     break;
                                 }
@@ -5325,7 +5329,7 @@ namespace Go
                             {
                                 await handler(recvRes.msg);
                             }
-                            else if (null == errHandler || await errHandler(recvRes.state)) { }
+                            else if (null != errHandler && await errHandler(recvRes.state)) { }
                         }
                         catch (stop_this_receive_exception) { }
                         catch (stop_all_receive_exception)
@@ -5443,7 +5447,7 @@ namespace Go
                         {
                             await handler(recvRes.msg);
                         }
-                        else if (null == errHandler || await errHandler(recvRes.state)) { }
+                        else if (null != errHandler && await errHandler(recvRes.state)) { }
                     }
                     catch (stop_this_receive_exception) { }
                     catch (stop_all_receive_exception)
@@ -5505,7 +5509,7 @@ namespace Go
                                 {
                                     await handler(recvRes.msg);
                                 }
-                                else if (null == errHandler || await errHandler(recvRes.state))
+                                else if (null != errHandler && await errHandler(recvRes.state))
                                 {
                                     break;
                                 }
@@ -5638,7 +5642,7 @@ namespace Go
                             {
                                 await handler(recvRes.msg);
                             }
-                            else if (null == errHandler || await errHandler(recvRes.state)) { }
+                            else if (null != errHandler && await errHandler(recvRes.state)) { }
                         }
                         catch (stop_this_receive_exception) { }
                         catch (stop_all_receive_exception)
@@ -5756,7 +5760,7 @@ namespace Go
                         {
                             await handler(recvRes.msg);
                         }
-                        else if (null == errHandler || await errHandler(recvRes.state)) { }
+                        else if (null != errHandler && await errHandler(recvRes.state)) { }
                     }
                     catch (stop_this_receive_exception) { }
                     catch (stop_all_receive_exception)
@@ -5837,7 +5841,11 @@ namespace Go
                                 {
                                     await handler(recvRes.result, recvRes.msg);
                                 }
-                                else if (null == errHandler || await errHandler(recvRes.state))
+                                else if (null != errHandler && await errHandler(recvRes.state))
+                                {
+                                    break;
+                                }
+                                else if (chan_async_state.async_closed == recvRes.state)
                                 {
                                     break;
                                 }
@@ -6011,7 +6019,7 @@ namespace Go
                             {
                                 await handler(recvRes.result, recvRes.msg);
                             }
-                            else if (null == errHandler || await errHandler(recvRes.state)) { }
+                            else if (null != errHandler && await errHandler(recvRes.state)) { }
                         }
                         catch (stop_this_receive_exception) { }
                         catch (stop_all_receive_exception)
@@ -6169,7 +6177,7 @@ namespace Go
                         {
                             await handler(recvRes.result, recvRes.msg);
                         }
-                        else if (null == errHandler || await errHandler(recvRes.state)) { }
+                        else if (null != errHandler && await errHandler(recvRes.state)) { }
                     }
                     catch (stop_this_receive_exception) { }
                     catch (stop_all_receive_exception)
