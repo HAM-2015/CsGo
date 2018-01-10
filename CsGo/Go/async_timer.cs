@@ -605,6 +605,17 @@ namespace Go
 
         public async_timer(shared_strand strand, bool utcMode = false)
         {
+            init(strand, utcMode);
+        }
+
+        public async_timer(bool utcMode = false)
+        {
+            shared_strand strand = generator.self_strand();
+            init(null != strand ? strand : new shared_strand(), utcMode);
+        }
+
+        private void init(shared_strand strand, bool utcMode)
+        {
             _strand = strand;
             _timerCount = 0;
             _beginTick = 0;

@@ -39,7 +39,7 @@ namespace Go
             _recCount = 0;
         }
 
-        public virtual void Lock(long id, Action ntf)
+        internal virtual void Lock(long id, Action ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -56,7 +56,7 @@ namespace Go
             });
         }
 
-        public virtual void try_lock(long id, Action<chan_async_state> ntf)
+        internal virtual void try_lock(long id, Action<chan_async_state> ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -73,7 +73,7 @@ namespace Go
             });
         }
 
-        public virtual void timed_lock(long id, int ms, Action<chan_async_state> ntf)
+        internal virtual void timed_lock(long id, int ms, Action<chan_async_state> ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -109,7 +109,7 @@ namespace Go
             });
         }
 
-        public virtual void unlock(long id, Action ntf)
+        internal virtual void unlock(long id, Action ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -135,7 +135,7 @@ namespace Go
             });
         }
 
-        public virtual void cancel(long id, Action ntf)
+        internal virtual void cancel(long id, Action ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -201,7 +201,7 @@ namespace Go
             _sharedMap = new Dictionary<long, shared_count>();
         }
 
-        public override void Lock(long id, Action ntf)
+        internal override void Lock(long id, Action ntf)
         {
             self_strand().distribute(delegate ()
             {
@@ -218,7 +218,7 @@ namespace Go
             });
         }
 
-        public override void try_lock(long id, Action<chan_async_state> ntf)
+        internal override void try_lock(long id, Action<chan_async_state> ntf)
         {
             self_strand().distribute(delegate ()
             {
@@ -235,7 +235,7 @@ namespace Go
             });
         }
 
-        public override void timed_lock(long id, int ms, Action<chan_async_state> ntf)
+        internal override void timed_lock(long id, int ms, Action<chan_async_state> ntf)
         {
             self_strand().distribute(delegate ()
             {
@@ -283,7 +283,7 @@ namespace Go
             return ct;
         }
 
-        public void lock_shared(long id, Action ntf)
+        internal void lock_shared(long id, Action ntf)
         {
             self_strand().distribute(delegate ()
             {
@@ -299,7 +299,7 @@ namespace Go
             });
         }
 
-        public void lock_pess_shared(long id, Action ntf)
+        internal void lock_pess_shared(long id, Action ntf)
         {
             self_strand().distribute(delegate ()
             {
@@ -315,7 +315,7 @@ namespace Go
             });
         }
 
-        public void try_lock_shared(long id, Action<chan_async_state> ntf)
+        internal void try_lock_shared(long id, Action<chan_async_state> ntf)
         {
             self_strand().distribute(delegate ()
             {
@@ -331,7 +331,7 @@ namespace Go
             });
         }
 
-        public void timed_lock_shared(long id, int ms, Action<chan_async_state> ntf)
+        internal void timed_lock_shared(long id, int ms, Action<chan_async_state> ntf)
         {
             self_strand().distribute(delegate ()
             {
@@ -367,17 +367,17 @@ namespace Go
             });
         }
 
-        public void lock_upgrade(long id, Action ntf)
+        internal void lock_upgrade(long id, Action ntf)
         {
             base.Lock(id, ntf);
         }
 
-        public void try_lock_upgrade(long id, Action<chan_async_state> ntf)
+        internal void try_lock_upgrade(long id, Action<chan_async_state> ntf)
         {
             base.try_lock(id, ntf);
         }
 
-        public override void unlock(long id, Action ntf)
+        internal override void unlock(long id, Action ntf)
         {
             self_strand().distribute(delegate ()
             {
@@ -422,7 +422,7 @@ namespace Go
             });
         }
 
-        public void unlock_shared(long id, Action ntf)
+        internal void unlock_shared(long id, Action ntf)
         {
             self_strand().distribute(delegate ()
             {
@@ -471,32 +471,32 @@ namespace Go
             });
         }
 
-        public void unlock_upgrade(long id, Action ntf)
+        internal void unlock_upgrade(long id, Action ntf)
         {
             base.unlock(id, ntf);
         }
 
-        public void unlock_and_lock_shared(long id, Action ntf)
+        internal void unlock_and_lock_shared(long id, Action ntf)
         {
             unlock(id, () => lock_shared(id, ntf));
         }
 
-        public void unlock_and_lock_upgrade(long id, Action ntf)
+        internal void unlock_and_lock_upgrade(long id, Action ntf)
         {
             unlock_and_lock_shared(id, () => lock_upgrade(id, ntf));
         }
 
-        public void unlock_upgrade_and_lock(long id, Action ntf)
+        internal void unlock_upgrade_and_lock(long id, Action ntf)
         {
             unlock_upgrade(id, () => unlock_shared(id, () => Lock(id, ntf)));
         }
 
-        public void unlock_shared_and_lock(long id, Action ntf)
+        internal void unlock_shared_and_lock(long id, Action ntf)
         {
             unlock_shared(id, () => Lock(id, ntf));
         }
 
-        public override void cancel(long id, Action ntf)
+        internal override void cancel(long id, Action ntf)
         {
             self_strand().distribute(delegate ()
             {
@@ -551,7 +551,7 @@ namespace Go
             _waitQueue = new LinkedList<tuple<long, mutex, Action>>();
         }
 
-        public void wait(long id, mutex mutex, Action ntf)
+        internal void wait(long id, mutex mutex, Action ntf)
         {
             mutex.unlock(id, delegate ()
             {
@@ -565,7 +565,7 @@ namespace Go
             });
         }
 
-        public void timed_wait(long id, int ms, mutex mutex, Action<bool> ntf)
+        internal void timed_wait(long id, int ms, mutex mutex, Action<bool> ntf)
         {
             mutex.unlock(id, delegate ()
             {
@@ -631,7 +631,7 @@ namespace Go
             });
         }
 
-        public void cancel(long id, Action ntf)
+        internal void cancel(long id, Action ntf)
         {
             _strand.distribute(delegate ()
             {
