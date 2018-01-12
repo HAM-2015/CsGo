@@ -2784,21 +2784,34 @@ namespace Go
             return chan_send(chan, default(void_type), lostMsg);
         }
 
-        static public async Task<chan_async_state> chan_force_send<T>(chan<T> chan, T msg, async_result_wrap<bool, T> outMsg = null)
+        static public async Task<chan_async_state> chan_force_send<T>(chan<T> chan, T msg, chan_lost_msg<T> outMsg = null, chan_lost_msg<T> lostMsg = null)
         {
             generator this_ = self;
             chan_async_state result = chan_async_state.async_undefined;
-            chan.force_push(this_.async_callback(delegate (chan_async_state state, bool hasOut, T freeMsg)
+            try
             {
-                result = state;
-                if (null != outMsg)
+                outMsg?.clear();
+                chan.force_push(this_.async_callback(delegate (chan_async_state state, bool hasOut, T freeMsg)
                 {
-                    outMsg.value1 = hasOut;
-                    outMsg.value2 = freeMsg;
+                    result = state;
+                    if (hasOut)
+                    {
+                        outMsg?.set(freeMsg);
+                    }
+                }), msg);
+                await this_.async_wait();
+                return result;
+            }
+            catch (stop_exception)
+            {
+                chan.self_strand().distribute(this_._async_result());
+                await this_.async_wait();
+                if (chan_async_state.async_ok != result)
+                {
+                    lostMsg?.set(msg);
                 }
-            }), msg);
-            await this_.async_wait();
-            return result;
+                throw;
+            }
         }
 
         static public Task<chan_recv_wrap<T>> chan_receive<T>(channel<T> chan, chan_lost_msg<T> lostMsg = null)
