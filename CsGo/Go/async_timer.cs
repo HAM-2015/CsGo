@@ -397,6 +397,7 @@ namespace Go
 
                 private void timerThread()
                 {
+                    Action timerComplete = this.timerComplete;
 #if LIMIT_PERFOR
                     while (int.MaxValue == system_tick._limitMin || int.MaxValue == system_tick._limitMax)
                     {

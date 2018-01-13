@@ -8001,12 +8001,19 @@ namespace Go
     public class wait_group
     {
         int _tasks;
+        Action _pulse;
         LinkedList<Action> _waitList;
 
         public wait_group(int initTasks = 0)
         {
             _tasks = initTasks;
             _waitList = new LinkedList<Action>();
+            _pulse = delegate ()
+            {
+                Monitor.Enter(this);
+                Monitor.Pulse(this);
+                Monitor.Exit(this);
+            };
         }
 
         public void reset()
@@ -8017,12 +8024,7 @@ namespace Go
             Monitor.Enter(this);
             if (null != _waitList)
             {
-                _waitList.AddLast(delegate ()
-                {
-                    Monitor.Enter(this);
-                    Monitor.Pulse(this);
-                    Monitor.Exit(this);
-                });
+                _waitList.AddLast(_pulse);
                 Monitor.Wait(this);
             }
             Monitor.Exit(this);
@@ -8093,12 +8095,7 @@ namespace Go
         {
             if (0 != _tasks)
             {
-                LinkedListNode<Action> newNode = new LinkedListNode<Action>(delegate ()
-                {
-                    Monitor.Enter(this);
-                    Monitor.Pulse(this);
-                    Monitor.Exit(this);
-                });
+                LinkedListNode<Action> newNode = new LinkedListNode<Action>(_pulse);
                 Monitor.Enter(this);
                 if (null != _waitList)
                 {
@@ -8114,12 +8111,7 @@ namespace Go
             bool ok = true;
             if (0 != _tasks)
             {
-                LinkedListNode<Action> newNode = new LinkedListNode<Action>(delegate ()
-                {
-                    Monitor.Enter(this);
-                    Monitor.Pulse(this);
-                    Monitor.Exit(this);
-                });
+                LinkedListNode<Action> newNode = new LinkedListNode<Action>(_pulse);
                 Monitor.Enter(this);
                 if (null != _waitList)
                 {

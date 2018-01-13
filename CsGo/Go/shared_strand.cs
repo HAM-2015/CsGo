@@ -196,6 +196,7 @@ namespace Go
         protected LinkedList<Action> _readyQueue;
         protected LinkedList<Action> _waitQueue;
         protected LinkedList<Action> _nextTick;
+        protected Action _runTask;
 
         public shared_strand()
         {
@@ -207,6 +208,7 @@ namespace Go
             _readyQueue = new LinkedList<Action>();
             _waitQueue = new LinkedList<Action>();
             _nextTick = new LinkedList<Action>();
+            make_run_task();
         }
 
         protected bool running_a_round(curr_strand currStrand)
@@ -253,20 +255,23 @@ namespace Go
             return true;
         }
 
-        protected virtual void run_task()
+        protected virtual void make_run_task()
         {
-            Task.Run((Action)run_a_round);
+            _runTask = delegate ()
+            {
+                curr_strand currStrand = _currStrand.Value;
+                if (null == currStrand)
+                {
+                    currStrand = new curr_strand(true);
+                    _currStrand.Value = currStrand;
+                }
+                running_a_round(currStrand);
+            };
         }
 
-        void run_a_round()
+        protected virtual void run_task()
         {
-            curr_strand currStrand = _currStrand.Value;
-            if (null == currStrand)
-            {
-                currStrand = new curr_strand(true);
-                _currStrand.Value = currStrand;
-            }
-            running_a_round(currStrand);
+            Task.Run(_runTask);
         }
 
         public void post(Action action)
@@ -457,22 +462,25 @@ namespace Go
             return false;
         }
 
+        protected override void make_run_task()
+        {
+            _runTask = delegate ()
+            {
+                curr_strand currStrand = _currStrand.Value;
+                if (null == currStrand)
+                {
+                    currStrand = new curr_strand(false, _service);
+                    _currStrand.Value = currStrand;
+                }
+                running_a_round(currStrand);
+                _service.release_work();
+            };
+        }
+
         protected override void run_task()
         {
             _service.hold_work();
-            _service.push_option(run_a_round);
-        }
-
-        void run_a_round()
-        {
-            curr_strand currStrand = _currStrand.Value;
-            if (null == currStrand)
-            {
-                currStrand = new curr_strand(false, _service);
-                _currStrand.Value = currStrand;
-            }
-            running_a_round(currStrand);
-            _service.release_work();
+            _service.push_option(_runTask);
         }
 
         public override void hold_work()
@@ -529,27 +537,30 @@ namespace Go
             return false;
         }
 
+        protected override void make_run_task()
+        {
+            _runTask = delegate ()
+            {
+                curr_strand currStrand = _currStrand.Value;
+                if (null == currStrand)
+                {
+                    currStrand = new curr_strand();
+                    _currStrand.Value = currStrand;
+                }
+                running_a_round(currStrand);
+            };
+        }
+
         protected override void run_task()
         {
             try
             {
-                _ctrl.BeginInvoke((MethodInvoker)run_a_round);
+                _ctrl.BeginInvoke(_runTask);
             }
             catch (System.InvalidOperationException ec)
             {
                 Trace.Fail(ec.Message, ec.StackTrace);
             }
-        }
-
-        void run_a_round()
-        {
-            curr_strand currStrand = _currStrand.Value;
-            if (null == currStrand)
-            {
-                currStrand = new curr_strand();
-                _currStrand.Value = currStrand;
-            }
-            running_a_round(currStrand);
         }
 
         public override bool wait_safe()
