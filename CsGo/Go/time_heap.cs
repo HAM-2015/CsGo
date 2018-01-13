@@ -6,95 +6,86 @@ using System.Threading.Tasks;
 
 namespace Go
 {
-    public abstract class MapNode<TKey, TValue>
+    public class MapNode<TKey, TValue>
     {
-        public abstract MapNode<TKey, TValue> Next();
-        public abstract MapNode<TKey, TValue> Prev();
-        public abstract TKey Key { get; }
-        public abstract TValue Value { get; set; }
-        public abstract bool Isolated { get; }
+        internal TKey key;
+        internal TValue value;
+        internal MapNode<TKey, TValue> parent;
+        internal MapNode<TKey, TValue> left;
+        internal MapNode<TKey, TValue> right;
+        internal Map<TKey, TValue>.rb_color color;
+        internal readonly bool nil;
+
+        internal MapNode(bool n)
+        {
+            nil = n;
+        }
+
+        public MapNode<TKey, TValue> Next()
+        {
+            MapNode<TKey, TValue> pNode = Map<TKey, TValue>.next(this);
+            return pNode.nil ? null : pNode;
+        }
+
+        public MapNode<TKey, TValue> Prev()
+        {
+            MapNode<TKey, TValue> pNode = Map<TKey, TValue>.previous(this);
+            return pNode.nil ? null : pNode;
+        }
+
+        public TKey Key
+        {
+            get
+            {
+                return key;
+            }
+        }
+
+        public TValue Value
+        {
+            get
+            {
+                return value;
+            }
+            set
+            {
+                this.value = value;
+            }
+        }
+
+        public bool Isolated
+        {
+            get
+            {
+                return null == parent;
+            }
+        }
     }
 
     public class Map<TKey, TValue>
     {
-        enum rb_color
+        internal enum rb_color
         {
             red,
             black
         }
 
-        class Node : MapNode<TKey, TValue>
-        {
-            public TKey key;
-            public TValue value;
-            public Node parent;
-            public Node left;
-            public Node right;
-            public rb_color color;
-            public readonly bool nil;
-
-            public Node(bool n)
-            {
-                nil = n;
-            }
-
-            public override MapNode<TKey, TValue> Next()
-            {
-                Node pNode = next(this);
-                return pNode.nil ? null : pNode;
-            }
-
-            public override MapNode<TKey, TValue> Prev()
-            {
-                Node pNode = previous(this);
-                return pNode.nil ? null : pNode;
-            }
-
-            public override TKey Key
-            {
-                get
-                {
-                    return key;
-                }
-            }
-
-            public override TValue Value
-            {
-                get
-                {
-                    return value;
-                }
-                set
-                {
-                    this.value = value;
-                }
-            }
-
-            public override bool Isolated
-            {
-                get
-                {
-                    return null == parent;
-                }
-            }
-        }
-
         int _count;
         readonly bool _multi;
-        readonly Node _head;
+        readonly MapNode<TKey, TValue> _head;
 
         public Map(bool multi = false)
         {
             _count = 0;
             _multi = multi;
-            _head = new Node(true);
+            _head = new MapNode<TKey, TValue>(true);
             _head.color = rb_color.black;
             root = lmost = rmost = _head;
         }
 
         static public MapNode<TKey, TValue> NewNode(TKey key, TValue value)
         {
-            return new Node(false) { key = key, value = value, color = rb_color.red };
+            return new MapNode<TKey, TValue>(false) { key = key, value = value, color = rb_color.red };
         }
 
         public MapNode<TKey, TValue> ReNewNode(MapNode<TKey, TValue> oldNode, TKey key, TValue value)
@@ -103,11 +94,10 @@ namespace Go
             {
                 Remove(oldNode);
             }
-            Node newNode = (Node)oldNode;
-            newNode.key = key;
-            newNode.value = value;
-            newNode.color = rb_color.red;
-            return newNode;
+            oldNode.key = key;
+            oldNode.value = value;
+            oldNode.color = rb_color.red;
+            return oldNode;
         }
 
         static bool comp_lt<T>(T x, T y)
@@ -115,12 +105,12 @@ namespace Go
             return Comparer<T>.Default.Compare(x, y) < 0;
         }
 
-        static bool is_nil(Node node)
+        static bool is_nil(MapNode<TKey, TValue> node)
         {
             return node.nil;
         }
 
-        Node root
+        MapNode<TKey, TValue> root
         {
             get
             {
@@ -132,7 +122,7 @@ namespace Go
             }
         }
 
-        Node lmost
+        MapNode<TKey, TValue> lmost
         {
             get
             {
@@ -144,7 +134,7 @@ namespace Go
             }
         }
 
-        Node rmost
+        MapNode<TKey, TValue> rmost
         {
             get
             {
@@ -156,9 +146,9 @@ namespace Go
             }
         }
 
-        void left_rotate(Node whereNode)
+        void left_rotate(MapNode<TKey, TValue> whereNode)
         {
-            Node pNode = whereNode.right;
+            MapNode<TKey, TValue> pNode = whereNode.right;
             whereNode.right = pNode.left;
             if (!is_nil(pNode.left))
             {
@@ -181,9 +171,9 @@ namespace Go
             whereNode.parent = pNode;
         }
 
-        void right_rotate(Node whereNode)
+        void right_rotate(MapNode<TKey, TValue> whereNode)
         {
-            Node pNode = whereNode.left;
+            MapNode<TKey, TValue> pNode = whereNode.left;
             whereNode.left = pNode.right;
             if (!is_nil(pNode.right))
             {
@@ -206,7 +196,7 @@ namespace Go
             whereNode.parent = pNode;
         }
 
-        void insert_at(bool addLeft, Node whereNode, Node newNode)
+        void insert_at(bool addLeft, MapNode<TKey, TValue> whereNode, MapNode<TKey, TValue> newNode)
         {
             newNode.parent = whereNode;
             if (whereNode == _head)
@@ -229,7 +219,7 @@ namespace Go
                     rmost = newNode;
                 }
             }
-            for (Node pNode = newNode; rb_color.red == pNode.parent.color;)
+            for (MapNode<TKey, TValue> pNode = newNode; rb_color.red == pNode.parent.color;)
             {
                 if (pNode.parent == pNode.parent.parent.left)
                 {
@@ -280,11 +270,11 @@ namespace Go
             _count++;
         }
 
-        void insert(Node newNode)
+        void insert(MapNode<TKey, TValue> newNode)
         {
             newNode.parent = newNode.left = newNode.right = _head;
-            Node tryNode = root;
-            Node whereNode = _head;
+            MapNode<TKey, TValue> tryNode = root;
+            MapNode<TKey, TValue> whereNode = _head;
             bool addLeft = true;
             while (!is_nil(tryNode))
             {
@@ -298,7 +288,7 @@ namespace Go
             }
             else
             {
-                Node where = whereNode;
+                MapNode<TKey, TValue> where = whereNode;
                 if (!addLeft) { }
                 else if (where == lmost)
                 {
@@ -320,17 +310,17 @@ namespace Go
             }
         }
 
-        Node new_inter_node(TKey key, TValue value)
+        MapNode<TKey, TValue> new_inter_node(TKey key, TValue value)
         {
-            Node newNode = (Node)NewNode(key, value);
+            MapNode<TKey, TValue> newNode = NewNode(key, value);
             newNode.parent = newNode.left = newNode.right = _head;
             return newNode;
         }
 
-        Node insert(TKey key, TValue value, bool update = false)
+        MapNode<TKey, TValue> insert(TKey key, TValue value, bool update = false)
         {
-            Node tryNode = root;
-            Node whereNode = _head;
+            MapNode<TKey, TValue> tryNode = root;
+            MapNode<TKey, TValue> whereNode = _head;
             bool addLeft = true;
             while (!is_nil(tryNode))
             {
@@ -338,7 +328,7 @@ namespace Go
                 addLeft = comp_lt(key, tryNode.key);
                 tryNode = addLeft ? tryNode.left : tryNode.right;
             }
-            Node newNode = null;
+            MapNode<TKey, TValue> newNode = null;
             if (_multi)
             {
                 newNode = new_inter_node(key, value);
@@ -346,7 +336,7 @@ namespace Go
             }
             else
             {
-                Node where = whereNode;
+                MapNode<TKey, TValue> where = whereNode;
                 if (!addLeft) { }
                 else if (where == lmost)
                 {
@@ -372,13 +362,13 @@ namespace Go
             return newNode;
         }
 
-        void remove(Node where)
+        void remove(MapNode<TKey, TValue> where)
         {
-            Node erasedNode = where;
+            MapNode<TKey, TValue> erasedNode = where;
             where = next(where);
-            Node fixNode = null;
-            Node fixNodeParent = null;
-            Node pNode = erasedNode;
+            MapNode<TKey, TValue> fixNode = null;
+            MapNode<TKey, TValue> fixNodeParent = null;
+            MapNode<TKey, TValue> pNode = erasedNode;
             if (is_nil(pNode.left))
             {
                 fixNode = pNode.right;
@@ -537,10 +527,10 @@ namespace Go
             _count--;
         }
 
-        Node lbound(TKey key)
+        MapNode<TKey, TValue> lbound(TKey key)
         {
-            Node pNode = root;
-            Node whereNode = _head;
+            MapNode<TKey, TValue> pNode = root;
+            MapNode<TKey, TValue> whereNode = _head;
             while (!is_nil(pNode))
             {
                 if (comp_lt(pNode.key, key))
@@ -556,10 +546,10 @@ namespace Go
             return whereNode;
         }
 
-        Node rbound(TKey key)
+        MapNode<TKey, TValue> rbound(TKey key)
         {
-            Node pNode = root;
-            Node whereNode = _head;
+            MapNode<TKey, TValue> pNode = root;
+            MapNode<TKey, TValue> whereNode = _head;
             while (!is_nil(pNode))
             {
                 if (comp_lt(key, pNode.key))
@@ -575,7 +565,7 @@ namespace Go
             return whereNode;
         }
 
-        static Node max(Node pNode)
+        static MapNode<TKey, TValue> max(MapNode<TKey, TValue> pNode)
         {
             while (!is_nil(pNode.right))
             {
@@ -584,7 +574,7 @@ namespace Go
             return pNode;
         }
 
-        static Node min(Node pNode)
+        static MapNode<TKey, TValue> min(MapNode<TKey, TValue> pNode)
         {
             while (!is_nil(pNode.left))
             {
@@ -593,7 +583,7 @@ namespace Go
             return pNode;
         }
 
-        static Node next(Node ptr)
+        static internal MapNode<TKey, TValue> next(MapNode<TKey, TValue> ptr)
         {
             if (is_nil(ptr))
             {
@@ -605,7 +595,7 @@ namespace Go
             }
             else
             {
-                Node pNode;
+                MapNode<TKey, TValue> pNode;
                 while (!is_nil(pNode = ptr.parent) && ptr == pNode.right)
                 {
                     ptr = pNode;
@@ -614,7 +604,7 @@ namespace Go
             }
         }
 
-        static Node previous(Node ptr)
+        static internal MapNode<TKey, TValue> previous(MapNode<TKey, TValue> ptr)
         {
             if (is_nil(ptr))
             {
@@ -626,7 +616,7 @@ namespace Go
             }
             else
             {
-                Node pNode;
+                MapNode<TKey, TValue> pNode;
                 while (!is_nil(pNode = ptr.parent) && ptr == pNode.left)
                 {
                     ptr = pNode;
@@ -635,9 +625,9 @@ namespace Go
             }
         }
 
-        static void erase(Node rootNode)
+        static void erase(MapNode<TKey, TValue> rootNode)
         {
-            for (Node pNode = rootNode; !is_nil(pNode); rootNode = pNode)
+            for (MapNode<TKey, TValue> pNode = rootNode; !is_nil(pNode); rootNode = pNode)
             {
                 erase(pNode.right);
                 pNode = pNode.left;
@@ -670,31 +660,31 @@ namespace Go
 
         public bool Has(TKey key)
         {
-            Node node = lbound(key);
+            MapNode<TKey, TValue> node = lbound(key);
             return !is_nil(node) && !comp_lt(key, node.key);
         }
 
         public MapNode<TKey, TValue> Find(TKey key)
         {
-            Node node = lbound(key);
+            MapNode<TKey, TValue> node = lbound(key);
             return !is_nil(node) && !comp_lt(key, node.key) ? node : null;
         }
 
         public MapNode<TKey, TValue> FindRight(TKey key)
         {
-            Node node = lbound(key);
+            MapNode<TKey, TValue> node = lbound(key);
             return is_nil(node) ? null : node;
         }
 
         public MapNode<TKey, TValue> FindLeft(TKey key)
         {
-            Node node = rbound(key);
+            MapNode<TKey, TValue> node = rbound(key);
             return is_nil(node) ? null : node;
         }
 
         public void Remove(MapNode<TKey, TValue> node)
         {
-            remove((Node)node);
+            remove(node);
         }
 
         public MapNode<TKey, TValue> Insert(TKey key, TValue value)
@@ -709,7 +699,7 @@ namespace Go
 
         public bool Insert(MapNode<TKey, TValue> newNode)
         {
-            insert((Node)newNode);
+            insert(newNode);
             return !newNode.Isolated;
         }
 
