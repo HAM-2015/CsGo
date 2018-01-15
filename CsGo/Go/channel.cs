@@ -2303,12 +2303,12 @@ namespace Go
                 {
                     _has = true;
                     _msg = msg;
-                    _isTryPop = true;
+                    _isTryPush = true;
                     ntfSign._ntfNode = _pushWait.AddFirst(0, new notify_pck()
                     {
                         ntf = delegate (chan_async_state state)
                         {
-                            _isTryPop = false;
+                            _isTryPush = false;
                             ntfSign._ntfNode = default(option_node);
                             if (!ntfSign._selectOnce)
                             {
@@ -2798,6 +2798,7 @@ namespace Go
             public Action<chan_async_state, object> _notify;
             public T _msg;
             public bool _has;
+            public bool _isTryMsg;
             public int _invokeMs;
             async_timer _timer;
 
@@ -2821,7 +2822,7 @@ namespace Go
 
             public Action<chan_async_state, object> cancel()
             {
-                _has = false;
+                _isTryMsg = _has = false;
                 _timer?.cancel();
                 return _notify;
             }
@@ -3127,7 +3128,6 @@ namespace Go
         priority_queue<notify_pck> _sendQueue;
         priority_queue<notify_pck> _waitQueue;
         send_pck _msg;
-        bool _isTryMsg;
         bool _isTryPop;
 
         public csp_chan(shared_strand strand)
@@ -3147,7 +3147,6 @@ namespace Go
             _sendQueue = new priority_queue<notify_pck>(2);
             _waitQueue = new priority_queue<notify_pck>(2);
             _msg.cancel();
-            _isTryMsg = false;
             _isTryPop = false;
             _closed = false;
         }
@@ -3270,11 +3269,10 @@ namespace Go
                 ntfSign?.reset_success();
                 if (_msg._has)
                 {
-                    send_pck pck = _msg;
+                    send_pck msg = _msg;
                     _msg.cancel();
-                    _isTryMsg = false;
                     _sendQueue.RemoveFirst().Invoke(chan_async_state.async_ok);
-                    ntf(chan_async_state.async_ok, pck._msg, new csp_result(pck._invokeMs, pck._notify));
+                    ntf(chan_async_state.async_ok, msg._msg, new csp_result(msg._invokeMs, msg._notify));
                 }
                 else if (_closed)
                 {
@@ -3323,8 +3321,8 @@ namespace Go
                 }
                 else
                 {
-                    _isTryMsg = true;
                     _msg.set(ntf, msg, invokeMs);
+                    _msg._isTryMsg = true;
                     _waitQueue.RemoveFirst().Invoke(chan_async_state.async_ok);
                 }
             });
@@ -3337,11 +3335,10 @@ namespace Go
                 ntfSign?.reset_success();
                 if (_msg._has)
                 {
-                    send_pck pck = _msg;
+                    send_pck msg = _msg;
                     _msg.cancel();
-                    _isTryMsg = false;
                     _sendQueue.RemoveFirst().Invoke(chan_async_state.async_ok);
-                    ntf(chan_async_state.async_ok, pck._msg, new csp_result(pck._invokeMs, pck._notify));
+                    ntf(chan_async_state.async_ok, msg._msg, new csp_result(msg._invokeMs, msg._notify));
                 }
                 else if (_closed)
                 {
@@ -3463,11 +3460,10 @@ namespace Go
                 ntfSign?.reset_success();
                 if (_msg._has)
                 {
-                    send_pck pck = _msg;
+                    send_pck msg = _msg;
                     _msg.cancel();
-                    _isTryMsg = false;
                     _sendQueue.RemoveFirst().Invoke(chan_async_state.async_ok);
-                    ntf(chan_async_state.async_ok, pck._msg, new csp_result(pck._invokeMs, pck._notify));
+                    ntf(chan_async_state.async_ok, msg._msg, new csp_result(msg._invokeMs, msg._notify));
                 }
                 else if (_closed)
                 {
@@ -3577,15 +3573,14 @@ namespace Go
                 ntfSign.reset_success();
                 if (_msg._has)
                 {
-                    send_pck pck = _msg;
+                    send_pck msg = _msg;
                     _msg.cancel();
-                    _isTryMsg = false;
                     _sendQueue.RemoveFirst().Invoke(chan_async_state.async_ok);
                     if (!ntfSign._selectOnce)
                     {
                         append_pop_notify(msgNtf, ntfSign, ms);
                     }
-                    cb(chan_async_state.async_ok, pck._msg, new csp_result(pck._invokeMs, pck._notify));
+                    cb(chan_async_state.async_ok, msg._msg, new csp_result(msg._invokeMs, msg._notify));
                 }
                 else if (_closed)
                 {
@@ -3636,9 +3631,8 @@ namespace Go
                 }
                 else if (success && _msg._has)
                 {
-                    if (!_waitQueue.RemoveFirst().Invoke(chan_async_state.async_ok) && _isTryMsg)
+                    if (!_waitQueue.RemoveFirst().Invoke(chan_async_state.async_ok) && _msg._isTryMsg)
                     {
-                        _isTryMsg = false;
                         _msg.cancel().Invoke(chan_async_state.async_fail, null);
                     }
                 }
@@ -3706,8 +3700,8 @@ namespace Go
                 }
                 if (!_msg._has && !_waitQueue.Empty)
                 {
-                    _isTryMsg = true;
                     _msg.set(cb, msg);
+                    _msg._isTryMsg = true;
                     if (!ntfSign._selectOnce)
                     {
                         append_push_notify(msgNtf, ntfSign, ms);
@@ -3750,7 +3744,6 @@ namespace Go
             _strand.distribute(delegate ()
             {
                 _msg.cancel();
-                _isTryMsg = false;
                 safe_callback(ref _sendQueue, chan_async_state.async_fail);
                 ntf();
             });
@@ -3764,7 +3757,6 @@ namespace Go
                 Action<chan_async_state, object> hasMsg = null;
                 if (_msg._has)
                 {
-                    _isTryMsg = false;
                     hasMsg = _msg.cancel();
                 }
                 safe_callback(ref _sendQueue, ref _waitQueue, chan_async_state.async_closed);
@@ -3780,7 +3772,6 @@ namespace Go
                 Action<chan_async_state, object> hasMsg = null;
                 if (_msg._has)
                 {
-                    _isTryMsg = false;
                     hasMsg = _msg.cancel();
                 }
                 safe_callback(ref _sendQueue, ref _waitQueue, chan_async_state.async_cancel);
