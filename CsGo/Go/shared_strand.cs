@@ -195,7 +195,6 @@ namespace Go
         protected Mutex _mutex;
         protected LinkedList<Action> _readyQueue;
         protected LinkedList<Action> _waitQueue;
-        protected LinkedList<Action> _nextTick;
         protected Action _runTask;
 
         public shared_strand()
@@ -207,7 +206,6 @@ namespace Go
             _utcTimer = new async_timer.steady_timer(this, true);
             _readyQueue = new LinkedList<Action>();
             _waitQueue = new LinkedList<Action>();
-            _nextTick = new LinkedList<Action>();
             make_run_task();
         }
 
@@ -227,14 +225,9 @@ namespace Go
                     currStrand.strand = null;
                     return false;
                 }
-                functional.catch_invoke(_readyQueue.First.Value);
+                Action stepHandler = _readyQueue.First.Value;
                 _readyQueue.RemoveFirst();
-                while (0 != _nextTick.Count)
-                {
-                    Action next = _nextTick.First.Value;
-                    _nextTick.RemoveFirst();
-                    functional.catch_invoke(next);
-                }
+                functional.catch_invoke(stepHandler);
             }
             _mutex.WaitOne();
             if (0 != _waitQueue.Count)
@@ -354,7 +347,16 @@ namespace Go
 #if DEBUG
             Trace.Assert(null != currStrand, "不正确的 next_tick 调用!");
 #endif
-            currStrand._nextTick.AddFirst(action);
+            currStrand._readyQueue.AddFirst(action);
+        }
+
+        static public void last_tick(Action action)
+        {
+            shared_strand currStrand = work_strand();
+#if DEBUG
+            Trace.Assert(null != currStrand, "不正确的 last_tick 调用!");
+#endif
+            currStrand._readyQueue.AddLast(action);
         }
 
         public virtual bool wait_safe()

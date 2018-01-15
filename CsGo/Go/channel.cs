@@ -39,9 +39,14 @@ namespace Go
             timer?.cancel();
         }
 
-        public void Invoke(chan_async_state state)
+        public bool Invoke(chan_async_state state)
         {
-            ntf?.Invoke(state);
+            if (null != ntf)
+            {
+                ntf(state);
+                return true;
+            }
+            return false;
         }
     }
 
@@ -383,7 +388,7 @@ namespace Go
                 }
                 try
                 {
-                    _tempResult = chan_recv_wrap<T>.undefined();
+                    _tempResult = new chan_recv_wrap<T> { state = chan_async_state.async_undefined };
                     _chan.try_pop_and_append_notify(_host.async_callback(_tryPushHandler), nextSelect, ntfSign, _token, _chanTimeout);
                     await _host.async_wait();
                 }
@@ -2227,14 +2232,9 @@ namespace Go
                 }
                 else if (success && _has)
                 {
-                    if (!_popWait.Empty)
+                    if (!_popWait.RemoveFirst().Invoke(chan_async_state.async_ok) && _isTryPush)
                     {
-                        _popWait.RemoveFirst().Invoke(chan_async_state.async_ok);
-                    }
-                    else if (!_pushWait.Empty && _isTryPush)
-                    {
-                        _has = false;
-                        _pushWait.RemoveFirst().Invoke(chan_async_state.async_fail);
+                        _has = !_pushWait.RemoveFirst().Invoke(chan_async_state.async_fail);
                     }
                 }
                 ntf(effect ? chan_async_state.async_ok : chan_async_state.async_fail);
@@ -2345,11 +2345,7 @@ namespace Go
                 }
                 else if (success && !_has)
                 {
-                    if (!_pushWait.Empty)
-                    {
-                        _pushWait.RemoveFirst().Invoke(chan_async_state.async_ok);
-                    }
-                    else if (!_popWait.Empty && _isTryPop)
+                    if (!_pushWait.RemoveFirst().Invoke(chan_async_state.async_ok) && _isTryPop)
                     {
                         _popWait.RemoveFirst().Invoke(chan_async_state.async_fail);
                     }
@@ -2823,10 +2819,11 @@ namespace Go
                 _timer = null;
             }
 
-            public void cancel()
+            public Action<chan_async_state, object> cancel()
             {
                 _has = false;
                 _timer?.cancel();
+                return _notify;
             }
         }
 
@@ -3042,7 +3039,7 @@ namespace Go
                 T msg = _msg();
                 try
                 {
-                    _tempResult = csp_invoke_wrap<R>.undefined();
+                    _tempResult = new csp_invoke_wrap<R> { state = chan_async_state.async_undefined };
                     _chan.try_push_and_append_notify(null == _lostHandler ? _host.async_callback(_tryPushHandler) : _host.safe_async_callback(_tryPushHandler, _lostHandler), nextSelect, ntfSign, msg, _chanTimeout);
                     await _host.async_wait();
                 }
@@ -3639,16 +3636,10 @@ namespace Go
                 }
                 else if (success && _msg._has)
                 {
-                    if (!_waitQueue.Empty)
-                    {
-                        _waitQueue.RemoveFirst().Invoke(chan_async_state.async_ok);
-                    }
-                    else if (_isTryMsg)
+                    if (!_waitQueue.RemoveFirst().Invoke(chan_async_state.async_ok) && _isTryMsg)
                     {
                         _isTryMsg = false;
-                        _msg.cancel();
-                        Action<chan_async_state, object> ntf_ = _msg._notify;
-                        ntf_(chan_async_state.async_fail, null);
+                        _msg.cancel().Invoke(chan_async_state.async_fail, null);
                     }
                 }
                 ntf(effect ? chan_async_state.async_ok : chan_async_state.async_fail);
@@ -3745,11 +3736,7 @@ namespace Go
                 }
                 else if (success && !_msg._has)
                 {
-                    if (!_sendQueue.Empty)
-                    {
-                        _sendQueue.RemoveFirst().Invoke(chan_async_state.async_ok);
-                    }
-                    else if (!_waitQueue.Empty && _isTryPop)
+                    if (!_sendQueue.RemoveFirst().Invoke(chan_async_state.async_ok) && _isTryPop)
                     {
                         _waitQueue.RemoveFirst().Invoke(chan_async_state.async_fail);
                     }
@@ -3777,9 +3764,8 @@ namespace Go
                 Action<chan_async_state, object> hasMsg = null;
                 if (_msg._has)
                 {
-                    _msg.cancel();
                     _isTryMsg = false;
-                    hasMsg = _msg._notify;
+                    hasMsg = _msg.cancel();
                 }
                 safe_callback(ref _sendQueue, ref _waitQueue, chan_async_state.async_closed);
                 hasMsg?.Invoke(chan_async_state.async_closed, null);
@@ -3794,9 +3780,8 @@ namespace Go
                 Action<chan_async_state, object> hasMsg = null;
                 if (_msg._has)
                 {
-                    _msg.cancel();
                     _isTryMsg = false;
-                    hasMsg = _msg._notify;
+                    hasMsg = _msg.cancel();
                 }
                 safe_callback(ref _sendQueue, ref _waitQueue, chan_async_state.async_cancel);
                 hasMsg?.Invoke(chan_async_state.async_cancel, null);
