@@ -432,6 +432,7 @@ namespace Go
         LinkedList<children> _children;
         chan_notify_sign _ioSign;
         mutli_callback _multiCb;
+        System.Exception _excep;
         pull_task _pullTask;
         children _agentMng;
         async_timer _timer;
@@ -447,7 +448,6 @@ namespace Go
         bool _holdSuspend;
         bool _hasBlock;
         bool _isForce;
-        bool _isExcep;
         bool _isStop;
         bool _isRun;
 
@@ -555,7 +555,6 @@ namespace Go
 #endif
             _id = Interlocked.Increment(ref _idCount);
             _isForce = false;
-            _isExcep = false;
             _isStop = false;
             _isRun = false;
             _isSuspend = false;
@@ -603,12 +602,14 @@ namespace Go
                 catch (stop_exception) { }
                 catch (System.Exception ec)
                 {
+#if DEBUG
                     MessageBox.Show(String.Format("Message:\n{0}\n{1}", ec.Message, ec.StackTrace), "generator 内部未捕获的异常!", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    _isExcep = true;
+#endif
+                    _excep = ec;
                 }
                 finally
                 {
-                    if (_isForce || _isExcep)
+                    if (_isForce || null != _excep)
                     {
                         _timer.cancel();
                         if (null != _children && 0 != _children.Count)
@@ -1010,7 +1011,15 @@ namespace Go
 #if DEBUG
             Trace.Assert(_isStop, "不正确的 is_exception 调用，generator 还没有结束");
 #endif
-            return _isExcep;
+            return null != _excep;
+        }
+
+        public System.Exception exception()
+        {
+#if DEBUG
+            Trace.Assert(_isStop, "不正确的 exception 调用，generator 还没有结束");
+#endif
+            return _excep;
         }
 
         public bool is_completed()
@@ -7257,6 +7266,14 @@ namespace Go
             set
             {
                 _selfValue = value;
+            }
+        }
+
+        static public System.Version version
+        {
+            get
+            {
+                return System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
             }
         }
 
