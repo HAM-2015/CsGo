@@ -2908,7 +2908,7 @@ namespace Go
                 }
                 try
                 {
-                    _tempResult = csp_wait_wrap<R, T>.undefined();
+                    _tempResult = new csp_wait_wrap<R, T> { state = chan_async_state.async_undefined };
                     _chan.try_pop_and_append_notify(_host.async_callback(_tryPopHandler), nextSelect, ntfSign, _chanTimeout);
                     await _host.async_wait();
                 }

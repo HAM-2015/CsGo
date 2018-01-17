@@ -246,11 +246,6 @@ namespace Go
         public chan_async_state state;
         public T msg;
 
-        public static csp_wait_wrap<R, T> undefined()
-        {
-            return new csp_wait_wrap<R, T> { state = chan_async_state.async_undefined };
-        }
-
         public bool complete(R res)
         {
             return result.complete(res);
@@ -3020,7 +3015,7 @@ namespace Go
         static public async Task<csp_wait_wrap<R, T>> csp_wait<R, T>(csp_chan<R, T> chan, chan_lost_msg<T> lostMsg = null)
         {
             generator this_ = self;
-            csp_wait_wrap<R, T> result = csp_wait_wrap<R, T>.undefined();
+            csp_wait_wrap<R, T> result = new csp_wait_wrap<R, T> { state = chan_async_state.async_undefined };
             try
             {
                 chan.pop(this_.async_callback(delegate (chan_async_state state, T msg, object exObj)
@@ -3289,7 +3284,7 @@ namespace Go
         static public async Task<csp_wait_wrap<R, T>> csp_try_wait<R, T>(csp_chan<R, T> chan, chan_lost_msg<T> lostMsg = null)
         {
             generator this_ = self;
-            csp_wait_wrap<R, T> result = csp_wait_wrap<R, T>.undefined();
+            csp_wait_wrap<R, T> result = new csp_wait_wrap<R, T> { state = chan_async_state.async_undefined };
             try
             {
                 chan.try_pop(this_.async_callback(delegate (chan_async_state state, T msg, object exObj)
@@ -3562,7 +3557,7 @@ namespace Go
         static public async Task<csp_wait_wrap<R, T>> csp_timed_wait<R, T>(csp_chan<R, T> chan, int ms, chan_lost_msg<T> lostMsg = null)
         {
             generator this_ = self;
-            csp_wait_wrap<R, T> result = csp_wait_wrap<R, T>.undefined();
+            csp_wait_wrap<R, T> result = new csp_wait_wrap<R, T> { state = chan_async_state.async_undefined };
             try
             {
                 chan.timed_pop(ms, this_.async_callback(delegate (chan_async_state state, T msg, object exObj)
@@ -5882,7 +5877,7 @@ namespace Go
                             self._mailboxMap = _children.parent()._mailboxMap;
                             nil_chan<chan_async_state> waitHasChan = new nil_chan<chan_async_state>();
                             Action<chan_async_state> waitHasNtf = waitHasChan.wrap();
-                            csp_wait_wrap<R, T> recvRes = csp_wait_wrap<R, T>.undefined();
+                            csp_wait_wrap<R, T> recvRes = new csp_wait_wrap<R, T> { state = chan_async_state.async_undefined };
                             Action<chan_async_state, T, object> tryPopHandler = delegate (chan_async_state state, T msg, object exObj)
                             {
                                 recvRes.state = state;
@@ -5899,7 +5894,7 @@ namespace Go
                                 await mutex_lock_shared(_mutex);
                                 try
                                 {
-                                    recvRes = csp_wait_wrap<R, T>.undefined();
+                                    recvRes = new csp_wait_wrap<R, T> { state = chan_async_state.async_undefined };
                                     try
                                     {
                                         chan.try_pop_and_append_notify(self.async_callback(tryPopHandler), waitHasNtf, ntfSign);
