@@ -476,7 +476,7 @@ namespace Go
         internal class select_chan_writer : select_chan_base
         {
             public channel<T> _chan;
-            public Func<T> _msg;
+            public async_result_wrap<T> _msg;
             public Func<Task> _handler;
             public Func<chan_async_state, Task<bool>> _errHandler;
             public chan_lost_msg<T> _lostMsg;
@@ -498,11 +498,10 @@ namespace Go
                 {
                     _tryPushHandler = (chan_async_state state, object _) => _tempResult = state;
                 }
-                T msg = _msg();
                 try
                 {
                     _tempResult = chan_async_state.async_undefined;
-                    _chan.try_push_and_append_notify(_host.async_callback(_tryPushHandler), nextSelect, ntfSign, msg, _chanTimeout);
+                    _chan.try_push_and_append_notify(_host.async_callback(_tryPushHandler), nextSelect, ntfSign, _msg.value1, _chanTimeout);
                     await _host.async_wait();
                 }
                 catch (generator.stop_exception)
@@ -511,7 +510,7 @@ namespace Go
                     await _host.async_wait();
                     if (chan_async_state.async_ok != _tempResult)
                     {
-                        _lostMsg?.set(msg);
+                        _lostMsg?.set(_msg.value1);
                     }
                     throw;
                 }
@@ -722,34 +721,24 @@ namespace Go
             return new select_chan_reader() { _chanTimeout = ms, _chan = this, _handler = handler, _errHandler = errHandler, _lostMsg = lostMsg };
         }
 
-        internal select_chan_base make_select_writer(Func<T> msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler, chan_lost_msg<T> lostMsg)
+        internal select_chan_base make_select_writer(async_result_wrap<T> msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler, chan_lost_msg<T> lostMsg)
         {
             return new select_chan_writer() { _chan = this, _msg = msg, _handler = handler, _errHandler = errHandler, _lostMsg = lostMsg };
         }
 
-        internal select_chan_base make_select_writer(async_result_wrap<T> msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler, chan_lost_msg<T> lostMsg)
-        {
-            return make_select_writer(() => msg.value1, handler, errHandler, lostMsg);
-        }
-
         internal select_chan_base make_select_writer(T msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler, chan_lost_msg<T> lostMsg)
         {
-            return make_select_writer(() => msg, handler, errHandler, lostMsg);
-        }
-
-        internal select_chan_base make_select_writer(int ms, Func<T> msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler, chan_lost_msg<T> lostMsg)
-        {
-            return new select_chan_writer() { _chanTimeout = ms, _chan = this, _msg = msg, _handler = handler, _errHandler = errHandler, _lostMsg = lostMsg };
+            return make_select_writer(new async_result_wrap<T> { value1 = msg }, handler, errHandler, lostMsg);
         }
 
         internal select_chan_base make_select_writer(int ms, async_result_wrap<T> msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler, chan_lost_msg<T> lostMsg)
         {
-            return make_select_writer(ms, () => msg.value1, handler, errHandler, lostMsg);
+            return new select_chan_writer() { _chanTimeout = ms, _chan = this, _msg = msg, _handler = handler, _errHandler = errHandler, _lostMsg = lostMsg };
         }
 
         internal select_chan_base make_select_writer(int ms, T msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler, chan_lost_msg<T> lostMsg)
         {
-            return make_select_writer(ms, () => msg, handler, errHandler, lostMsg);
+            return make_select_writer(ms, new async_result_wrap<T> { value1 = msg }, handler, errHandler, lostMsg);
         }
 
         internal virtual void pop(Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign, broadcast_chan_token token)
@@ -3007,7 +2996,7 @@ namespace Go
         internal class select_csp_writer : select_chan_base
         {
             public csp_chan<R, T> _chan;
-            public Func<T> _msg;
+            public async_result_wrap<T> _msg;
             public Func<R, Task> _handler;
             public Func<chan_async_state, Task<bool>> _errHandler;
             public Action<chan_async_state, object> _lostHandler;
@@ -3037,11 +3026,10 @@ namespace Go
                         }
                     };
                 }
-                T msg = _msg();
                 try
                 {
                     _tempResult = new csp_invoke_wrap<R> { state = chan_async_state.async_undefined };
-                    _chan.try_push_and_append_notify(null == _lostHandler ? _host.async_callback(_tryPushHandler) : _host.safe_async_callback(_tryPushHandler, _lostHandler), nextSelect, ntfSign, msg, _chanTimeout);
+                    _chan.try_push_and_append_notify(null == _lostHandler ? _host.async_callback(_tryPushHandler) : _host.safe_async_callback(_tryPushHandler, _lostHandler), nextSelect, ntfSign, _msg.value1, _chanTimeout);
                     await _host.async_wait();
                 }
                 catch (generator.stop_exception)
@@ -3051,7 +3039,7 @@ namespace Go
                     await _host.async_wait();
                     if (chan_async_state.async_ok == rmState)
                     {
-                        _lostMsg?.set(msg);
+                        _lostMsg?.set(_msg.value1);
                     }
                     throw;
                 }
@@ -3171,12 +3159,7 @@ namespace Go
             return new select_csp_reader() { _chanTimeout = ms, _chan = this, _handler = handler, _errHandler = errHandler, _lostMsg = lostMsg };
         }
 
-        internal select_chan_base make_select_writer(Func<T> msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler, Action<R> lostHandler, chan_lost_msg<T> lostMsg)
-        {
-            return make_select_writer(-1, msg, handler, errHandler, lostHandler, lostMsg);
-        }
-
-        internal select_chan_base make_select_writer(int ms, Func<T> msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler, Action<R> lostHandler, chan_lost_msg<T> lostMsg)
+        internal select_chan_base make_select_writer(int ms, async_result_wrap<T> msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler, Action<R> lostHandler, chan_lost_msg<T> lostMsg)
         {
             return new select_csp_writer()
             {
@@ -3198,22 +3181,17 @@ namespace Go
 
         internal select_chan_base make_select_writer(async_result_wrap<T> msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler, Action<R> lostHandler, chan_lost_msg<T> lostMsg)
         {
-            return make_select_writer(() => msg.value1, handler, errHandler, lostHandler, lostMsg);
+            return make_select_writer(-1, msg, handler, errHandler, lostHandler, lostMsg);
         }
 
         internal select_chan_base make_select_writer(T msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler, Action<R> lostHandler, chan_lost_msg<T> lostMsg)
         {
-            return make_select_writer(() => msg, handler, errHandler, lostHandler, lostMsg);
-        }
-
-        internal select_chan_base make_select_writer(int ms, async_result_wrap<T> msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler, Action<R> lostHandler, chan_lost_msg<T> lostMsg)
-        {
-            return make_select_writer(ms, () => msg.value1, handler, errHandler, lostHandler, lostMsg);
+            return make_select_writer(-1, new async_result_wrap<T> { value1 = msg }, handler, errHandler, lostHandler, lostMsg);
         }
 
         internal select_chan_base make_select_writer(int ms, T msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler, Action<R> lostHandler, chan_lost_msg<T> lostMsg)
         {
-            return make_select_writer(ms, () => msg, handler, errHandler, lostHandler, lostMsg);
+            return make_select_writer(ms, new async_result_wrap<T> { value1 = msg }, handler, errHandler, lostHandler, lostMsg);
         }
 
         public override chan_type type()

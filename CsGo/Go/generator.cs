@@ -6446,12 +6446,6 @@ namespace Go
                 return this;
             }
 
-            public select_chans case_send<T>(channel<T> chan, Func<T> msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<T> lostMsg = null)
-            {
-                _chans.AddLast(chan.make_select_writer(msg, handler, errHandler, lostMsg));
-                return this;
-            }
-
             public select_chans case_send<T>(channel<T> chan, async_result_wrap<T> msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<T> lostMsg = null)
             {
                 _chans.AddLast(chan.make_select_writer(msg, handler, errHandler, lostMsg));
@@ -6560,12 +6554,6 @@ namespace Go
                 return this;
             }
 
-            public select_chans case_send<R, T>(csp_chan<R, T> chan, Func<T> msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
-            {
-                _chans.AddLast(chan.make_select_writer(msg, handler, errHandler, lostHandler, lostMsg));
-                return this;
-            }
-
             public select_chans case_send<R, T>(csp_chan<R, T> chan, async_result_wrap<T> msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
             {
                 _chans.AddLast(chan.make_select_writer(msg, handler, errHandler, lostHandler, lostMsg));
@@ -6581,12 +6569,6 @@ namespace Go
             public select_chans case_send<R>(csp_chan<R, void_type> chan, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Action<R> lostHandler = null, chan_lost_msg<void_type> lostMsg = null)
             {
                 _chans.AddLast(chan.make_select_writer(default(void_type), handler, errHandler, lostHandler, lostMsg));
-                return this;
-            }
-
-            public select_chans case_send<T>(csp_chan<void_type, T> chan, Func<T> msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Action<void_type> lostHandler = null, chan_lost_msg<T> lostMsg = null)
-            {
-                _chans.AddLast(chan.make_select_writer(msg, (void_type _) => handler(), errHandler, lostHandler, lostMsg));
                 return this;
             }
 
@@ -6659,12 +6641,6 @@ namespace Go
             public select_chans case_timed_receive(channel<void_type> chan, int ms, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<void_type> lostMsg = null)
             {
                 _chans.AddLast(chan.make_select_reader(ms, (void_type _) => handler(), errHandler, lostMsg));
-                return this;
-            }
-
-            public select_chans case_timed_send<T>(channel<T> chan, int ms, Func<T> msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<T> lostMsg = null)
-            {
-                _chans.AddLast(chan.make_select_writer(ms, msg, handler, errHandler, lostMsg));
                 return this;
             }
 
@@ -6776,12 +6752,6 @@ namespace Go
                 return this;
             }
 
-            public select_chans case_timed_send<R, T>(csp_chan<R, T> chan, int ms, Func<T> msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
-            {
-                _chans.AddLast(chan.make_select_writer(ms, msg, handler, errHandler, lostHandler, lostMsg));
-                return this;
-            }
-
             public select_chans case_timed_send<R, T>(csp_chan<R, T> chan, int ms, async_result_wrap<T> msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
             {
                 _chans.AddLast(chan.make_select_writer(ms, msg, handler, errHandler, lostHandler, lostMsg));
@@ -6797,12 +6767,6 @@ namespace Go
             public select_chans case_timed_send<R>(csp_chan<R, void_type> chan, int ms, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Action<R> lostHandler = null, chan_lost_msg<void_type> lostMsg = null)
             {
                 _chans.AddLast(chan.make_select_writer(ms, default(void_type), handler, errHandler, lostHandler, lostMsg));
-                return this;
-            }
-
-            public select_chans case_timed_send<T>(csp_chan<void_type, T> chan, int ms, Func<T> msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Action<void_type> lostHandler = null, chan_lost_msg<T> lostMsg = null)
-            {
-                _chans.AddLast(chan.make_select_writer(ms, msg, (void_type _) => handler(), errHandler, lostHandler, lostMsg));
                 return this;
             }
 
