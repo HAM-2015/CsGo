@@ -2866,7 +2866,7 @@ namespace Go
         internal class select_csp_reader : select_chan_base
         {
             public csp_chan<R, T> _chan;
-            public Func<csp_result, T, Task> _handler;
+            public Func<T, Task<R>> _handler;
             public Func<chan_async_state, Task<bool>> _errHandler;
             public chan_lost_msg<T> _lostMsg;
             public int _chanTimeout = -1;
@@ -2925,7 +2925,7 @@ namespace Go
                         _tempResult.result.start_invoke_timer(_host);
                         await generator.unlock_suspend();
                         _lostMsg?.clear();
-                        await _handler(_tempResult.result, _tempResult.msg);
+                        _tempResult.complete(await _handler(_tempResult.msg));
                     }
                     catch (csp_fail_exception)
                     {
@@ -3139,22 +3139,22 @@ namespace Go
             _closed = false;
         }
 
-        internal select_chan_base make_select_reader(Func<csp_result, T, Task> handler, chan_lost_msg<T> lostMsg)
+        internal select_chan_base make_select_reader(Func<T, Task<R>> handler, chan_lost_msg<T> lostMsg)
         {
             return new select_csp_reader() { _chan = this, _handler = handler, _lostMsg = lostMsg };
         }
 
-        internal select_chan_base make_select_reader(Func<csp_result, T, Task> handler, Func<chan_async_state, Task<bool>> errHandler, chan_lost_msg<T> lostMsg)
+        internal select_chan_base make_select_reader(Func<T, Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler, chan_lost_msg<T> lostMsg)
         {
             return new select_csp_reader() { _chan = this, _handler = handler, _errHandler = errHandler, _lostMsg = lostMsg };
         }
 
-        internal select_chan_base make_select_reader(int ms, Func<csp_result, T, Task> handler, chan_lost_msg<T> lostMsg)
+        internal select_chan_base make_select_reader(int ms, Func<T, Task<R>> handler, chan_lost_msg<T> lostMsg)
         {
             return new select_csp_reader() { _chanTimeout = ms, _chan = this, _handler = handler, _lostMsg = lostMsg };
         }
 
-        internal select_chan_base make_select_reader(int ms, Func<csp_result, T, Task> handler, Func<chan_async_state, Task<bool>> errHandler, chan_lost_msg<T> lostMsg)
+        internal select_chan_base make_select_reader(int ms, Func<T, Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler, chan_lost_msg<T> lostMsg)
         {
             return new select_csp_reader() { _chanTimeout = ms, _chan = this, _handler = handler, _errHandler = errHandler, _lostMsg = lostMsg };
         }
