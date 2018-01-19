@@ -299,6 +299,26 @@ namespace Go
             }
         }
 
+        class nil_task<R>
+        {
+            static Func<R> _func = () => default(R);
+            static readonly ThreadLocal<Task<R>> _task = new ThreadLocal<Task<R>>();
+            static readonly System.Reflection.FieldInfo _resField = typeof(Task<R>).GetField("m_result", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+            public static Task<R> task(R value)
+            {
+                Task<R> currTask = _task.Value;
+                if (null == currTask)
+                {
+                    currTask = new Task<R>(_func);
+                    currTask.RunSynchronously();
+                    _task.Value = currTask;
+                }
+                _resField.SetValue(currTask, value);
+                return currTask;
+            }
+        }
+
         class type_hash<T>
         {
             public static readonly int code = Interlocked.Increment(ref _hashCount);
@@ -1148,14 +1168,14 @@ namespace Go
                     this_._holdSuspend = true;
                 }
             }
-            return nil_wait();
+            return non_async();
         }
 
         static public Task halt_self()
         {
             generator this_ = self;
             this_.stop();
-            return nil_wait();
+            return non_async();
         }
 
         static public void lock_stop()
@@ -1243,7 +1263,7 @@ namespace Go
                     return this_.async_wait();
                 }
             }
-            return nil_wait();
+            return non_async();
         }
 
         static public async Task lock_suspend(Func<Task> handler)
@@ -1313,7 +1333,7 @@ namespace Go
                     return this_.async_wait();
                 }
             }
-            return nil_wait();
+            return non_async();
         }
 
         static public async Task lock_suspend_and_stop(Func<Task> handler)
@@ -3867,9 +3887,14 @@ namespace Go
             return new Tuple<csp_chan<R, T>.csp_result, T>(wrap.result, wrap.msg);
         }
 
-        static public Task nil_wait()
+        static public Task non_async()
         {
             return _nilTask;
+        }
+
+        static public Task<R> non_async<R>(R value)
+        {
+            return nil_task<R>.task(value);
         }
 
         static public Task mutex_cancel(mutex mtx)
@@ -4581,7 +4606,7 @@ namespace Go
                 task.GetAwaiter().OnCompleted(this_.async_result());
                 return this_.async_wait();
             }
-            return nil_wait();
+            return non_async();
         }
 
         static public async Task<R> wait_task<R>(Task<R> task)
@@ -6385,12 +6410,8 @@ namespace Go
 
         public struct select_chans
         {
-            LinkedList<select_chan_base> _chans;
-
-            internal select_chans(LinkedList<select_chan_base> chans)
-            {
-                _chans = chans;
-            }
+            internal LinkedList<select_chan_base> _chans;
+            internal msg_buff<tuple<chan_async_state, select_chan_base>> _selectChans;
 
             public select_chans case_recv_mail<T>(Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<T> lostMsg = null)
             {
@@ -6756,7 +6777,7 @@ namespace Go
             {
                 generator this_ = self;
                 LinkedList<select_chan_base> chans = _chans;
-                msg_buff<tuple<chan_async_state, select_chan_base>> selectChans = new msg_buff<tuple<chan_async_state, select_chan_base>>(this_.strand);
+                msg_buff<tuple<chan_async_state, select_chan_base>> selectChans = _selectChans;
                 for (LinkedListNode<select_chan_base> it = chans.First; null != it; it = it.Next)
                 {
                     select_chan_base chan = it.Value;
@@ -6777,7 +6798,7 @@ namespace Go
                     Func<Task> stepOne = null == eachAferDo ? (Func<Task>)null : delegate ()
                     {
                         selected = true;
-                        return nil_wait();
+                        return non_async();
                     };
                     while (0 != count)
                     {
@@ -6835,6 +6856,7 @@ namespace Go
                     {
                         await it.Value.end();
                     }
+                    selectChans.clear();
                     await unlock_suspend_and_stop();
                 }
             }
@@ -6843,7 +6865,7 @@ namespace Go
             {
                 generator this_ = self;
                 LinkedList<select_chan_base> chans = _chans;
-                msg_buff<tuple<chan_async_state, select_chan_base>> selectChans = new msg_buff<tuple<chan_async_state, select_chan_base>>(this_.strand);
+                msg_buff<tuple<chan_async_state, select_chan_base>> selectChans = _selectChans;
                 for (LinkedListNode<select_chan_base> it = chans.First; null != it; it = it.Next)
                 {
                     select_chan_base chan = it.Value;
@@ -6924,6 +6946,7 @@ namespace Go
                             await it.Value.end();
                         }
                     }
+                    selectChans.clear();
                     await unlock_suspend_and_stop();
                 }
                 return selected;
@@ -6933,7 +6956,7 @@ namespace Go
             {
                 generator this_ = self;
                 LinkedList<select_chan_base> chans = _chans;
-                msg_buff<tuple<chan_async_state, select_chan_base>> selectChans = new msg_buff<tuple<chan_async_state, select_chan_base>>(this_.strand);
+                msg_buff<tuple<chan_async_state, select_chan_base>> selectChans = _selectChans;
                 if (ms >= 0)
                 {
                     this_._timer.timeout(ms, selectChans.wrap_default());
@@ -7027,6 +7050,7 @@ namespace Go
                             await it.Value.end();
                         }
                     }
+                    selectChans.clear();
                     await unlock_suspend_and_stop();
                 }
                 return true;
@@ -7060,7 +7084,7 @@ namespace Go
 
         static public select_chans select()
         {
-            return new select_chans(new LinkedList<select_chan_base>());
+            return new select_chans { _chans = new LinkedList<select_chan_base>(), _selectChans = new msg_buff<tuple<chan_async_state, select_chan_base>>(self_strand()) };
         }
 
         static public void stop_select()
