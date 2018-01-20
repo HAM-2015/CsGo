@@ -39,124 +39,139 @@ namespace Go
             _recCount = 0;
         }
 
-        internal virtual void Lock(long id, Action ntf)
+        protected virtual void lock_(long id, Action ntf)
         {
-            _strand.distribute(delegate ()
+            if (0 == _lockID || id == _lockID)
             {
-                if (0 == _lockID || id == _lockID)
-                {
-                    _lockID = id;
-                    _recCount++;
-                    ntf();
-                }
-                else
-                {
-                    _waitQueue.AddLast(new wait_node() { _ntf = (chan_async_state) => ntf(), _id = id });
-                }
-            });
+                _lockID = id;
+                _recCount++;
+                ntf();
+            }
+            else
+            {
+                _waitQueue.AddLast(new wait_node() { _ntf = (chan_async_state) => ntf(), _id = id });
+            }
         }
 
-        internal virtual void try_lock(long id, Action<chan_async_state> ntf)
+        protected virtual void try_lock_(long id, Action<chan_async_state> ntf)
         {
-            _strand.distribute(delegate ()
+            if (0 == _lockID || id == _lockID)
             {
-                if (0 == _lockID || id == _lockID)
+                _lockID = id;
+                _recCount++;
+                ntf(chan_async_state.async_ok);
+            }
+            else
+            {
+                ntf(chan_async_state.async_fail);
+            }
+        }
+
+        protected virtual void timed_lock_(long id, int ms, Action<chan_async_state> ntf)
+        {
+            if (0 == _lockID || id == _lockID)
+            {
+                _lockID = id;
+                _recCount++;
+                ntf(chan_async_state.async_ok);
+            }
+            else if (ms > 0)
+            {
+                async_timer timer = new async_timer(_strand);
+                LinkedListNode<wait_node> it = _waitQueue.AddLast(new wait_node()
                 {
-                    _lockID = id;
-                    _recCount++;
-                    ntf(chan_async_state.async_ok);
+                    _ntf = delegate (chan_async_state state)
+                    {
+                        timer.cancel();
+                        ntf(state);
+                    },
+                    _id = id
+                });
+                timer.timeout(ms, delegate ()
+                {
+                    Action<chan_async_state> waitNtf = it.Value._ntf;
+                    _waitQueue.Remove(it);
+                    waitNtf(chan_async_state.async_overtime);
+                });
+            }
+            else
+            {
+                ntf(chan_async_state.async_overtime);
+            }
+        }
+
+        protected virtual void unlock_(long id, Action ntf)
+        {
+#if DEBUG
+            Trace.Assert(id == _lockID);
+#endif
+            if (0 == --_recCount)
+            {
+                if (0 != _waitQueue.Count)
+                {
+                    _recCount = 1;
+                    wait_node queueFront = _waitQueue.First.Value;
+                    _waitQueue.RemoveFirst();
+                    _lockID = queueFront._id;
+                    queueFront._ntf(chan_async_state.async_ok);
                 }
                 else
                 {
-                    ntf(chan_async_state.async_fail);
+                    _lockID = 0;
                 }
-            });
+            }
+            ntf();
+        }
+
+        protected virtual void cancel_(long id, Action ntf)
+        {
+            if (id == _lockID)
+            {
+                _recCount = 1;
+                unlock_(id, ntf);
+            }
+            else
+            {
+                for (LinkedListNode<wait_node> it = _waitQueue.Last; null != it; it = it.Previous)
+                {
+                    if (it.Value._id == id)
+                    {
+                        _waitQueue.Remove(it);
+                        break;
+                    }
+                }
+                ntf();
+            }
+        }
+
+        internal void Lock(long id, Action ntf)
+        {
+            if (_strand.running_in_this_thread()) lock_(id, ntf);
+            else _strand.post(() => lock_(id, ntf));
+        }
+
+        internal void try_lock(long id, Action<chan_async_state> ntf)
+        {
+            if (_strand.running_in_this_thread()) try_lock_(id, ntf);
+            else _strand.post(() => try_lock_(id, ntf));
         }
 
         internal virtual void timed_lock(long id, int ms, Action<chan_async_state> ntf)
         {
-            _strand.distribute(delegate ()
-            {
-                if (0 == _lockID || id == _lockID)
-                {
-                    _lockID = id;
-                    _recCount++;
-                    ntf(chan_async_state.async_ok);
-                }
-                else if (ms > 0)
-                {
-                    async_timer timer = new async_timer(_strand);
-                    LinkedListNode<wait_node> it = _waitQueue.AddLast(new wait_node()
-                    {
-                        _ntf = delegate (chan_async_state state)
-                        {
-                            timer.cancel();
-                            ntf(state);
-                        },
-                        _id = id
-                    });
-                    timer.timeout(ms, delegate ()
-                    {
-                        Action<chan_async_state> waitNtf = it.Value._ntf;
-                        _waitQueue.Remove(it);
-                        waitNtf(chan_async_state.async_overtime);
-                    });
-                }
-                else
-                {
-                    ntf(chan_async_state.async_overtime);
-                }
-            });
+            if (_strand.running_in_this_thread()) timed_lock_(id, ms, ntf);
+            else _strand.post(() => timed_lock_(id, ms, ntf));
         }
 
         internal virtual void unlock(long id, Action ntf)
         {
-            _strand.distribute(delegate ()
-            {
-#if DEBUG
-                Trace.Assert(id == _lockID);
-#endif
-                if (0 == --_recCount)
-                {
-                    if (0 != _waitQueue.Count)
-                    {
-                        _recCount = 1;
-                        wait_node queueFront = _waitQueue.First.Value;
-                        _waitQueue.RemoveFirst();
-                        _lockID = queueFront._id;
-                        queueFront._ntf(chan_async_state.async_ok);
-                    }
-                    else
-                    {
-                        _lockID = 0;
-                    }
-                }
-                ntf();
-            });
+            if (_strand.running_in_this_thread()) unlock_(id, ntf);
+            else _strand.post(() => unlock_(id, ntf));
         }
 
         internal virtual void cancel(long id, Action ntf)
         {
-            _strand.distribute(delegate ()
-            {
-                if (id == _lockID)
-                {
-                    _recCount = 1;
-                    unlock(id, ntf);
-                }
-                else
-                {
-                    for (LinkedListNode<wait_node> it = _waitQueue.Last; null != it; it = it.Previous)
-                    {
-                        if (it.Value._id == id)
-                        {
-                            _waitQueue.Remove(it);
-                            break;
-                        }
-                    }
-                    ntf();
-                }
-            });
+            if (_strand.running_in_this_thread()) cancel_(id, ntf);
+            else _strand.post(() => cancel_(id, ntf));
         }
 
         public shared_strand self_strand()
@@ -201,75 +216,66 @@ namespace Go
             _sharedMap = new Dictionary<long, shared_count>();
         }
 
-        internal override void Lock(long id, Action ntf)
+        protected override void lock_(long id, Action ntf)
         {
-            self_strand().distribute(delegate ()
+            if (0 == _sharedMap.Count && (0 == base._lockID || id == base._lockID))
             {
-                if (0 == _sharedMap.Count && (0 == base._lockID || id == base._lockID))
-                {
-                    base._lockID = id;
-                    base._recCount++;
-                    ntf();
-                }
-                else
-                {
-                    _waitQueue.AddLast(new wait_node() { _ntf = (chan_async_state) => ntf(), _waitHostID = id, _status = lock_status.st_unique });
-                }
-            });
+                base._lockID = id;
+                base._recCount++;
+                ntf();
+            }
+            else
+            {
+                _waitQueue.AddLast(new wait_node() { _ntf = (chan_async_state) => ntf(), _waitHostID = id, _status = lock_status.st_unique });
+            }
         }
 
-        internal override void try_lock(long id, Action<chan_async_state> ntf)
+        protected override void try_lock_(long id, Action<chan_async_state> ntf)
         {
-            self_strand().distribute(delegate ()
+            if (0 == _sharedMap.Count && (0 == base._lockID || id == base._lockID))
             {
-                if (0 == _sharedMap.Count && (0 == base._lockID || id == base._lockID))
-                {
-                    base._lockID = id;
-                    base._recCount++;
-                    ntf(chan_async_state.async_ok);
-                }
-                else
-                {
-                    ntf(chan_async_state.async_fail);
-                }
-            });
+                base._lockID = id;
+                base._recCount++;
+                ntf(chan_async_state.async_ok);
+            }
+            else
+            {
+                ntf(chan_async_state.async_fail);
+            }
         }
 
-        internal override void timed_lock(long id, int ms, Action<chan_async_state> ntf)
+        protected override void timed_lock_(long id, int ms, Action<chan_async_state> ntf)
         {
-            self_strand().distribute(delegate ()
+            if (0 == _sharedMap.Count && (0 == base._lockID || id == base._lockID))
             {
-                if (0 == _sharedMap.Count && (0 == base._lockID || id == base._lockID))
+                base._lockID = id;
+                base._recCount++;
+                ntf(chan_async_state.async_ok);
+            }
+            else if (ms > 0)
+            {
+                async_timer timer = new async_timer(self_strand());
+                LinkedListNode<wait_node> it = _waitQueue.AddLast(new wait_node()
                 {
-                    base._lockID = id;
-                    base._recCount++;
-                    ntf(chan_async_state.async_ok);
-                }
-                else if (ms > 0)
-                {
-                    async_timer timer = new async_timer(self_strand());
-                    LinkedListNode<wait_node> it = _waitQueue.AddLast(new wait_node()
+                    _ntf = delegate (chan_async_state state)
                     {
-                        _ntf = delegate (chan_async_state state)
-                        {
-                            timer.cancel();
-                            ntf(state);
-                        },
-                        _waitHostID = id,
-                        _status = lock_status.st_unique
-                    });
-                    timer.timeout(ms, delegate ()
-                    {
-                        Action<chan_async_state> waitNtf = it.Value._ntf;
-                        _waitQueue.Remove(it);
-                        waitNtf(chan_async_state.async_overtime);
-                    });
-                }
-                else
+                        timer.cancel();
+                        ntf(state);
+                    },
+                    _waitHostID = id,
+                    _status = lock_status.st_unique
+                });
+                timer.timeout(ms, delegate ()
                 {
-                    ntf(chan_async_state.async_overtime);
-                }
-            });
+                    Action<chan_async_state> waitNtf = it.Value._ntf;
+                    _waitQueue.Remove(it);
+                    waitNtf(chan_async_state.async_overtime);
+                });
+            }
+            else
+            {
+                ntf(chan_async_state.async_overtime);
+            }
         }
 
         shared_count find_map(long id)
@@ -283,105 +289,136 @@ namespace Go
             return ct;
         }
 
-        internal void lock_shared(long id, Action ntf)
+        private void lock_shared_(long id, Action ntf)
         {
-            self_strand().distribute(delegate ()
+            if (0 != _sharedMap.Count || 0 == base._lockID)
             {
-                if (0 != _sharedMap.Count || 0 == base._lockID)
-                {
-                    find_map(id)._count++;
-                    ntf();
-                }
-                else
-                {
-                    _waitQueue.AddLast(new wait_node() { _ntf = (chan_async_state) => ntf(), _waitHostID = id, _status = lock_status.st_shared });
-                }
-            });
+                find_map(id)._count++;
+                ntf();
+            }
+            else
+            {
+                _waitQueue.AddLast(new wait_node() { _ntf = (chan_async_state) => ntf(), _waitHostID = id, _status = lock_status.st_shared });
+            }
         }
 
-        internal void lock_pess_shared(long id, Action ntf)
+        private void lock_pess_shared_(long id, Action ntf)
         {
-            self_strand().distribute(delegate ()
+            if (0 == _waitQueue.Count && (0 != _sharedMap.Count || 0 == base._lockID))
             {
-                if (0 == _waitQueue.Count && (0 != _sharedMap.Count || 0 == base._lockID))
-                {
-                    find_map(id)._count++;
-                    ntf();
-                }
-                else
-                {
-                    _waitQueue.AddLast(new wait_node() { _ntf = (chan_async_state) => ntf(), _waitHostID = id, _status = lock_status.st_shared });
-                }
-            });
+                find_map(id)._count++;
+                ntf();
+            }
+            else
+            {
+                _waitQueue.AddLast(new wait_node() { _ntf = (chan_async_state) => ntf(), _waitHostID = id, _status = lock_status.st_shared });
+            }
         }
 
-        internal void try_lock_shared(long id, Action<chan_async_state> ntf)
+        private void try_lock_shared_(long id, Action<chan_async_state> ntf)
         {
-            self_strand().distribute(delegate ()
+            if (0 != _sharedMap.Count || 0 == base._lockID)
             {
-                if (0 != _sharedMap.Count || 0 == base._lockID)
-                {
-                    find_map(id)._count++;
-                    ntf(chan_async_state.async_ok);
-                }
-                else
-                {
-                    ntf(chan_async_state.async_fail);
-                }
-            });
+                find_map(id)._count++;
+                ntf(chan_async_state.async_ok);
+            }
+            else
+            {
+                ntf(chan_async_state.async_fail);
+            }
         }
 
-        internal void timed_lock_shared(long id, int ms, Action<chan_async_state> ntf)
+        private void timed_lock_shared_(long id, int ms, Action<chan_async_state> ntf)
         {
-            self_strand().distribute(delegate ()
+            if (0 != _sharedMap.Count || 0 == base._lockID)
             {
-                if (0 != _sharedMap.Count || 0 == base._lockID)
+                find_map(id)._count++;
+                ntf(chan_async_state.async_ok);
+            }
+            else if (ms > 0)
+            {
+                async_timer timer = new async_timer(self_strand());
+                LinkedListNode<wait_node> it = _waitQueue.AddLast(new wait_node()
                 {
-                    find_map(id)._count++;
-                    ntf(chan_async_state.async_ok);
-                }
-                else if (ms > 0)
-                {
-                    async_timer timer = new async_timer(self_strand());
-                    LinkedListNode<wait_node> it = _waitQueue.AddLast(new wait_node()
+                    _ntf = delegate (chan_async_state state)
                     {
-                        _ntf = delegate (chan_async_state state)
+                        timer.cancel();
+                        ntf(state);
+                    },
+                    _waitHostID = id,
+                    _status = lock_status.st_shared
+                });
+                timer.timeout(ms, delegate ()
+                {
+                    Action<chan_async_state> waitNtf = it.Value._ntf;
+                    _waitQueue.Remove(it);
+                    waitNtf(chan_async_state.async_overtime);
+                });
+            }
+            else
+            {
+                ntf(chan_async_state.async_overtime);
+            }
+        }
+
+        private void lock_upgrade_(long id, Action ntf)
+        {
+            base.lock_(id, ntf);
+        }
+
+        private void try_lock_upgrade_(long id, Action<chan_async_state> ntf)
+        {
+            base.try_lock_(id, ntf);
+        }
+
+        protected override void unlock_(long id, Action ntf)
+        {
+            if (0 == --base._recCount && 0 != _waitQueue.Count)
+            {
+                LinkedList<Action<chan_async_state>> ntfs = new LinkedList<Action<chan_async_state>>();
+                wait_node queueFront = _waitQueue.First.Value;
+                _waitQueue.RemoveFirst();
+                ntfs.AddLast(queueFront._ntf);
+                if (lock_status.st_shared == queueFront._status)
+                {
+                    base._lockID = 0;
+                    find_map(queueFront._waitHostID)._count++;
+                    for (LinkedListNode<wait_node> it = _waitQueue.First; null != it;)
+                    {
+                        if (lock_status.st_shared == it.Value._status)
                         {
-                            timer.cancel();
-                            ntf(state);
-                        },
-                        _waitHostID = id,
-                        _status = lock_status.st_shared
-                    });
-                    timer.timeout(ms, delegate ()
-                    {
-                        Action<chan_async_state> waitNtf = it.Value._ntf;
-                        _waitQueue.Remove(it);
-                        waitNtf(chan_async_state.async_overtime);
-                    });
+                            find_map(it.Value._waitHostID)._count++;
+                            ntfs.AddLast(it.Value._ntf);
+                            LinkedListNode<wait_node> oit = it;
+                            it = it.Next;
+                            _waitQueue.Remove(oit);
+                        }
+                        else
+                        {
+                            it = it.Next;
+                        }
+                    }
                 }
                 else
                 {
-                    ntf(chan_async_state.async_overtime);
+                    base._lockID = queueFront._waitHostID;
+                    base._recCount++;
                 }
-            });
+                while (0 != ntfs.Count)
+                {
+                    ntfs.First.Value(chan_async_state.async_ok);
+                    ntfs.RemoveFirst();
+                }
+            }
+            ntf();
         }
 
-        internal void lock_upgrade(long id, Action ntf)
+        private void unlock_shared_(long id, Action ntf)
         {
-            base.Lock(id, ntf);
-        }
-
-        internal void try_lock_upgrade(long id, Action<chan_async_state> ntf)
-        {
-            base.try_lock(id, ntf);
-        }
-
-        internal override void unlock(long id, Action ntf)
-        {
-            self_strand().distribute(delegate ()
+            if (0 == --find_map(id)._count)
             {
-                if (0 == --base._recCount && 0 != _waitQueue.Count)
+                _sharedMap.Remove(id);
+                if (0 == _sharedMap.Count && 0 != _waitQueue.Count)
                 {
                     LinkedList<Action<chan_async_state>> ntfs = new LinkedList<Action<chan_async_state>>();
                     wait_node queueFront = _waitQueue.First.Value;
@@ -418,113 +455,133 @@ namespace Go
                         ntfs.RemoveFirst();
                     }
                 }
+            }
+            ntf();
+        }
+
+        private void unlock_upgrade_(long id, Action ntf)
+        {
+            base.unlock_(id, ntf);
+        }
+
+        private void unlock_and_lock_shared_(long id, Action ntf)
+        {
+            unlock_(id, () => lock_shared_(id, ntf));
+        }
+
+        private void unlock_and_lock_upgrade_(long id, Action ntf)
+        {
+            unlock_and_lock_shared_(id, () => lock_upgrade_(id, ntf));
+        }
+
+        private void unlock_upgrade_and_lock_(long id, Action ntf)
+        {
+            unlock_upgrade_(id, () => unlock_shared_(id, () => lock_(id, ntf)));
+        }
+
+        private void unlock_shared_and_lock_(long id, Action ntf)
+        {
+            unlock_shared_(id, () => lock_(id, ntf));
+        }
+
+        protected override void cancel_(long id, Action ntf)
+        {
+            shared_count tempCount;
+            if (_sharedMap.TryGetValue(id, out tempCount))
+            {
+                base.cancel_(id, nil_action.action);
+                tempCount._count = 1;
+                unlock_shared_(id, ntf);
+            }
+            else if (id == base._lockID)
+            {
+                base._recCount = 1;
+                unlock_(id, ntf);
+            }
+            else
+            {
+                for (LinkedListNode<wait_node> it = _waitQueue.Last; null != it; it = it.Previous)
+                {
+                    if (it.Value._waitHostID == id)
+                    {
+                        _waitQueue.Remove(it);
+                        break;
+                    }
+                }
                 ntf();
-            });
+            }
+        }
+
+        internal void lock_shared(long id, Action ntf)
+        {
+            if (self_strand().running_in_this_thread()) lock_shared_(id, ntf);
+            else self_strand().post(() => lock_shared_(id, ntf));
+        }
+
+        internal void lock_pess_shared(long id, Action ntf)
+        {
+            if (self_strand().running_in_this_thread()) lock_pess_shared_(id, ntf);
+            else self_strand().post(() => lock_pess_shared_(id, ntf));
+        }
+
+        internal void try_lock_shared(long id, Action<chan_async_state> ntf)
+        {
+            if (self_strand().running_in_this_thread()) try_lock_shared_(id, ntf);
+            else self_strand().post(() => try_lock_shared_(id, ntf));
+        }
+
+        internal void timed_lock_shared(long id, int ms, Action<chan_async_state> ntf)
+        {
+            if (self_strand().running_in_this_thread()) timed_lock_shared_(id, ms, ntf);
+            else self_strand().post(() => timed_lock_shared_(id, ms, ntf));
+        }
+
+        internal void lock_upgrade(long id, Action ntf)
+        {
+            if (self_strand().running_in_this_thread()) lock_upgrade_(id, ntf);
+            else self_strand().post(() => lock_upgrade_(id, ntf));
+        }
+
+        internal void try_lock_upgrade(long id, Action<chan_async_state> ntf)
+        {
+            if (self_strand().running_in_this_thread()) try_lock_upgrade_(id, ntf);
+            else self_strand().post(() => try_lock_upgrade_(id, ntf));
         }
 
         internal void unlock_shared(long id, Action ntf)
         {
-            self_strand().distribute(delegate ()
-            {
-                if (0 == --find_map(id)._count)
-                {
-                    _sharedMap.Remove(id);
-                    if (0 == _sharedMap.Count && 0 != _waitQueue.Count)
-                    {
-                        LinkedList<Action<chan_async_state>> ntfs = new LinkedList<Action<chan_async_state>>();
-                        wait_node queueFront = _waitQueue.First.Value;
-                        _waitQueue.RemoveFirst();
-                        ntfs.AddLast(queueFront._ntf);
-                        if (lock_status.st_shared == queueFront._status)
-                        {
-                            base._lockID = 0;
-                            find_map(queueFront._waitHostID)._count++;
-                            for (LinkedListNode<wait_node> it = _waitQueue.First; null != it;)
-                            {
-                                if (lock_status.st_shared == it.Value._status)
-                                {
-                                    find_map(it.Value._waitHostID)._count++;
-                                    ntfs.AddLast(it.Value._ntf);
-                                    LinkedListNode<wait_node> oit = it;
-                                    it = it.Next;
-                                    _waitQueue.Remove(oit);
-                                }
-                                else
-                                {
-                                    it = it.Next;
-                                }
-                            }
-                        }
-                        else
-                        {
-                            base._lockID = queueFront._waitHostID;
-                            base._recCount++;
-                        }
-                        while (0 != ntfs.Count)
-                        {
-                            ntfs.First.Value(chan_async_state.async_ok);
-                            ntfs.RemoveFirst();
-                        }
-                    }
-                }
-                ntf();
-            });
+            if (self_strand().running_in_this_thread()) unlock_shared_(id, ntf);
+            else self_strand().post(() => unlock_shared_(id, ntf));
         }
 
         internal void unlock_upgrade(long id, Action ntf)
         {
-            base.unlock(id, ntf);
+            if (self_strand().running_in_this_thread()) unlock_upgrade_(id, ntf);
+            else self_strand().post(() => unlock_upgrade_(id, ntf));
         }
 
         internal void unlock_and_lock_shared(long id, Action ntf)
         {
-            unlock(id, () => lock_shared(id, ntf));
+            if (self_strand().running_in_this_thread()) unlock_and_lock_shared_(id, ntf);
+            else self_strand().post(() => unlock_and_lock_shared_(id, ntf));
         }
 
         internal void unlock_and_lock_upgrade(long id, Action ntf)
         {
-            unlock_and_lock_shared(id, () => lock_upgrade(id, ntf));
+            if (self_strand().running_in_this_thread()) unlock_and_lock_upgrade_(id, ntf);
+            else self_strand().post(() => unlock_and_lock_upgrade_(id, ntf));
         }
 
         internal void unlock_upgrade_and_lock(long id, Action ntf)
         {
-            unlock_upgrade(id, () => unlock_shared(id, () => Lock(id, ntf)));
+            if (self_strand().running_in_this_thread()) unlock_upgrade_and_lock_(id, ntf);
+            else self_strand().post(() => unlock_upgrade_and_lock_(id, ntf));
         }
 
         internal void unlock_shared_and_lock(long id, Action ntf)
         {
-            unlock_shared(id, () => Lock(id, ntf));
-        }
-
-        internal override void cancel(long id, Action ntf)
-        {
-            self_strand().distribute(delegate ()
-            {
-                shared_count tempCount;
-                if (_sharedMap.TryGetValue(id, out tempCount))
-                {
-                    base.cancel(id, nil_action.action);
-                    tempCount._count = 1;
-                    unlock_shared(id, ntf);
-                }
-                else if (id == base._lockID)
-                {
-                    base._recCount = 1;
-                    unlock(id, ntf);
-                }
-                else
-                {
-                    for (LinkedListNode<wait_node> it = _waitQueue.Last; null != it; it = it.Previous)
-                    {
-                        if (it.Value._waitHostID == id)
-                        {
-                            _waitQueue.Remove(it);
-                            break;
-                        }
-                    }
-                    ntf();
-                }
-            });
+            if (self_strand().running_in_this_thread()) unlock_shared_and_lock_(id, ntf);
+            else self_strand().post(() => unlock_shared_and_lock_(id, ntf));
         }
     }
 
