@@ -2721,7 +2721,7 @@ namespace Go
             }
         }
 
-        static public async Task<chan_async_state> chan_wait_has(channel_base chan, broadcast_chan_token token)
+        static public async Task<chan_async_state> chan_wait_has(channel_base chan, broadcast_token token)
         {
             generator this_ = self;
             try
@@ -2743,10 +2743,10 @@ namespace Go
 
         static public Task<chan_async_state> chan_wait_has(channel_base chan)
         {
-            return chan_wait_has(chan, broadcast_chan_token._defToken);
+            return chan_wait_has(chan, broadcast_token._defToken);
         }
 
-        static public async Task<chan_async_state> chan_timed_wait_has(channel_base chan, int ms, broadcast_chan_token token)
+        static public async Task<chan_async_state> chan_timed_wait_has(channel_base chan, int ms, broadcast_token token)
         {
             generator this_ = self;
             try
@@ -2768,7 +2768,7 @@ namespace Go
 
         static public Task<chan_async_state> chan_timed_wait_has(channel_base chan, int ms)
         {
-            return chan_timed_wait_has(chan, ms, broadcast_chan_token._defToken);
+            return chan_timed_wait_has(chan, ms, broadcast_token._defToken);
         }
 
         static public async Task<chan_async_state> chan_send<T>(channel<T> chan, T msg, chan_lost_msg<T> lostMsg = null)
@@ -2830,10 +2830,10 @@ namespace Go
 
         static public Task<chan_recv_wrap<T>> chan_receive<T>(channel<T> chan, chan_lost_msg<T> lostMsg = null)
         {
-            return chan_receive(chan, broadcast_chan_token._defToken, lostMsg);
+            return chan_receive(chan, broadcast_token._defToken, lostMsg);
         }
 
-        static public async Task<chan_recv_wrap<T>> chan_receive<T>(channel<T> chan, broadcast_chan_token token, chan_lost_msg<T> lostMsg = null)
+        static public async Task<chan_recv_wrap<T>> chan_receive<T>(channel<T> chan, broadcast_token token, chan_lost_msg<T> lostMsg = null)
         {
             generator this_ = self;
             chan_recv_wrap<T> result = new chan_recv_wrap<T> { state = chan_async_state.async_undefined };
@@ -2891,10 +2891,10 @@ namespace Go
 
         static public Task<chan_recv_wrap<T>> chan_try_receive<T>(channel<T> chan, chan_lost_msg<T> lostMsg = null)
         {
-            return chan_try_receive(chan, broadcast_chan_token._defToken, lostMsg);
+            return chan_try_receive(chan, broadcast_token._defToken, lostMsg);
         }
 
-        static public async Task<chan_recv_wrap<T>> chan_try_receive<T>(channel<T> chan, broadcast_chan_token token, chan_lost_msg<T> lostMsg = null)
+        static public async Task<chan_recv_wrap<T>> chan_try_receive<T>(channel<T> chan, broadcast_token token, chan_lost_msg<T> lostMsg = null)
         {
             generator this_ = self;
             chan_recv_wrap<T> result = new chan_recv_wrap<T> { state = chan_async_state.async_undefined };
@@ -2952,10 +2952,10 @@ namespace Go
 
         static public Task<chan_recv_wrap<T>> chan_timed_receive<T>(channel<T> chan, int ms, chan_lost_msg<T> lostMsg = null)
         {
-            return chan_timed_receive(chan, ms, broadcast_chan_token._defToken, lostMsg);
+            return chan_timed_receive(chan, ms, broadcast_token._defToken, lostMsg);
         }
 
-        static public async Task<chan_recv_wrap<T>> chan_timed_receive<T>(channel<T> chan, int ms, broadcast_chan_token token, chan_lost_msg<T> lostMsg = null)
+        static public async Task<chan_recv_wrap<T>> chan_timed_receive<T>(channel<T> chan, int ms, broadcast_token token, chan_lost_msg<T> lostMsg = null)
         {
             generator this_ = self;
             chan_recv_wrap<T> result = new chan_recv_wrap<T> { state = chan_async_state.async_undefined };
@@ -5508,27 +5508,27 @@ namespace Go
                 return try_case_of(chan, (tuple<T1, T2, T3> msg) => handler(msg.value1, msg.value2, msg.value3), errHandler, lostMsg);
             }
 
-            public receive_mail case_of(broadcast_chan<void_type> chan, Func<Task> handler, broadcast_chan_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<void_type> lostMsg = null)
+            public receive_mail case_of(broadcast_chan<void_type> chan, Func<Task> handler, broadcast_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<void_type> lostMsg = null)
             {
                 return case_of(chan, (void_type _) => handler(), token, errHandler, lostMsg);
             }
 
-            public receive_mail case_of<T1, T2>(broadcast_chan<tuple<T1, T2>> chan, Func<T1, T2, Task> handler, broadcast_chan_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2>> lostMsg = null)
+            public receive_mail case_of<T1, T2>(broadcast_chan<tuple<T1, T2>> chan, Func<T1, T2, Task> handler, broadcast_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2>> lostMsg = null)
             {
                 return case_of(chan, (tuple<T1, T2> msg) => handler(msg.value1, msg.value2), token, errHandler, lostMsg);
             }
 
-            public receive_mail case_of<T1, T2, T3>(broadcast_chan<tuple<T1, T2, T3>> chan, Func<T1, T2, T3, Task> handler, broadcast_chan_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2, T3>> lostMsg = null)
+            public receive_mail case_of<T1, T2, T3>(broadcast_chan<tuple<T1, T2, T3>> chan, Func<T1, T2, T3, Task> handler, broadcast_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2, T3>> lostMsg = null)
             {
                 return case_of(chan, (tuple<T1, T2, T3> msg) => handler(msg.value1, msg.value2, msg.value3), token, errHandler, lostMsg);
             }
 
-            public receive_mail case_of<T>(broadcast_chan<T> chan, Func<T, Task> handler, broadcast_chan_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<T> lostMsg = null)
+            public receive_mail case_of<T>(broadcast_chan<T> chan, Func<T, Task> handler, broadcast_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<T> lostMsg = null)
             {
                 _children.go(async delegate ()
                 {
                     generator self = generator.self;
-                    token = null != token ? token : new broadcast_chan_token();
+                    token = null != token ? token : new broadcast_token();
                     if (null == _mutex)
                     {
                         try
@@ -5643,27 +5643,27 @@ namespace Go
                 return this;
             }
 
-            public receive_mail timed_case_of(broadcast_chan<void_type> chan, int ms, Func<Task> handler, broadcast_chan_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<void_type> lostMsg = null)
+            public receive_mail timed_case_of(broadcast_chan<void_type> chan, int ms, Func<Task> handler, broadcast_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<void_type> lostMsg = null)
             {
                 return timed_case_of(chan, ms, (void_type _) => handler(), token, errHandler, lostMsg);
             }
 
-            public receive_mail timed_case_of<T1, T2>(broadcast_chan<tuple<T1, T2>> chan, int ms, Func<T1, T2, Task> handler, broadcast_chan_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2>> lostMsg = null)
+            public receive_mail timed_case_of<T1, T2>(broadcast_chan<tuple<T1, T2>> chan, int ms, Func<T1, T2, Task> handler, broadcast_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2>> lostMsg = null)
             {
                 return timed_case_of(chan, ms, (tuple<T1, T2> msg) => handler(msg.value1, msg.value2), token, errHandler, lostMsg);
             }
 
-            public receive_mail timed_case_of<T1, T2, T3>(broadcast_chan<tuple<T1, T2, T3>> chan, int ms, Func<T1, T2, T3, Task> handler, broadcast_chan_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2, T3>> lostMsg = null)
+            public receive_mail timed_case_of<T1, T2, T3>(broadcast_chan<tuple<T1, T2, T3>> chan, int ms, Func<T1, T2, T3, Task> handler, broadcast_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2, T3>> lostMsg = null)
             {
                 return timed_case_of(chan, ms, (tuple<T1, T2, T3> msg) => handler(msg.value1, msg.value2, msg.value3), token, errHandler, lostMsg);
             }
 
-            public receive_mail timed_case_of<T>(broadcast_chan<T> chan, int ms, Func<T, Task> handler, broadcast_chan_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<T> lostMsg = null)
+            public receive_mail timed_case_of<T>(broadcast_chan<T> chan, int ms, Func<T, Task> handler, broadcast_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<T> lostMsg = null)
             {
                 _children.go(async delegate ()
                 {
                     generator self = generator.self;
-                    token = null != token ? token : new broadcast_chan_token();
+                    token = null != token ? token : new broadcast_token();
                     if (null == _mutex)
                     {
                         chan_recv_wrap<T> recvRes = await chan_timed_receive(chan, ms, token, lostMsg);
@@ -5760,22 +5760,22 @@ namespace Go
                 return this;
             }
 
-            public receive_mail try_case_of(broadcast_chan<void_type> chan, Func<Task> handler, broadcast_chan_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<void_type> lostMsg = null)
+            public receive_mail try_case_of(broadcast_chan<void_type> chan, Func<Task> handler, broadcast_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<void_type> lostMsg = null)
             {
                 return try_case_of(chan, (void_type _) => handler(), token, errHandler, lostMsg);
             }
 
-            public receive_mail try_case_of<T1, T2>(broadcast_chan<tuple<T1, T2>> chan, Func<T1, T2, Task> handler, broadcast_chan_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2>> lostMsg = null)
+            public receive_mail try_case_of<T1, T2>(broadcast_chan<tuple<T1, T2>> chan, Func<T1, T2, Task> handler, broadcast_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2>> lostMsg = null)
             {
                 return try_case_of(chan, (tuple<T1, T2> msg) => handler(msg.value1, msg.value2), token, errHandler, lostMsg);
             }
 
-            public receive_mail try_case_of<T1, T2, T3>(broadcast_chan<tuple<T1, T2, T3>> chan, Func<T1, T2, T3, Task> handler, broadcast_chan_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2, T3>> lostMsg = null)
+            public receive_mail try_case_of<T1, T2, T3>(broadcast_chan<tuple<T1, T2, T3>> chan, Func<T1, T2, T3, Task> handler, broadcast_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2, T3>> lostMsg = null)
             {
                 return try_case_of(chan, (tuple<T1, T2, T3> msg) => handler(msg.value1, msg.value2, msg.value3), token, errHandler, lostMsg);
             }
 
-            public receive_mail try_case_of<T>(broadcast_chan<T> chan, Func<T, Task> handler, broadcast_chan_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<T> lostMsg = null)
+            public receive_mail try_case_of<T>(broadcast_chan<T> chan, Func<T, Task> handler, broadcast_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<T> lostMsg = null)
             {
                 _children.go(async delegate ()
                 {
@@ -5787,7 +5787,7 @@ namespace Go
                     try
                     {
                         self._mailboxMap = _children.parent()._mailboxMap;
-                        chan_recv_wrap<T> recvRes = await chan_try_receive(chan, null != token ? token : new broadcast_chan_token(), lostMsg);
+                        chan_recv_wrap<T> recvRes = await chan_try_receive(chan, null != token ? token : new broadcast_token(), lostMsg);
                         if (chan_async_state.async_ok == recvRes.state)
                         {
                             await handler(recvRes.msg);
@@ -6485,25 +6485,25 @@ namespace Go
                 return this;
             }
 
-            public select_chans case_receive<T1, T2>(broadcast_chan<tuple<T1, T2>> chan, Func<T1, T2, Task> handler, broadcast_chan_token token, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2>> lostMsg = null)
+            public select_chans case_receive<T1, T2>(broadcast_chan<tuple<T1, T2>> chan, Func<T1, T2, Task> handler, broadcast_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2>> lostMsg = null)
             {
                 _chans.AddLast(chan.make_select_reader((tuple<T1, T2> msg) => handler(msg.value1, msg.value2), token, errHandler, lostMsg));
                 return this;
             }
 
-            public select_chans case_receive<T1, T2, T3>(broadcast_chan<tuple<T1, T2, T3>> chan, Func<T1, T2, T3, Task> handler, broadcast_chan_token token, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2, T3>> lostMsg = null)
+            public select_chans case_receive<T1, T2, T3>(broadcast_chan<tuple<T1, T2, T3>> chan, Func<T1, T2, T3, Task> handler, broadcast_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2, T3>> lostMsg = null)
             {
                 _chans.AddLast(chan.make_select_reader((tuple<T1, T2, T3> msg) => handler(msg.value1, msg.value2, msg.value3), token, errHandler, lostMsg));
                 return this;
             }
 
-            public select_chans case_receive<T>(broadcast_chan<T> chan, Func<T, Task> handler, broadcast_chan_token token, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<T> lostMsg = null)
+            public select_chans case_receive<T>(broadcast_chan<T> chan, Func<T, Task> handler, broadcast_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<T> lostMsg = null)
             {
                 _chans.AddLast(chan.make_select_reader(handler, token, errHandler, lostMsg));
                 return this;
             }
 
-            public select_chans case_receive(broadcast_chan<void_type> chan, Func<Task> handler, broadcast_chan_token token, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<void_type> lostMsg = null)
+            public select_chans case_receive(broadcast_chan<void_type> chan, Func<Task> handler, broadcast_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<void_type> lostMsg = null)
             {
                 _chans.AddLast(chan.make_select_reader((void_type _) => handler(), token, errHandler, lostMsg));
                 return this;
@@ -6665,25 +6665,25 @@ namespace Go
                 return this;
             }
 
-            public select_chans case_timed_receive<T1, T2>(broadcast_chan<tuple<T1, T2>> chan, int ms, Func<T1, T2, Task> handler, broadcast_chan_token token, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2>> lostMsg = null)
+            public select_chans case_timed_receive<T1, T2>(broadcast_chan<tuple<T1, T2>> chan, int ms, Func<T1, T2, Task> handler, broadcast_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2>> lostMsg = null)
             {
                 _chans.AddLast(chan.make_select_reader(ms, (tuple<T1, T2> msg) => handler(msg.value1, msg.value2), token, errHandler, lostMsg));
                 return this;
             }
 
-            public select_chans case_timed_receive<T1, T2, T3>(broadcast_chan<tuple<T1, T2, T3>> chan, int ms, Func<T1, T2, T3, Task> handler, broadcast_chan_token token, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2, T3>> lostMsg = null)
+            public select_chans case_timed_receive<T1, T2, T3>(broadcast_chan<tuple<T1, T2, T3>> chan, int ms, Func<T1, T2, T3, Task> handler, broadcast_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2, T3>> lostMsg = null)
             {
                 _chans.AddLast(chan.make_select_reader(ms, (tuple<T1, T2, T3> msg) => handler(msg.value1, msg.value2, msg.value3), token, errHandler, lostMsg));
                 return this;
             }
 
-            public select_chans case_timed_receive<T>(broadcast_chan<T> chan, int ms, Func<T, Task> handler, broadcast_chan_token token, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<T> lostMsg = null)
+            public select_chans case_timed_receive<T>(broadcast_chan<T> chan, int ms, Func<T, Task> handler, broadcast_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<T> lostMsg = null)
             {
                 _chans.AddLast(chan.make_select_reader(ms, handler, token, errHandler, lostMsg));
                 return this;
             }
 
-            public select_chans case_timed_receive(broadcast_chan<void_type> chan, int ms, Func<Task> handler, broadcast_chan_token token, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<void_type> lostMsg = null)
+            public select_chans case_timed_receive(broadcast_chan<void_type> chan, int ms, Func<Task> handler, broadcast_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<void_type> lostMsg = null)
             {
                 _chans.AddLast(chan.make_select_reader(ms, (void_type _) => handler(), token, errHandler, lostMsg));
                 return this;

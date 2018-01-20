@@ -277,7 +277,7 @@ namespace Go
         internal abstract void remove_pop_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign);
         internal abstract void append_push_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign, int ms = -1);
         internal abstract void remove_push_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign);
-        internal virtual void append_pop_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign, broadcast_chan_token token, int ms = -1) { append_pop_notify(ntf, ntfSign, ms); }
+        internal virtual void append_pop_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign, broadcast_token token, int ms = -1) { append_pop_notify(ntf, ntfSign, ms); }
         public void clear() { clear(nil_action.action); }
         public void close(bool isClear = false) { close(nil_action.action, isClear); }
         public void cancel(bool isClear = false) { cancel(nil_action.action, isClear); }
@@ -356,7 +356,7 @@ namespace Go
     {
         internal class select_chan_reader : select_chan_base
         {
-            public broadcast_chan_token _token = broadcast_chan_token._defToken;
+            public broadcast_token _token = broadcast_token._defToken;
             public channel<T> _chan;
             public Func<T, Task> _handler;
             public Func<chan_async_state, Task<bool>> _errHandler;
@@ -741,42 +741,42 @@ namespace Go
             return make_select_writer(ms, new async_result_wrap<T> { value1 = msg }, handler, errHandler, lostMsg);
         }
 
-        internal virtual void pop(Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign, broadcast_chan_token token)
+        internal virtual void pop(Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign, broadcast_token token)
         {
             pop(ntf, ntfSign);
         }
 
-        internal virtual void try_pop(Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign, broadcast_chan_token token)
+        internal virtual void try_pop(Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign, broadcast_token token)
         {
             try_pop(ntf, ntfSign);
         }
 
-        internal virtual void timed_pop(int ms, Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign, broadcast_chan_token token)
+        internal virtual void timed_pop(int ms, Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign, broadcast_token token)
         {
             timed_pop(ms, ntf, ntfSign);
         }
 
-        internal virtual void try_pop_and_append_notify(Action<chan_async_state, T, object> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, broadcast_chan_token token, int ms = -1)
+        internal virtual void try_pop_and_append_notify(Action<chan_async_state, T, object> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, broadcast_token token, int ms = -1)
         {
             try_pop_and_append_notify(cb, msgNtf, ntfSign, ms);
         }
 
-        internal virtual select_chan_base make_select_reader(Func<T, Task> handler, broadcast_chan_token token, chan_lost_msg<T> lostMsg)
+        internal virtual select_chan_base make_select_reader(Func<T, Task> handler, broadcast_token token, chan_lost_msg<T> lostMsg)
         {
             return make_select_reader(handler, lostMsg);
         }
 
-        internal virtual select_chan_base make_select_reader(Func<T, Task> handler, broadcast_chan_token token, Func<chan_async_state, Task<bool>> errHandler, chan_lost_msg<T> lostMsg)
+        internal virtual select_chan_base make_select_reader(Func<T, Task> handler, broadcast_token token, Func<chan_async_state, Task<bool>> errHandler, chan_lost_msg<T> lostMsg)
         {
             return make_select_reader(handler, errHandler, lostMsg);
         }
 
-        internal virtual select_chan_base make_select_reader(int ms, Func<T, Task> handler, broadcast_chan_token token, chan_lost_msg<T> lostMsg)
+        internal virtual select_chan_base make_select_reader(int ms, Func<T, Task> handler, broadcast_token token, chan_lost_msg<T> lostMsg)
         {
             return make_select_reader(ms, handler, lostMsg);
         }
 
-        internal virtual select_chan_base make_select_reader(int ms, Func<T, Task> handler, broadcast_chan_token token, Func<chan_async_state, Task<bool>> errHandler, chan_lost_msg<T> lostMsg)
+        internal virtual select_chan_base make_select_reader(int ms, Func<T, Task> handler, broadcast_token token, Func<chan_async_state, Task<bool>> errHandler, chan_lost_msg<T> lostMsg)
         {
             return make_select_reader(ms, handler, errHandler, lostMsg);
         }
@@ -2375,10 +2375,10 @@ namespace Go
         }
     }
 
-    public class broadcast_chan_token
+    public class broadcast_token
     {
         internal long _lastId = -1;
-        internal static readonly broadcast_chan_token _defToken = new broadcast_chan_token();
+        internal static readonly broadcast_token _defToken = new broadcast_token();
 
         public void reset()
         {
@@ -2418,24 +2418,24 @@ namespace Go
             _closed = false;
         }
 
-        internal override select_chan_base make_select_reader(Func<T, Task> handler, broadcast_chan_token token, chan_lost_msg<T> lostMsg)
+        internal override select_chan_base make_select_reader(Func<T, Task> handler, broadcast_token token, chan_lost_msg<T> lostMsg)
         {
-            return new select_chan_reader() { _token = token, _chan = this, _handler = handler, _lostMsg = lostMsg };
+            return new select_chan_reader() { _token = null != token ? token : new broadcast_token(), _chan = this, _handler = handler, _lostMsg = lostMsg };
         }
 
-        internal override select_chan_base make_select_reader(Func<T, Task> handler, broadcast_chan_token token, Func<chan_async_state, Task<bool>> errHandler, chan_lost_msg<T> lostMsg)
+        internal override select_chan_base make_select_reader(Func<T, Task> handler, broadcast_token token, Func<chan_async_state, Task<bool>> errHandler, chan_lost_msg<T> lostMsg)
         {
-            return new select_chan_reader() { _token = token, _chan = this, _handler = handler, _errHandler = errHandler, _lostMsg = lostMsg };
+            return new select_chan_reader() { _token = null != token ? token : new broadcast_token(), _chan = this, _handler = handler, _errHandler = errHandler, _lostMsg = lostMsg };
         }
 
-        internal override select_chan_base make_select_reader(int ms, Func<T, Task> handler, broadcast_chan_token token, chan_lost_msg<T> lostMsg)
+        internal override select_chan_base make_select_reader(int ms, Func<T, Task> handler, broadcast_token token, chan_lost_msg<T> lostMsg)
         {
-            return new select_chan_reader() { _chanTimeout = ms, _token = token, _chan = this, _handler = handler, _lostMsg = lostMsg };
+            return new select_chan_reader() { _chanTimeout = ms, _token = null != token ? token : new broadcast_token(), _chan = this, _handler = handler, _lostMsg = lostMsg };
         }
 
-        internal override select_chan_base make_select_reader(int ms, Func<T, Task> handler, broadcast_chan_token token, Func<chan_async_state, Task<bool>> errHandler, chan_lost_msg<T> lostMsg)
+        internal override select_chan_base make_select_reader(int ms, Func<T, Task> handler, broadcast_token token, Func<chan_async_state, Task<bool>> errHandler, chan_lost_msg<T> lostMsg)
         {
-            return new select_chan_reader() { _chanTimeout = ms, _token = token, _chan = this, _handler = handler, _errHandler = errHandler, _lostMsg = lostMsg };
+            return new select_chan_reader() { _chanTimeout = ms, _token = null != token ? token : new broadcast_token(), _chan = this, _handler = handler, _errHandler = errHandler, _lostMsg = lostMsg };
         }
 
         public override chan_type type()
@@ -2463,10 +2463,10 @@ namespace Go
 
         internal override void pop(Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign)
         {
-            pop(ntf, ntfSign, broadcast_chan_token._defToken);
+            pop(ntf, ntfSign, broadcast_token._defToken);
         }
 
-        internal override void pop(Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign, broadcast_chan_token token)
+        internal override void pop(Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign, broadcast_token token)
         {
             _strand.distribute(delegate ()
             {
@@ -2511,10 +2511,10 @@ namespace Go
 
         internal override void try_pop(Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign)
         {
-            try_pop(ntf, ntfSign, broadcast_chan_token._defToken);
+            try_pop(ntf, ntfSign, broadcast_token._defToken);
         }
 
-        internal override void try_pop(Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign, broadcast_chan_token token)
+        internal override void try_pop(Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign, broadcast_token token)
         {
             _strand.distribute(delegate ()
             {
@@ -2545,16 +2545,16 @@ namespace Go
 
         internal override void timed_pop(int ms, Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign)
         {
-            timed_pop(ms, ntf, ntfSign, broadcast_chan_token._defToken);
+            timed_pop(ms, ntf, ntfSign, broadcast_token._defToken);
         }
 
-        internal override void timed_pop(int ms, Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign, broadcast_chan_token token)
+        internal override void timed_pop(int ms, Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign, broadcast_token token)
         {
             ntfSign?.reset_success();
             _timed_check_pop(system_tick.get_tick_ms() + ms, ntf, ntfSign, token);
         }
 
-        void _timed_check_pop(long deadms, Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign, broadcast_chan_token token)
+        void _timed_check_pop(long deadms, Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign, broadcast_token token)
         {
             _strand.distribute(delegate ()
             {
@@ -2602,10 +2602,10 @@ namespace Go
 
         internal override void append_pop_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign, int ms = -1)
         {
-            append_pop_notify(ntf, ntfSign, broadcast_chan_token._defToken, ms);
+            append_pop_notify(ntf, ntfSign, broadcast_token._defToken, ms);
         }
 
-        internal override void append_pop_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign, broadcast_chan_token token, int ms = -1)
+        internal override void append_pop_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign, broadcast_token token, int ms = -1)
         {
             _strand.distribute(delegate ()
             {
@@ -2613,7 +2613,7 @@ namespace Go
             });
         }
 
-        bool _append_pop_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign, broadcast_chan_token token, int ms = -1)
+        bool _append_pop_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign, broadcast_token token, int ms = -1)
         {
             if (_has && token._lastId != _pushCount)
             {
@@ -2665,10 +2665,10 @@ namespace Go
 
         internal override void try_pop_and_append_notify(Action<chan_async_state, T, object> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, int ms = -1)
         {
-            try_pop_and_append_notify(cb, msgNtf, ntfSign, broadcast_chan_token._defToken, ms);
+            try_pop_and_append_notify(cb, msgNtf, ntfSign, broadcast_token._defToken, ms);
         }
 
-        internal override void try_pop_and_append_notify(Action<chan_async_state, T, object> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, broadcast_chan_token token, int ms = -1)
+        internal override void try_pop_and_append_notify(Action<chan_async_state, T, object> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, broadcast_token token, int ms = -1)
         {
             _strand.distribute(delegate ()
             {
