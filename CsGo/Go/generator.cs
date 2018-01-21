@@ -428,7 +428,7 @@ namespace Go
                 return string.Format("<file>{0} <line>{1} <time>{2}", file, line, time);
             }
         }
-        LinkedList<call_stack_info> _makeStack;
+        LinkedList<call_stack_info[]> _makeStack;
         long _beginStepTick;
         static readonly int _stepMaxCycle = 100;
 #endif
@@ -530,29 +530,31 @@ namespace Go
         }
 
 #if DEBUG
-        static void up_stack_frame(LinkedList<call_stack_info> callStack, int offset = 0, int count = 1)
+        static void up_stack_frame(LinkedList<call_stack_info[]> callStack, int offset = 0, int count = 1)
         {
             offset += 2;
             StackFrame[] sts = (new StackTrace(true)).GetFrames();
             string time = string.Format("{0:D2}-{1:D2}-{2:D2} {3:D2}:{4:D2}:{5:D2}.{6:D3}",
                 DateTime.Now.Year % 100, DateTime.Now.Month, DateTime.Now.Day,
                 DateTime.Now.Hour, DateTime.Now.Minute, DateTime.Now.Second, DateTime.Now.Millisecond);
+            call_stack_info[] snap = new call_stack_info[count];
+            callStack.AddFirst(snap);
             for (int i = 0; i < count; ++i, ++offset)
             {
                 if (offset < sts.Length)
                 {
-                    callStack.AddLast(new call_stack_info(time, sts[offset].GetFileName(), sts[offset].GetFileLineNumber()));
+                    snap[i] = new call_stack_info(time, sts[offset].GetFileName(), sts[offset].GetFileLineNumber());
                 }
                 else
                 {
-                    callStack.AddLast(new call_stack_info(time, "null", -1));
+                    snap[i] = new call_stack_info(time, "null", -1);
                 }
             }
         }
 #endif
 
 #if DEBUG
-        generator init(shared_strand strand, action handler, Action callback, Action<bool> suspendCb, LinkedList<call_stack_info> makeStack = null)
+        generator init(shared_strand strand, action handler, Action callback, Action<bool> suspendCb, LinkedList<call_stack_info[]> makeStack = null)
         {
             if (null != makeStack)
             {
@@ -560,7 +562,7 @@ namespace Go
             }
             else
             {
-                _makeStack = new LinkedList<call_stack_info>();
+                _makeStack = new LinkedList<call_stack_info[]>();
                 up_stack_frame(_makeStack, 1, 6);
             }
             _beginStepTick = system_tick.get_tick_ms();
@@ -1368,9 +1370,9 @@ namespace Go
             Trace.Assert(strand.running_in_this_thread(), "异常的 await 调用!");
             if (!system_tick.check_step_debugging() && system_tick.get_tick_ms() - _beginStepTick > _stepMaxCycle)
             {
-                LinkedListNode<call_stack_info> it;
+                call_stack_info[] stackHead = _makeStack.Last.Value;
                 Debug.WriteLine(string.Format("单步超时:\n{0}\n{1}\n{2}\n{3}\n{4}\n{5}\n{6}\n",
-                    (it = _makeStack.First).Value, (it = it.Next).Value, (it = it.Next).Value, (it = it.Next).Value, (it = it.Next).Value, it.Value, new StackTrace(true)));
+                    stackHead[0], stackHead[1], stackHead[2], stackHead[3], stackHead[4], stackHead[5], new StackTrace(true)));
             }
             await _pullTask;
             _beginStepTick = system_tick.get_tick_ms();
@@ -4942,17 +4944,30 @@ namespace Go
         {
             generator this_ = self;
             up_stack_frame(this_._makeStack, 2);
-            await handler();
-            this_._makeStack.RemoveFirst();
+            try
+            {
+                await handler();
+            }
+            catch (System.Exception)
+            {
+                this_._makeStack.RemoveFirst();
+                throw;
+            }
         }
 
         static public async Task<R> call<R>(Func<Task<R>> handler)
         {
             generator this_ = self;
             up_stack_frame(this_._makeStack, 2);
-            R res = await handler();
-            this_._makeStack.RemoveFirst();
-            return res;
+            try
+            {
+                return await handler();
+            }
+            catch (System.Exception)
+            {
+                this_._makeStack.RemoveFirst();
+                throw;
+            }
         }
 
         static public async Task depth_call(shared_strand strand, action handler)
@@ -5003,7 +5018,7 @@ namespace Go
 #endif
 
 #if DEBUG
-        static public LinkedList<call_stack_info> call_stack
+        static public LinkedList<call_stack_info[]> call_stack
         {
             get
             {
