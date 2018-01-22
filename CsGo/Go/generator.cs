@@ -440,7 +440,7 @@ namespace Go
         static Dictionary<string, generator> _nameGens = new Dictionary<string, generator>();
         static static_init _init = new static_init();
 
-        LinkedList<LinkedList<select_chan_base>> _selectChans;
+        LinkedList<LinkedList<select_chan_base>> _topSelectChans;
         LinkedList<Action> _callbacks;
         Dictionary<long, mail_pck> _mailboxMap;
         Action<bool> _suspendCb;
@@ -6812,10 +6812,14 @@ namespace Go
                 msg_buff<tuple<chan_async_state, select_chan_base>> selectChans = _selectChans;
                 try
                 {
-                    lock_suspend();
+                    lock_suspend_and_stop();
+                    if (null == this_._topSelectChans)
+                    {
+                        this_._topSelectChans = new LinkedList<LinkedList<select_chan_base>>();
+                    }
+                    this_._topSelectChans.AddFirst(chans);
                     if (_random)
                     {
-                        lock_stop();
                         await send_task(delegate ()
                         {
                             select_chan_base[] shuffChans = shuffle(chans);
@@ -6828,7 +6832,6 @@ namespace Go
                                 chan.begin(this_);
                             }
                         });
-                        unlock_stop();
                     }
                     else
                     {
@@ -6840,11 +6843,7 @@ namespace Go
                             chan.begin(this_);
                         }
                     }
-                    if (null == this_._selectChans)
-                    {
-                        this_._selectChans = new LinkedList<LinkedList<select_chan_base>>();
-                    }
-                    this_._selectChans.AddFirst(chans);
+                    unlock_stop();
                     int count = chans.Count;
                     bool selected = false;
                     Func<Task> stepOne = null == eachAferDo ? (Func<Task>)null : delegate ()
@@ -6903,7 +6902,7 @@ namespace Go
                 finally
                 {
                     lock_stop();
-                    this_._selectChans.RemoveFirst();
+                    this_._topSelectChans.RemoveFirst();
                     for (LinkedListNode<select_chan_base> it = chans.First; null != it; it = it.Next)
                     {
                         await it.Value.end();
@@ -6921,10 +6920,14 @@ namespace Go
                 bool selected = false;
                 try
                 {
-                    lock_suspend();
+                    lock_suspend_and_stop();
+                    if (null == this_._topSelectChans)
+                    {
+                        this_._topSelectChans = new LinkedList<LinkedList<select_chan_base>>();
+                    }
+                    this_._topSelectChans.AddFirst(chans);
                     if (_random)
                     {
-                        lock_stop();
                         await send_task(delegate ()
                         {
                             select_chan_base[] shuffChans = shuffle(chans);
@@ -6937,7 +6940,6 @@ namespace Go
                                 chan.begin(this_);
                             }
                         });
-                        unlock_stop();
                     }
                     else
                     {
@@ -6949,11 +6951,7 @@ namespace Go
                             chan.begin(this_);
                         }
                     }
-                    if (null == this_._selectChans)
-                    {
-                        this_._selectChans = new LinkedList<LinkedList<select_chan_base>>();
-                    }
-                    this_._selectChans.AddFirst(chans);
+                    unlock_stop();
                     int count = chans.Count;
                     while (0 != count)
                     {
@@ -7010,7 +7008,7 @@ namespace Go
                 finally
                 {
                     lock_stop();
-                    this_._selectChans.RemoveFirst();
+                    this_._topSelectChans.RemoveFirst();
                     if (!selected)
                     {
                         for (LinkedListNode<select_chan_base> it = chans.First; null != it; it = it.Next)
@@ -7032,14 +7030,18 @@ namespace Go
                 bool selected = false;
                 try
                 {
-                    lock_suspend();
+                    lock_suspend_and_stop();
+                    if (null == this_._topSelectChans)
+                    {
+                        this_._topSelectChans = new LinkedList<LinkedList<select_chan_base>>();
+                    }
+                    this_._topSelectChans.AddFirst(chans);
                     if (ms >= 0)
                     {
                         this_._timer.timeout(ms, selectChans.wrap_default());
                     }
                     if (_random)
                     {
-                        lock_stop();
                         await send_task(delegate ()
                         {
                             select_chan_base[] shuffChans = shuffle(chans);
@@ -7052,7 +7054,6 @@ namespace Go
                                 chan.begin(this_);
                             }
                         });
-                        unlock_stop();
                     }
                     else
                     {
@@ -7064,11 +7065,7 @@ namespace Go
                             chan.begin(this_);
                         }
                     }
-                    if (null == this_._selectChans)
-                    {
-                        this_._selectChans = new LinkedList<LinkedList<select_chan_base>>();
-                    }
-                    this_._selectChans.AddFirst(chans);
+                    unlock_stop();
                     int count = chans.Count;
                     while (0 != count)
                     {
@@ -7133,7 +7130,7 @@ namespace Go
                 finally
                 {
                     lock_stop();
-                    this_._selectChans.RemoveFirst();
+                    this_._topSelectChans.RemoveFirst();
                     if (!selected)
                     {
                         this_._timer.cancel();
@@ -7183,7 +7180,7 @@ namespace Go
         {
 #if DEBUG
             generator this_ = self;
-            Trace.Assert(null != this_ && null != this_._selectChans && 0 != this_._selectChans.Count, "不正确的 stop_select 调用!");
+            Trace.Assert(null != this_ && null != this_._topSelectChans && 0 != this_._topSelectChans.Count, "不正确的 stop_select 调用!");
 #endif
             throw stop_select_exception.val;
         }
@@ -7192,7 +7189,7 @@ namespace Go
         {
 #if DEBUG
             generator this_ = self;
-            Trace.Assert(null != this_ && null != this_._selectChans && 0 != this_._selectChans.Count, "不正确的 stop_this_case 调用!");
+            Trace.Assert(null != this_ && null != this_._topSelectChans && 0 != this_._topSelectChans.Count, "不正确的 stop_this_case 调用!");
 #endif
             throw stop_this_case_exception.val;
         }
@@ -7200,9 +7197,9 @@ namespace Go
         static public async Task disable_other_case(channel_base otherChan, bool disable = true)
         {
             generator this_ = self;
-            if (null != this_._selectChans && 0 != this_._selectChans.Count)
+            if (null != this_._topSelectChans && 0 != this_._topSelectChans.Count)
             {
-                LinkedList<select_chan_base> currSelect = this_._selectChans.First.Value;
+                LinkedList<select_chan_base> currSelect = this_._topSelectChans.First.Value;
                 for (LinkedListNode<select_chan_base> it = currSelect.First; null != it; it = it.Next)
                 {
                     select_chan_base chan = it.Value;
@@ -7224,9 +7221,9 @@ namespace Go
         static public async Task disable_other_case_receive(channel_base otherChan, bool disable = true)
         {
             generator this_ = self;
-            if (null != this_._selectChans && 0 != this_._selectChans.Count)
+            if (null != this_._topSelectChans && 0 != this_._topSelectChans.Count)
             {
-                LinkedList<select_chan_base> currSelect = this_._selectChans.First.Value;
+                LinkedList<select_chan_base> currSelect = this_._topSelectChans.First.Value;
                 for (LinkedListNode<select_chan_base> it = currSelect.First; null != it; it = it.Next)
                 {
                     select_chan_base chan = it.Value;
@@ -7248,9 +7245,9 @@ namespace Go
         static public async Task disable_other_case_send(channel_base otherChan, bool disable = true)
         {
             generator this_ = self;
-            if (null != this_._selectChans && 0 != this_._selectChans.Count)
+            if (null != this_._topSelectChans && 0 != this_._topSelectChans.Count)
             {
-                LinkedList<select_chan_base> currSelect = this_._selectChans.First.Value;
+                LinkedList<select_chan_base> currSelect = this_._topSelectChans.First.Value;
                 for (LinkedListNode<select_chan_base> it = currSelect.First; null != it; it = it.Next)
                 {
                     select_chan_base chan = it.Value;
