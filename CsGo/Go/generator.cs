@@ -6425,6 +6425,7 @@ namespace Go
 
         public struct select_chans
         {
+            internal bool _random;
             internal LinkedList<select_chan_base> _chans;
             internal msg_buff<tuple<chan_async_state, select_chan_base>> _selectChans;
 
@@ -6788,21 +6789,55 @@ namespace Go
                 return this;
             }
 
+            static private select_chan_base[] shuffle(LinkedList<select_chan_base> chans)
+            {
+                int count = chans.Count;
+                select_chan_base[] shuffChans = new select_chan_base[count];
+                chans.CopyTo(shuffChans, 0);
+                Random randGen = new Random();
+                for (int i = 0; i < count; i++)
+                {
+                    int rand = randGen.Next(i, count);
+                    select_chan_base t = shuffChans[rand];
+                    shuffChans[rand] = shuffChans[i];
+                    shuffChans[i] = t;
+                }
+                return shuffChans;
+            }
+
             public async Task<bool> loop(action eachAferDo = null)
             {
+                lock_suspend();
                 generator this_ = self;
                 LinkedList<select_chan_base> chans = _chans;
                 msg_buff<tuple<chan_async_state, select_chan_base>> selectChans = _selectChans;
-                for (LinkedListNode<select_chan_base> it = chans.First; null != it; it = it.Next)
+                if (_random)
                 {
-                    select_chan_base chan = it.Value;
-                    chan.ntfSign._selectOnce = false;
-                    chan.nextSelect = (chan_async_state state) => selectChans.post(tuple.make(state, chan));
-                    chan.begin();
+                    await send_task(delegate ()
+                    {
+                        select_chan_base[] shuffChans = shuffle(chans);
+                        int count = shuffChans.Length;
+                        for (int i = 0; i < count; i++)
+                        {
+                            select_chan_base chan = shuffChans[i];
+                            chan.ntfSign._selectOnce = false;
+                            chan.nextSelect = (chan_async_state state) => selectChans.post(tuple.make(state, chan));
+                            chan.begin(this_);
+                        }
+                    });
+                }
+                else
+                {
+                    for (LinkedListNode<select_chan_base> it = chans.First; null != it; it = it.Next)
+                    {
+                        select_chan_base chan = it.Value;
+                        chan.ntfSign._selectOnce = false;
+                        chan.nextSelect = (chan_async_state state) => selectChans.post(tuple.make(state, chan));
+                        chan.begin(this_);
+                    }
                 }
                 try
                 {
-                    lock_suspend();
                     if (null == this_._selectChans)
                     {
                         this_._selectChans = new LinkedList<LinkedList<select_chan_base>>();
@@ -6878,20 +6913,38 @@ namespace Go
 
             public async Task<bool> end()
             {
+                lock_suspend();
                 generator this_ = self;
                 LinkedList<select_chan_base> chans = _chans;
                 msg_buff<tuple<chan_async_state, select_chan_base>> selectChans = _selectChans;
-                for (LinkedListNode<select_chan_base> it = chans.First; null != it; it = it.Next)
+                if (_random)
                 {
-                    select_chan_base chan = it.Value;
-                    chan.ntfSign._selectOnce = true;
-                    chan.nextSelect = (chan_async_state state) => selectChans.post(tuple.make(state, chan));
-                    chan.begin();
+                    await send_task(delegate ()
+                    {
+                        select_chan_base[] shuffChans = shuffle(chans);
+                        int count = shuffChans.Length;
+                        for (int i = 0; i < count; i++)
+                        {
+                            select_chan_base chan = shuffChans[i];
+                            chan.ntfSign._selectOnce = true;
+                            chan.nextSelect = (chan_async_state state) => selectChans.post(tuple.make(state, chan));
+                            chan.begin(this_);
+                        }
+                    });
+                }
+                else
+                {
+                    for (LinkedListNode<select_chan_base> it = chans.First; null != it; it = it.Next)
+                    {
+                        select_chan_base chan = it.Value;
+                        chan.ntfSign._selectOnce = true;
+                        chan.nextSelect = (chan_async_state state) => selectChans.post(tuple.make(state, chan));
+                        chan.begin(this_);
+                    }
                 }
                 bool selected = false;
                 try
                 {
-                    lock_suspend();
                     if (null == this_._selectChans)
                     {
                         this_._selectChans = new LinkedList<LinkedList<select_chan_base>>();
@@ -6969,6 +7022,7 @@ namespace Go
 
             public async Task<bool> timed(int ms)
             {
+                lock_suspend();
                 generator this_ = self;
                 LinkedList<select_chan_base> chans = _chans;
                 msg_buff<tuple<chan_async_state, select_chan_base>> selectChans = _selectChans;
@@ -6976,17 +7030,34 @@ namespace Go
                 {
                     this_._timer.timeout(ms, selectChans.wrap_default());
                 }
-                for (LinkedListNode<select_chan_base> it = chans.First; null != it; it = it.Next)
+                if (_random)
                 {
-                    select_chan_base chan = it.Value;
-                    chan.ntfSign._selectOnce = true;
-                    chan.nextSelect = (chan_async_state state) => selectChans.post(tuple.make(state, chan));
-                    chan.begin();
+                    await send_task(delegate ()
+                    {
+                        select_chan_base[] shuffChans = shuffle(chans);
+                        int count = shuffChans.Length;
+                        for (int i = 0; i < count; i++)
+                        {
+                            select_chan_base chan = shuffChans[i];
+                            chan.ntfSign._selectOnce = true;
+                            chan.nextSelect = (chan_async_state state) => selectChans.post(tuple.make(state, chan));
+                            chan.begin(this_);
+                        }
+                    });
+                }
+                else
+                {
+                    for (LinkedListNode<select_chan_base> it = chans.First; null != it; it = it.Next)
+                    {
+                        select_chan_base chan = it.Value;
+                        chan.ntfSign._selectOnce = true;
+                        chan.nextSelect = (chan_async_state state) => selectChans.post(tuple.make(state, chan));
+                        chan.begin(this_);
+                    }
                 }
                 bool selected = false;
                 try
                 {
-                    lock_suspend();
                     if (null == this_._selectChans)
                     {
                         this_._selectChans = new LinkedList<LinkedList<select_chan_base>>();
@@ -7097,9 +7168,9 @@ namespace Go
             }
         }
 
-        static public select_chans select()
+        static public select_chans select(bool random = false)
         {
-            return new select_chans { _chans = new LinkedList<select_chan_base>(), _selectChans = new msg_buff<tuple<chan_async_state, select_chan_base>>(self_strand()) };
+            return new select_chans { _random = random, _chans = new LinkedList<select_chan_base>(), _selectChans = new msg_buff<tuple<chan_async_state, select_chan_base>>(self_strand()) };
         }
 
         static public void stop_select()
@@ -7137,7 +7208,7 @@ namespace Go
                         }
                         else
                         {
-                            chan.begin();
+                            chan.begin(this_);
                         }
                     }
                 }
@@ -7161,7 +7232,7 @@ namespace Go
                         }
                         else
                         {
-                            chan.begin();
+                            chan.begin(this_);
                         }
                     }
                 }
@@ -7185,7 +7256,7 @@ namespace Go
                         }
                         else
                         {
-                            chan.begin();
+                            chan.begin(this_);
                         }
                     }
                 }

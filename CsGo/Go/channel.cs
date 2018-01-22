@@ -257,7 +257,7 @@ namespace Go
         public chan_notify_sign ntfSign = new chan_notify_sign();
         public Action<chan_async_state> nextSelect;
         public bool disabled() { return ntfSign._disable; }
-        public abstract void begin();
+        public abstract void begin(generator host);
         public abstract Task<select_chan_state> invoke(Func<Task> stepOne = null);
         public abstract Task<bool> errInvoke(chan_async_state state);
         public abstract Task end();
@@ -414,10 +414,10 @@ namespace Go
             Action<chan_async_state, T, object> _tryPushHandler;
             generator _host;
 
-            public override void begin()
+            public override void begin(generator host)
             {
                 ntfSign._disable = false;
-                _host = generator.self;
+                _host = host;
                 _chan.append_pop_notify(nextSelect, ntfSign, _chanTimeout);
             }
 
@@ -533,10 +533,10 @@ namespace Go
             Action<chan_async_state, object> _tryPushHandler;
             generator _host;
 
-            public override void begin()
+            public override void begin(generator host)
             {
                 ntfSign._disable = false;
-                _host = generator.self;
+                _host = host;
                 _chan.append_push_notify(nextSelect, ntfSign, _chanTimeout);
             }
 
@@ -2829,10 +2829,10 @@ namespace Go
             Action<chan_async_state, T, object> _tryPopHandler;
             generator _host;
 
-            public override void begin()
+            public override void begin(generator host)
             {
                 ntfSign._disable = false;
-                _host = generator.self;
+                _host = host;
                 _chan.append_pop_notify(nextSelect, ntfSign, _chanTimeout);
             }
 
@@ -2961,10 +2961,10 @@ namespace Go
             Action<chan_async_state, object> _tryPushHandler;
             generator _host;
 
-            public override void begin()
+            public override void begin(generator host)
             {
                 ntfSign._disable = false;
-                _host = generator.self;
+                _host = host;
                 _chan.append_push_notify(nextSelect, ntfSign, _chanTimeout);
             }
 
