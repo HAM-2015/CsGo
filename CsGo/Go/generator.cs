@@ -6815,6 +6815,7 @@ namespace Go
                     lock_suspend();
                     if (_random)
                     {
+                        lock_stop();
                         await send_task(delegate ()
                         {
                             select_chan_base[] shuffChans = shuffle(chans);
@@ -6827,6 +6828,7 @@ namespace Go
                                 chan.begin(this_);
                             }
                         });
+                        unlock_stop();
                     }
                     else
                     {
@@ -6922,6 +6924,7 @@ namespace Go
                     lock_suspend();
                     if (_random)
                     {
+                        lock_stop();
                         await send_task(delegate ()
                         {
                             select_chan_base[] shuffChans = shuffle(chans);
@@ -6934,6 +6937,7 @@ namespace Go
                                 chan.begin(this_);
                             }
                         });
+                        unlock_stop();
                     }
                     else
                     {
@@ -7035,6 +7039,7 @@ namespace Go
                     }
                     if (_random)
                     {
+                        lock_stop();
                         await send_task(delegate ()
                         {
                             select_chan_base[] shuffChans = shuffle(chans);
@@ -7047,6 +7052,7 @@ namespace Go
                                 chan.begin(this_);
                             }
                         });
+                        unlock_stop();
                     }
                     else
                     {
