@@ -10,9 +10,9 @@ namespace GoTest
     class Program
     {
         static shared_strand _strand;
-        static channel<long> _chan1;
-        static channel<long> _chan2;
-        static channel<long> _chan3;
+        static chan<long> _chan1;
+        static chan<long> _chan2;
+        static chan<long> _chan3;
         static csp_chan<long, long> _csp;
 
         static async Task Producer1()
@@ -82,9 +82,9 @@ namespace GoTest
 
         static async Task Producer5(generator cons)
         {
-            channel<int> intMb = await cons.get_mailbox<int>();
-            channel<long> longMb = await cons.get_mailbox<long>();
-            for (int i = 0; i< 10; i++)
+            chan<int> intMb = await cons.get_mailbox<int>();
+            chan<long> longMb = await cons.get_mailbox<long>();
+            for (int i = 0; i < 10; i++)
             {
                 await generator.chan_send(intMb, i);
                 await generator.sleep(1000);
@@ -113,9 +113,9 @@ namespace GoTest
         {
             work_service work = new work_service();
             _strand = new work_strand(work);
-            _chan1 = channel<long>.make(_strand, 3);
-            _chan2 = channel<long>.make(_strand, 0);
-            _chan3 = channel<long>.make(_strand, -1);
+            _chan1 = chan<long>.make(_strand, 3);
+            _chan2 = chan<long>.make(_strand, 0);
+            _chan3 = chan<long>.make(_strand, -1);
             _csp = new csp_chan<long, long>(_strand);
             generator.go(_strand, Producer1);
             generator.go(_strand, Producer2);

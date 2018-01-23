@@ -22,10 +22,11 @@ namespace Go
 
     public enum chan_type
     {
-        nolimit,
+        undefined,
+        broadcast,
+        unlimit,
         limit,
         nil,
-        broadcast,
         csp
     }
 
@@ -262,10 +263,10 @@ namespace Go
         public abstract Task<bool> errInvoke(chan_async_state state);
         public abstract Task end();
         public abstract bool is_read();
-        public abstract channel_base channel();
+        public abstract chan_base channel();
     }
 
-    public abstract class channel_base
+    public abstract class chan_base
     {
         protected shared_strand _strand;
         protected bool _closed;
@@ -400,12 +401,12 @@ namespace Go
         }
     }
 
-    public abstract class channel<T> : channel_base
+    public abstract class chan<T> : chan_base
     {
         internal class select_chan_reader : select_chan_base
         {
             public broadcast_token _token = broadcast_token._defToken;
-            public channel<T> _chan;
+            public chan<T> _chan;
             public Func<T, Task> _handler;
             public Func<chan_async_state, Task<bool>> _errHandler;
             public chan_lost_msg<T> _lostMsg;
@@ -515,7 +516,7 @@ namespace Go
                 return true;
             }
 
-            public override channel_base channel()
+            public override chan_base channel()
             {
                 return _chan;
             }
@@ -523,7 +524,7 @@ namespace Go
 
         internal class select_chan_writer : select_chan_base
         {
-            public channel<T> _chan;
+            public chan<T> _chan;
             public async_result_wrap<T> _msg;
             public Func<Task> _handler;
             public Func<chan_async_state, Task<bool>> _errHandler;
@@ -625,7 +626,7 @@ namespace Go
                 return false;
             }
 
-            public override channel_base channel()
+            public override chan_base channel()
             {
                 return _chan;
             }
@@ -688,7 +689,7 @@ namespace Go
             else _strand.post(() => try_push_and_append_notify_(cb, msgNtf, ntfSign, msg, ms));
         }
 
-        static public channel<T> make(shared_strand strand, int len)
+        static public chan<T> make(shared_strand strand, int len)
         {
             if (0 == len)
             {
@@ -696,12 +697,12 @@ namespace Go
             }
             else if (0 < len)
             {
-                return new chan<T>(strand, len);
+                return new limit_chan<T>(strand, len);
             }
-            return new msg_buff<T>(strand);
+            return new unlimit_chan<T>(strand);
         }
 
-        static public channel<T> make(int len)
+        static public chan<T> make(int len)
         {
             shared_strand strand = generator.self_strand();
             return make(null != strand ? strand : new shared_strand(), len);
@@ -987,17 +988,17 @@ namespace Go
         }
     }
 
-    public class msg_buff<T> : channel<T>
+    public class unlimit_chan<T> : chan<T>
     {
         msg_queue<T> _buffer;
         priority_queue<notify_pck> _waitQueue;
 
-        public msg_buff(shared_strand strand)
+        public unlimit_chan(shared_strand strand)
         {
             init(strand);
         }
 
-        public msg_buff()
+        public unlimit_chan()
         {
             shared_strand strand = generator.self_strand();
             init(null != strand ? strand : new shared_strand());
@@ -1013,7 +1014,7 @@ namespace Go
 
         public override chan_type type()
         {
-            return chan_type.nolimit;
+            return chan_type.unlimit;
         }
 
         internal override void push_(Action<chan_async_state, object> ntf, T msg, chan_notify_sign ntfSign)
@@ -1296,19 +1297,22 @@ namespace Go
         }
     }
 
-    public class chan<T> : channel<T>
+    public class limit_chan<T> : chan<T>
     {
         msg_queue<T> _buffer;
         priority_queue<notify_pck> _pushWait;
         priority_queue<notify_pck> _popWait;
         int _length;
 
-        public chan(shared_strand strand, int len)
+        public limit_chan(shared_strand strand, int len)
         {
+#if DEBUG
+            Trace.Assert(len > 0, string.Format("limit_chan<{0}>长度必须大于0!", typeof(T).Name));
+#endif
             init(strand, len);
         }
 
-        public chan(int len)
+        public limit_chan(int len)
         {
             shared_strand strand = generator.self_strand();
             init(null != strand ? strand : new shared_strand(), len);
@@ -1789,7 +1793,7 @@ namespace Go
         }
     }
 
-    public class nil_chan<T> : channel<T>
+    public class nil_chan<T> : chan<T>
     {
         priority_queue<notify_pck> _pushWait;
         priority_queue<notify_pck> _popWait;
@@ -2385,7 +2389,7 @@ namespace Go
         }
     }
 
-    public class broadcast_chan<T> : channel<T>
+    public class broadcast_chan<T> : chan<T>
     {
         priority_queue<notify_pck> _popWait;
         T _msg;
@@ -2735,7 +2739,7 @@ namespace Go
         }
     }
 
-    public class csp_chan<R, T> : channel<T>
+    public class csp_chan<R, T> : chan<T>
     {
         struct send_pck
         {
@@ -2942,7 +2946,7 @@ namespace Go
                 return true;
             }
 
-            public override channel_base channel()
+            public override chan_base channel()
             {
                 return _chan;
             }
@@ -3062,7 +3066,7 @@ namespace Go
                 return false;
             }
 
-            public override channel_base channel()
+            public override chan_base channel()
             {
                 return _chan;
             }
