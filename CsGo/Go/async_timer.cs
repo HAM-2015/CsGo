@@ -153,6 +153,13 @@ namespace Go
 #endif
         }
 
+        public static long get_tick()
+        {
+            long quadPart = 0;
+            QueryPerformanceCounter(out quadPart);
+            return quadPart;
+        }
+
         public static long get_tick_us()
         {
             long quadPart = 0;
@@ -403,7 +410,7 @@ namespace Go
                     {
                         Thread.Sleep(1);
                     }
-                    Random rand = new Random();
+                    mt19937 rand = new mt19937();
                     while (0 == WaitForSingleObject(_timerHandle, -1) && !_exited)
                     {
                         _workStrand.post(timerComplete);

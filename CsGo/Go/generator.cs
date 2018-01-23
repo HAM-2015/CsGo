@@ -6794,7 +6794,7 @@ namespace Go
                 int count = chans.Count;
                 select_chan_base[] shuffChans = new select_chan_base[count];
                 chans.CopyTo(shuffChans, 0);
-                Random randGen = new Random();
+                mt19937 randGen = new mt19937();
                 for (int i = 0; i < count; i++)
                 {
                     int rand = randGen.Next(i, count);
