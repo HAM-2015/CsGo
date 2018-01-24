@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 
 namespace Go
 {
@@ -17,6 +18,7 @@ namespace Go
         private const double InverseOnePlus53BitsOf1s = 1.0 / OnePlus53BitsOf1s;
 
         private static readonly uint[] _mag01 = { 0x0, MatrixA };
+        private static readonly ThreadLocal<mt19937> _globalRandGen = new ThreadLocal<mt19937>();
         private readonly uint[] _mt = new uint[N];
         private short _mti;
 
@@ -33,6 +35,17 @@ namespace Go
         public mt19937(uint[] initKey)
         {
             init(initKey);
+        }
+
+        public static mt19937 global()
+        {
+            mt19937 randGen = _globalRandGen.Value;
+            if (null == randGen)
+            {
+                randGen = new mt19937((int)system_tick.get_tick() * Thread.CurrentThread.ManagedThreadId);
+                _globalRandGen.Value = randGen;
+            }
+            return randGen;
         }
 
         public virtual uint NextUInt32()
