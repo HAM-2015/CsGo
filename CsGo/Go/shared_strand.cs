@@ -170,6 +170,21 @@ namespace Go
 
     public class shared_strand
     {
+        protected class spin_mutex
+        {
+            volatile int _sign = 0;
+
+            public void enter()
+            {
+                while (1 == Interlocked.CompareExchange(ref _sign, 1, 0)) { }
+            }
+
+            public void exit()
+            {
+                _sign = 0;
+            }
+        }
+
         protected class curr_strand
         {
             public readonly bool work_back_thread;
@@ -192,7 +207,7 @@ namespace Go
         internal generator currSelf = null;
         protected volatile bool _locked;
         protected volatile int _pauseState;
-        protected Mutex _mutex;
+        protected spin_mutex _mutex;
         protected LinkedList<Action> _readyQueue;
         protected LinkedList<Action> _waitQueue;
         protected Action _runTask;
@@ -201,7 +216,7 @@ namespace Go
         {
             _locked = false;
             _pauseState = 0;
-            _mutex = new Mutex();
+            _mutex = new spin_mutex();
             _sysTimer = new async_timer.steady_timer(this, false);
             _utcTimer = new async_timer.steady_timer(this, true);
             _readyQueue = new LinkedList<Action>();
@@ -229,20 +244,20 @@ namespace Go
                 _readyQueue.RemoveFirst();
                 functional.catch_invoke(stepHandler);
             }
-            _mutex.WaitOne();
+            _mutex.enter();
             if (0 != _waitQueue.Count)
             {
                 LinkedList<Action> t = _readyQueue;
                 _readyQueue = _waitQueue;
                 _waitQueue = t;
-                _mutex.ReleaseMutex();
+                _mutex.exit();
                 currStrand.strand = null;
                 run_task();
             }
             else
             {
                 _locked = false;
-                _mutex.ReleaseMutex();
+                _mutex.exit();
                 currStrand.strand = null;
             }
             return true;
@@ -270,17 +285,17 @@ namespace Go
         public void post(Action action)
         {
             LinkedListNode<Action> newNode = new LinkedListNode<Action>(action);
-            _mutex.WaitOne();
+            _mutex.enter();
             if (_locked)
             {
                 _waitQueue.AddLast(newNode);
-                _mutex.ReleaseMutex();
+                _mutex.exit();
             }
             else
             {
                 _locked = true;
                 _readyQueue.AddLast(newNode);
-                _mutex.ReleaseMutex();
+                _mutex.exit();
                 run_task();
             }
         }
@@ -296,17 +311,17 @@ namespace Go
             else
             {
                 LinkedListNode<Action> newNode = new LinkedListNode<Action>(action);
-                _mutex.WaitOne();
+                _mutex.enter();
                 if (_locked)
                 {
                     _waitQueue.AddLast(newNode);
-                    _mutex.ReleaseMutex();
+                    _mutex.exit();
                 }
                 else
                 {
                     _locked = true;
                     _readyQueue.AddLast(newNode);
-                    _mutex.ReleaseMutex();
+                    _mutex.exit();
                     if (null != currStrand && currStrand.work_back_thread && null == currStrand.strand)
                     {
                         return running_a_round(currStrand);
@@ -443,17 +458,17 @@ namespace Go
             else
             {
                 LinkedListNode<Action> newNode = new LinkedListNode<Action>(action);
-                _mutex.WaitOne();
+                _mutex.enter();
                 if (_locked)
                 {
                     _waitQueue.AddLast(newNode);
-                    _mutex.ReleaseMutex();
+                    _mutex.exit();
                 }
                 else
                 {
                     _locked = true;
                     _readyQueue.AddLast(newNode);
-                    _mutex.ReleaseMutex();
+                    _mutex.exit();
                     if (null != currStrand && _service == currStrand.work_service && null == currStrand.strand)
                     {
                         return running_a_round(currStrand);
@@ -518,17 +533,17 @@ namespace Go
             else
             {
                 LinkedListNode<Action> newNode = new LinkedListNode<Action>(action);
-                _mutex.WaitOne();
+                _mutex.enter();
                 if (_locked)
                 {
                     _waitQueue.AddLast(newNode);
-                    _mutex.ReleaseMutex();
+                    _mutex.exit();
                 }
                 else
                 {
                     _locked = true;
                     _readyQueue.AddLast(newNode);
-                    _mutex.ReleaseMutex();
+                    _mutex.exit();
                     if (_checkRequired && null != currStrand && null == currStrand.strand && !_ctrl.InvokeRequired)
                     {
                         return running_a_round(currStrand);
