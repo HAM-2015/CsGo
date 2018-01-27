@@ -455,6 +455,7 @@ namespace Go
         string _name;
         long _lastTm;
         long _yieldCount;
+        long _lastYieldCount;
         long _id;
         int _lockCount;
         int _lockSuspendCount;
@@ -582,6 +583,7 @@ namespace Go
             _lockSuspendCount = 0;
             _lastTm = 0;
             _yieldCount = 0;
+            _lastYieldCount = 0;
             _suspendCb = suspendCb;
             _pullTask = new pull_task();
             _ioSign = new chan_notify_sign();
@@ -673,6 +675,7 @@ namespace Go
             }
             else
             {
+                _yieldCount++;
                 generator oldGen = strand.currSelf;
                 if (null == oldGen || !oldGen._pullTask.activated)
                 {
@@ -1381,7 +1384,6 @@ namespace Go
 #endif
             _multiCb = null;
             _lastTm = 0;
-            _yieldCount++;
             _pullTask.activated = true;
             if (!_beginQuit && 0 == _lockCount && _isForce)
             {
@@ -2564,6 +2566,19 @@ namespace Go
             generator this_ = self;
             this_.strand.post(this_._async_result());
             return this_.async_wait();
+        }
+
+        static public Task try_yield()
+        {
+            generator this_ = self;
+            if (this_._lastYieldCount == this_._yieldCount)
+            {
+                this_._lastYieldCount = this_._yieldCount + 1;
+                this_.strand.post(this_._async_result());
+                return this_.async_wait();
+            }
+            this_._lastYieldCount = this_._yieldCount;
+            return non_async();
         }
 
         static public generator self
