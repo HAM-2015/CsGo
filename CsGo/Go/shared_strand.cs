@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Threading;
 using System.Diagnostics;
 using System.Windows.Forms;
+using System.Runtime.InteropServices;
 
 namespace Go
 {
@@ -170,18 +171,112 @@ namespace Go
 
     public class shared_strand
     {
-        protected class spin_mutex
+        protected class queue_mutex
         {
-            volatile int _sign = 0;
+            [DllImport("kernel32.dll")]
+            private static extern int CreateEvent(IntPtr lpEventAttributes, int bManualReset, int bInitialState, IntPtr lpName);
+            [DllImport("kernel32.dll")]
+            private static extern int WaitForSingleObjectEx(int hHandle, int dwMilliseconds, int bAlertable);
+            [DllImport("kernel32.dll")]
+            private static extern int SetEvent(int hHandle);
+            [DllImport("kernel32.dll")]
+            private static extern int CloseHandle(int hHandle);
+            [DllImport("kernel32.dll")]
+            private static extern int InterlockedCompareExchange(ref int Destination, int Exchange, int Comparand);
+            [DllImport("kernel32.dll")]
+            private static extern int InterlockedExchangeAdd(ref int Addend, int Value);
+
+            const int lockFlag = 1 << 31;
+            const int eventFlag = 1 << 30;
+
+            int _activeCount = 0;
+            int _event = CreateEvent(IntPtr.Zero, 0, 0, IntPtr.Zero);
+
+            ~queue_mutex()
+            {
+                CloseHandle(_event);
+            }
+
+            private bool interlockedBitTestAndSet(ref int x, int flag)
+            {
+                int old = x;
+                do
+                {
+                    int current = InterlockedCompareExchange(ref x, old | flag, old);
+                    if (current == old)
+                    {
+                        break;
+                    }
+                    old = current;
+                } while (true);
+                return 0 != (old & flag);
+            }
+
+            void markWaitingAndTryLock(ref int oldCount)
+            {
+                while (true)
+                {
+                    bool wasLocked = 0 != (oldCount & lockFlag);
+                    int newCount = wasLocked ? (oldCount + 1) : (oldCount | lockFlag);
+                    int current = InterlockedCompareExchange(ref _activeCount, newCount, oldCount);
+                    if (current == oldCount)
+                    {
+                        if (wasLocked)
+                        {
+                            oldCount = newCount;
+                        }
+                        break;
+                    }
+                    oldCount = current;
+                }
+            }
+
+            void clearWaitingAndTryLock(ref int oldCount)
+            {
+                oldCount &= ~lockFlag;
+                oldCount |= eventFlag;
+                while (true)
+                {
+                    int newCount = (0 != (oldCount & lockFlag) ? oldCount : ((oldCount - 1) | lockFlag)) & ~eventFlag;
+                    int current = InterlockedCompareExchange(ref _activeCount, newCount, oldCount);
+                    if (current == oldCount)
+                    {
+                        break;
+                    }
+                    oldCount = current;
+                }
+            }
 
             public void enter()
             {
-                while (1 == Interlocked.CompareExchange(ref _sign, 1, 0)) { }
+                int count = 0;
+                while (interlockedBitTestAndSet(ref _activeCount, lockFlag))
+                {
+                    if (10 == ++count)
+                    {
+                        int oldCount = _activeCount;
+                        markWaitingAndTryLock(ref oldCount);
+                        while (0 != (oldCount & lockFlag))
+                        {
+                            WaitForSingleObjectEx(_event, -1, 0);
+                            clearWaitingAndTryLock(ref oldCount);
+                        }
+                        break;
+                    }
+                    Thread.Yield();
+                }
             }
 
             public void exit()
             {
-                _sign = 0;
+                int oldCount = InterlockedExchangeAdd(ref _activeCount, lockFlag);
+                if (0 == (oldCount & eventFlag) && (oldCount > lockFlag))
+                {
+                    if (!interlockedBitTestAndSet(ref _activeCount, eventFlag))
+                    {
+                        SetEvent(_event);
+                    }
+                }
             }
         }
 
@@ -207,7 +302,7 @@ namespace Go
         internal generator currSelf = null;
         protected volatile bool _locked;
         protected volatile int _pauseState;
-        protected spin_mutex _mutex;
+        protected queue_mutex _mutex;
         protected LinkedList<Action> _readyQueue;
         protected LinkedList<Action> _waitQueue;
         protected Action _runTask;
@@ -216,7 +311,7 @@ namespace Go
         {
             _locked = false;
             _pauseState = 0;
-            _mutex = new spin_mutex();
+            _mutex = new queue_mutex();
             _sysTimer = new async_timer.steady_timer(this, false);
             _utcTimer = new async_timer.steady_timer(this, true);
             _readyQueue = new LinkedList<Action>();
