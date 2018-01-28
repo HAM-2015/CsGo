@@ -1155,6 +1155,7 @@ namespace Go
         {
             if (0 != _buffer.Count)
             {
+                ntfSign._success = true;
                 ntf(chan_async_state.async_ok);
             }
             else if (_closed)
@@ -1243,6 +1244,7 @@ namespace Go
                 ntf(chan_async_state.async_closed);
                 return;
             }
+            ntfSign._success = true;
             ntf(chan_async_state.async_ok);
         }
 
@@ -1596,6 +1598,7 @@ namespace Go
         {
             if (0 != _buffer.Count)
             {
+                ntfSign._success = true;
                 ntf(chan_async_state.async_ok);
             }
             else if (_closed)
@@ -1686,6 +1689,7 @@ namespace Go
             }
             if (_buffer.Count != _length)
             {
+                ntfSign._success = true;
                 ntf(chan_async_state.async_ok);
             }
             else if (ms >= 0)
@@ -2137,6 +2141,7 @@ namespace Go
         {
             if (_has)
             {
+                ntfSign._success = true;
                 ntf(chan_async_state.async_ok);
             }
             else if (_closed)
@@ -2255,6 +2260,7 @@ namespace Go
             }
             if (!_popWait.Empty)
             {
+                ntfSign._success = true;
                 ntf(chan_async_state.async_ok);
             }
             else if (ms >= 0)
@@ -2604,6 +2610,7 @@ namespace Go
                 {
                     token._lastId = _pushCount;
                 }
+                ntfSign._success = true;
                 ntf(chan_async_state.async_ok);
                 return true;
             }
@@ -2693,6 +2700,7 @@ namespace Go
                 ntf(chan_async_state.async_closed);
                 return;
             }
+            ntfSign._success = true;
             ntf(chan_async_state.async_ok);
         }
 
@@ -3459,6 +3467,7 @@ namespace Go
         {
             if (_msg._has)
             {
+                ntfSign._success = true;
                 ntf(chan_async_state.async_ok);
             }
             else if (_closed)
@@ -3577,6 +3586,7 @@ namespace Go
             }
             if (!_waitQueue.Empty)
             {
+                ntfSign._success = true;
                 ntf(chan_async_state.async_ok);
             }
             else if (ms >= 0)

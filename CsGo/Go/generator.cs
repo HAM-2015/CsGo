@@ -183,11 +183,10 @@ namespace Go
     public class chan_exception : System.Exception
     {
         public readonly chan_async_state state;
-        public readonly object obj;
-        public chan_exception(chan_async_state st, object o)
+
+        public chan_exception(chan_async_state st)
         {
             state = st;
-            obj = o;
         }
     }
 
@@ -205,9 +204,22 @@ namespace Go
         {
             if (chan_async_state.async_ok != rval.state)
             {
-                throw new chan_exception(rval.state, rval);
+                throw new chan_exception(rval.state);
             }
             return rval.msg;
+        }
+
+        public static implicit operator chan_async_state(chan_recv_wrap<T> rval)
+        {
+            return rval.state;
+        }
+
+        public void check()
+        {
+            if (chan_async_state.async_ok != state)
+            {
+                throw new chan_exception(state);
+            }
         }
 
         public override string ToString()
@@ -215,6 +227,29 @@ namespace Go
             return chan_async_state.async_ok == state ?
                 string.Format("chan_recv_wrap<{0}>.msg={1}", typeof(T).Name, msg) :
                 string.Format("chan_recv_wrap<{0}>.state={1}", typeof(T).Name, state);
+        }
+    }
+
+    public struct chan_send_wrap
+    {
+        public chan_async_state state;
+
+        public static implicit operator chan_async_state(chan_send_wrap rval)
+        {
+            return rval.state;
+        }
+
+        public void check()
+        {
+            if (chan_async_state.async_ok != state)
+            {
+                throw new chan_exception(state);
+            }
+        }
+
+        public override string ToString()
+        {
+            return state.ToString();
         }
     }
 
@@ -227,9 +262,22 @@ namespace Go
         {
             if (chan_async_state.async_ok != rval.state)
             {
-                throw new chan_exception(rval.state, rval);
+                throw new chan_exception(rval.state);
             }
             return rval.result;
+        }
+
+        public static implicit operator chan_async_state(csp_invoke_wrap<T> rval)
+        {
+            return rval.state;
+        }
+
+        public void check()
+        {
+            if (chan_async_state.async_ok != state)
+            {
+                throw new chan_exception(state);
+            }
         }
 
         public override string ToString()
@@ -245,6 +293,28 @@ namespace Go
         public csp_chan<R, T>.csp_result result;
         public chan_async_state state;
         public T msg;
+
+        public static implicit operator T(csp_wait_wrap<R, T> rval)
+        {
+            if (chan_async_state.async_ok != rval.state)
+            {
+                throw new chan_exception(rval.state);
+            }
+            return rval.msg;
+        }
+
+        public static implicit operator chan_async_state(csp_wait_wrap<R, T> rval)
+        {
+            return rval.state;
+        }
+
+        public void check()
+        {
+            if (chan_async_state.async_ok != state)
+            {
+                throw new chan_exception(state);
+            }
+        }
 
         public bool complete(R res)
         {
@@ -2701,6 +2771,9 @@ namespace Go
         static public async Task<chan_async_state> chan_wait_free(chan_base chan)
         {
             generator this_ = self;
+#if DEBUG
+            Trace.Assert(!this_._ioSign._ntfNode.effect && !this_._ioSign._success, "重叠的 chan_wait 操作!");
+#endif
             try
             {
                 chan_async_state result = chan_async_state.async_undefined;
@@ -2721,6 +2794,9 @@ namespace Go
         static public async Task<chan_async_state> chan_timed_wait_free(chan_base chan, int ms)
         {
             generator this_ = self;
+#if DEBUG
+            Trace.Assert(!this_._ioSign._ntfNode.effect && !this_._ioSign._success, "重叠的 chan_wait 操作!");
+#endif
             try
             {
                 chan_async_state result = chan_async_state.async_undefined;
@@ -2741,6 +2817,9 @@ namespace Go
         static public async Task<chan_async_state> chan_wait_has(chan_base chan, broadcast_token token)
         {
             generator this_ = self;
+#if DEBUG
+            Trace.Assert(!this_._ioSign._ntfNode.effect && !this_._ioSign._success, "重叠的 chan_wait 操作!");
+#endif
             try
             {
                 chan_async_state result = chan_async_state.async_undefined;
@@ -2766,6 +2845,9 @@ namespace Go
         static public async Task<chan_async_state> chan_timed_wait_has(chan_base chan, int ms, broadcast_token token)
         {
             generator this_ = self;
+#if DEBUG
+            Trace.Assert(!this_._ioSign._ntfNode.effect && !this_._ioSign._success, "重叠的 chan_wait 操作!");
+#endif
             try
             {
                 chan_async_state result = chan_async_state.async_undefined;
@@ -2788,7 +2870,25 @@ namespace Go
             return chan_timed_wait_has(chan, ms, broadcast_token._defToken);
         }
 
-        static public async Task<chan_async_state> chan_send<T>(chan<T> chan, T msg, chan_lost_msg<T> lostMsg = null)
+        static public async Task chan_cancel_wait_free(chan_base chan)
+        {
+            generator this_ = self;
+            lock_suspend_and_stop();
+            chan.remove_push_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
+            await this_.async_wait();
+            await unlock_suspend_and_stop();
+        }
+
+        static public async Task chan_cancel_wait_has(chan_base chan)
+        {
+            generator this_ = self;
+            lock_suspend_and_stop();
+            chan.remove_pop_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
+            await this_.async_wait();
+            await unlock_suspend_and_stop();
+        }
+
+        static public async Task<chan_send_wrap> chan_send<T>(chan<T> chan, T msg, chan_lost_msg<T> lostMsg = null)
         {
             generator this_ = self;
             chan_async_state result = chan_async_state.async_undefined;
@@ -2796,7 +2896,7 @@ namespace Go
             {
                 chan.push(this_.async_callback((chan_async_state state, object _) => result = state), msg, this_._ioSign);
                 await this_.async_wait();
-                return result;
+                return new chan_send_wrap { state = result };
             }
             catch (stop_exception)
             {
@@ -2810,12 +2910,12 @@ namespace Go
             }
         }
 
-        static public Task<chan_async_state> chan_send(chan<void_type> chan, chan_lost_msg<void_type> lostMsg = null)
+        static public Task<chan_send_wrap> chan_send(chan<void_type> chan, chan_lost_msg<void_type> lostMsg = null)
         {
             return chan_send(chan, default(void_type), lostMsg);
         }
 
-        static public async Task<chan_async_state> chan_force_send<T>(limit_chan<T> chan, T msg, chan_lost_msg<T> outMsg = null, chan_lost_msg<T> lostMsg = null)
+        static public async Task<chan_send_wrap> chan_force_send<T>(limit_chan<T> chan, T msg, chan_lost_msg<T> outMsg = null, chan_lost_msg<T> lostMsg = null)
         {
             generator this_ = self;
             chan_async_state result = chan_async_state.async_undefined;
@@ -2831,7 +2931,7 @@ namespace Go
                     }
                 }), msg);
                 await this_.async_wait();
-                return result;
+                return new chan_send_wrap { state = result };
             }
             catch (stop_exception)
             {
@@ -2879,7 +2979,7 @@ namespace Go
             }
         }
 
-        static public async Task<chan_async_state> chan_try_send<T>(chan<T> chan, T msg, chan_lost_msg<T> lostMsg = null)
+        static public async Task<chan_send_wrap> chan_try_send<T>(chan<T> chan, T msg, chan_lost_msg<T> lostMsg = null)
         {
             generator this_ = self;
             chan_async_state result = chan_async_state.async_undefined;
@@ -2887,7 +2987,7 @@ namespace Go
             {
                 chan.try_push(this_.async_callback((chan_async_state state, object _) => result = state), msg, this_._ioSign);
                 await this_.async_wait();
-                return result;
+                return new chan_send_wrap { state = result };
             }
             catch (stop_exception)
             {
@@ -2901,7 +3001,7 @@ namespace Go
             }
         }
 
-        static public Task<chan_async_state> chan_try_send(chan<void_type> chan, chan_lost_msg<void_type> lostMsg = null)
+        static public Task<chan_send_wrap> chan_try_send(chan<void_type> chan, chan_lost_msg<void_type> lostMsg = null)
         {
             return chan_try_send(chan, default(void_type), lostMsg);
         }
@@ -2940,7 +3040,7 @@ namespace Go
             }
         }
 
-        static public async Task<chan_async_state> chan_timed_send<T>(chan<T> chan, int ms, T msg, chan_lost_msg<T> lostMsg = null)
+        static public async Task<chan_send_wrap> chan_timed_send<T>(chan<T> chan, int ms, T msg, chan_lost_msg<T> lostMsg = null)
         {
             generator this_ = self;
             chan_async_state result = chan_async_state.async_undefined;
@@ -2948,7 +3048,7 @@ namespace Go
             {
                 chan.timed_push(ms, this_.async_callback((chan_async_state state, object _) => result = state), msg, this_._ioSign);
                 await this_.async_wait();
-                return result;
+                return new chan_send_wrap { state = result };
             }
             catch (stop_exception)
             {
@@ -2962,7 +3062,7 @@ namespace Go
             }
         }
 
-        static public Task<chan_async_state> chan_timed_send(chan<void_type> chan, int ms, chan_lost_msg<void_type> lostMsg = null)
+        static public Task<chan_send_wrap> chan_timed_send(chan<void_type> chan, int ms, chan_lost_msg<void_type> lostMsg = null)
         {
             return chan_timed_send(chan, ms, default(void_type), lostMsg);
         }
@@ -3867,41 +3967,6 @@ namespace Go
             wg.async_wait(this_.async_result());
             await this_.async_wait();
             return count;
-        }
-
-        static public void check_chan(chan_async_state state, object obj = null)
-        {
-            if (chan_async_state.async_ok != state)
-            {
-                throw new chan_exception(state, obj);
-            }
-        }
-
-        static public T check_chan<T>(chan_recv_wrap<T> wrap, object obj = null)
-        {
-            if (chan_async_state.async_ok != wrap.state)
-            {
-                throw new chan_exception(wrap.state, obj);
-            }
-            return wrap.msg;
-        }
-
-        static public T check_chan<T>(csp_invoke_wrap<T> wrap, object obj = null)
-        {
-            if (chan_async_state.async_ok != wrap.state)
-            {
-                throw new chan_exception(wrap.state, obj);
-            }
-            return wrap.result;
-        }
-
-        static public Tuple<csp_chan<R, T>.csp_result, T> check_chan<R, T>(csp_wait_wrap<R, T> wrap, object obj = null)
-        {
-            if (chan_async_state.async_ok != wrap.state)
-            {
-                throw new chan_exception(wrap.state, obj);
-            }
-            return new Tuple<csp_chan<R, T>.csp_result, T>(wrap.result, wrap.msg);
         }
 
         static public Task non_async()
@@ -5196,23 +5261,23 @@ namespace Go
             return chan_timed_receive(self_mailbox<T>(id), ms);
         }
 
-        public async Task<chan_async_state> send_msg<T>(int id, T msg)
+        public async Task<chan_send_wrap> send_msg<T>(int id, T msg)
         {
             chan<T> mb = await get_mailbox<T>(id);
-            return null != mb ? await chan_send(mb, msg) : chan_async_state.async_fail;
+            return null != mb ? await chan_send(mb, msg) : new chan_send_wrap { state = chan_async_state.async_fail };
         }
 
-        public Task<chan_async_state> send_msg<T>(T msg)
+        public Task<chan_send_wrap> send_msg<T>(T msg)
         {
             return send_msg(0, msg);
         }
 
-        public Task<chan_async_state> send_void_msg(int id)
+        public Task<chan_send_wrap> send_void_msg(int id)
         {
             return send_msg(id, default(void_type));
         }
 
-        public Task<chan_async_state> send_void_msg()
+        public Task<chan_send_wrap> send_void_msg()
         {
             return send_msg(0, default(void_type));
         }
