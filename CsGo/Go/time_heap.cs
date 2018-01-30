@@ -66,6 +66,11 @@ namespace Go
                 return null == parent;
             }
         }
+
+        public override string ToString()
+        {
+            return string.Format("({0},{1})", key, value);
+        }
     }
 
     public class Map<TKey, TValue>
@@ -305,7 +310,7 @@ namespace Go
                 {
                     where = previous(where);
                 }
-                if (comp_lt(where.value, newNode.value))
+                if (comp_lt(where.key, newNode.key))
                 {
                     insert_at(addLeft, whereNode, newNode);
                 }
@@ -354,7 +359,7 @@ namespace Go
                 {
                     where = previous(where);
                 }
-                if (comp_lt(where.value, value))
+                if (comp_lt(where.key, key))
                 {
                     newNode = new_inter_node(key, value);
                     insert_at(addLeft, whereNode, newNode);
@@ -758,12 +763,12 @@ namespace Go
 
         public MapNode<TKey, TValue> Insert(TKey key, TValue value, bool priorityRight = true)
         {
-            return insert(key, value, priorityRight);
+            return insert(key, value, _multi ? priorityRight : true);
         }
 
         public bool Insert(MapNode<TKey, TValue> newNode, bool priorityRight = true)
         {
-            insert(newNode, priorityRight);
+            insert(newNode, _multi ? priorityRight : true);
             return !newNode.Isolated;
         }
 
