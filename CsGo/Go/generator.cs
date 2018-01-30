@@ -4022,10 +4022,10 @@ namespace Go
         static public async Task<bool> mutex_try_lock(mutex mtx)
         {
             generator this_ = self;
-            async_result_wrap<chan_async_state> res = new async_result_wrap<chan_async_state>();
+            async_result_wrap<bool> res = new async_result_wrap<bool>();
             mtx.try_lock(this_._id, this_.async_result(res));
             await this_.async_wait();
-            return chan_async_state.async_ok == res.value1;
+            return res.value1;
         }
 
         static public async Task<bool> mutex_try_lock(mutex mtx, Func<Task> handler)
@@ -4048,10 +4048,10 @@ namespace Go
         static public async Task<bool> mutex_timed_lock(mutex mtx, int ms)
         {
             generator this_ = self;
-            async_result_wrap<chan_async_state> res = new async_result_wrap<chan_async_state>();
+            async_result_wrap<bool> res = new async_result_wrap<bool>();
             mtx.timed_lock(this_._id, ms, this_.async_result(res));
             await this_.async_wait();
-            return chan_async_state.async_ok == res.value1;
+            return res.value1;
         }
 
         static public async Task<bool> mutex_timed_lock(mutex mtx, int ms, Func<Task> handler)
@@ -4180,10 +4180,10 @@ namespace Go
         static public async Task<bool> mutex_try_lock_shared(shared_mutex mtx)
         {
             generator this_ = self;
-            async_result_wrap<chan_async_state> res = new async_result_wrap<chan_async_state>();
+            async_result_wrap<bool> res = new async_result_wrap<bool>();
             mtx.try_lock_shared(this_._id, this_.async_result(res));
             await this_.async_wait();
-            return chan_async_state.async_ok == res.value1;
+            return res.value1;
         }
 
         static public async Task<bool> mutex_try_lock_shared(shared_mutex mtx, Func<Task> handler)
@@ -4206,10 +4206,10 @@ namespace Go
         static public async Task<bool> mutex_try_lock_upgrade(shared_mutex mtx)
         {
             generator this_ = self;
-            async_result_wrap<chan_async_state> res = new async_result_wrap<chan_async_state>();
+            async_result_wrap<bool> res = new async_result_wrap<bool>();
             mtx.try_lock_upgrade(this_._id, this_.async_result(res));
             await this_.async_wait();
-            return chan_async_state.async_ok == res.value1;
+            return res.value1;
         }
 
         static public async Task<bool> mutex_try_lock_upgrade(shared_mutex mtx, Func<Task> handler)
@@ -4232,10 +4232,10 @@ namespace Go
         static public async Task<bool> mutex_timed_lock_shared(shared_mutex mtx, int ms)
         {
             generator this_ = self;
-            async_result_wrap<chan_async_state> res = new async_result_wrap<chan_async_state>();
+            async_result_wrap<bool> res = new async_result_wrap<bool>();
             mtx.timed_lock_shared(this_._id, ms, this_.async_result(res));
             await this_.async_wait();
-            return chan_async_state.async_ok == res.value1;
+            return res.value1;
         }
 
         static public async Task<bool> mutex_timed_lock_shared(shared_mutex mtx, int ms, Func<Task> handler)

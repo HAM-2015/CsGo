@@ -469,6 +469,22 @@ namespace Go
             currStrand._readyQueue.AddLast(action);
         }
 
+        public void add_next(Action action)
+        {
+#if DEBUG
+            Trace.Assert(running_in_this_thread(), "不正确的 add_next 调用!");
+#endif
+            _readyQueue.AddFirst(action);
+        }
+
+        public void add_last(Action action)
+        {
+#if DEBUG
+            Trace.Assert(running_in_this_thread(), "不正确的 add_last 调用!");
+#endif
+            _readyQueue.AddLast(action);
+        }
+
         public virtual bool wait_safe()
         {
             return !running_in_this_thread();

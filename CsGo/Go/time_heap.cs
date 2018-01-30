@@ -21,16 +21,22 @@ namespace Go
             nil = n;
         }
 
-        public MapNode<TKey, TValue> Next()
+        public MapNode<TKey, TValue> Next
         {
-            MapNode<TKey, TValue> pNode = Map<TKey, TValue>.next(this);
-            return pNode.nil ? null : pNode;
+            get
+            {
+                MapNode<TKey, TValue> pNode = Map<TKey, TValue>.next(this);
+                return pNode.nil ? null : pNode;
+            }
         }
 
-        public MapNode<TKey, TValue> Prev()
+        public MapNode<TKey, TValue> Prev
         {
-            MapNode<TKey, TValue> pNode = Map<TKey, TValue>.previous(this);
-            return pNode.nil ? null : pNode;
+            get
+            {
+                MapNode<TKey, TValue> pNode = Map<TKey, TValue>.previous(this);
+                return pNode.nil ? null : pNode;
+            }
         }
 
         public TKey Key
@@ -270,7 +276,7 @@ namespace Go
             _count++;
         }
 
-        void insert(MapNode<TKey, TValue> newNode)
+        void insert(MapNode<TKey, TValue> newNode, bool priorityRight)
         {
             newNode.parent = newNode.left = newNode.right = _head;
             MapNode<TKey, TValue> tryNode = root;
@@ -279,7 +285,7 @@ namespace Go
             while (!is_nil(tryNode))
             {
                 whereNode = tryNode;
-                addLeft = comp_lt(newNode.key, tryNode.key);
+                addLeft = priorityRight ? comp_lt(newNode.key, tryNode.key) : !comp_lt(tryNode.key, newNode.key);
                 tryNode = addLeft ? tryNode.left : tryNode.right;
             }
             if (_multi)
@@ -317,7 +323,7 @@ namespace Go
             return newNode;
         }
 
-        MapNode<TKey, TValue> insert(TKey key, TValue value, bool update = false)
+        MapNode<TKey, TValue> insert(TKey key, TValue value, bool priorityRight, int updateMode)
         {
             MapNode<TKey, TValue> tryNode = root;
             MapNode<TKey, TValue> whereNode = _head;
@@ -325,7 +331,7 @@ namespace Go
             while (!is_nil(tryNode))
             {
                 whereNode = tryNode;
-                addLeft = comp_lt(key, tryNode.key);
+                addLeft = priorityRight ? comp_lt(key, tryNode.key) : !comp_lt(tryNode.key, key);
                 tryNode = addLeft ? tryNode.left : tryNode.right;
             }
             MapNode<TKey, TValue> newNode = null;
@@ -353,7 +359,11 @@ namespace Go
                     newNode = new_inter_node(key, value);
                     insert_at(addLeft, whereNode, newNode);
                 }
-                else if (update)
+                else if (1 == updateMode)
+                {
+                    newNode = where;
+                }
+                else if (2 == updateMode)
                 {
                     newNode = where;
                     where.value = value;
@@ -643,14 +653,6 @@ namespace Go
             }
         }
 
-        public TValue this[TKey key]
-        {
-            set
-            {
-                Insert(key, value);
-            }
-        }
-
         public void Clear()
         {
             erase(root);
@@ -687,19 +689,24 @@ namespace Go
             remove(node);
         }
 
-        public MapNode<TKey, TValue> Insert(TKey key, TValue value)
+        public MapNode<TKey, TValue> Insert(TKey key, TValue value, bool priorityRight = true)
         {
-            return insert(key, value);
+            return insert(key, value, priorityRight, 0);
         }
 
-        public MapNode<TKey, TValue> Update(TKey key, TValue value)
+        public MapNode<TKey, TValue> Update(TKey key, TValue value, bool priorityRight = true)
         {
-            return insert(key, value, true);
+            return insert(key, value, priorityRight, 2);
         }
 
-        public bool Insert(MapNode<TKey, TValue> newNode)
+        public MapNode<TKey, TValue> Alloc(TKey key, bool priorityRight = true)
         {
-            insert(newNode);
+            return insert(key, default(TValue), priorityRight, 1);
+        }
+
+        public bool Insert(MapNode<TKey, TValue> newNode, bool priorityRight = true)
+        {
+            insert(newNode, priorityRight);
             return !newNode.Isolated;
         }
 
