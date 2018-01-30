@@ -323,7 +323,7 @@ namespace Go
             return newNode;
         }
 
-        MapNode<TKey, TValue> insert(TKey key, TValue value, bool priorityRight, int updateMode)
+        MapNode<TKey, TValue> insert(TKey key, TValue value, bool priorityRight)
         {
             MapNode<TKey, TValue> tryNode = root;
             MapNode<TKey, TValue> whereNode = _head;
@@ -358,15 +358,6 @@ namespace Go
                 {
                     newNode = new_inter_node(key, value);
                     insert_at(addLeft, whereNode, newNode);
-                }
-                else if (1 == updateMode)
-                {
-                    newNode = where;
-                }
-                else if (2 == updateMode)
-                {
-                    newNode = where;
-                    where.value = value;
                 }
             }
             return newNode;
@@ -575,6 +566,66 @@ namespace Go
             return whereNode;
         }
 
+        tuple<bool, MapNode<TKey, TValue>> lbound_insert(TKey key)
+        {
+            MapNode<TKey, TValue> pNode = root;
+            MapNode<TKey, TValue> insertWhereNode = _head;
+            MapNode<TKey, TValue> boundWhereNode = _head;
+            bool addLeft = true;
+            while (!is_nil(pNode))
+            {
+                insertWhereNode = pNode;
+                if (comp_lt(pNode.key, key))
+                {
+                    addLeft = false;
+                    pNode = pNode.right;
+                }
+                else
+                {
+                    addLeft = true;
+                    boundWhereNode = pNode;
+                    pNode = pNode.left;
+                }
+            }
+            if (!is_nil(boundWhereNode) && !comp_lt(key, boundWhereNode.key))
+            {
+                return tuple.make(true, boundWhereNode);
+            }
+            MapNode<TKey, TValue> newNode = new_inter_node(key, default(TValue));
+            insert_at(addLeft, insertWhereNode, newNode);
+            return tuple.make(false, newNode);
+        }
+
+        tuple<bool, MapNode<TKey, TValue>> rbound_insert(TKey key)
+        {
+            MapNode<TKey, TValue> pNode = root;
+            MapNode<TKey, TValue> insertWhereNode = _head;
+            MapNode<TKey, TValue> boundWhereNode = _head;
+            bool addLeft = true;
+            while (!is_nil(pNode))
+            {
+                insertWhereNode = pNode;
+                if (comp_lt(key, pNode.key))
+                {
+                    addLeft = false;
+                    pNode = pNode.left;
+                }
+                else
+                {
+                    addLeft = true;
+                    boundWhereNode = pNode;
+                    pNode = pNode.right;
+                }
+            }
+            if (!is_nil(boundWhereNode) && !comp_lt(boundWhereNode.key, key))
+            {
+                return tuple.make(true, boundWhereNode);
+            }
+            MapNode<TKey, TValue> newNode = new_inter_node(key, default(TValue));
+            insert_at(addLeft, insertWhereNode, newNode);
+            return tuple.make(false, newNode);
+        }
+
         static MapNode<TKey, TValue> max(MapNode<TKey, TValue> pNode)
         {
             while (!is_nil(pNode.right))
@@ -666,10 +717,16 @@ namespace Go
             return !is_nil(node) && !comp_lt(key, node.key);
         }
 
-        public MapNode<TKey, TValue> Find(TKey key)
+        public MapNode<TKey, TValue> FindFirst(TKey key)
         {
             MapNode<TKey, TValue> node = lbound(key);
             return !is_nil(node) && !comp_lt(key, node.key) ? node : null;
+        }
+
+        public MapNode<TKey, TValue> FindLast(TKey key)
+        {
+            MapNode<TKey, TValue> node = rbound(key);
+            return !is_nil(node) && !comp_lt(node.key, key) ? node : null;
         }
 
         public MapNode<TKey, TValue> FindRight(TKey key)
@@ -684,6 +741,16 @@ namespace Go
             return is_nil(node) ? null : node;
         }
 
+        public tuple<bool, MapNode<TKey, TValue>> GetFirst(TKey key)
+        {
+            return lbound_insert(key);
+        }
+
+        public tuple<bool, MapNode<TKey, TValue>> GetLast(TKey key)
+        {
+            return rbound_insert(key);
+        }
+
         public void Remove(MapNode<TKey, TValue> node)
         {
             remove(node);
@@ -691,17 +758,7 @@ namespace Go
 
         public MapNode<TKey, TValue> Insert(TKey key, TValue value, bool priorityRight = true)
         {
-            return insert(key, value, priorityRight, 0);
-        }
-
-        public MapNode<TKey, TValue> Update(TKey key, TValue value, bool priorityRight = true)
-        {
-            return insert(key, value, priorityRight, 2);
-        }
-
-        public MapNode<TKey, TValue> Alloc(TKey key, bool priorityRight = true)
-        {
-            return insert(key, default(TValue), priorityRight, 1);
+            return insert(key, value, priorityRight);
         }
 
         public bool Insert(MapNode<TKey, TValue> newNode, bool priorityRight = true)
