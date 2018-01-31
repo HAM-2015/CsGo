@@ -842,25 +842,25 @@ namespace Go
             try_recv_and_append_notify_(cb, msgNtf, ntfSign, ms);
         }
 
-        internal void recv(Action<chan_async_state, T> ntf, chan_notify_sign ntfSign, broadcast_token token)
+        public void recv(Action<chan_async_state, T> ntf, chan_notify_sign ntfSign, broadcast_token token)
         {
             if (_strand.running_in_this_thread()) recv_(ntf, ntfSign, token);
             else _strand.post(() => recv_(ntf, ntfSign, token));
         }
 
-        internal void try_recv(Action<chan_async_state, T> ntf, chan_notify_sign ntfSign, broadcast_token token)
+        public void try_recv(Action<chan_async_state, T> ntf, chan_notify_sign ntfSign, broadcast_token token)
         {
             if (_strand.running_in_this_thread()) try_recv_(ntf, ntfSign, token);
             else _strand.post(() => try_recv_(ntf, ntfSign, token));
         }
 
-        internal void timed_recv(int ms, Action<chan_async_state, T> ntf, chan_notify_sign ntfSign, broadcast_token token)
+        public void timed_recv(int ms, Action<chan_async_state, T> ntf, chan_notify_sign ntfSign, broadcast_token token)
         {
             if (_strand.running_in_this_thread()) timed_recv_(ms, ntf, ntfSign, token);
             else _strand.post(() => timed_recv_(ms, ntf, ntfSign, token));
         }
 
-        internal void try_recv_and_append_notify(Action<chan_async_state, T> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, broadcast_token token, int ms = -1)
+        public void try_recv_and_append_notify(Action<chan_async_state, T> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, broadcast_token token, int ms = -1)
         {
             if (_strand.running_in_this_thread()) try_recv_and_append_notify_(cb, msgNtf, ntfSign, token, ms);
             else _strand.post(() => try_recv_and_append_notify_(cb, msgNtf, ntfSign, token, ms));
