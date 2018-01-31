@@ -51,29 +51,29 @@ namespace Go
         }
     }
 
-    internal class chan_notify_sign
+    public class chan_notify_sign
     {
-        public option_node _ntfNode;
-        public bool _selectOnce = false;
-        public bool _disable = false;
-        public bool _success = false;
+        internal option_node _ntfNode;
+        internal bool _selectOnce = false;
+        internal bool _disable = false;
+        internal bool _success = false;
 
-        public void set(option_node node)
+        internal void set(option_node node)
         {
             _ntfNode = node;
         }
 
-        public void clear()
+        internal void clear()
         {
             _ntfNode = default(priority_queue_node<notify_pck>);
         }
 
-        public void reset_success()
+        internal void reset_success()
         {
             _success = false;
         }
 
-        static public void set_node(chan_notify_sign sign, option_node node)
+        static internal void set_node(chan_notify_sign sign, option_node node)
         {
             if (null != sign)
             {
@@ -270,66 +270,66 @@ namespace Go
         protected shared_strand _strand;
         protected bool _closed;
         public abstract chan_type type();
-        internal abstract void clear_(Action ntf);
-        internal abstract void close_(Action ntf, bool isClear = false);
-        internal abstract void cancel_(Action ntf, bool isClear = false);
-        internal abstract void append_pop_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign, int ms);
-        internal abstract void remove_pop_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign);
-        internal abstract void append_push_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign, int ms);
-        internal abstract void remove_push_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign);
-        internal virtual void append_pop_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign, broadcast_token token, int ms) { append_pop_notify_(ntf, ntfSign, ms); }
+        protected abstract void clear_(Action ntf);
+        protected abstract void close_(Action ntf, bool isClear = false);
+        protected abstract void cancel_(Action ntf, bool isClear = false);
+        protected abstract void append_recv_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign, int ms);
+        protected abstract void remove_recv_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign);
+        protected abstract void append_send_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign, int ms);
+        protected abstract void remove_send_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign);
+        protected virtual void append_recv_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign, broadcast_token token, int ms) { append_recv_notify_(ntf, ntfSign, ms); }
         public void clear() { clear(nil_action.action); }
         public void close(bool isClear = false) { close(nil_action.action, isClear); }
         public void cancel(bool isClear = false) { cancel(nil_action.action, isClear); }
         public bool is_closed() { return _closed; }
         public shared_strand self_strand() { return _strand; }
 
-        internal void clear(Action ntf)
+        public void clear(Action ntf)
         {
             if (_strand.running_in_this_thread()) clear_(ntf);
             else _strand.post(() => clear_(ntf));
         }
 
-        internal void close(Action ntf, bool isClear = false)
+        public void close(Action ntf, bool isClear = false)
         {
             if (_strand.running_in_this_thread()) close_(ntf);
             else _strand.post(() => close_(ntf));
         }
 
-        internal void cancel(Action ntf, bool isClear = false)
+        public void cancel(Action ntf, bool isClear = false)
         {
             if (_strand.running_in_this_thread()) cancel_(ntf, isClear);
             else _strand.post(() => cancel_(ntf, isClear));
         }
 
-        internal void append_pop_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign, int ms = -1)
+        public void append_recv_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign, int ms = -1)
         {
-            if (_strand.running_in_this_thread()) append_pop_notify_(ntf, ntfSign, ms);
-            else _strand.post(() => append_pop_notify_(ntf, ntfSign, ms));
+            if (_strand.running_in_this_thread()) append_recv_notify_(ntf, ntfSign, ms);
+            else _strand.post(() => append_recv_notify_(ntf, ntfSign, ms));
         }
 
-        internal void remove_pop_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
+        public void remove_recv_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
         {
-            if (_strand.running_in_this_thread()) remove_pop_notify_(ntf, ntfSign);
-            else _strand.post(() => remove_pop_notify_(ntf, ntfSign));
+            if (_strand.running_in_this_thread()) remove_recv_notify_(ntf, ntfSign);
+            else _strand.post(() => remove_recv_notify_(ntf, ntfSign));
         }
 
-        internal void append_push_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign, int ms = -1)
+        public void append_send_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign, int ms = -1)
         {
-            if (_strand.running_in_this_thread()) append_push_notify_(ntf, ntfSign, ms);
-            else _strand.post(() => append_push_notify_(ntf, ntfSign, ms));
+            if (_strand.running_in_this_thread()) append_send_notify_(ntf, ntfSign, ms);
+            else _strand.post(() => append_send_notify_(ntf, ntfSign, ms));
         }
 
-        internal void remove_push_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
+        public void remove_send_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
         {
-            if (_strand.running_in_this_thread()) remove_push_notify_(ntf, ntfSign);
-            else _strand.post(() => remove_push_notify_(ntf, ntfSign));
+            if (_strand.running_in_this_thread()) remove_send_notify_(ntf, ntfSign);
+            else _strand.post(() => remove_send_notify_(ntf, ntfSign));
         }
 
-        internal void append_pop_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign, broadcast_token token, int ms = -1)
+        public void append_recv_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign, broadcast_token token, int ms = -1)
         {
-            if (_strand.running_in_this_thread()) append_pop_notify_(ntf, ntfSign, token, ms);
-            else _strand.post(() => append_pop_notify_(ntf, ntfSign, token, ms));
+            if (_strand.running_in_this_thread()) append_recv_notify_(ntf, ntfSign, token, ms);
+            else _strand.post(() => append_recv_notify_(ntf, ntfSign, token, ms));
         }
 
         static private void queue_callback(ref priority_queue<notify_pck> queue, chan_async_state state)
@@ -396,21 +396,21 @@ namespace Go
             public chan_lost_msg<T> _lostMsg;
             public int _chanTimeout = -1;
             chan_recv_wrap<T> _tempResult = default(chan_recv_wrap<T>);
-            Action<chan_async_state, T, object> _tryPushHandler;
+            Action<chan_async_state, T> _tryPushHandler;
             generator _host;
 
             public override void begin(generator host)
             {
                 ntfSign._disable = false;
                 _host = host;
-                _chan.append_pop_notify(nextSelect, ntfSign, _chanTimeout);
+                _chan.append_recv_notify(nextSelect, ntfSign, _chanTimeout);
             }
 
             public override async Task<select_chan_state> invoke(Func<Task> stepOne)
             {
                 if (null == _tryPushHandler)
                 {
-                    _tryPushHandler = delegate (chan_async_state state, T msg, object _)
+                    _tryPushHandler = delegate (chan_async_state state, T msg)
                     {
                         _tempResult.state = state;
                         if (chan_async_state.async_ok == state)
@@ -422,12 +422,12 @@ namespace Go
                 try
                 {
                     _tempResult = new chan_recv_wrap<T> { state = chan_async_state.async_undefined };
-                    _chan.try_pop_and_append_notify(_host.async_callback(_tryPushHandler), nextSelect, ntfSign, _token, _chanTimeout);
+                    _chan.try_recv_and_append_notify(_host.async_callback(_tryPushHandler), nextSelect, ntfSign, _token, _chanTimeout);
                     await _host.async_wait();
                 }
                 catch (generator.stop_exception)
                 {
-                    _chan.remove_pop_notify(_host.async_ignore<chan_async_state>(), ntfSign);
+                    _chan.remove_recv_notify(_host.async_ignore<chan_async_state>(), ntfSign);
                     await _host.async_wait();
                     if (chan_async_state.async_ok == _tempResult.state)
                     {
@@ -476,7 +476,7 @@ namespace Go
                         await generator.unlock_suspend();
                         if (!await _errHandler(state) && chan_async_state.async_closed != state)
                         {
-                            _chan.append_pop_notify(nextSelect, ntfSign, _chanTimeout);
+                            _chan.append_recv_notify(nextSelect, ntfSign, _chanTimeout);
                             return false;
                         }
                     }
@@ -491,7 +491,7 @@ namespace Go
             public override Task end()
             {
                 ntfSign._disable = true;
-                _chan.remove_pop_notify(_host.async_ignore<chan_async_state>(), ntfSign);
+                _chan.remove_recv_notify(_host.async_ignore<chan_async_state>(), ntfSign);
                 return _host.async_wait();
             }
 
@@ -515,31 +515,31 @@ namespace Go
             public chan_lost_msg<T> _lostMsg;
             public int _chanTimeout = -1;
             chan_async_state _tempResult = chan_async_state.async_undefined;
-            Action<chan_async_state, object> _tryPushHandler;
+            Action<chan_async_state> _tryPushHandler;
             generator _host;
 
             public override void begin(generator host)
             {
                 ntfSign._disable = false;
                 _host = host;
-                _chan.append_push_notify(nextSelect, ntfSign, _chanTimeout);
+                _chan.append_send_notify(nextSelect, ntfSign, _chanTimeout);
             }
 
             public override async Task<select_chan_state> invoke(Func<Task> stepOne)
             {
                 if (null == _tryPushHandler)
                 {
-                    _tryPushHandler = (chan_async_state state, object _) => _tempResult = state;
+                    _tryPushHandler = (chan_async_state state) => _tempResult = state;
                 }
                 try
                 {
                     _tempResult = chan_async_state.async_undefined;
-                    _chan.try_push_and_append_notify(_host.async_callback(_tryPushHandler), nextSelect, ntfSign, _msg.value1, _chanTimeout);
+                    _chan.try_send_and_append_notify(_host.async_callback(_tryPushHandler), nextSelect, ntfSign, _msg.value1, _chanTimeout);
                     await _host.async_wait();
                 }
                 catch (generator.stop_exception)
                 {
-                    _chan.remove_push_notify(_host.async_callback(nil_action<chan_async_state>.action), ntfSign);
+                    _chan.remove_send_notify(_host.async_callback(nil_action<chan_async_state>.action), ntfSign);
                     await _host.async_wait();
                     if (chan_async_state.async_ok != _tempResult)
                     {
@@ -586,7 +586,7 @@ namespace Go
                         await generator.unlock_suspend();
                         if (!await _errHandler(state) && chan_async_state.async_closed != state)
                         {
-                            _chan.append_push_notify(nextSelect, ntfSign, _chanTimeout);
+                            _chan.append_send_notify(nextSelect, ntfSign, _chanTimeout);
                             return false;
                         }
                     }
@@ -601,7 +601,7 @@ namespace Go
             public override Task end()
             {
                 ntfSign._disable = true;
-                _chan.remove_push_notify(_host.async_ignore<chan_async_state>(), ntfSign);
+                _chan.remove_send_notify(_host.async_ignore<chan_async_state>(), ntfSign);
                 return _host.async_wait();
             }
 
@@ -616,61 +616,61 @@ namespace Go
             }
         }
 
-        internal abstract void push_(Action<chan_async_state, object> ntf, T msg, chan_notify_sign ntfSign);
-        internal abstract void pop_(Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign);
-        internal abstract void try_push_(Action<chan_async_state, object> ntf, T msg, chan_notify_sign ntfSign);
-        internal abstract void try_pop_(Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign);
-        internal abstract void timed_push_(int ms, Action<chan_async_state, object> ntf, T msg, chan_notify_sign ntfSign);
-        internal abstract void timed_pop_(int ms, Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign);
-        internal abstract void try_pop_and_append_notify_(Action<chan_async_state, T, object> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, int ms);
-        internal abstract void try_push_and_append_notify_(Action<chan_async_state, object> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, T msg, int ms);
+        protected abstract void send_(Action<chan_async_state> ntf, T msg, chan_notify_sign ntfSign);
+        protected abstract void recv_(Action<chan_async_state, T> ntf, chan_notify_sign ntfSign);
+        protected abstract void try_send_(Action<chan_async_state> ntf, T msg, chan_notify_sign ntfSign);
+        protected abstract void try_recv_(Action<chan_async_state, T> ntf, chan_notify_sign ntfSign);
+        protected abstract void timed_send_(int ms, Action<chan_async_state> ntf, T msg, chan_notify_sign ntfSign);
+        protected abstract void timed_recv_(int ms, Action<chan_async_state, T> ntf, chan_notify_sign ntfSign);
+        protected abstract void try_recv_and_append_notify_(Action<chan_async_state, T> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, int ms);
+        protected abstract void try_send_and_append_notify_(Action<chan_async_state> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, T msg, int ms);
 
-        internal void push(Action<chan_async_state, object> ntf, T msg, chan_notify_sign ntfSign)
+        public void send(Action<chan_async_state> ntf, T msg, chan_notify_sign ntfSign = null)
         {
-            if (_strand.running_in_this_thread()) push_(ntf, msg, ntfSign);
-            else _strand.post(() => push_(ntf, msg, ntfSign));
+            if (_strand.running_in_this_thread()) send_(ntf, msg, ntfSign);
+            else _strand.post(() => send_(ntf, msg, ntfSign));
         }
 
-        internal void pop(Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign)
+        public void recv(Action<chan_async_state, T> ntf, chan_notify_sign ntfSign = null)
         {
-            if (_strand.running_in_this_thread()) pop_(ntf, ntfSign);
-            else _strand.post(() => pop_(ntf, ntfSign));
+            if (_strand.running_in_this_thread()) recv_(ntf, ntfSign);
+            else _strand.post(() => recv_(ntf, ntfSign));
         }
 
-        internal void try_push(Action<chan_async_state, object> ntf, T msg, chan_notify_sign ntfSign)
+        public void try_send(Action<chan_async_state> ntf, T msg, chan_notify_sign ntfSign = null)
         {
-            if (_strand.running_in_this_thread()) try_push_(ntf, msg, ntfSign);
-            else _strand.post(() => try_push_(ntf, msg, ntfSign));
+            if (_strand.running_in_this_thread()) try_send_(ntf, msg, ntfSign);
+            else _strand.post(() => try_send_(ntf, msg, ntfSign));
         }
 
-        internal void try_pop(Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign)
+        public void try_recv(Action<chan_async_state, T> ntf, chan_notify_sign ntfSign = null)
         {
-            if (_strand.running_in_this_thread()) try_pop_(ntf, ntfSign);
-            else _strand.post(() => try_pop_(ntf, ntfSign));
+            if (_strand.running_in_this_thread()) try_recv_(ntf, ntfSign);
+            else _strand.post(() => try_recv_(ntf, ntfSign));
         }
 
-        internal void timed_push(int ms, Action<chan_async_state, object> ntf, T msg, chan_notify_sign ntfSign)
+        public void timed_send(int ms, Action<chan_async_state> ntf, T msg, chan_notify_sign ntfSign = null)
         {
-            if (_strand.running_in_this_thread()) timed_push_(ms, ntf, msg, ntfSign);
-            else _strand.post(() => timed_push_(ms, ntf, msg, ntfSign));
+            if (_strand.running_in_this_thread()) timed_send_(ms, ntf, msg, ntfSign);
+            else _strand.post(() => timed_send_(ms, ntf, msg, ntfSign));
         }
 
-        internal void timed_pop(int ms, Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign)
+        public void timed_recv(int ms, Action<chan_async_state, T> ntf, chan_notify_sign ntfSign = null)
         {
-            if (_strand.running_in_this_thread()) timed_pop_(ms, ntf, ntfSign);
-            else _strand.post(() => timed_pop_(ms, ntf, ntfSign));
+            if (_strand.running_in_this_thread()) timed_recv_(ms, ntf, ntfSign);
+            else _strand.post(() => timed_recv_(ms, ntf, ntfSign));
         }
 
-        internal void try_pop_and_append_notify(Action<chan_async_state, T, object> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, int ms = -1)
+        public void try_recv_and_append_notify(Action<chan_async_state, T> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, int ms = -1)
         {
-            if (_strand.running_in_this_thread()) try_pop_and_append_notify_(cb, msgNtf, ntfSign, ms);
-            else _strand.post(() => try_pop_and_append_notify_(cb, msgNtf, ntfSign, ms));
+            if (_strand.running_in_this_thread()) try_recv_and_append_notify_(cb, msgNtf, ntfSign, ms);
+            else _strand.post(() => try_recv_and_append_notify_(cb, msgNtf, ntfSign, ms));
         }
 
-        internal void try_push_and_append_notify(Action<chan_async_state, object> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, T msg, int ms = -1)
+        public void try_send_and_append_notify(Action<chan_async_state> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, T msg, int ms = -1)
         {
-            if (_strand.running_in_this_thread()) try_push_and_append_notify_(cb, msgNtf, ntfSign, msg, ms);
-            else _strand.post(() => try_push_and_append_notify_(cb, msgNtf, ntfSign, msg, ms));
+            if (_strand.running_in_this_thread()) try_send_and_append_notify_(cb, msgNtf, ntfSign, msg, ms);
+            else _strand.post(() => try_send_and_append_notify_(cb, msgNtf, ntfSign, msg, ms));
         }
 
         static public chan<T> make(shared_strand strand, int len)
@@ -694,32 +694,32 @@ namespace Go
 
         public void post(T msg)
         {
-            push(nil_action<chan_async_state, object>.action, msg, null);
+            send(nil_action<chan_async_state>.action, msg, null);
         }
 
         public void try_post(T msg)
         {
-            try_push(nil_action<chan_async_state, object>.action, msg, null);
+            try_send(nil_action<chan_async_state>.action, msg, null);
         }
 
         public void timed_post(int ms, T msg)
         {
-            timed_push(ms, nil_action<chan_async_state, object>.action, msg, null);
+            timed_send(ms, nil_action<chan_async_state>.action, msg, null);
         }
 
         public void discard()
         {
-            pop(nil_action<chan_async_state, T, object>.action, null);
+            recv(nil_action<chan_async_state, T>.action, null);
         }
 
         public void try_discard()
         {
-            try_pop(nil_action<chan_async_state, T, object>.action, null);
+            try_recv(nil_action<chan_async_state, T>.action, null);
         }
 
         public void timed_discard(int ms)
         {
-            timed_pop(ms, nil_action<chan_async_state, T, object>.action, null);
+            timed_recv(ms, nil_action<chan_async_state, T>.action, null);
         }
 
         public Action<T> wrap()
@@ -822,48 +822,48 @@ namespace Go
             return make_select_writer(ms, new async_result_wrap<T> { value1 = msg }, handler, errHandler, lostMsg);
         }
 
-        internal virtual void pop_(Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign, broadcast_token token)
+        protected virtual void recv_(Action<chan_async_state, T> ntf, chan_notify_sign ntfSign, broadcast_token token)
         {
-            pop_(ntf, ntfSign);
+            recv_(ntf, ntfSign);
         }
 
-        internal virtual void try_pop_(Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign, broadcast_token token)
+        protected virtual void try_recv_(Action<chan_async_state, T> ntf, chan_notify_sign ntfSign, broadcast_token token)
         {
-            try_pop_(ntf, ntfSign);
+            try_recv_(ntf, ntfSign);
         }
 
-        internal virtual void timed_pop_(int ms, Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign, broadcast_token token)
+        protected virtual void timed_recv_(int ms, Action<chan_async_state, T> ntf, chan_notify_sign ntfSign, broadcast_token token)
         {
-            timed_pop_(ms, ntf, ntfSign);
+            timed_recv_(ms, ntf, ntfSign);
         }
 
-        internal virtual void try_pop_and_append_notify_(Action<chan_async_state, T, object> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, broadcast_token token, int ms = -1)
+        protected virtual void try_recv_and_append_notify_(Action<chan_async_state, T> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, broadcast_token token, int ms = -1)
         {
-            try_pop_and_append_notify_(cb, msgNtf, ntfSign, ms);
+            try_recv_and_append_notify_(cb, msgNtf, ntfSign, ms);
         }
 
-        internal void pop(Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign, broadcast_token token)
+        internal void recv(Action<chan_async_state, T> ntf, chan_notify_sign ntfSign, broadcast_token token)
         {
-            if (_strand.running_in_this_thread()) pop_(ntf, ntfSign, token);
-            else _strand.post(() => pop_(ntf, ntfSign, token));
+            if (_strand.running_in_this_thread()) recv_(ntf, ntfSign, token);
+            else _strand.post(() => recv_(ntf, ntfSign, token));
         }
 
-        internal void try_pop(Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign, broadcast_token token)
+        internal void try_recv(Action<chan_async_state, T> ntf, chan_notify_sign ntfSign, broadcast_token token)
         {
-            if (_strand.running_in_this_thread()) try_pop_(ntf, ntfSign, token);
-            else _strand.post(() => try_pop_(ntf, ntfSign, token));
+            if (_strand.running_in_this_thread()) try_recv_(ntf, ntfSign, token);
+            else _strand.post(() => try_recv_(ntf, ntfSign, token));
         }
 
-        internal void timed_pop(int ms, Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign, broadcast_token token)
+        internal void timed_recv(int ms, Action<chan_async_state, T> ntf, chan_notify_sign ntfSign, broadcast_token token)
         {
-            if (_strand.running_in_this_thread()) timed_pop_(ms, ntf, ntfSign, token);
-            else _strand.post(() => timed_pop_(ms, ntf, ntfSign, token));
+            if (_strand.running_in_this_thread()) timed_recv_(ms, ntf, ntfSign, token);
+            else _strand.post(() => timed_recv_(ms, ntf, ntfSign, token));
         }
 
-        internal void try_pop_and_append_notify(Action<chan_async_state, T, object> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, broadcast_token token, int ms = -1)
+        internal void try_recv_and_append_notify(Action<chan_async_state, T> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, broadcast_token token, int ms = -1)
         {
-            if (_strand.running_in_this_thread()) try_pop_and_append_notify_(cb, msgNtf, ntfSign, token, ms);
-            else _strand.post(() => try_pop_and_append_notify_(cb, msgNtf, ntfSign, token, ms));
+            if (_strand.running_in_this_thread()) try_recv_and_append_notify_(cb, msgNtf, ntfSign, token, ms);
+            else _strand.post(() => try_recv_and_append_notify_(cb, msgNtf, ntfSign, token, ms));
         }
 
         internal virtual select_chan_base make_select_reader(Func<T, Task> handler, broadcast_token token, chan_lost_msg<T> lostMsg)
@@ -1001,31 +1001,31 @@ namespace Go
             return chan_type.unlimit;
         }
 
-        internal override void push_(Action<chan_async_state, object> ntf, T msg, chan_notify_sign ntfSign)
+        protected override void send_(Action<chan_async_state> ntf, T msg, chan_notify_sign ntfSign)
         {
             ntfSign?.reset_success();
             if (_closed)
             {
-                ntf(chan_async_state.async_closed, null);
+                ntf(chan_async_state.async_closed);
                 return;
             }
             _buffer.AddLast(msg);
             _waitQueue.RemoveFirst().Invoke(chan_async_state.async_ok);
-            ntf(chan_async_state.async_ok, null);
+            ntf(chan_async_state.async_ok);
         }
 
-        internal override void pop_(Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign)
+        protected override void recv_(Action<chan_async_state, T> ntf, chan_notify_sign ntfSign)
         {
             ntfSign?.reset_success();
             if (0 != _buffer.Count)
             {
                 T msg = _buffer.First();
                 _buffer.RemoveFirst();
-                ntf(chan_async_state.async_ok, msg, null);
+                ntf(chan_async_state.async_ok, msg);
             }
             else if (_closed)
             {
-                ntf(chan_async_state.async_closed, default(T), null);
+                ntf(chan_async_state.async_closed, default(T));
             }
             else
             {
@@ -1036,58 +1036,58 @@ namespace Go
                         ntfSign?.clear();
                         if (chan_async_state.async_ok == state)
                         {
-                            pop_(ntf, ntfSign);
+                            recv_(ntf, ntfSign);
                         }
                         else
                         {
-                            ntf(state, default(T), null);
+                            ntf(state, default(T));
                         }
                     }
                 }));
             }
         }
 
-        internal override void try_push_(Action<chan_async_state, object> ntf, T msg, chan_notify_sign ntfSign)
+        protected override void try_send_(Action<chan_async_state> ntf, T msg, chan_notify_sign ntfSign)
         {
-            push_(ntf, msg, ntfSign);
+            send_(ntf, msg, ntfSign);
         }
 
-        internal override void try_pop_(Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign)
+        protected override void try_recv_(Action<chan_async_state, T> ntf, chan_notify_sign ntfSign)
         {
             ntfSign?.reset_success();
             if (0 != _buffer.Count)
             {
                 T msg = _buffer.First();
                 _buffer.RemoveFirst();
-                ntf(chan_async_state.async_ok, msg, null);
+                ntf(chan_async_state.async_ok, msg);
             }
             else if (_closed)
             {
-                ntf(chan_async_state.async_closed, default(T), null);
+                ntf(chan_async_state.async_closed, default(T));
             }
             else
             {
-                ntf(chan_async_state.async_fail, default(T), null);
+                ntf(chan_async_state.async_fail, default(T));
             }
         }
 
-        internal override void timed_push_(int ms, Action<chan_async_state, object> ntf, T msg, chan_notify_sign ntfSign)
+        protected override void timed_send_(int ms, Action<chan_async_state> ntf, T msg, chan_notify_sign ntfSign)
         {
-            push_(ntf, msg, ntfSign);
+            send_(ntf, msg, ntfSign);
         }
 
-        internal override void timed_pop_(int ms, Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign)
+        protected override void timed_recv_(int ms, Action<chan_async_state, T> ntf, chan_notify_sign ntfSign)
         {
             ntfSign?.reset_success();
             if (0 != _buffer.Count)
             {
                 T msg = _buffer.First();
                 _buffer.RemoveFirst();
-                ntf(chan_async_state.async_ok, msg, null);
+                ntf(chan_async_state.async_ok, msg);
             }
             else if (_closed)
             {
-                ntf(chan_async_state.async_closed, default(T), null);
+                ntf(chan_async_state.async_closed, default(T));
             }
             else if (ms >= 0)
             {
@@ -1101,11 +1101,11 @@ namespace Go
                         timer.cancel();
                         if (chan_async_state.async_ok == state)
                         {
-                            pop_(ntf, ntfSign);
+                            recv_(ntf, ntfSign);
                         }
                         else
                         {
-                            ntf(state, default(T), null);
+                            ntf(state, default(T));
                         }
                     }
                 });
@@ -1124,18 +1124,18 @@ namespace Go
                         ntfSign?.clear();
                         if (chan_async_state.async_ok == state)
                         {
-                            pop_(ntf, ntfSign);
+                            recv_(ntf, ntfSign);
                         }
                         else
                         {
-                            ntf(state, default(T), null);
+                            ntf(state, default(T));
                         }
                     }
                 }));
             }
         }
 
-        internal override void append_pop_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign, int ms)
+        protected override void append_recv_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign, int ms)
         {
             if (0 != _buffer.Count)
             {
@@ -1179,7 +1179,7 @@ namespace Go
             }
         }
 
-        internal override void try_pop_and_append_notify_(Action<chan_async_state, T, object> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, int ms)
+        protected override void try_recv_and_append_notify_(Action<chan_async_state, T> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, int ms)
         {
             ntfSign.reset_success();
             if (0 != _buffer.Count)
@@ -1188,23 +1188,23 @@ namespace Go
                 _buffer.RemoveFirst();
                 if (!ntfSign._selectOnce)
                 {
-                    append_pop_notify_(msgNtf, ntfSign, ms);
+                    append_recv_notify_(msgNtf, ntfSign, ms);
                 }
-                cb(chan_async_state.async_ok, msg, null);
+                cb(chan_async_state.async_ok, msg);
             }
             else if (_closed)
             {
                 msgNtf(chan_async_state.async_closed);
-                cb(chan_async_state.async_closed, default(T), null);
+                cb(chan_async_state.async_closed, default(T));
             }
             else
             {
-                append_pop_notify_(msgNtf, ntfSign, ms);
-                cb(chan_async_state.async_fail, default(T), null);
+                append_recv_notify_(msgNtf, ntfSign, ms);
+                cb(chan_async_state.async_fail, default(T));
             }
         }
 
-        internal override void remove_pop_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
+        protected override void remove_recv_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
         {
             bool effect = ntfSign._ntfNode.effect;
             bool success = ntfSign._success;
@@ -1221,7 +1221,7 @@ namespace Go
             ntf(effect ? chan_async_state.async_ok : chan_async_state.async_fail);
         }
 
-        internal override void append_push_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign, int ms)
+        protected override void append_send_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign, int ms)
         {
             if (_closed)
             {
@@ -1232,36 +1232,36 @@ namespace Go
             ntf(chan_async_state.async_ok);
         }
 
-        internal override void try_push_and_append_notify_(Action<chan_async_state, object> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, T msg, int ms)
+        protected override void try_send_and_append_notify_(Action<chan_async_state> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, T msg, int ms)
         {
             ntfSign.reset_success();
             if (_closed)
             {
                 msgNtf(chan_async_state.async_closed);
-                cb(chan_async_state.async_closed, null);
+                cb(chan_async_state.async_closed);
                 return;
             }
             _buffer.AddLast(msg);
             _waitQueue.RemoveFirst();
             if (!ntfSign._selectOnce)
             {
-                append_push_notify_(msgNtf, ntfSign, ms);
+                append_send_notify_(msgNtf, ntfSign, ms);
             }
-            cb(chan_async_state.async_ok, null);
+            cb(chan_async_state.async_ok);
         }
 
-        internal override void remove_push_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
+        protected override void remove_send_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
         {
             ntf(chan_async_state.async_fail);
         }
 
-        internal override void clear_(Action ntf)
+        protected override void clear_(Action ntf)
         {
             _buffer.Clear();
             ntf();
         }
 
-        internal override void close_(Action ntf, bool isClear = false)
+        protected override void close_(Action ntf, bool isClear = false)
         {
             _closed = true;
             if (isClear)
@@ -1272,7 +1272,7 @@ namespace Go
             ntf();
         }
 
-        internal override void cancel_(Action ntf, bool isClear = false)
+        protected override void cancel_(Action ntf, bool isClear = false)
         {
             if (isClear)
             {
@@ -1319,12 +1319,12 @@ namespace Go
             return chan_type.limit;
         }
 
-        internal override void push_(Action<chan_async_state, object> ntf, T msg, chan_notify_sign ntfSign)
+        protected override void send_(Action<chan_async_state> ntf, T msg, chan_notify_sign ntfSign)
         {
             ntfSign?.reset_success();
             if (_closed)
             {
-                ntf(chan_async_state.async_closed, null);
+                ntf(chan_async_state.async_closed);
                 return;
             }
             if (_buffer.Count == _length)
@@ -1336,11 +1336,11 @@ namespace Go
                         ntfSign?.clear();
                         if (chan_async_state.async_ok == state)
                         {
-                            push_(ntf, msg, ntfSign);
+                            send_(ntf, msg, ntfSign);
                         }
                         else
                         {
-                            ntf(state, null);
+                            ntf(state);
                         }
                     }
                 }));
@@ -1349,11 +1349,11 @@ namespace Go
             {
                 _buffer.AddLast(msg);
                 _popWait.RemoveFirst().Invoke(chan_async_state.async_ok);
-                ntf(chan_async_state.async_ok, null);
+                ntf(chan_async_state.async_ok);
             }
         }
 
-        internal void force_push_(Action<chan_async_state, bool, T> ntf, T msg)
+        private void force_push_(Action<chan_async_state, bool, T> ntf, T msg)
         {
             if (_closed)
             {
@@ -1380,13 +1380,13 @@ namespace Go
             }
         }
 
-        internal void force_push(Action<chan_async_state, bool, T> ntf, T msg)
+        public void force_push(Action<chan_async_state, bool, T> ntf, T msg)
         {
             if (_strand.running_in_this_thread()) force_push_(ntf, msg);
             else _strand.post(() => force_push_(ntf, msg));
         }
 
-        internal override void pop_(Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign)
+        protected override void recv_(Action<chan_async_state, T> ntf, chan_notify_sign ntfSign)
         {
             ntfSign?.reset_success();
             if (0 != _buffer.Count)
@@ -1394,11 +1394,11 @@ namespace Go
                 T msg = _buffer.First();
                 _buffer.RemoveFirst();
                 _pushWait.RemoveFirst().Invoke(chan_async_state.async_ok);
-                ntf(chan_async_state.async_ok, msg, null);
+                ntf(chan_async_state.async_ok, msg);
             }
             else if (_closed)
             {
-                ntf(chan_async_state.async_closed, default(T), null);
+                ntf(chan_async_state.async_closed, default(T));
             }
             else
             {
@@ -1409,38 +1409,38 @@ namespace Go
                         ntfSign?.clear();
                         if (chan_async_state.async_ok == state)
                         {
-                            pop_(ntf, ntfSign);
+                            recv_(ntf, ntfSign);
                         }
                         else
                         {
-                            ntf(state, default(T), null);
+                            ntf(state, default(T));
                         }
                     }
                 }));
             }
         }
 
-        internal override void try_push_(Action<chan_async_state, object> ntf, T msg, chan_notify_sign ntfSign)
+        protected override void try_send_(Action<chan_async_state> ntf, T msg, chan_notify_sign ntfSign)
         {
             ntfSign?.reset_success();
             if (_closed)
             {
-                ntf(chan_async_state.async_closed, null);
+                ntf(chan_async_state.async_closed);
                 return;
             }
             if (_buffer.Count == _length)
             {
-                ntf(chan_async_state.async_fail, null);
+                ntf(chan_async_state.async_fail);
             }
             else
             {
                 _buffer.AddLast(msg);
                 _popWait.RemoveFirst().Invoke(chan_async_state.async_ok);
-                ntf(chan_async_state.async_ok, null);
+                ntf(chan_async_state.async_ok);
             }
         }
 
-        internal override void try_pop_(Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign)
+        protected override void try_recv_(Action<chan_async_state, T> ntf, chan_notify_sign ntfSign)
         {
             ntfSign?.reset_success();
             if (0 != _buffer.Count)
@@ -1448,19 +1448,19 @@ namespace Go
                 T msg = _buffer.First();
                 _buffer.RemoveFirst();
                 _pushWait.RemoveFirst().Invoke(chan_async_state.async_ok);
-                ntf(chan_async_state.async_ok, msg, null);
+                ntf(chan_async_state.async_ok, msg);
             }
             else if (_closed)
             {
-                ntf(chan_async_state.async_closed, default(T), null);
+                ntf(chan_async_state.async_closed, default(T));
             }
             else
             {
-                ntf(chan_async_state.async_fail, default(T), null);
+                ntf(chan_async_state.async_fail, default(T));
             }
         }
 
-        internal override void timed_push_(int ms, Action<chan_async_state, object> ntf, T msg, chan_notify_sign ntfSign)
+        protected override void timed_send_(int ms, Action<chan_async_state> ntf, T msg, chan_notify_sign ntfSign)
         {
             ntfSign?.reset_success();
             if (_buffer.Count == _length)
@@ -1477,11 +1477,11 @@ namespace Go
                             timer.cancel();
                             if (chan_async_state.async_ok == state)
                             {
-                                push_(ntf, msg, ntfSign);
+                                send_(ntf, msg, ntfSign);
                             }
                             else
                             {
-                                ntf(state, null);
+                                ntf(state);
                             }
                         }
                     });
@@ -1500,11 +1500,11 @@ namespace Go
                             ntfSign?.clear();
                             if (chan_async_state.async_ok == state)
                             {
-                                push_(ntf, msg, ntfSign);
+                                send_(ntf, msg, ntfSign);
                             }
                             else
                             {
-                                ntf(state, null);
+                                ntf(state);
                             }
                         }
                     }));
@@ -1514,11 +1514,11 @@ namespace Go
             {
                 _buffer.AddLast(msg);
                 _popWait.RemoveFirst().Invoke(chan_async_state.async_ok);
-                ntf(chan_async_state.async_ok, null);
+                ntf(chan_async_state.async_ok);
             }
         }
 
-        internal override void timed_pop_(int ms, Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign)
+        protected override void timed_recv_(int ms, Action<chan_async_state, T> ntf, chan_notify_sign ntfSign)
         {
             ntfSign?.reset_success();
             if (0 != _buffer.Count)
@@ -1526,11 +1526,11 @@ namespace Go
                 T msg = _buffer.First();
                 _buffer.RemoveFirst();
                 _pushWait.RemoveFirst().Invoke(chan_async_state.async_ok);
-                ntf(chan_async_state.async_ok, msg, null);
+                ntf(chan_async_state.async_ok, msg);
             }
             else if (_closed)
             {
-                ntf(chan_async_state.async_closed, default(T), null);
+                ntf(chan_async_state.async_closed, default(T));
             }
             else if (ms >= 0)
             {
@@ -1544,11 +1544,11 @@ namespace Go
                         timer.cancel();
                         if (chan_async_state.async_ok == state)
                         {
-                            pop_(ntf, ntfSign);
+                            recv_(ntf, ntfSign);
                         }
                         else
                         {
-                            ntf(state, default(T), null);
+                            ntf(state, default(T));
                         }
                     }
                 });
@@ -1567,18 +1567,18 @@ namespace Go
                         ntfSign?.clear();
                         if (chan_async_state.async_ok == state)
                         {
-                            pop_(ntf, ntfSign);
+                            recv_(ntf, ntfSign);
                         }
                         else
                         {
-                            ntf(state, default(T), null);
+                            ntf(state, default(T));
                         }
                     }
                 }));
             }
         }
 
-        internal override void append_pop_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign, int ms)
+        protected override void append_recv_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign, int ms)
         {
             if (0 != _buffer.Count)
             {
@@ -1622,7 +1622,7 @@ namespace Go
             }
         }
 
-        internal override void try_pop_and_append_notify_(Action<chan_async_state, T, object> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, int ms)
+        protected override void try_recv_and_append_notify_(Action<chan_async_state, T> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, int ms)
         {
             ntfSign.reset_success();
             if (0 != _buffer.Count)
@@ -1632,22 +1632,23 @@ namespace Go
                 _pushWait.RemoveFirst().Invoke(chan_async_state.async_ok);
                 if (!ntfSign._selectOnce)
                 {
-                    append_pop_notify_(msgNtf, ntfSign, ms);
+                    append_recv_notify_(msgNtf, ntfSign, ms);
                 }
-                cb(chan_async_state.async_ok, msg, null);
+                cb(chan_async_state.async_ok, msg);
             }
             else if (_closed)
             {
                 msgNtf(chan_async_state.async_closed);
-                cb(chan_async_state.async_closed, default(T), null);
+                cb(chan_async_state.async_closed, default(T));
             }
             else
             {
-                append_pop_notify_(msgNtf, ntfSign, ms);
-                cb(chan_async_state.async_fail, default(T), null);
+                append_recv_notify_(msgNtf, ntfSign, ms);
+                cb(chan_async_state.async_fail, default(T));
             }
         }
-        internal override void remove_pop_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
+
+        protected override void remove_recv_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
         {
             bool effect = ntfSign._ntfNode.effect;
             bool success = ntfSign._success;
@@ -1664,7 +1665,7 @@ namespace Go
             ntf(effect ? chan_async_state.async_ok : chan_async_state.async_fail);
         }
 
-        internal override void append_push_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign, int ms)
+        protected override void append_send_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign, int ms)
         {
             if (_closed)
             {
@@ -1709,13 +1710,13 @@ namespace Go
             }
         }
 
-        internal override void try_push_and_append_notify_(Action<chan_async_state, object> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, T msg, int ms)
+        protected override void try_send_and_append_notify_(Action<chan_async_state> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, T msg, int ms)
         {
             ntfSign.reset_success();
             if (_closed)
             {
                 msgNtf(chan_async_state.async_closed);
-                cb(chan_async_state.async_closed, null);
+                cb(chan_async_state.async_closed);
                 return;
             }
             if (_buffer.Count != _length)
@@ -1724,18 +1725,18 @@ namespace Go
                 _popWait.RemoveFirst().Invoke(chan_async_state.async_ok);
                 if (!ntfSign._selectOnce)
                 {
-                    append_push_notify_(msgNtf, ntfSign, ms);
+                    append_send_notify_(msgNtf, ntfSign, ms);
                 }
-                cb(chan_async_state.async_ok, null);
+                cb(chan_async_state.async_ok);
             }
             else
             {
-                append_push_notify_(msgNtf, ntfSign, ms);
-                cb(chan_async_state.async_fail, null);
+                append_send_notify_(msgNtf, ntfSign, ms);
+                cb(chan_async_state.async_fail);
             }
         }
 
-        internal override void remove_push_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
+        protected override void remove_send_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
         {
             bool effect = ntfSign._ntfNode.effect;
             bool success = ntfSign._success;
@@ -1752,14 +1753,14 @@ namespace Go
             ntf(effect ? chan_async_state.async_ok : chan_async_state.async_fail);
         }
 
-        internal override void clear_(Action ntf)
+        protected override void clear_(Action ntf)
         {
             _buffer.Clear();
             safe_callback(ref _pushWait, chan_async_state.async_fail);
             ntf();
         }
 
-        internal override void close_(Action ntf, bool isClear = false)
+        protected override void close_(Action ntf, bool isClear = false)
         {
             _closed = true;
             if (isClear)
@@ -1770,7 +1771,7 @@ namespace Go
             ntf();
         }
 
-        internal override void cancel_(Action ntf, bool isClear = false)
+        protected override void cancel_(Action ntf, bool isClear = false)
         {
             if (isClear)
             {
@@ -1817,12 +1818,12 @@ namespace Go
             return chan_type.nil;
         }
 
-        internal override void push_(Action<chan_async_state, object> ntf, T msg, chan_notify_sign ntfSign)
+        protected override void send_(Action<chan_async_state> ntf, T msg, chan_notify_sign ntfSign)
         {
             ntfSign?.reset_success();
             if (_closed)
             {
-                ntf(chan_async_state.async_closed, null);
+                ntf(chan_async_state.async_closed);
                 return;
             }
             if (_has || _popWait.Empty)
@@ -1834,11 +1835,11 @@ namespace Go
                         ntfSign?.clear();
                         if (chan_async_state.async_ok == state)
                         {
-                            push_(ntf, msg, ntfSign);
+                            send_(ntf, msg, ntfSign);
                         }
                         else
                         {
-                            ntf(state, null);
+                            ntf(state);
                         }
                     }
                 }));
@@ -1852,14 +1853,14 @@ namespace Go
                     ntf = delegate (chan_async_state state)
                     {
                         ntfSign?.clear();
-                        ntf(state, null);
+                        ntf(state);
                     }
                 }));
                 _popWait.RemoveFirst().Invoke(chan_async_state.async_ok);
             }
         }
 
-        internal override void pop_(Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign)
+        protected override void recv_(Action<chan_async_state, T> ntf, chan_notify_sign ntfSign)
         {
             ntfSign?.reset_success();
             if (_has)
@@ -1867,11 +1868,11 @@ namespace Go
                 T msg = _msg;
                 _has = false;
                 _pushWait.RemoveFirst().Invoke(chan_async_state.async_ok);
-                ntf(chan_async_state.async_ok, msg, default(T));
+                ntf(chan_async_state.async_ok, msg);
             }
             else if (_closed)
             {
-                ntf(chan_async_state.async_closed, default(T), null);
+                ntf(chan_async_state.async_closed, default(T));
             }
             else
             {
@@ -1882,11 +1883,11 @@ namespace Go
                         ntfSign?.clear();
                         if (chan_async_state.async_ok == state)
                         {
-                            pop_(ntf, ntfSign);
+                            recv_(ntf, ntfSign);
                         }
                         else
                         {
-                            ntf(state, default(T), null);
+                            ntf(state, default(T));
                         }
                     }
                 }));
@@ -1894,17 +1895,17 @@ namespace Go
             }
         }
 
-        internal override void try_push_(Action<chan_async_state, object> ntf, T msg, chan_notify_sign ntfSign)
+        protected override void try_send_(Action<chan_async_state> ntf, T msg, chan_notify_sign ntfSign)
         {
             ntfSign?.reset_success();
             if (_closed)
             {
-                ntf(chan_async_state.async_closed, null);
+                ntf(chan_async_state.async_closed);
                 return;
             }
             if (_has || _popWait.Empty)
             {
-                ntf(chan_async_state.async_fail, null);
+                ntf(chan_async_state.async_fail);
             }
             else
             {
@@ -1917,14 +1918,14 @@ namespace Go
                     {
                         _isTryPush = false;
                         ntfSign?.clear();
-                        ntf(state, null);
+                        ntf(state);
                     }
                 }));
                 _popWait.RemoveFirst().Invoke(chan_async_state.async_ok);
             }
         }
 
-        internal override void try_pop_(Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign)
+        protected override void try_recv_(Action<chan_async_state, T> ntf, chan_notify_sign ntfSign)
         {
             ntfSign?.reset_success();
             if (_has)
@@ -1932,11 +1933,11 @@ namespace Go
                 T msg = _msg;
                 _has = false;
                 _pushWait.RemoveFirst().Invoke(chan_async_state.async_ok);
-                ntf(chan_async_state.async_ok, msg, null);
+                ntf(chan_async_state.async_ok, msg);
             }
             else if (_closed)
             {
-                ntf(chan_async_state.async_closed, default(T), null);
+                ntf(chan_async_state.async_closed, default(T));
             }
             else if (!_pushWait.Empty && _popWait.Empty)
             {
@@ -1949,11 +1950,11 @@ namespace Go
                         ntfSign?.clear();
                         if (chan_async_state.async_ok == state)
                         {
-                            pop_(ntf, ntfSign);
+                            recv_(ntf, ntfSign);
                         }
                         else
                         {
-                            ntf(state, default(T), null);
+                            ntf(state, default(T));
                         }
                     }
                 }));
@@ -1961,16 +1962,16 @@ namespace Go
             }
             else
             {
-                ntf(chan_async_state.async_fail, default(T), null);
+                ntf(chan_async_state.async_fail, default(T));
             }
         }
 
-        internal override void timed_push_(int ms, Action<chan_async_state, object> ntf, T msg, chan_notify_sign ntfSign)
+        protected override void timed_send_(int ms, Action<chan_async_state> ntf, T msg, chan_notify_sign ntfSign)
         {
             ntfSign?.reset_success();
             if (_closed)
             {
-                ntf(chan_async_state.async_closed, null);
+                ntf(chan_async_state.async_closed);
                 return;
             }
             if (_has || _popWait.Empty)
@@ -1987,11 +1988,11 @@ namespace Go
                             timer.cancel();
                             if (chan_async_state.async_ok == state)
                             {
-                                push_(ntf, msg, ntfSign);
+                                send_(ntf, msg, ntfSign);
                             }
                             else
                             {
-                                ntf(state, null);
+                                ntf(state);
                             }
                         }
                     });
@@ -2010,11 +2011,11 @@ namespace Go
                             ntfSign?.clear();
                             if (chan_async_state.async_ok == state)
                             {
-                                push_(ntf, msg, ntfSign);
+                                send_(ntf, msg, ntfSign);
                             }
                             else
                             {
-                                ntf(state, null);
+                                ntf(state);
                             }
                         }
                     }));
@@ -2032,7 +2033,7 @@ namespace Go
                     {
                         ntfSign?.clear();
                         timer.cancel();
-                        ntf(state, null);
+                        ntf(state);
                     }
                 });
                 ntfSign?.set(node);
@@ -2052,14 +2053,14 @@ namespace Go
                     ntf = delegate (chan_async_state state)
                     {
                         ntfSign?.clear();
-                        ntf(state, null);
+                        ntf(state);
                     }
                 }));
                 _popWait.RemoveFirst().Invoke(chan_async_state.async_ok);
             }
         }
 
-        internal override void timed_pop_(int ms, Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign)
+        protected override void timed_recv_(int ms, Action<chan_async_state, T> ntf, chan_notify_sign ntfSign)
         {
             ntfSign?.reset_success();
             if (_has)
@@ -2067,11 +2068,11 @@ namespace Go
                 T msg = _msg;
                 _has = false;
                 _pushWait.RemoveFirst().Invoke(chan_async_state.async_ok);
-                ntf(chan_async_state.async_ok, msg, null);
+                ntf(chan_async_state.async_ok, msg);
             }
             else if (_closed)
             {
-                ntf(chan_async_state.async_closed, default(T), null);
+                ntf(chan_async_state.async_closed, default(T));
             }
             else if (ms >= 0)
             {
@@ -2085,11 +2086,11 @@ namespace Go
                         timer.cancel();
                         if (chan_async_state.async_ok == state)
                         {
-                            pop_(ntf, ntfSign);
+                            recv_(ntf, ntfSign);
                         }
                         else
                         {
-                            ntf(state, default(T), null);
+                            ntf(state, default(T));
                         }
                     }
                 });
@@ -2109,11 +2110,11 @@ namespace Go
                         ntfSign?.clear();
                         if (chan_async_state.async_ok == state)
                         {
-                            pop_(ntf, ntfSign);
+                            recv_(ntf, ntfSign);
                         }
                         else
                         {
-                            ntf(state, default(T), null);
+                            ntf(state, default(T));
                         }
                     }
                 }));
@@ -2121,7 +2122,7 @@ namespace Go
             }
         }
 
-        internal override void append_pop_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign, int ms)
+        protected override void append_recv_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign, int ms)
         {
             if (_has)
             {
@@ -2167,7 +2168,7 @@ namespace Go
             }
         }
 
-        internal override void try_pop_and_append_notify_(Action<chan_async_state, T, object> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, int ms)
+        protected override void try_recv_and_append_notify_(Action<chan_async_state, T> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, int ms)
         {
             ntfSign.reset_success();
             if (_has)
@@ -2177,14 +2178,14 @@ namespace Go
                 _pushWait.RemoveFirst().Invoke(chan_async_state.async_ok);
                 if (!ntfSign._selectOnce)
                 {
-                    append_pop_notify_(msgNtf, ntfSign, ms);
+                    append_recv_notify_(msgNtf, ntfSign, ms);
                 }
-                cb(chan_async_state.async_ok, msg, null);
+                cb(chan_async_state.async_ok, msg);
             }
             else if (_closed)
             {
                 msgNtf(chan_async_state.async_closed);
-                cb(chan_async_state.async_closed, default(T), null);
+                cb(chan_async_state.async_closed, default(T));
             }
             else if (!_pushWait.Empty && _popWait.Empty)
             {
@@ -2197,11 +2198,11 @@ namespace Go
                         ntfSign?.clear();
                         if (chan_async_state.async_ok == state)
                         {
-                            pop_(cb, ntfSign);
+                            recv_(cb, ntfSign);
                         }
                         else
                         {
-                            cb(state, default(T), null);
+                            cb(state, default(T));
                         }
                     }
                 }));
@@ -2209,12 +2210,12 @@ namespace Go
             }
             else
             {
-                append_pop_notify_(msgNtf, ntfSign, ms);
-                cb(chan_async_state.async_fail, default(T), null);
+                append_recv_notify_(msgNtf, ntfSign, ms);
+                cb(chan_async_state.async_fail, default(T));
             }
         }
 
-        internal override void remove_pop_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
+        protected override void remove_recv_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
         {
             bool effect = ntfSign._ntfNode.effect;
             bool success = ntfSign._success;
@@ -2235,7 +2236,7 @@ namespace Go
             ntf(effect ? chan_async_state.async_ok : chan_async_state.async_fail);
         }
 
-        internal override void append_push_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign, int ms)
+        protected override void append_send_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign, int ms)
         {
             if (_closed)
             {
@@ -2280,13 +2281,13 @@ namespace Go
             }
         }
 
-        internal override void try_push_and_append_notify_(Action<chan_async_state, object> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, T msg, int ms)
+        protected override void try_send_and_append_notify_(Action<chan_async_state> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, T msg, int ms)
         {
             ntfSign.reset_success();
             if (_closed)
             {
                 msgNtf(chan_async_state.async_closed);
-                cb(chan_async_state.async_closed, null);
+                cb(chan_async_state.async_closed);
                 return;
             }
             if (!_has && !_popWait.Empty)
@@ -2302,21 +2303,21 @@ namespace Go
                         ntfSign._ntfNode = default(option_node);
                         if (!ntfSign._selectOnce)
                         {
-                            append_push_notify_(msgNtf, ntfSign, ms);
+                            append_send_notify_(msgNtf, ntfSign, ms);
                         }
-                        cb(state, null);
+                        cb(state);
                     }
                 });
                 _popWait.RemoveFirst().Invoke(chan_async_state.async_ok);
             }
             else
             {
-                append_push_notify_(msgNtf, ntfSign, ms);
-                cb(chan_async_state.async_fail, null);
+                append_send_notify_(msgNtf, ntfSign, ms);
+                cb(chan_async_state.async_fail);
             }
         }
 
-        internal override void remove_push_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
+        protected override void remove_send_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
         {
             bool effect = ntfSign._ntfNode.effect;
             bool success = ntfSign._success;
@@ -2340,14 +2341,14 @@ namespace Go
             ntf(effect ? chan_async_state.async_ok : chan_async_state.async_fail);
         }
 
-        internal override void clear_(Action ntf)
+        protected override void clear_(Action ntf)
         {
             _has = false;
             safe_callback(ref _pushWait, chan_async_state.async_fail);
             ntf();
         }
 
-        internal override void close_(Action ntf, bool isClear = false)
+        protected override void close_(Action ntf, bool isClear = false)
         {
             _closed = true;
             _has = false;
@@ -2355,7 +2356,7 @@ namespace Go
             ntf();
         }
 
-        internal override void cancel_(Action ntf, bool isClear = false)
+        protected override void cancel_(Action ntf, bool isClear = false)
         {
             _has = false;
             safe_callback(ref _popWait, ref _pushWait, chan_async_state.async_cancel);
@@ -2431,27 +2432,27 @@ namespace Go
             return chan_type.broadcast;
         }
 
-        internal override void push_(Action<chan_async_state, object> ntf, T msg, chan_notify_sign ntfSign)
+        protected override void send_(Action<chan_async_state> ntf, T msg, chan_notify_sign ntfSign)
         {
             ntfSign?.reset_success();
             if (_closed)
             {
-                ntf(chan_async_state.async_closed, null);
+                ntf(chan_async_state.async_closed);
                 return;
             }
             _pushCount++;
             _msg = msg;
             _has = true;
             safe_callback(ref _popWait, chan_async_state.async_ok);
-            ntf(chan_async_state.async_ok, null);
+            ntf(chan_async_state.async_ok);
         }
 
-        internal override void pop_(Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign)
+        protected override void recv_(Action<chan_async_state, T> ntf, chan_notify_sign ntfSign)
         {
-            pop_(ntf, ntfSign, broadcast_token._defToken);
+            recv_(ntf, ntfSign, broadcast_token._defToken);
         }
 
-        internal override void pop_(Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign, broadcast_token token)
+        protected override void recv_(Action<chan_async_state, T> ntf, chan_notify_sign ntfSign, broadcast_token token)
         {
             ntfSign?.reset_success();
             if (_has && token._lastId != _pushCount)
@@ -2460,11 +2461,11 @@ namespace Go
                 {
                     token._lastId = _pushCount;
                 }
-                ntf(chan_async_state.async_ok, _msg, null);
+                ntf(chan_async_state.async_ok, _msg);
             }
             else if (_closed)
             {
-                ntf(chan_async_state.async_closed, default(T), null);
+                ntf(chan_async_state.async_closed, default(T));
             }
             else
             {
@@ -2475,28 +2476,28 @@ namespace Go
                         ntfSign?.clear();
                         if (chan_async_state.async_ok == state)
                         {
-                            pop_(ntf, ntfSign, token);
+                            recv_(ntf, ntfSign, token);
                         }
                         else
                         {
-                            ntf(state, default(T), null);
+                            ntf(state, default(T));
                         }
                     }
                 }));
             }
         }
 
-        internal override void try_push_(Action<chan_async_state, object> ntf, T msg, chan_notify_sign ntfSign)
+        protected override void try_send_(Action<chan_async_state> ntf, T msg, chan_notify_sign ntfSign)
         {
-            push_(ntf, msg, ntfSign);
+            send_(ntf, msg, ntfSign);
         }
 
-        internal override void try_pop_(Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign)
+        protected override void try_recv_(Action<chan_async_state, T> ntf, chan_notify_sign ntfSign)
         {
-            try_pop_(ntf, ntfSign, broadcast_token._defToken);
+            try_recv_(ntf, ntfSign, broadcast_token._defToken);
         }
 
-        internal override void try_pop_(Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign, broadcast_token token)
+        protected override void try_recv_(Action<chan_async_state, T> ntf, chan_notify_sign ntfSign, broadcast_token token)
         {
             ntfSign?.reset_success();
             if (_has && token._lastId != _pushCount)
@@ -2505,35 +2506,35 @@ namespace Go
                 {
                     token._lastId = _pushCount;
                 }
-                ntf(chan_async_state.async_ok, _msg, null);
+                ntf(chan_async_state.async_ok, _msg);
             }
             else if (_closed)
             {
-                ntf(chan_async_state.async_closed, default(T), null);
+                ntf(chan_async_state.async_closed, default(T));
             }
             else
             {
-                ntf(chan_async_state.async_fail, default(T), null);
+                ntf(chan_async_state.async_fail, default(T));
             }
         }
 
-        internal override void timed_push_(int ms, Action<chan_async_state, object> ntf, T msg, chan_notify_sign ntfSign)
+        protected override void timed_send_(int ms, Action<chan_async_state> ntf, T msg, chan_notify_sign ntfSign)
         {
-            push_(ntf, msg, ntfSign);
+            send_(ntf, msg, ntfSign);
         }
 
-        internal override void timed_pop_(int ms, Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign)
+        protected override void timed_recv_(int ms, Action<chan_async_state, T> ntf, chan_notify_sign ntfSign)
         {
-            timed_pop_(ms, ntf, ntfSign, broadcast_token._defToken);
+            timed_recv_(ms, ntf, ntfSign, broadcast_token._defToken);
         }
 
-        internal override void timed_pop_(int ms, Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign, broadcast_token token)
+        protected override void timed_recv_(int ms, Action<chan_async_state, T> ntf, chan_notify_sign ntfSign, broadcast_token token)
         {
             ntfSign?.reset_success();
             _timed_check_pop(system_tick.get_tick_ms() + ms, ntf, ntfSign, token);
         }
 
-        void _timed_check_pop(long deadms, Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign, broadcast_token token)
+        void _timed_check_pop(long deadms, Action<chan_async_state, T> ntf, chan_notify_sign ntfSign, broadcast_token token)
         {
             if (_has && token._lastId != _pushCount)
             {
@@ -2541,11 +2542,11 @@ namespace Go
                 {
                     token._lastId = _pushCount;
                 }
-                ntf(chan_async_state.async_ok, _msg, null);
+                ntf(chan_async_state.async_ok, _msg);
             }
             else if (_closed)
             {
-                ntf(chan_async_state.async_closed, default(T), null);
+                ntf(chan_async_state.async_closed, default(T));
             }
             else
             {
@@ -2563,7 +2564,7 @@ namespace Go
                         }
                         else
                         {
-                            ntf(state, default(T), null);
+                            ntf(state, default(T));
                         }
                     }
                 });
@@ -2576,17 +2577,17 @@ namespace Go
             }
         }
 
-        internal override void append_pop_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign, int ms)
+        protected override void append_recv_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign, int ms)
         {
-            append_pop_notify_(ntf, ntfSign, broadcast_token._defToken, ms);
+            append_recv_notify_(ntf, ntfSign, broadcast_token._defToken, ms);
         }
 
-        internal override void append_pop_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign, broadcast_token token, int ms)
+        protected override void append_recv_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign, broadcast_token token, int ms)
         {
-            _append_pop_notify(ntf, ntfSign, token, ms);
+            _append_recv_notify(ntf, ntfSign, token, ms);
         }
 
-        bool _append_pop_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign, broadcast_token token, int ms)
+        bool _append_recv_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign, broadcast_token token, int ms)
         {
             if (_has && token._lastId != _pushCount)
             {
@@ -2637,30 +2638,30 @@ namespace Go
             }
         }
 
-        internal override void try_pop_and_append_notify_(Action<chan_async_state, T, object> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, int ms)
+        protected override void try_recv_and_append_notify_(Action<chan_async_state, T> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, int ms)
         {
-            try_pop_and_append_notify_(cb, msgNtf, ntfSign, broadcast_token._defToken, ms);
+            try_recv_and_append_notify_(cb, msgNtf, ntfSign, broadcast_token._defToken, ms);
         }
 
-        internal override void try_pop_and_append_notify_(Action<chan_async_state, T, object> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, broadcast_token token, int ms = -1)
+        protected override void try_recv_and_append_notify_(Action<chan_async_state, T> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, broadcast_token token, int ms = -1)
         {
             ntfSign.reset_success();
-            if (_append_pop_notify(msgNtf, ntfSign, token, ms))
+            if (_append_recv_notify(msgNtf, ntfSign, token, ms))
             {
-                cb(chan_async_state.async_ok, _msg, null);
+                cb(chan_async_state.async_ok, _msg);
             }
             else if (_closed)
             {
                 msgNtf(chan_async_state.async_closed);
-                cb(chan_async_state.async_closed, default(T), null);
+                cb(chan_async_state.async_closed, default(T));
             }
             else
             {
-                cb(chan_async_state.async_fail, default(T), null);
+                cb(chan_async_state.async_fail, default(T));
             }
         }
 
-        internal override void remove_pop_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
+        protected override void remove_recv_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
         {
             bool effect = ntfSign._ntfNode.effect;
             bool success = ntfSign._success;
@@ -2677,7 +2678,7 @@ namespace Go
             ntf(effect ? chan_async_state.async_ok : chan_async_state.async_fail);
         }
 
-        internal override void append_push_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign, int ms)
+        protected override void append_send_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign, int ms)
         {
             if (_closed)
             {
@@ -2688,34 +2689,34 @@ namespace Go
             ntf(chan_async_state.async_ok);
         }
 
-        internal override void try_push_and_append_notify_(Action<chan_async_state, object> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, T msg, int ms)
+        protected override void try_send_and_append_notify_(Action<chan_async_state> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, T msg, int ms)
         {
             ntfSign.reset_success();
             if (_closed)
             {
                 msgNtf(chan_async_state.async_closed);
-                cb(chan_async_state.async_closed, null);
+                cb(chan_async_state.async_closed);
                 return;
             }
             _pushCount++;
             _msg = msg;
             _has = true;
             msgNtf(chan_async_state.async_ok);
-            cb(chan_async_state.async_ok, null);
+            cb(chan_async_state.async_ok);
         }
 
-        internal override void remove_push_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
+        protected override void remove_send_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
         {
             ntf(chan_async_state.async_fail);
         }
 
-        internal override void clear_(Action ntf)
+        protected override void clear_(Action ntf)
         {
             _has = false;
             ntf();
         }
 
-        internal override void close_(Action ntf, bool isClear = false)
+        protected override void close_(Action ntf, bool isClear = false)
         {
             _closed = true;
             _has &= !isClear;
@@ -2723,7 +2724,7 @@ namespace Go
             ntf();
         }
 
-        internal override void cancel_(Action ntf, bool isClear = false)
+        protected override void cancel_(Action ntf, bool isClear = false)
         {
             _has &= !isClear;
             safe_callback(ref _popWait, chan_async_state.async_cancel);
@@ -2731,18 +2732,18 @@ namespace Go
         }
     }
 
-    public class csp_chan<R, T> : chan<T>
+    public class csp_chan<R, T> : chan_base
     {
         struct send_pck
         {
-            public Action<chan_async_state, object> _notify;
+            public Action<chan_async_state, R> _notify;
             public T _msg;
             public bool _has;
             public bool _isTryMsg;
             public int _invokeMs;
             async_timer _timer;
 
-            public void set(Action<chan_async_state, object> ntf, T msg, async_timer timer, int ms = -1)
+            public void set(Action<chan_async_state, R> ntf, T msg, async_timer timer, int ms = -1)
             {
                 _notify = ntf;
                 _msg = msg;
@@ -2751,7 +2752,7 @@ namespace Go
                 _timer = timer;
             }
 
-            public void set(Action<chan_async_state, object> ntf, T msg, int ms = -1)
+            public void set(Action<chan_async_state, R> ntf, T msg, int ms = -1)
             {
                 _notify = ntf;
                 _msg = msg;
@@ -2760,7 +2761,7 @@ namespace Go
                 _timer = null;
             }
 
-            public Action<chan_async_state, object> cancel()
+            public Action<chan_async_state, R> cancel()
             {
                 _isTryMsg = _has = false;
                 _timer?.cancel();
@@ -2771,10 +2772,10 @@ namespace Go
         public class csp_result
         {
             internal int _invokeMs;
-            internal Action<chan_async_state, object> _notify;
+            internal Action<chan_async_state, R> _notify;
             async_timer _invokeTimer;
 
-            internal csp_result(int ms, Action<chan_async_state, object> notify)
+            internal csp_result(int ms, Action<chan_async_state, R> notify)
             {
                 _invokeMs = ms;
                 _notify = notify;
@@ -2796,7 +2797,7 @@ namespace Go
                 _invokeTimer = null;
                 if (null != _notify)
                 {
-                    Action<chan_async_state, object> ntf = _notify;
+                    Action<chan_async_state, R> ntf = _notify;
                     _notify = null;
                     ntf.Invoke(chan_async_state.async_ok, res);
                     return true;
@@ -2808,9 +2809,9 @@ namespace Go
             {
                 _invokeTimer?.cancel();
                 _invokeTimer = null;
-                Action<chan_async_state, object> ntf = _notify;
+                Action<chan_async_state, R> ntf = _notify;
                 _notify = null;
-                ntf?.Invoke(chan_async_state.async_csp_fail, default(T));
+                ntf?.Invoke(chan_async_state.async_csp_fail, default(R));
             }
         }
 
@@ -2822,39 +2823,39 @@ namespace Go
             public chan_lost_msg<T> _lostMsg;
             public int _chanTimeout = -1;
             csp_wait_wrap<R, T> _tempResult = default(csp_wait_wrap<R, T>);
-            Action<chan_async_state, T, object> _tryPopHandler;
+            Action<chan_async_state, T, csp_result> _tryPopHandler;
             generator _host;
 
             public override void begin(generator host)
             {
                 ntfSign._disable = false;
                 _host = host;
-                _chan.append_pop_notify(nextSelect, ntfSign, _chanTimeout);
+                _chan.append_recv_notify(nextSelect, ntfSign, _chanTimeout);
             }
 
             public override async Task<select_chan_state> invoke(Func<Task> stepOne)
             {
                 if (null == _tryPopHandler)
                 {
-                    _tryPopHandler = delegate (chan_async_state state, T msg, object exObj)
+                    _tryPopHandler = delegate (chan_async_state state, T msg, csp_result cspRes)
                     {
                         _tempResult.state = state;
                         if (chan_async_state.async_ok == state)
                         {
                             _tempResult.msg = msg;
-                            _tempResult.result = (csp_chan<R, T>.csp_result)exObj;
+                            _tempResult.result = cspRes;
                         }
                     };
                 }
                 try
                 {
                     _tempResult = new csp_wait_wrap<R, T> { state = chan_async_state.async_undefined };
-                    _chan.try_pop_and_append_notify(_host.async_callback(_tryPopHandler), nextSelect, ntfSign, _chanTimeout);
+                    _chan.try_recv_and_append_notify(_host.async_callback(_tryPopHandler), nextSelect, ntfSign, _chanTimeout);
                     await _host.async_wait();
                 }
                 catch (generator.stop_exception)
                 {
-                    _chan.remove_pop_notify(_host.async_ignore<chan_async_state>(), ntfSign);
+                    _chan.remove_recv_notify(_host.async_ignore<chan_async_state>(), ntfSign);
                     await _host.async_wait();
                     if (chan_async_state.async_ok == _tempResult.state)
                     {
@@ -2914,7 +2915,7 @@ namespace Go
                         await generator.unlock_suspend();
                         if (!await _errHandler(state) && chan_async_state.async_closed != state)
                         {
-                            _chan.append_pop_notify(nextSelect, ntfSign, _chanTimeout);
+                            _chan.append_recv_notify(nextSelect, ntfSign, _chanTimeout);
                             return false;
                         }
                     }
@@ -2929,7 +2930,7 @@ namespace Go
             public override Task end()
             {
                 ntfSign._disable = true;
-                _chan.remove_pop_notify(_host.async_ignore<chan_async_state>(), ntfSign);
+                _chan.remove_recv_notify(_host.async_ignore<chan_async_state>(), ntfSign);
                 return _host.async_wait();
             }
 
@@ -2950,43 +2951,43 @@ namespace Go
             public async_result_wrap<T> _msg;
             public Func<R, Task> _handler;
             public Func<chan_async_state, Task<bool>> _errHandler;
-            public Action<chan_async_state, object> _lostHandler;
+            public Action<chan_async_state, R> _lostHandler;
             public chan_lost_msg<T> _lostMsg;
             public int _chanTimeout = -1;
             csp_invoke_wrap<R> _tempResult = default(csp_invoke_wrap<R>);
-            Action<chan_async_state, object> _tryPushHandler;
+            Action<chan_async_state, R> _tryPushHandler;
             generator _host;
 
             public override void begin(generator host)
             {
                 ntfSign._disable = false;
                 _host = host;
-                _chan.append_push_notify(nextSelect, ntfSign, _chanTimeout);
+                _chan.append_send_notify(nextSelect, ntfSign, _chanTimeout);
             }
 
             public override async Task<select_chan_state> invoke(Func<Task> stepOne)
             {
                 if (null == _tryPushHandler)
                 {
-                    _tryPushHandler = delegate (chan_async_state state, object exObj)
+                    _tryPushHandler = delegate (chan_async_state state, R resVal)
                     {
                         _tempResult.state = state;
                         if (chan_async_state.async_ok == state)
                         {
-                            _tempResult.result = (R)exObj;
+                            _tempResult.result = resVal;
                         }
                     };
                 }
                 try
                 {
                     _tempResult = new csp_invoke_wrap<R> { state = chan_async_state.async_undefined };
-                    _chan.try_push_and_append_notify(null == _lostHandler ? _host.async_callback(_tryPushHandler) : _host.safe_async_callback(_tryPushHandler, _lostHandler), nextSelect, ntfSign, _msg.value1, _chanTimeout);
+                    _chan.try_send_and_append_notify(null == _lostHandler ? _host.async_callback(_tryPushHandler) : _host.safe_async_callback(_tryPushHandler, _lostHandler), nextSelect, ntfSign, _msg.value1, _chanTimeout);
                     await _host.async_wait();
                 }
                 catch (generator.stop_exception)
                 {
                     chan_async_state rmState = chan_async_state.async_undefined;
-                    _chan.remove_push_notify(_host.async_callback(null == _lostMsg ? nil_action<chan_async_state>.action : (chan_async_state state) => rmState = state), ntfSign);
+                    _chan.remove_send_notify(_host.async_callback(null == _lostMsg ? nil_action<chan_async_state>.action : (chan_async_state state) => rmState = state), ntfSign);
                     await _host.async_wait();
                     if (chan_async_state.async_ok == rmState)
                     {
@@ -3034,7 +3035,7 @@ namespace Go
                         await generator.unlock_suspend();
                         if (!await _errHandler(state) && chan_async_state.async_closed != state)
                         {
-                            _chan.append_push_notify(nextSelect, ntfSign, _chanTimeout);
+                            _chan.append_send_notify(nextSelect, ntfSign, _chanTimeout);
                             return false;
                         }
                     }
@@ -3049,7 +3050,7 @@ namespace Go
             public override Task end()
             {
                 ntfSign._disable = true;
-                _chan.remove_push_notify(_host.async_ignore<chan_async_state>(), ntfSign);
+                _chan.remove_send_notify(_host.async_ignore<chan_async_state>(), ntfSign);
                 return _host.async_wait();
             }
 
@@ -3120,11 +3121,11 @@ namespace Go
                 _handler = handler,
                 _errHandler = errHandler,
                 _lostMsg = lostMsg,
-                _lostHandler = null == lostHandler ? (Action<chan_async_state, object>)null : delegate (chan_async_state state, object exObj)
+                _lostHandler = null == lostHandler ? (Action<chan_async_state, R>)null : delegate (chan_async_state state, R result)
                 {
                     if (chan_async_state.async_ok == state)
                     {
-                        lostHandler((R)exObj);
+                        lostHandler(result);
                     }
                 }
             };
@@ -3150,17 +3151,83 @@ namespace Go
             return chan_type.csp;
         }
 
-        internal override void push_(Action<chan_async_state, object> ntf, T msg, chan_notify_sign ntfSign)
+        public void send(Action<chan_async_state, R> ntf, T msg, chan_notify_sign ntfSign = null)
         {
-            push_(-1, ntf, msg, ntfSign);
+            if (_strand.running_in_this_thread()) send_(ntf, msg, ntfSign);
+            else _strand.post(() => send_(ntf, msg, ntfSign));
         }
 
-        internal void push_(int invokeMs, Action<chan_async_state, object> ntf, T msg, chan_notify_sign ntfSign)
+        public void send(int invokeMs, Action<chan_async_state, R> ntf, T msg, chan_notify_sign ntfSign = null)
+        {
+            if (_strand.running_in_this_thread()) send_(invokeMs, ntf, msg, ntfSign);
+            else _strand.post(() => send_(invokeMs, ntf, msg, ntfSign));
+        }
+
+        public void recv(Action<chan_async_state, T, csp_result> ntf, chan_notify_sign ntfSign = null)
+        {
+            if (_strand.running_in_this_thread()) recv_(ntf, ntfSign);
+            else _strand.post(() => recv_(ntf, ntfSign));
+        }
+
+        public void try_send(Action<chan_async_state, R> ntf, T msg, chan_notify_sign ntfSign = null)
+        {
+            if (_strand.running_in_this_thread()) try_send_(ntf, msg, ntfSign);
+            else _strand.post(() => try_send_(ntf, msg, ntfSign));
+        }
+
+        public void try_send(int invokeMs, Action<chan_async_state, R> ntf, T msg, chan_notify_sign ntfSign = null)
+        {
+            if (_strand.running_in_this_thread()) try_send_(invokeMs, ntf, msg, ntfSign);
+            else _strand.post(() => try_send_(invokeMs, ntf, msg, ntfSign));
+        }
+
+        public void try_recv(Action<chan_async_state, T, csp_result> ntf, chan_notify_sign ntfSign = null)
+        {
+            if (_strand.running_in_this_thread()) try_recv_(ntf, ntfSign);
+            else _strand.post(() => try_recv_(ntf, ntfSign));
+        }
+
+        public void timed_send(int ms, Action<chan_async_state, R> ntf, T msg, chan_notify_sign ntfSign = null)
+        {
+            if (_strand.running_in_this_thread()) timed_send_(ms, ntf, msg, ntfSign);
+            else _strand.post(() => timed_send_(ms, ntf, msg, ntfSign));
+        }
+
+        public void timed_send(int ms, int invokeMs, Action<chan_async_state, R> ntf, T msg, chan_notify_sign ntfSign = null)
+        {
+            if (_strand.running_in_this_thread()) timed_send_(ms, invokeMs, ntf, msg, ntfSign);
+            else _strand.post(() => timed_send_(ms, invokeMs, ntf, msg, ntfSign));
+        }
+
+        public void timed_recv(int ms, Action<chan_async_state, T, csp_result> ntf, chan_notify_sign ntfSign = null)
+        {
+            if (_strand.running_in_this_thread()) timed_recv_(ms, ntf, ntfSign);
+            else _strand.post(() => timed_recv_(ms, ntf, ntfSign));
+        }
+
+        public void try_recv_and_append_notify(Action<chan_async_state, T, csp_result> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, int ms = -1)
+        {
+            if (_strand.running_in_this_thread()) try_recv_and_append_notify_(cb, msgNtf, ntfSign, ms);
+            else _strand.post(() => try_recv_and_append_notify_(cb, msgNtf, ntfSign, ms));
+        }
+
+        public void try_send_and_append_notify(Action<chan_async_state, R> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, T msg, int ms = -1)
+        {
+            if (_strand.running_in_this_thread()) try_send_and_append_notify_(cb, msgNtf, ntfSign, msg, ms);
+            else _strand.post(() => try_send_and_append_notify_(cb, msgNtf, ntfSign, msg, ms));
+        }
+
+        private void send_(Action<chan_async_state, R> ntf, T msg, chan_notify_sign ntfSign)
+        {
+            send_(-1, ntf, msg, ntfSign);
+        }
+
+        private void send_(int invokeMs, Action<chan_async_state, R> ntf, T msg, chan_notify_sign ntfSign)
         {
             ntfSign?.reset_success();
             if (_closed)
             {
-                ntf(chan_async_state.async_closed, null);
+                ntf(chan_async_state.async_closed, default(R));
                 return;
             }
             if (_msg._has || _waitQueue.Empty)
@@ -3172,11 +3239,11 @@ namespace Go
                         ntfSign?.clear();
                         if (chan_async_state.async_ok == state)
                         {
-                            push_(invokeMs, ntf, msg, ntfSign);
+                            send_(invokeMs, ntf, msg, ntfSign);
                         }
                         else
                         {
-                            ntf(state, null);
+                            ntf(state, default(R));
                         }
                     }
                 }));
@@ -3188,13 +3255,7 @@ namespace Go
             }
         }
 
-        internal void push(int invokeMs, Action<chan_async_state, object> ntf, T msg, chan_notify_sign ntfSign)
-        {
-            if (_strand.running_in_this_thread()) push_(invokeMs, ntf, msg, ntfSign);
-            else _strand.post(() => push_(invokeMs, ntf, msg, ntfSign));
-        }
-
-        internal override void pop_(Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign)
+        private void recv_(Action<chan_async_state, T, csp_result> ntf, chan_notify_sign ntfSign)
         {
             ntfSign?.reset_success();
             if (_msg._has)
@@ -3217,7 +3278,7 @@ namespace Go
                         ntfSign?.clear();
                         if (chan_async_state.async_ok == state)
                         {
-                            pop_(ntf, ntfSign);
+                            recv_(ntf, ntfSign);
                         }
                         else
                         {
@@ -3229,22 +3290,22 @@ namespace Go
             }
         }
 
-        internal override void try_push_(Action<chan_async_state, object> ntf, T msg, chan_notify_sign ntfSign)
+        private void try_send_(Action<chan_async_state, R> ntf, T msg, chan_notify_sign ntfSign)
         {
-            try_push_(-1, ntf, msg, ntfSign);
+            try_send_(-1, ntf, msg, ntfSign);
         }
 
-        internal void try_push_(int invokeMs, Action<chan_async_state, object> ntf, T msg, chan_notify_sign ntfSign)
+        private void try_send_(int invokeMs, Action<chan_async_state, R> ntf, T msg, chan_notify_sign ntfSign)
         {
             ntfSign?.reset_success();
             if (_closed)
             {
-                ntf(chan_async_state.async_closed, null);
+                ntf(chan_async_state.async_closed, default(R));
                 return;
             }
             if (_msg._has || _waitQueue.Empty)
             {
-                ntf(chan_async_state.async_fail, null);
+                ntf(chan_async_state.async_fail, default(R));
             }
             else
             {
@@ -3254,13 +3315,7 @@ namespace Go
             }
         }
 
-        internal void try_push(int invokeMs, Action<chan_async_state, object> ntf, T msg, chan_notify_sign ntfSign)
-        {
-            if (_strand.running_in_this_thread()) try_push_(invokeMs, ntf, msg, ntfSign);
-            else _strand.post(() => try_push_(invokeMs, ntf, msg, ntfSign));
-        }
-
-        internal override void try_pop_(Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign)
+        private void try_recv_(Action<chan_async_state, T, csp_result> ntf, chan_notify_sign ntfSign)
         {
             ntfSign?.reset_success();
             if (_msg._has)
@@ -3285,7 +3340,7 @@ namespace Go
                         ntfSign?.clear();
                         if (chan_async_state.async_ok == state)
                         {
-                            pop_(ntf, ntfSign);
+                            recv_(ntf, ntfSign);
                         }
                         else
                         {
@@ -3301,17 +3356,17 @@ namespace Go
             }
         }
 
-        internal override void timed_push_(int ms, Action<chan_async_state, object> ntf, T msg, chan_notify_sign ntfSign)
+        private void timed_send_(int ms, Action<chan_async_state, R> ntf, T msg, chan_notify_sign ntfSign)
         {
-            timed_push_(ms, -1, ntf, msg, ntfSign);
+            timed_send_(ms, -1, ntf, msg, ntfSign);
         }
 
-        internal void timed_push_(int ms, int invokeMs, Action<chan_async_state, object> ntf, T msg, chan_notify_sign ntfSign)
+        private void timed_send_(int ms, int invokeMs, Action<chan_async_state, R> ntf, T msg, chan_notify_sign ntfSign)
         {
             ntfSign?.reset_success();
             if (_closed)
             {
-                ntf(chan_async_state.async_closed, null);
+                ntf(chan_async_state.async_closed, default(R));
                 return;
             }
             if (_msg._has || _waitQueue.Empty)
@@ -3328,11 +3383,11 @@ namespace Go
                             timer.cancel();
                             if (chan_async_state.async_ok == state)
                             {
-                                push_(invokeMs, ntf, msg, ntfSign);
+                                send_(invokeMs, ntf, msg, ntfSign);
                             }
                             else
                             {
-                                ntf(state, null);
+                                ntf(state, default(R));
                             }
                         }
                     });
@@ -3351,11 +3406,11 @@ namespace Go
                             ntfSign?.clear();
                             if (chan_async_state.async_ok == state)
                             {
-                                push_(invokeMs, ntf, msg, ntfSign);
+                                send_(invokeMs, ntf, msg, ntfSign);
                             }
                             else
                             {
-                                ntf(state, null);
+                                ntf(state, default(R));
                             }
                         }
                     }));
@@ -3368,7 +3423,7 @@ namespace Go
                 timer.timeout(ms, delegate ()
                 {
                     _msg.cancel();
-                    ntf(chan_async_state.async_overtime, null);
+                    ntf(chan_async_state.async_overtime, default(R));
                 });
                 _waitQueue.RemoveFirst().Invoke(chan_async_state.async_ok);
             }
@@ -3379,13 +3434,7 @@ namespace Go
             }
         }
 
-        internal void timed_push(int ms, int invokeMs, Action<chan_async_state, object> ntf, T msg, chan_notify_sign ntfSign)
-        {
-            if (_strand.running_in_this_thread()) timed_push_(ms, invokeMs, ntf, msg, ntfSign);
-            else _strand.post(() => timed_push_(ms, invokeMs, ntf, msg, ntfSign));
-        }
-
-        internal override void timed_pop_(int ms, Action<chan_async_state, T, object> ntf, chan_notify_sign ntfSign)
+        private void timed_recv_(int ms, Action<chan_async_state, T, csp_result> ntf, chan_notify_sign ntfSign)
         {
             ntfSign?.reset_success();
             if (_msg._has)
@@ -3411,7 +3460,7 @@ namespace Go
                         timer.cancel();
                         if (chan_async_state.async_ok == state)
                         {
-                            pop_(ntf, ntfSign);
+                            recv_(ntf, ntfSign);
                         }
                         else
                         {
@@ -3435,7 +3484,7 @@ namespace Go
                         ntfSign?.clear();
                         if (chan_async_state.async_ok == state)
                         {
-                            pop_(ntf, ntfSign);
+                            recv_(ntf, ntfSign);
                         }
                         else
                         {
@@ -3447,7 +3496,7 @@ namespace Go
             }
         }
 
-        internal override void append_pop_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign, int ms)
+        protected override void append_recv_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign, int ms)
         {
             if (_msg._has)
             {
@@ -3493,7 +3542,7 @@ namespace Go
             }
         }
 
-        internal override void try_pop_and_append_notify_(Action<chan_async_state, T, object> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, int ms)
+        private void try_recv_and_append_notify_(Action<chan_async_state, T, csp_result> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, int ms)
         {
             ntfSign.reset_success();
             if (_msg._has)
@@ -3503,7 +3552,7 @@ namespace Go
                 _sendQueue.RemoveFirst().Invoke(chan_async_state.async_ok);
                 if (!ntfSign._selectOnce)
                 {
-                    append_pop_notify_(msgNtf, ntfSign, ms);
+                    append_recv_notify_(msgNtf, ntfSign, ms);
                 }
                 cb(chan_async_state.async_ok, msg._msg, new csp_result(msg._invokeMs, msg._notify));
             }
@@ -3523,7 +3572,7 @@ namespace Go
                         ntfSign?.clear();
                         if (chan_async_state.async_ok == state)
                         {
-                            pop_(cb, ntfSign);
+                            recv_(cb, ntfSign);
                         }
                         else
                         {
@@ -3535,12 +3584,12 @@ namespace Go
             }
             else
             {
-                append_pop_notify_(msgNtf, ntfSign, ms);
+                append_recv_notify_(msgNtf, ntfSign, ms);
                 cb(chan_async_state.async_fail, default(T), null);
             }
         }
 
-        internal override void remove_pop_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
+        protected override void remove_recv_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
         {
             bool effect = ntfSign._ntfNode.effect;
             bool success = ntfSign._success;
@@ -3555,13 +3604,13 @@ namespace Go
             {
                 if (!_waitQueue.RemoveFirst().Invoke(chan_async_state.async_ok) && _msg._isTryMsg)
                 {
-                    _msg.cancel().Invoke(chan_async_state.async_fail, null);
+                    _msg.cancel().Invoke(chan_async_state.async_fail, default(R));
                 }
             }
             ntf(effect ? chan_async_state.async_ok : chan_async_state.async_fail);
         }
 
-        internal override void append_push_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign, int ms)
+        protected override void append_send_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign, int ms)
         {
             if (_closed)
             {
@@ -3606,13 +3655,13 @@ namespace Go
             }
         }
 
-        internal override void try_push_and_append_notify_(Action<chan_async_state, object> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, T msg, int ms)
+        private void try_send_and_append_notify_(Action<chan_async_state, R> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, T msg, int ms)
         {
             ntfSign.reset_success();
             if (_closed)
             {
                 msgNtf(chan_async_state.async_closed);
-                cb(chan_async_state.async_closed, null);
+                cb(chan_async_state.async_closed, default(R));
                 return;
             }
             if (!_msg._has && !_waitQueue.Empty)
@@ -3621,18 +3670,18 @@ namespace Go
                 _msg._isTryMsg = true;
                 if (!ntfSign._selectOnce)
                 {
-                    append_push_notify_(msgNtf, ntfSign, ms);
+                    append_send_notify_(msgNtf, ntfSign, ms);
                 }
                 _waitQueue.RemoveFirst().Invoke(chan_async_state.async_ok);
             }
             else
             {
-                append_push_notify_(msgNtf, ntfSign, ms);
-                cb(chan_async_state.async_fail, null);
+                append_send_notify_(msgNtf, ntfSign, ms);
+                cb(chan_async_state.async_fail, default(R));
             }
         }
 
-        internal override void remove_push_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
+        protected override void remove_send_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
         {
             bool effect = ntfSign._ntfNode.effect;
             bool success = ntfSign._success;
@@ -3652,35 +3701,35 @@ namespace Go
             ntf(effect ? chan_async_state.async_ok : chan_async_state.async_fail);
         }
 
-        internal override void clear_(Action ntf)
+        protected override void clear_(Action ntf)
         {
             _msg.cancel();
             safe_callback(ref _sendQueue, chan_async_state.async_fail);
             ntf();
         }
 
-        internal override void close_(Action ntf, bool isClear = false)
+        protected override void close_(Action ntf, bool isClear = false)
         {
             _closed = true;
-            Action<chan_async_state, object> hasMsg = null;
+            Action<chan_async_state, R> hasMsg = null;
             if (_msg._has)
             {
                 hasMsg = _msg.cancel();
             }
             safe_callback(ref _sendQueue, ref _waitQueue, chan_async_state.async_closed);
-            hasMsg?.Invoke(chan_async_state.async_closed, null);
+            hasMsg?.Invoke(chan_async_state.async_closed, default(R));
             ntf();
         }
 
-        internal override void cancel_(Action ntf, bool isClear = false)
+        protected override void cancel_(Action ntf, bool isClear = false)
         {
-            Action<chan_async_state, object> hasMsg = null;
+            Action<chan_async_state, R> hasMsg = null;
             if (_msg._has)
             {
                 hasMsg = _msg.cancel();
             }
             safe_callback(ref _sendQueue, ref _waitQueue, chan_async_state.async_cancel);
-            hasMsg?.Invoke(chan_async_state.async_cancel, null);
+            hasMsg?.Invoke(chan_async_state.async_cancel, default(R));
             ntf();
         }
     }
