@@ -106,67 +106,62 @@ namespace Go
 
     struct priority_queue<T>
     {
-        public LinkedList<T>[] _queues;
+        public LinkedList<T> _queue0;
+        public LinkedList<T> _queue1;
 
-        public priority_queue(int maxPri)
+        private static priority_queue_node<T> AddFirst(int priority, ref LinkedList<T> queue, T value)
         {
-            _queues = new LinkedList<T>[maxPri];
-        }
-
-        public bool Null
-        {
-            get
-            {
-                return null == _queues;
-            }
-        }
-
-        public priority_queue_node<T> AddFirst(int priority, T value)
-        {
-            LinkedList<T> queue = _queues[priority];
             if (null == queue)
             {
                 queue = new LinkedList<T>();
-                _queues[priority] = queue;
             }
             return new priority_queue_node<T>() { _priority = priority, _node = queue.AddFirst(value) };
         }
 
-        public priority_queue_node<T> AddLast(int priority, T value)
+        private static priority_queue_node<T> AddLast(int priority, ref LinkedList<T> queue, T value)
         {
-            LinkedList<T> queue = _queues[priority];
             if (null == queue)
             {
                 queue = new LinkedList<T>();
-                _queues[priority] = queue;
             }
             return new priority_queue_node<T>() { _priority = priority, _node = queue.AddLast(value) };
         }
 
+        public priority_queue_node<T> AddFirst(int priority, T value)
+        {
+            switch (priority)
+            {
+                case 0: return AddFirst(priority, ref _queue0, value);
+                case 1: return AddFirst(priority, ref _queue1, value);
+                default: return default(priority_queue_node<T>);
+            }
+        }
+
+        public priority_queue_node<T> AddLast(int priority, T value)
+        {
+            switch (priority)
+            {
+                case 0: return AddLast(priority, ref _queue0, value);
+                case 1: return AddLast(priority, ref _queue1, value);
+                default: return default(priority_queue_node<T>);
+            }
+        }
+
         public priority_queue_node<T> AddFirst(T value)
         {
-            return AddFirst(0, value);
+            return AddFirst(0, ref _queue0, value);
         }
 
         public priority_queue_node<T> AddLast(T value)
         {
-            return AddLast(_queues.Length - 1, value);
+            return AddLast(1, ref _queue1, value);
         }
 
         public bool Empty
         {
             get
             {
-                int length = _queues.Length;
-                for (int i = 0; i < length; i++)
-                {
-                    LinkedList<T> queue = _queues[i];
-                    if (null != queue && 0 != queue.Count)
-                    {
-                        return false;
-                    }
-                }
-                return true;
+                return 0 == (null == _queue0 ? 0 : _queue0.Count) + (null == _queue1 ? 0 : _queue1.Count);
             }
         }
 
@@ -174,14 +169,13 @@ namespace Go
         {
             get
             {
-                int length = _queues.Length;
-                for (int i = 0; i < length; i++)
+                if (null != _queue0 && 0 != _queue0.Count)
                 {
-                    LinkedList<T> queue = _queues[i];
-                    if (null != queue && 0 != queue.Count)
-                    {
-                        return new priority_queue_node<T>() { _priority = i, _node = queue.First };
-                    }
+                    return new priority_queue_node<T>() { _priority = 0, _node = _queue0.First };
+                }
+                else if (null != _queue1 && 0 != _queue1.Count)
+                {
+                    return new priority_queue_node<T>() { _priority = 1, _node = _queue1.First };
                 }
                 return new priority_queue_node<T>();
             }
@@ -191,14 +185,13 @@ namespace Go
         {
             get
             {
-                int length = _queues.Length;
-                for (int i = length - 1; i >= 0; i--)
+                if (null != _queue1 && 0 != _queue1.Count)
                 {
-                    LinkedList<T> queue = _queues[i];
-                    if (null != queue && 0 != queue.Count)
-                    {
-                        return new priority_queue_node<T>() { _priority = i, _node = queue.Last };
-                    }
+                    return new priority_queue_node<T>() { _priority = 1, _node = _queue1.Last };
+                }
+                else if (null != _queue0 && 0 != _queue0.Count)
+                {
+                    return new priority_queue_node<T>() { _priority = 0, _node = _queue0.Last };
                 }
                 return new priority_queue_node<T>();
             }
@@ -206,32 +199,34 @@ namespace Go
 
         public T RemoveFirst()
         {
-            int length = _queues.Length;
-            for (int i = 0; i < length; i++)
+            if (null != _queue0 && 0 != _queue0.Count)
             {
-                LinkedList<T> queue = _queues[i];
-                if (null != queue && 0 != queue.Count)
-                {
-                    T first = queue.First.Value;
-                    queue.RemoveFirst();
-                    return first;
-                }
+                T first = _queue0.First.Value;
+                _queue0.RemoveFirst();
+                return first;
+            }
+            else if (null != _queue1 && 0 != _queue1.Count)
+            {
+                T first = _queue1.First.Value;
+                _queue1.RemoveFirst();
+                return first;
             }
             return default(T);
         }
 
         public T RemoveLast()
         {
-            int length = _queues.Length;
-            for (int i = length - 1; i >= 0; i--)
+            if (null != _queue1 && 0 != _queue1.Count)
             {
-                LinkedList<T> queue = _queues[i];
-                if (null != queue && 0 != queue.Count)
-                {
-                    T last = queue.Last.Value;
-                    queue.RemoveLast();
-                    return last;
-                }
+                T last = _queue1.Last.Value;
+                _queue1.RemoveLast();
+                return last;
+            }
+            else if (null != _queue0 && 0 != _queue0.Count)
+            {
+                T last = _queue0.Last.Value;
+                _queue0.RemoveLast();
+                return last;
             }
             return default(T);
         }
@@ -240,7 +235,11 @@ namespace Go
         {
             if (null != node._node)
             {
-                _queues[node._priority].Remove(node._node);
+                switch (node._priority)
+                {
+                    case 0: _queue0.Remove(node._node); break;
+                    case 1: _queue1.Remove(node._node); break;
+                }
                 return node._node.Value;
             }
             return default(T);
@@ -333,24 +332,31 @@ namespace Go
             else _strand.post(() => append_pop_notify_(ntf, ntfSign, token, ms));
         }
 
+        static private void queue_callback(ref priority_queue<notify_pck> queue, chan_async_state state)
+        {
+            if (null != queue._queue0)
+            {
+                for (LinkedListNode<notify_pck> it = queue._queue0.First; null != it; it = it.Next)
+                {
+                    it.Value.Invoke(state);
+                }
+            }
+            if (null != queue._queue1)
+            {
+                for (LinkedListNode<notify_pck> it = queue._queue1.First; null != it; it = it.Next)
+                {
+                    it.Value.Invoke(state);
+                }
+            }
+        }
+
         static internal void safe_callback(ref priority_queue<notify_pck> callback, chan_async_state state)
         {
-            if (!callback.Null && !callback.Empty)
+            if (!callback.Empty)
             {
                 priority_queue<notify_pck> tempCb = callback;
-                callback = chan_async_state.async_closed == state ? default(priority_queue<notify_pck>) : new priority_queue<notify_pck>(2);
-                int length = tempCb._queues.Length;
-                for (int i = 0; i < length; i++)
-                {
-                    LinkedList<notify_pck> queue = tempCb._queues[i];
-                    if (null != queue)
-                    {
-                        for (LinkedListNode<notify_pck> it = queue.First; null != it; it = it.Next)
-                        {
-                            it.Value.Invoke(state);
-                        }
-                    }
-                }
+                callback = new priority_queue<notify_pck>();
+                queue_callback(ref tempCb, state);
             }
         }
 
@@ -358,45 +364,23 @@ namespace Go
         {
             priority_queue<notify_pck> tempCb1 = default(priority_queue<notify_pck>);
             priority_queue<notify_pck> tempCb2 = default(priority_queue<notify_pck>);
-            if (!callback1.Null && !callback1.Empty)
+            if (!callback1.Empty)
             {
                 tempCb1 = callback1;
-                callback1 = chan_async_state.async_closed == state ? default(priority_queue<notify_pck>) : new priority_queue<notify_pck>(2);
+                callback1 = new priority_queue<notify_pck>();
             }
-            if (!callback2.Null && !callback2.Empty)
+            if (!callback2.Empty)
             {
                 tempCb2 = callback2;
-                callback2 = chan_async_state.async_closed == state ? default(priority_queue<notify_pck>) : new priority_queue<notify_pck>(2);
+                callback2 = new priority_queue<notify_pck>();
             }
-            if (!tempCb1.Null && !tempCb1.Empty)
+            if (!tempCb1.Empty)
             {
-                int length = tempCb1._queues.Length;
-                for (int i = 0; i < length; i++)
-                {
-                    LinkedList<notify_pck> queue = tempCb1._queues[i];
-                    if (null != queue)
-                    {
-                        for (LinkedListNode<notify_pck> it = queue.First; null != it; it = it.Next)
-                        {
-                            it.Value.Invoke(state);
-                        }
-                    }
-                }
+                queue_callback(ref tempCb1, state);
             }
-            if (!tempCb2.Null && !tempCb2.Empty)
+            if (!tempCb2.Empty)
             {
-                int length = tempCb2._queues.Length;
-                for (int i = 0; i < length; i++)
-                {
-                    LinkedList<notify_pck> queue = tempCb2._queues[i];
-                    if (null != queue)
-                    {
-                        for (LinkedListNode<notify_pck> it = queue.First; null != it; it = it.Next)
-                        {
-                            it.Value.Invoke(state);
-                        }
-                    }
-                }
+                queue_callback(ref tempCb2, state);
             }
         }
     }
@@ -1009,7 +993,7 @@ namespace Go
             _strand = strand;
             _closed = false;
             _buffer = typeof(T) == typeof(void_type) ? (msg_queue<T>)new void_msg_queue<T>() : new no_void_msg_queue<T>();
-            _waitQueue = new priority_queue<notify_pck>(2);
+            _waitQueue = new priority_queue<notify_pck>();
         }
 
         public override chan_type type()
@@ -1324,8 +1308,8 @@ namespace Go
         {
             _strand = strand;
             _buffer = typeof(T) == typeof(void_type) ? (msg_queue<T>)new void_msg_queue<T>() : new no_void_msg_queue<T>();
-            _pushWait = new priority_queue<notify_pck>(2);
-            _popWait = new priority_queue<notify_pck>(2);
+            _pushWait = new priority_queue<notify_pck>();
+            _popWait = new priority_queue<notify_pck>();
             _length = len;
             _closed = false;
         }
@@ -1820,8 +1804,8 @@ namespace Go
         private void init(shared_strand strand)
         {
             _strand = strand;
-            _pushWait = new priority_queue<notify_pck>(2);
-            _popWait = new priority_queue<notify_pck>(2);
+            _pushWait = new priority_queue<notify_pck>();
+            _popWait = new priority_queue<notify_pck>();
             _isTryPush = false;
             _isTryPop = false;
             _has = false;
@@ -2416,7 +2400,7 @@ namespace Go
         private void init(shared_strand strand)
         {
             _strand = strand;
-            _popWait = new priority_queue<notify_pck>(2);
+            _popWait = new priority_queue<notify_pck>();
             _has = false;
             _pushCount = 0;
             _closed = false;
@@ -3099,8 +3083,8 @@ namespace Go
         private void init(shared_strand strand)
         {
             _strand = strand;
-            _sendQueue = new priority_queue<notify_pck>(2);
-            _waitQueue = new priority_queue<notify_pck>(2);
+            _sendQueue = new priority_queue<notify_pck>();
+            _waitQueue = new priority_queue<notify_pck>();
             _msg.cancel();
             _isTryPop = false;
             _closed = false;
