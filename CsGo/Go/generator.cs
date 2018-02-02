@@ -500,11 +500,11 @@ namespace Go
         static ReaderWriterLockSlim _nameMutex = new ReaderWriterLockSlim();
         static Dictionary<string, generator> _nameGens = new Dictionary<string, generator>();
 
-        LinkedList<LinkedList<select_chan_base>> _topSelectChans;
-        LinkedList<Action> _callbacks;
         Dictionary<long, mail_pck> _mailboxMap;
-        Action<bool> _suspendCb;
+        LinkedList<LinkedList<select_chan_base>> _topSelectChans;
         LinkedList<children> _children;
+        LinkedList<Action> _callbacks;
+        Action<bool> _suspendCb;
         chan_notify_sign _ioSign;
         mutli_callback _multiCb;
         System.Exception _excep;
@@ -2649,7 +2649,7 @@ namespace Go
         {
             get
             {
-                shared_strand currStrand = shared_strand.work_strand();
+                shared_strand currStrand = shared_strand.running_strand();
                 return null != currStrand ? currStrand.currSelf : null;
             }
         }

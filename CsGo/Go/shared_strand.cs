@@ -446,10 +446,10 @@ namespace Go
 
         public bool running_in_this_thread()
         {
-            return this == work_strand();
+            return this == running_strand();
         }
 
-        static public shared_strand work_strand()
+        static public shared_strand running_strand()
         {
             curr_strand currStrand = _currStrand.Value;
             return null != currStrand ? currStrand.strand : null;
@@ -465,9 +465,14 @@ namespace Go
             return _defaultStrand[mt19937.global().Next(0, _defaultStrand.Length)];
         }
 
+        static public shared_strand global_strand()
+        {
+            return _defaultStrand[mt19937.global().Next(0, _defaultStrand.Length)];
+        }
+
         static public void next_tick(Action action)
         {
-            shared_strand currStrand = work_strand();
+            shared_strand currStrand = running_strand();
 #if DEBUG
             Trace.Assert(null != currStrand, "不正确的 next_tick 调用!");
 #endif
@@ -476,7 +481,7 @@ namespace Go
 
         static public void last_tick(Action action)
         {
-            shared_strand currStrand = work_strand();
+            shared_strand currStrand = running_strand();
 #if DEBUG
             Trace.Assert(null != currStrand, "不正确的 last_tick 调用!");
 #endif
