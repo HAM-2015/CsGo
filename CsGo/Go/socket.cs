@@ -1005,6 +1005,8 @@ namespace Go
         }
     }
 
+#if NETCORE
+#else
     public class socket_serial : socket
     {
         SerialPort _socket;
@@ -1108,6 +1110,7 @@ namespace Go
             catch (System.Exception) { }
         }
     }
+#endif
 
     public abstract class socket_pipe : socket
     {

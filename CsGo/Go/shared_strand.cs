@@ -5,7 +5,6 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Diagnostics;
-using System.Windows.Forms;
 using System.Runtime.InteropServices;
 
 namespace Go
@@ -181,10 +180,6 @@ namespace Go
             private static extern int SetEvent(int hHandle);
             [DllImport("kernel32.dll")]
             private static extern int CloseHandle(int hHandle);
-            [DllImport("kernel32.dll")]
-            private static extern int InterlockedCompareExchange(ref int Destination, int Exchange, int Comparand);
-            [DllImport("kernel32.dll")]
-            private static extern int InterlockedExchangeAdd(ref int Addend, int Value);
 
             const int lockFlag = 1 << 31;
             const int eventFlag = 1 << 30;
@@ -202,7 +197,7 @@ namespace Go
                 int old = x;
                 do
                 {
-                    int current = InterlockedCompareExchange(ref x, old | flag, old);
+                    int current = Interlocked.CompareExchange(ref x, old | flag, old);
                     if (current == old)
                     {
                         break;
@@ -218,7 +213,7 @@ namespace Go
                 {
                     bool wasLocked = 0 != (oldCount & lockFlag);
                     int newCount = wasLocked ? (oldCount + 1) : (oldCount | lockFlag);
-                    int current = InterlockedCompareExchange(ref _activeCount, newCount, oldCount);
+                    int current = Interlocked.CompareExchange(ref _activeCount, newCount, oldCount);
                     if (current == oldCount)
                     {
                         if (wasLocked)
@@ -238,7 +233,7 @@ namespace Go
                 while (true)
                 {
                     int newCount = (0 != (oldCount & lockFlag) ? oldCount : ((oldCount - 1) | lockFlag)) & ~eventFlag;
-                    int current = InterlockedCompareExchange(ref _activeCount, newCount, oldCount);
+                    int current = Interlocked.CompareExchange(ref _activeCount, newCount, oldCount);
                     if (current == oldCount)
                     {
                         break;
@@ -269,7 +264,7 @@ namespace Go
 
             public void exit()
             {
-                int oldCount = InterlockedExchangeAdd(ref _activeCount, lockFlag);
+                int oldCount = Interlocked.Add(ref _activeCount, lockFlag) - lockFlag;
                 if (0 == (oldCount & eventFlag) && (oldCount > lockFlag))
                 {
                     if (!interlockedBitTestAndSet(ref _activeCount, eventFlag))
@@ -622,12 +617,14 @@ namespace Go
         }
     }
 
+#if NETCORE
+#else
     public class control_strand : shared_strand
     {
-        Control _ctrl;
+        System.Windows.Forms.Control _ctrl;
         bool _checkRequired;
 
-        public control_strand(Control ctrl, bool checkRequired = true) : base()
+        public control_strand(System.Windows.Forms.Control ctrl, bool checkRequired = true) : base()
         {
             _ctrl = ctrl;
             _checkRequired = checkRequired;
@@ -701,4 +698,5 @@ namespace Go
             return !_ctrl.InvokeRequired;
         }
     }
+#endif
 }

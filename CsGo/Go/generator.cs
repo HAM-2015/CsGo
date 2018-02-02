@@ -6,7 +6,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Runtime.CompilerServices;
 using System.Diagnostics;
-using System.Windows.Forms;
 
 namespace Go
 {
@@ -692,7 +691,11 @@ namespace Go
                 catch (System.Exception ec)
                 {
 #if DEBUG
-                    MessageBox.Show(String.Format("Message:\n{0}\n{1}", ec.Message, ec.StackTrace), "generator 内部未捕获的异常!", MessageBoxButtons.OK, MessageBoxIcon.Error);
+#if NETCORE
+                    Debug.WriteLine(string.Format("{0}\nMessage:\n{1}\n{2}", "generator 内部未捕获的异常!", ec.Message, ec.StackTrace));
+#else
+                    System.Windows.Forms.MessageBox.Show(string.Format("Message:\n{0}\n{1}", ec.Message, ec.StackTrace), "generator 内部未捕获的异常!", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Error);
+#endif
 #endif
                     _excep = ec;
                 }
@@ -4381,12 +4384,13 @@ namespace Go
                 return res;
             };
         }
-
-        static public void post_control(Control ctrl, Action handler)
+#if NETCORE
+#else
+        static public void post_control(System.Windows.Forms.Control ctrl, Action handler)
         {
             try
             {
-                ctrl.BeginInvoke((MethodInvoker)delegate ()
+                ctrl.BeginInvoke((System.Windows.Forms.MethodInvoker)delegate ()
                 {
                     try
                     {
@@ -4404,7 +4408,7 @@ namespace Go
             }
         }
 
-        static public async Task send_control(Control ctrl, Action handler)
+        static public async Task send_control(System.Windows.Forms.Control ctrl, Action handler)
         {
             if (!ctrl.InvokeRequired)
             {
@@ -4431,7 +4435,7 @@ namespace Go
             }
         }
 
-        static public async Task<R> send_control<R>(Control ctrl, Func<R> handler)
+        static public async Task<R> send_control<R>(System.Windows.Forms.Control ctrl, Func<R> handler)
         {
             if (!ctrl.InvokeRequired)
             {
@@ -4459,22 +4463,22 @@ namespace Go
             return res;
         }
 
-        static public Action wrap_post_control(Control ctrl, Action handler)
+        static public Action wrap_post_control(System.Windows.Forms.Control ctrl, Action handler)
         {
             return () => post_control(ctrl, handler);
         }
 
-        static public Func<Task> wrap_send_control(Control ctrl, Action handler)
+        static public Func<Task> wrap_send_control(System.Windows.Forms.Control ctrl, Action handler)
         {
             return () => send_control(ctrl, handler);
         }
 
-        static public Func<T, Task> wrap_send_control<T>(Control ctrl, Action<T> handler)
+        static public Func<T, Task> wrap_send_control<T>(System.Windows.Forms.Control ctrl, Action<T> handler)
         {
             return (T p) => send_control(ctrl, () => handler(p));
         }
 
-        static public Func<Task<R>> wrap_send_control<R>(Control ctrl, Func<R> handler)
+        static public Func<Task<R>> wrap_send_control<R>(System.Windows.Forms.Control ctrl, Func<R> handler)
         {
             return async delegate ()
             {
@@ -4484,7 +4488,7 @@ namespace Go
             };
         }
 
-        static public Func<T, Task<R>> wrap_send_control<R, T>(Control ctrl, Func<T, R> handler)
+        static public Func<T, Task<R>> wrap_send_control<R, T>(System.Windows.Forms.Control ctrl, Func<T, R> handler)
         {
             return async delegate (T p)
             {
@@ -4493,7 +4497,7 @@ namespace Go
                 return res;
             };
         }
-
+#endif
         static public async Task send_task(Action handler)
         {
             generator this_ = self;
