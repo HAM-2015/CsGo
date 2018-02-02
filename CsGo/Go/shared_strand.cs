@@ -288,6 +288,15 @@ namespace Go
             }
         }
         protected static readonly ThreadLocal<curr_strand> _currStrand = new ThreadLocal<curr_strand>();
+        private static readonly shared_strand[] _defaultStrand = functional.init(delegate ()
+        {
+            shared_strand[] strands = new shared_strand[Environment.ProcessorCount];
+            for (int i = 0; i < strands.Length; i++)
+            {
+                strands[i] = new shared_strand();
+            }
+            return strands;
+        });
 #if LIMIT_PERFOR
         static internal int _limited_perfor = 10;
 #endif
@@ -444,6 +453,16 @@ namespace Go
         {
             curr_strand currStrand = _currStrand.Value;
             return null != currStrand ? currStrand.strand : null;
+        }
+
+        static public shared_strand default_strand()
+        {
+            curr_strand currStrand = _currStrand.Value;
+            if (null != currStrand && null != currStrand.strand)
+            {
+                return currStrand.strand;
+            }
+            return _defaultStrand[mt19937.global().Next(0, _defaultStrand.Length)];
         }
 
         static public void next_tick(Action action)

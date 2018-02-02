@@ -27,8 +27,7 @@ namespace Go
 
         public mutex()
         {
-            shared_strand strand = generator.self_strand();
-            init(null != strand ? strand : new shared_strand());
+            init(shared_strand.default_strand());
         }
 
         private void init(shared_strand strand)
@@ -583,8 +582,7 @@ namespace Go
 
         public condition_variable()
         {
-            shared_strand strand = generator.self_strand();
-            init(null != strand ? strand : new shared_strand());
+            init(shared_strand.default_strand());
         }
 
         private void init(shared_strand strand)

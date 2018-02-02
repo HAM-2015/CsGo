@@ -688,8 +688,7 @@ namespace Go
 
         static public chan<T> make(int len)
         {
-            shared_strand strand = generator.self_strand();
-            return make(null != strand ? strand : new shared_strand(), len);
+            return make(shared_strand.default_strand(), len);
         }
 
         public void post(T msg)
@@ -984,8 +983,7 @@ namespace Go
 
         public unlimit_chan()
         {
-            shared_strand strand = generator.self_strand();
-            init(null != strand ? strand : new shared_strand());
+            init(shared_strand.default_strand());
         }
 
         private void init(shared_strand strand)
@@ -1300,8 +1298,7 @@ namespace Go
 
         public limit_chan(int len)
         {
-            shared_strand strand = generator.self_strand();
-            init(null != strand ? strand : new shared_strand(), len);
+            init(shared_strand.default_strand(), len);
         }
 
         private void init(shared_strand strand, int len)
@@ -1798,8 +1795,7 @@ namespace Go
 
         public nil_chan()
         {
-            shared_strand strand = generator.self_strand();
-            init(null != strand ? strand : new shared_strand());
+            init(shared_strand.default_strand());
         }
 
         private void init(shared_strand strand)
@@ -2394,8 +2390,7 @@ namespace Go
 
         public broadcast_chan()
         {
-            shared_strand strand = generator.self_strand();
-            init(null != strand ? strand : new shared_strand());
+            init(shared_strand.default_strand());
         }
 
         private void init(shared_strand strand)
@@ -3077,8 +3072,7 @@ namespace Go
 
         public csp_chan()
         {
-            shared_strand strand = generator.self_strand();
-            init(null != strand ? strand : new shared_strand());
+            init(shared_strand.default_strand());
         }
 
         private void init(shared_strand strand)

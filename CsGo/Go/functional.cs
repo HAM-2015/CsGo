@@ -408,5 +408,10 @@ namespace Go
                 Trace.Fail(ec.Message, ec.StackTrace);
             }
         }
+
+        public static R init<R>(Func<R> action)
+        {
+            return action.Invoke();
+        }
     }
 }

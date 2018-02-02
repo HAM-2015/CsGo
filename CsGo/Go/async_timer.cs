@@ -618,8 +618,7 @@ namespace Go
 
         public async_timer(bool utcMode = false)
         {
-            shared_strand strand = generator.self_strand();
-            init(null != strand ? strand : new shared_strand(), utcMode);
+            init(shared_strand.default_strand(), utcMode);
         }
 
         private void init(shared_strand strand, bool utcMode)

@@ -360,14 +360,6 @@ namespace Go
             public static readonly stop_all_receive_exception val = new stop_all_receive_exception();
         }
 
-        class static_init
-        {
-            public static_init()
-            {
-                _nilTask.RunSynchronously();
-            }
-        }
-
         class nil_task<R>
         {
             static Func<R> _func = () => default(R);
@@ -504,10 +496,9 @@ namespace Go
 
         static int _hashCount = 0;
         static long _idCount = 0;
-        static Task _nilTask = new Task(nil_action.action);
+        static Task _nilTask = functional.init(() => { Task task = new Task(nil_action.action); task.RunSynchronously(); return task; });
         static ReaderWriterLockSlim _nameMutex = new ReaderWriterLockSlim();
         static Dictionary<string, generator> _nameGens = new Dictionary<string, generator>();
-        static static_init _init = new static_init();
 
         LinkedList<LinkedList<select_chan_base>> _topSelectChans;
         LinkedList<Action> _callbacks;
