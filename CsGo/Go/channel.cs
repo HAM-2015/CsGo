@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using System.Diagnostics;
 
@@ -889,9 +887,9 @@ namespace Go
     abstract class msg_queue<T>
     {
         public abstract void AddLast(T msg);
-        public abstract T First();
-        public abstract void RemoveFirst();
+        public abstract T RemoveFirst();
         public abstract int Count { get; }
+        public abstract bool Empty { get; }
         public abstract void Clear();
     }
 
@@ -909,14 +907,11 @@ namespace Go
             _msgBuff.AddLast(msg);
         }
 
-        public override T First()
+        public override T RemoveFirst()
         {
-            return _msgBuff.First();
-        }
-
-        public override void RemoveFirst()
-        {
+            T first = _msgBuff.First.Value;
             _msgBuff.RemoveFirst();
+            return first;
         }
 
         public override int Count
@@ -924,6 +919,14 @@ namespace Go
             get
             {
                 return _msgBuff.Count;
+            }
+        }
+
+        public override bool Empty
+        {
+            get
+            {
+                return 0 == _msgBuff.Count;
             }
         }
 
@@ -947,14 +950,10 @@ namespace Go
             _count++;
         }
 
-        public override T First()
-        {
-            return default(T);
-        }
-
-        public override void RemoveFirst()
+        public override T RemoveFirst()
         {
             _count--;
+            return default(T);
         }
 
         public override int Count
@@ -962,6 +961,14 @@ namespace Go
             get
             {
                 return _count;
+            }
+        }
+
+        public override bool Empty
+        {
+            get
+            {
+                return 0 == _count;
             }
         }
 
@@ -1015,10 +1022,9 @@ namespace Go
         protected override void recv_(Action<chan_async_state, T> ntf, chan_notify_sign ntfSign)
         {
             ntfSign?.reset_success();
-            if (0 != _buffer.Count)
+            if (!_buffer.Empty)
             {
-                T msg = _buffer.First();
-                _buffer.RemoveFirst();
+                T msg = _buffer.RemoveFirst();
                 ntf(chan_async_state.async_ok, msg);
             }
             else if (_closed)
@@ -1053,10 +1059,9 @@ namespace Go
         protected override void try_recv_(Action<chan_async_state, T> ntf, chan_notify_sign ntfSign)
         {
             ntfSign?.reset_success();
-            if (0 != _buffer.Count)
+            if (!_buffer.Empty)
             {
-                T msg = _buffer.First();
-                _buffer.RemoveFirst();
+                T msg = _buffer.RemoveFirst();
                 ntf(chan_async_state.async_ok, msg);
             }
             else if (_closed)
@@ -1077,10 +1082,9 @@ namespace Go
         protected override void timed_recv_(int ms, Action<chan_async_state, T> ntf, chan_notify_sign ntfSign)
         {
             ntfSign?.reset_success();
-            if (0 != _buffer.Count)
+            if (!_buffer.Empty)
             {
-                T msg = _buffer.First();
-                _buffer.RemoveFirst();
+                T msg = _buffer.RemoveFirst();
                 ntf(chan_async_state.async_ok, msg);
             }
             else if (_closed)
@@ -1135,7 +1139,7 @@ namespace Go
 
         protected override void append_recv_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign, int ms)
         {
-            if (0 != _buffer.Count)
+            if (!_buffer.Empty)
             {
                 ntfSign._success = true;
                 ntf(chan_async_state.async_ok);
@@ -1180,10 +1184,9 @@ namespace Go
         protected override void try_recv_and_append_notify_(Action<chan_async_state, T> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, int ms)
         {
             ntfSign.reset_success();
-            if (0 != _buffer.Count)
+            if (!_buffer.Empty)
             {
-                T msg = _buffer.First();
-                _buffer.RemoveFirst();
+                T msg = _buffer.RemoveFirst();
                 if (!ntfSign._selectOnce)
                 {
                     append_recv_notify_(msgNtf, ntfSign, ms);
@@ -1212,7 +1215,7 @@ namespace Go
                 _waitQueue.Remove(ntfSign._ntfNode).cancel_timer();
                 ntfSign._ntfNode = default(option_node);
             }
-            else if (success && 0 != _buffer.Count)
+            else if (success && !_buffer.Empty)
             {
                 _waitQueue.RemoveFirst().Invoke(chan_async_state.async_ok);
             }
@@ -1362,8 +1365,7 @@ namespace Go
             if (_buffer.Count == _length)
             {
                 hasOut = true;
-                outMsg = _buffer.First();
-                _buffer.RemoveFirst();
+                outMsg = _buffer.RemoveFirst();
             }
             _buffer.AddLast(msg);
             _popWait.RemoveFirst().Invoke(chan_async_state.async_ok);
@@ -1386,10 +1388,9 @@ namespace Go
         protected override void recv_(Action<chan_async_state, T> ntf, chan_notify_sign ntfSign)
         {
             ntfSign?.reset_success();
-            if (0 != _buffer.Count)
+            if (!_buffer.Empty)
             {
-                T msg = _buffer.First();
-                _buffer.RemoveFirst();
+                T msg = _buffer.RemoveFirst();
                 _pushWait.RemoveFirst().Invoke(chan_async_state.async_ok);
                 ntf(chan_async_state.async_ok, msg);
             }
@@ -1440,10 +1441,9 @@ namespace Go
         protected override void try_recv_(Action<chan_async_state, T> ntf, chan_notify_sign ntfSign)
         {
             ntfSign?.reset_success();
-            if (0 != _buffer.Count)
+            if (!_buffer.Empty)
             {
-                T msg = _buffer.First();
-                _buffer.RemoveFirst();
+                T msg = _buffer.RemoveFirst();
                 _pushWait.RemoveFirst().Invoke(chan_async_state.async_ok);
                 ntf(chan_async_state.async_ok, msg);
             }
@@ -1518,10 +1518,9 @@ namespace Go
         protected override void timed_recv_(int ms, Action<chan_async_state, T> ntf, chan_notify_sign ntfSign)
         {
             ntfSign?.reset_success();
-            if (0 != _buffer.Count)
+            if (!_buffer.Empty)
             {
-                T msg = _buffer.First();
-                _buffer.RemoveFirst();
+                T msg = _buffer.RemoveFirst();
                 _pushWait.RemoveFirst().Invoke(chan_async_state.async_ok);
                 ntf(chan_async_state.async_ok, msg);
             }
@@ -1577,7 +1576,7 @@ namespace Go
 
         protected override void append_recv_notify_(Action<chan_async_state> ntf, chan_notify_sign ntfSign, int ms)
         {
-            if (0 != _buffer.Count)
+            if (!_buffer.Empty)
             {
                 ntfSign._success = true;
                 ntf(chan_async_state.async_ok);
@@ -1622,10 +1621,9 @@ namespace Go
         protected override void try_recv_and_append_notify_(Action<chan_async_state, T> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, int ms)
         {
             ntfSign.reset_success();
-            if (0 != _buffer.Count)
+            if (!_buffer.Empty)
             {
-                T msg = _buffer.First();
-                _buffer.RemoveFirst();
+                T msg = _buffer.RemoveFirst();
                 _pushWait.RemoveFirst().Invoke(chan_async_state.async_ok);
                 if (!ntfSign._selectOnce)
                 {
@@ -1655,7 +1653,7 @@ namespace Go
                 _popWait.Remove(ntfSign._ntfNode).cancel_timer();
                 ntfSign._ntfNode = default(option_node);
             }
-            else if (success && 0 != _buffer.Count)
+            else if (success && !_buffer.Empty)
             {
                 _popWait.RemoveFirst().Invoke(chan_async_state.async_ok);
             }
