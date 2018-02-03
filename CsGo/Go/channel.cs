@@ -420,12 +420,12 @@ namespace Go
                 try
                 {
                     _tempResult = new chan_recv_wrap<T> { state = chan_async_state.async_undefined };
-                    _chan.try_recv_and_append_notify(_host.async_callback(_tryPushHandler), nextSelect, ntfSign, _token, _chanTimeout);
+                    _chan.try_recv_and_append_notify(_host.unsafe_async_callback(_tryPushHandler), nextSelect, ntfSign, _token, _chanTimeout);
                     await _host.async_wait();
                 }
                 catch (generator.stop_exception)
                 {
-                    _chan.remove_recv_notify(_host.async_ignore<chan_async_state>(), ntfSign);
+                    _chan.remove_recv_notify(_host.unsafe_async_ignore<chan_async_state>(), ntfSign);
                     await _host.async_wait();
                     if (chan_async_state.async_ok == _tempResult.state)
                     {
@@ -489,7 +489,7 @@ namespace Go
             public override Task end()
             {
                 ntfSign._disable = true;
-                _chan.remove_recv_notify(_host.async_ignore<chan_async_state>(), ntfSign);
+                _chan.remove_recv_notify(_host.unsafe_async_ignore<chan_async_state>(), ntfSign);
                 return _host.async_wait();
             }
 
@@ -532,12 +532,12 @@ namespace Go
                 try
                 {
                     _tempResult = chan_async_state.async_undefined;
-                    _chan.try_send_and_append_notify(_host.async_callback(_tryPushHandler), nextSelect, ntfSign, _msg.value1, _chanTimeout);
+                    _chan.try_send_and_append_notify(_host.unsafe_async_callback(_tryPushHandler), nextSelect, ntfSign, _msg.value1, _chanTimeout);
                     await _host.async_wait();
                 }
                 catch (generator.stop_exception)
                 {
-                    _chan.remove_send_notify(_host.async_callback(nil_action<chan_async_state>.action), ntfSign);
+                    _chan.remove_send_notify(_host.unsafe_async_callback(nil_action<chan_async_state>.action), ntfSign);
                     await _host.async_wait();
                     if (chan_async_state.async_ok != _tempResult)
                     {
@@ -599,7 +599,7 @@ namespace Go
             public override Task end()
             {
                 ntfSign._disable = true;
-                _chan.remove_send_notify(_host.async_ignore<chan_async_state>(), ntfSign);
+                _chan.remove_send_notify(_host.unsafe_async_ignore<chan_async_state>(), ntfSign);
                 return _host.async_wait();
             }
 
@@ -2843,12 +2843,12 @@ namespace Go
                 try
                 {
                     _tempResult = new csp_wait_wrap<R, T> { state = chan_async_state.async_undefined };
-                    _chan.try_recv_and_append_notify(_host.async_callback(_tryPopHandler), nextSelect, ntfSign, _chanTimeout);
+                    _chan.try_recv_and_append_notify(_host.unsafe_async_callback(_tryPopHandler), nextSelect, ntfSign, _chanTimeout);
                     await _host.async_wait();
                 }
                 catch (generator.stop_exception)
                 {
-                    _chan.remove_recv_notify(_host.async_ignore<chan_async_state>(), ntfSign);
+                    _chan.remove_recv_notify(_host.unsafe_async_ignore<chan_async_state>(), ntfSign);
                     await _host.async_wait();
                     if (chan_async_state.async_ok == _tempResult.state)
                     {
@@ -2923,7 +2923,7 @@ namespace Go
             public override Task end()
             {
                 ntfSign._disable = true;
-                _chan.remove_recv_notify(_host.async_ignore<chan_async_state>(), ntfSign);
+                _chan.remove_recv_notify(_host.unsafe_async_ignore<chan_async_state>(), ntfSign);
                 return _host.async_wait();
             }
 
@@ -2974,13 +2974,13 @@ namespace Go
                 try
                 {
                     _tempResult = new csp_invoke_wrap<R> { state = chan_async_state.async_undefined };
-                    _chan.try_send_and_append_notify(null == _lostHandler ? _host.async_callback(_tryPushHandler) : _host.safe_async_callback(_tryPushHandler, _lostHandler), nextSelect, ntfSign, _msg.value1, _chanTimeout);
+                    _chan.try_send_and_append_notify(null == _lostHandler ? _host.unsafe_async_callback(_tryPushHandler) : _host.async_callback(_tryPushHandler, _lostHandler), nextSelect, ntfSign, _msg.value1, _chanTimeout);
                     await _host.async_wait();
                 }
                 catch (generator.stop_exception)
                 {
                     chan_async_state rmState = chan_async_state.async_undefined;
-                    _chan.remove_send_notify(_host.async_callback(null == _lostMsg ? nil_action<chan_async_state>.action : (chan_async_state state) => rmState = state), ntfSign);
+                    _chan.remove_send_notify(_host.unsafe_async_callback(null == _lostMsg ? nil_action<chan_async_state>.action : (chan_async_state state) => rmState = state), ntfSign);
                     await _host.async_wait();
                     if (chan_async_state.async_ok == rmState)
                     {
@@ -3043,7 +3043,7 @@ namespace Go
             public override Task end()
             {
                 ntfSign._disable = true;
-                _chan.remove_send_notify(_host.async_ignore<chan_async_state>(), ntfSign);
+                _chan.remove_send_notify(_host.unsafe_async_ignore<chan_async_state>(), ntfSign);
                 return _host.async_wait();
             }
 

@@ -503,6 +503,7 @@ namespace Go
         LinkedList<children> _children;
         LinkedList<Action> _callbacks;
         Action<bool> _suspendCb;
+        Action _setOvertime;
         chan_notify_sign _ioSign;
         mutli_callback _multiCb;
         System.Exception _excep;
@@ -521,6 +522,7 @@ namespace Go
         bool _isSuspend;
         bool _holdSuspend;
         bool _hasBlock;
+        bool _overtime;
         bool _isForce;
         bool _isStop;
         bool _isRun;
@@ -633,6 +635,7 @@ namespace Go
             _isForce = false;
             _isStop = false;
             _isRun = false;
+            _overtime = false;
             _isSuspend = false;
             _holdSuspend = false;
             _hasBlock = false;
@@ -1472,7 +1475,7 @@ namespace Go
             return res.value1;
         }
 
-        public SameAction async_same_callback()
+        public SameAction unsafe_async_same_callback()
         {
             _pullTask.new_task();
             bool beginQuit = _beginQuit;
@@ -1482,7 +1485,7 @@ namespace Go
             };
         }
 
-        public SameAction async_same_callback(SameAction handler)
+        public SameAction unsafe_async_same_callback(SameAction handler)
         {
             _pullTask.new_task();
             bool beginQuit = _beginQuit;
@@ -1637,7 +1640,7 @@ namespace Go
             };
         }
 
-        public Action async_callback(Action handler)
+        public Action unsafe_async_callback(Action handler)
         {
             _pullTask.new_task();
             bool beginQuit = _beginQuit;
@@ -1648,7 +1651,7 @@ namespace Go
             };
         }
 
-        public Action<T1> async_callback<T1>(Action<T1> handler)
+        public Action<T1> unsafe_async_callback<T1>(Action<T1> handler)
         {
             _pullTask.new_task();
             bool beginQuit = _beginQuit;
@@ -1659,7 +1662,7 @@ namespace Go
             };
         }
 
-        public Action<T1, T2> async_callback<T1, T2>(Action<T1, T2> handler)
+        public Action<T1, T2> unsafe_async_callback<T1, T2>(Action<T1, T2> handler)
         {
             _pullTask.new_task();
             bool beginQuit = _beginQuit;
@@ -1670,7 +1673,7 @@ namespace Go
             };
         }
 
-        public Action<T1, T2, T3> async_callback<T1, T2, T3>(Action<T1, T2, T3> handler)
+        public Action<T1, T2, T3> unsafe_async_callback<T1, T2, T3>(Action<T1, T2, T3> handler)
         {
             _pullTask.new_task();
             bool beginQuit = _beginQuit;
@@ -1973,7 +1976,7 @@ namespace Go
             };
         }
 
-        public SameAction safe_async_same_callback(SameAction lostHandler = null)
+        public SameAction async_same_callback(SameAction lostHandler = null)
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
@@ -1995,7 +1998,7 @@ namespace Go
             };
         }
 
-        public SameAction safe_async_same_callback(SameAction handler, SameAction lostHandler = null)
+        public SameAction async_same_callback(SameAction handler, SameAction lostHandler = null)
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
@@ -2018,7 +2021,7 @@ namespace Go
             };
         }
 
-        public Action safe_async_callback(Action handler, Action lostHandler = null)
+        public Action async_callback(Action handler, Action lostHandler = null)
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
@@ -2041,7 +2044,7 @@ namespace Go
             };
         }
 
-        public Action<T1> safe_async_callback<T1>(Action<T1> handler, Action<T1> lostHandler = null)
+        public Action<T1> async_callback<T1>(Action<T1> handler, Action<T1> lostHandler = null)
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
@@ -2064,7 +2067,7 @@ namespace Go
             };
         }
 
-        public Action<T1, T2> safe_async_callback<T1, T2>(Action<T1, T2> handler, Action<T1, T2> lostHandler = null)
+        public Action<T1, T2> async_callback<T1, T2>(Action<T1, T2> handler, Action<T1, T2> lostHandler = null)
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
@@ -2087,7 +2090,7 @@ namespace Go
             };
         }
 
-        public Action<T1, T2, T3> safe_async_callback<T1, T2, T3>(Action<T1, T2, T3> handler, Action<T1, T2, T3> lostHandler = null)
+        public Action<T1, T2, T3> async_callback<T1, T2, T3>(Action<T1, T2, T3> handler, Action<T1, T2, T3> lostHandler = null)
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
@@ -2110,20 +2113,20 @@ namespace Go
             };
         }
 
-        public Action async_result()
-        {
-            _pullTask.new_task();
-            bool beginQuit = _beginQuit;
-            return () => strand.distribute(beginQuit ? (Action)quit_next : no_quit_next);
-        }
-
         private Action _async_result()
         {
             _pullTask.new_task();
             return _beginQuit ? (Action)quit_next : no_quit_next;
         }
 
-        public Action<T1> async_result<T1>(async_result_wrap<T1> res)
+        public Action unsafe_async_result()
+        {
+            _pullTask.new_task();
+            bool beginQuit = _beginQuit;
+            return () => strand.distribute(beginQuit ? (Action)quit_next : no_quit_next);
+        }
+
+        public Action<T1> unsafe_async_result<T1>(async_result_wrap<T1> res)
         {
             _pullTask.new_task();
             bool beginQuit = _beginQuit;
@@ -2134,7 +2137,7 @@ namespace Go
             };
         }
 
-        public Action<T1, T2> async_result<T1, T2>(async_result_wrap<T1, T2> res)
+        public Action<T1, T2> unsafe_async_result<T1, T2>(async_result_wrap<T1, T2> res)
         {
             _pullTask.new_task();
             bool beginQuit = _beginQuit;
@@ -2146,7 +2149,7 @@ namespace Go
             };
         }
 
-        public Action<T1, T2, T3> async_result<T1, T2, T3>(async_result_wrap<T1, T2, T3> res)
+        public Action<T1, T2, T3> unsafe_async_result<T1, T2, T3>(async_result_wrap<T1, T2, T3> res)
         {
             _pullTask.new_task();
             bool beginQuit = _beginQuit;
@@ -2159,22 +2162,22 @@ namespace Go
             };
         }
 
-        public Action<T1> async_ignore<T1>()
+        public Action<T1> unsafe_async_ignore<T1>()
         {
-            return async_result(async_result_ignore_wrap<T1>.value);
+            return unsafe_async_result(async_result_ignore_wrap<T1>.value);
         }
 
-        public Action<T1, T2> async_ignore<T1, T2>()
+        public Action<T1, T2> unsafe_async_ignore<T1, T2>()
         {
-            return async_result(async_result_ignore_wrap<T1, T2>.value);
+            return unsafe_async_result(async_result_ignore_wrap<T1, T2>.value);
         }
 
-        public Action<T1, T2, T3> async_ignore<T1, T2, T3>()
+        public Action<T1, T2, T3> unsafe_async_ignore<T1, T2, T3>()
         {
-            return async_result(async_result_ignore_wrap<T1, T2, T3>.value);
+            return unsafe_async_result(async_result_ignore_wrap<T1, T2, T3>.value);
         }
 
-        public Action safe_async_result()
+        public Action async_result()
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
@@ -2194,7 +2197,7 @@ namespace Go
             };
         }
 
-        public Action<T1> safe_async_result<T1>(async_result_wrap<T1> res)
+        public Action<T1> async_result<T1>(async_result_wrap<T1> res)
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
@@ -2215,7 +2218,7 @@ namespace Go
             };
         }
 
-        public Action<T1, T2> safe_async_result<T1, T2>(async_result_wrap<T1, T2> res)
+        public Action<T1, T2> async_result<T1, T2>(async_result_wrap<T1, T2> res)
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
@@ -2237,7 +2240,7 @@ namespace Go
             };
         }
 
-        public Action<T1, T2, T3> safe_async_result<T1, T2, T3>(async_result_wrap<T1, T2, T3> res)
+        public Action<T1, T2, T3> async_result<T1, T2, T3>(async_result_wrap<T1, T2, T3> res)
         {
             mutli_callback multiCb = new_multi_task();
             bool beginQuit = _beginQuit;
@@ -2260,19 +2263,19 @@ namespace Go
             };
         }
 
-        public Action<T1> safe_async_ignore<T1>()
+        public Action<T1> async_ignore<T1>()
         {
-            return safe_async_result(async_result_ignore_wrap<T1>.value);
+            return async_result(async_result_ignore_wrap<T1>.value);
         }
 
-        public Action<T1, T2> safe_async_ignore<T1, T2>()
+        public Action<T1, T2> async_ignore<T1, T2>()
         {
-            return safe_async_result(async_result_ignore_wrap<T1, T2>.value);
+            return async_result(async_result_ignore_wrap<T1, T2>.value);
         }
 
-        public Action<T1, T2, T3> safe_async_ignore<T1, T2, T3>()
+        public Action<T1, T2, T3> async_ignore<T1, T2, T3>()
         {
-            return safe_async_result(async_result_ignore_wrap<T1, T2, T3>.value);
+            return async_result(async_result_ignore_wrap<T1, T2, T3>.value);
         }
 
         public Action timed_async_result(int ms, Action timedHandler = null)
@@ -2711,35 +2714,35 @@ namespace Go
         static public Task suspend_other(generator otherGen)
         {
             generator this_ = self;
-            otherGen.suspend(this_.async_result());
+            otherGen.suspend(this_.unsafe_async_result());
             return this_.async_wait();
         }
 
         static public Task resume_other(generator otherGen)
         {
             generator this_ = self;
-            otherGen.resume(this_.async_result());
+            otherGen.resume(this_.unsafe_async_result());
             return this_.async_wait();
         }
 
         static public Task chan_clear<T>(chan<T> chan)
         {
             generator this_ = self;
-            chan.clear(this_.async_result());
+            chan.clear(this_.unsafe_async_result());
             return this_.async_wait();
         }
 
         static public Task chan_close<T>(chan<T> chan, bool isClear = false)
         {
             generator this_ = self;
-            chan.close(this_.async_result(), isClear);
+            chan.close(this_.unsafe_async_result(), isClear);
             return this_.async_wait();
         }
 
         static public Task chan_cancel<T>(chan<T> chan, bool isClear = false)
         {
             generator this_ = self;
-            chan.cancel(this_.async_result(), isClear);
+            chan.cancel(this_.unsafe_async_result(), isClear);
             return this_.async_wait();
         }
 
@@ -2749,7 +2752,7 @@ namespace Go
             bool is_closed = chan.is_closed();
             if (!is_closed && chan.self_strand() != this_.strand)
             {
-                Action continuation = this_.async_result();
+                Action continuation = this_.unsafe_async_result();
                 chan.self_strand().post(delegate ()
                 {
                     is_closed = chan.is_closed();
@@ -2770,14 +2773,14 @@ namespace Go
             {
                 chan_async_state result = chan_async_state.async_undefined;
                 lock_suspend();
-                chan.append_send_notify(this_.async_callback((chan_async_state state) => result = state), this_._ioSign);
+                chan.append_send_notify(this_.unsafe_async_callback((chan_async_state state) => result = state), this_._ioSign);
                 await this_.async_wait();
                 await unlock_suspend();
                 return result;
             }
             catch (stop_exception)
             {
-                chan.remove_send_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
+                chan.remove_send_notify(this_.unsafe_async_callback(nil_action<chan_async_state>.action), this_._ioSign);
                 await this_.async_wait();
                 throw;
             }
@@ -2793,14 +2796,14 @@ namespace Go
             {
                 chan_async_state result = chan_async_state.async_undefined;
                 lock_suspend();
-                chan.append_send_notify(this_.async_callback((chan_async_state state) => result = state), this_._ioSign, ms);
+                chan.append_send_notify(this_.unsafe_async_callback((chan_async_state state) => result = state), this_._ioSign, ms);
                 await this_.async_wait();
                 await unlock_suspend();
                 return result;
             }
             catch (stop_exception)
             {
-                chan.remove_send_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
+                chan.remove_send_notify(this_.unsafe_async_callback(nil_action<chan_async_state>.action), this_._ioSign);
                 await this_.async_wait();
                 throw;
             }
@@ -2816,14 +2819,14 @@ namespace Go
             {
                 chan_async_state result = chan_async_state.async_undefined;
                 lock_suspend();
-                chan.append_recv_notify(this_.async_callback((chan_async_state state) => result = state), this_._ioSign, token);
+                chan.append_recv_notify(this_.unsafe_async_callback((chan_async_state state) => result = state), this_._ioSign, token);
                 await this_.async_wait();
                 await unlock_suspend();
                 return result;
             }
             catch (stop_exception)
             {
-                chan.remove_recv_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
+                chan.remove_recv_notify(this_.unsafe_async_callback(nil_action<chan_async_state>.action), this_._ioSign);
                 await this_.async_wait();
                 throw;
             }
@@ -2844,14 +2847,14 @@ namespace Go
             {
                 chan_async_state result = chan_async_state.async_undefined;
                 lock_suspend();
-                chan.append_recv_notify(this_.async_callback((chan_async_state state) => result = state), this_._ioSign, token, ms);
+                chan.append_recv_notify(this_.unsafe_async_callback((chan_async_state state) => result = state), this_._ioSign, token, ms);
                 await this_.async_wait();
                 await unlock_suspend();
                 return result;
             }
             catch (stop_exception)
             {
-                chan.remove_recv_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
+                chan.remove_recv_notify(this_.unsafe_async_callback(nil_action<chan_async_state>.action), this_._ioSign);
                 await this_.async_wait();
                 throw;
             }
@@ -2866,7 +2869,7 @@ namespace Go
         {
             generator this_ = self;
             lock_suspend_and_stop();
-            chan.remove_send_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
+            chan.remove_send_notify(this_.unsafe_async_callback(nil_action<chan_async_state>.action), this_._ioSign);
             await this_.async_wait();
             await unlock_suspend_and_stop();
         }
@@ -2875,7 +2878,7 @@ namespace Go
         {
             generator this_ = self;
             lock_suspend_and_stop();
-            chan.remove_recv_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
+            chan.remove_recv_notify(this_.unsafe_async_callback(nil_action<chan_async_state>.action), this_._ioSign);
             await this_.async_wait();
             await unlock_suspend_and_stop();
         }
@@ -2886,13 +2889,13 @@ namespace Go
             chan_async_state result = chan_async_state.async_undefined;
             try
             {
-                chan.send(this_.async_callback((chan_async_state state) => result = state), msg, this_._ioSign);
+                chan.send(this_.unsafe_async_callback((chan_async_state state) => result = state), msg, this_._ioSign);
                 await this_.async_wait();
                 return new chan_send_wrap { state = result };
             }
             catch (stop_exception)
             {
-                chan.remove_send_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
+                chan.remove_send_notify(this_.unsafe_async_callback(nil_action<chan_async_state>.action), this_._ioSign);
                 await this_.async_wait();
                 if (chan_async_state.async_ok != result)
                 {
@@ -2914,7 +2917,7 @@ namespace Go
             try
             {
                 outMsg?.clear();
-                chan.force_push(this_.async_callback(delegate (chan_async_state state, bool hasOut, T freeMsg)
+                chan.force_push(this_.unsafe_async_callback(delegate (chan_async_state state, bool hasOut, T freeMsg)
                 {
                     result = state;
                     if (hasOut)
@@ -2948,7 +2951,7 @@ namespace Go
             chan_recv_wrap<T> result = new chan_recv_wrap<T> { state = chan_async_state.async_undefined };
             try
             {
-                chan.recv(this_.async_callback(delegate (chan_async_state state, T msg)
+                chan.recv(this_.unsafe_async_callback(delegate (chan_async_state state, T msg)
                 {
                     result.state = state;
                     if (chan_async_state.async_ok == state)
@@ -2961,7 +2964,7 @@ namespace Go
             }
             catch (stop_exception)
             {
-                chan.remove_recv_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
+                chan.remove_recv_notify(this_.unsafe_async_callback(nil_action<chan_async_state>.action), this_._ioSign);
                 await this_.async_wait();
                 if (chan_async_state.async_ok == result.state)
                 {
@@ -2977,13 +2980,13 @@ namespace Go
             chan_async_state result = chan_async_state.async_undefined;
             try
             {
-                chan.try_send(this_.async_callback((chan_async_state state) => result = state), msg, this_._ioSign);
+                chan.try_send(this_.unsafe_async_callback((chan_async_state state) => result = state), msg, this_._ioSign);
                 await this_.async_wait();
                 return new chan_send_wrap { state = result };
             }
             catch (stop_exception)
             {
-                chan.remove_send_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
+                chan.remove_send_notify(this_.unsafe_async_callback(nil_action<chan_async_state>.action), this_._ioSign);
                 await this_.async_wait();
                 if (chan_async_state.async_ok != result)
                 {
@@ -3009,7 +3012,7 @@ namespace Go
             chan_recv_wrap<T> result = new chan_recv_wrap<T> { state = chan_async_state.async_undefined };
             try
             {
-                chan.try_recv(this_.async_callback(delegate (chan_async_state state, T msg)
+                chan.try_recv(this_.unsafe_async_callback(delegate (chan_async_state state, T msg)
                 {
                     result.state = state;
                     if (chan_async_state.async_ok == state)
@@ -3022,7 +3025,7 @@ namespace Go
             }
             catch (stop_exception)
             {
-                chan.remove_recv_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
+                chan.remove_recv_notify(this_.unsafe_async_callback(nil_action<chan_async_state>.action), this_._ioSign);
                 await this_.async_wait();
                 if (chan_async_state.async_ok == result.state)
                 {
@@ -3038,13 +3041,13 @@ namespace Go
             chan_async_state result = chan_async_state.async_undefined;
             try
             {
-                chan.timed_send(ms, this_.async_callback((chan_async_state state) => result = state), msg, this_._ioSign);
+                chan.timed_send(ms, this_.unsafe_async_callback((chan_async_state state) => result = state), msg, this_._ioSign);
                 await this_.async_wait();
                 return new chan_send_wrap { state = result };
             }
             catch (stop_exception)
             {
-                chan.remove_send_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
+                chan.remove_send_notify(this_.unsafe_async_callback(nil_action<chan_async_state>.action), this_._ioSign);
                 await this_.async_wait();
                 if (chan_async_state.async_ok != result)
                 {
@@ -3070,7 +3073,7 @@ namespace Go
             chan_recv_wrap<T> result = new chan_recv_wrap<T> { state = chan_async_state.async_undefined };
             try
             {
-                chan.timed_recv(ms, this_.async_callback(delegate (chan_async_state state, T msg)
+                chan.timed_recv(ms, this_.unsafe_async_callback(delegate (chan_async_state state, T msg)
                 {
                     result.state = state;
                     if (chan_async_state.async_ok == state)
@@ -3083,7 +3086,7 @@ namespace Go
             }
             catch (stop_exception)
             {
-                chan.remove_recv_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
+                chan.remove_recv_notify(this_.unsafe_async_callback(nil_action<chan_async_state>.action), this_._ioSign);
                 await this_.async_wait();
                 if (chan_async_state.async_ok == result.state)
                 {
@@ -3099,14 +3102,14 @@ namespace Go
             try
             {
                 csp_invoke_wrap<R> result = new csp_invoke_wrap<R> { state = chan_async_state.async_undefined };
-                chan.send(invokeMs, null == lostHandler ? this_.async_callback(delegate (chan_async_state state, R resVal)
+                chan.send(invokeMs, null == lostHandler ? this_.unsafe_async_callback(delegate (chan_async_state state, R resVal)
                 {
                     result.state = state;
                     if (chan_async_state.async_ok == state)
                     {
                         result.result = resVal;
                     }
-                }) : this_.safe_async_callback(delegate (chan_async_state state, R resVal)
+                }) : this_.async_callback(delegate (chan_async_state state, R resVal)
                 {
                     result.state = state;
                     if (chan_async_state.async_ok == state)
@@ -3126,7 +3129,7 @@ namespace Go
             catch (stop_exception)
             {
                 chan_async_state rmState = chan_async_state.async_undefined;
-                chan.remove_send_notify(this_.async_callback(null == lostMsg ? nil_action<chan_async_state>.action : (chan_async_state state) => rmState = state), this_._ioSign);
+                chan.remove_send_notify(this_.unsafe_async_callback(null == lostMsg ? nil_action<chan_async_state>.action : (chan_async_state state) => rmState = state), this_._ioSign);
                 await this_.async_wait();
                 if (chan_async_state.async_ok == rmState)
                 {
@@ -3147,7 +3150,7 @@ namespace Go
             csp_wait_wrap<R, T> result = new csp_wait_wrap<R, T> { state = chan_async_state.async_undefined };
             try
             {
-                chan.recv(this_.async_callback(delegate (chan_async_state state, T msg, csp_chan<R, T>.csp_result cspRes)
+                chan.recv(this_.unsafe_async_callback(delegate (chan_async_state state, T msg, csp_chan<R, T>.csp_result cspRes)
                 {
                     result.state = state;
                     if (chan_async_state.async_ok == state)
@@ -3165,7 +3168,7 @@ namespace Go
             }
             catch (stop_exception)
             {
-                chan.remove_recv_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
+                chan.remove_recv_notify(this_.unsafe_async_callback(nil_action<chan_async_state>.action), this_._ioSign);
                 await this_.async_wait();
                 if (chan_async_state.async_ok == result.state)
                 {
@@ -3368,14 +3371,14 @@ namespace Go
             try
             {
                 csp_invoke_wrap<R> result = new csp_invoke_wrap<R> { state = chan_async_state.async_undefined };
-                chan.try_send(invokeMs, null == lostHandler ? this_.async_callback(delegate (chan_async_state state, R resVal)
+                chan.try_send(invokeMs, null == lostHandler ? this_.unsafe_async_callback(delegate (chan_async_state state, R resVal)
                 {
                     result.state = state;
                     if (chan_async_state.async_ok == state)
                     {
                         result.result = resVal;
                     }
-                }) : this_.safe_async_callback(delegate (chan_async_state state, R resVal)
+                }) : this_.async_callback(delegate (chan_async_state state, R resVal)
                 {
                     result.state = state;
                     if (chan_async_state.async_ok == state)
@@ -3395,7 +3398,7 @@ namespace Go
             catch (stop_exception)
             {
                 chan_async_state rmState = chan_async_state.async_undefined;
-                chan.remove_send_notify(this_.async_callback(null == lostMsg ? nil_action<chan_async_state>.action : (chan_async_state state) => rmState = state), this_._ioSign);
+                chan.remove_send_notify(this_.unsafe_async_callback(null == lostMsg ? nil_action<chan_async_state>.action : (chan_async_state state) => rmState = state), this_._ioSign);
                 await this_.async_wait();
                 if (chan_async_state.async_ok == rmState)
                 {
@@ -3416,7 +3419,7 @@ namespace Go
             csp_wait_wrap<R, T> result = new csp_wait_wrap<R, T> { state = chan_async_state.async_undefined };
             try
             {
-                chan.try_recv(this_.async_callback(delegate (chan_async_state state, T msg, csp_chan<R, T>.csp_result cspRes)
+                chan.try_recv(this_.unsafe_async_callback(delegate (chan_async_state state, T msg, csp_chan<R, T>.csp_result cspRes)
                 {
                     result.state = state;
                     if (chan_async_state.async_ok == state)
@@ -3434,7 +3437,7 @@ namespace Go
             }
             catch (stop_exception)
             {
-                chan.remove_recv_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
+                chan.remove_recv_notify(this_.unsafe_async_callback(nil_action<chan_async_state>.action), this_._ioSign);
                 await this_.async_wait();
                 if (chan_async_state.async_ok == result.state)
                 {
@@ -3631,14 +3634,14 @@ namespace Go
             try
             {
                 csp_invoke_wrap<R> result = new csp_invoke_wrap<R> { state = chan_async_state.async_undefined };
-                chan.timed_send(ms.value1, ms.value2, null == lostHandler ? this_.async_callback(delegate (chan_async_state state, R resVal)
+                chan.timed_send(ms.value1, ms.value2, null == lostHandler ? this_.unsafe_async_callback(delegate (chan_async_state state, R resVal)
                 {
                     result.state = state;
                     if (chan_async_state.async_ok == state)
                     {
                         result.result = resVal;
                     }
-                }) : this_.safe_async_callback(delegate (chan_async_state state, R resVal)
+                }) : this_.async_callback(delegate (chan_async_state state, R resVal)
                 {
                     result.state = state;
                     if (chan_async_state.async_ok == state)
@@ -3658,7 +3661,7 @@ namespace Go
             catch (stop_exception)
             {
                 chan_async_state rmState = chan_async_state.async_undefined;
-                chan.remove_send_notify(this_.async_callback(null == lostMsg ? nil_action<chan_async_state>.action : (chan_async_state state) => rmState = state), this_._ioSign);
+                chan.remove_send_notify(this_.unsafe_async_callback(null == lostMsg ? nil_action<chan_async_state>.action : (chan_async_state state) => rmState = state), this_._ioSign);
                 await this_.async_wait();
                 if (chan_async_state.async_ok == rmState)
                 {
@@ -3689,7 +3692,7 @@ namespace Go
             csp_wait_wrap<R, T> result = new csp_wait_wrap<R, T> { state = chan_async_state.async_undefined };
             try
             {
-                chan.timed_recv(ms, this_.async_callback(delegate (chan_async_state state, T msg, csp_chan<R, T>.csp_result cspRes)
+                chan.timed_recv(ms, this_.unsafe_async_callback(delegate (chan_async_state state, T msg, csp_chan<R, T>.csp_result cspRes)
                 {
                     result.state = state;
                     if (chan_async_state.async_ok == state)
@@ -3707,7 +3710,7 @@ namespace Go
             }
             catch (stop_exception)
             {
-                chan.remove_recv_notify(this_.async_callback(nil_action<chan_async_state>.action), this_._ioSign);
+                chan.remove_recv_notify(this_.unsafe_async_callback(nil_action<chan_async_state>.action), this_._ioSign);
                 await this_.async_wait();
                 if (chan_async_state.async_ok == result.state)
                 {
@@ -3914,7 +3917,7 @@ namespace Go
                     wg.done();
                 }, msg, null);
             }
-            wg.async_wait(this_.async_result());
+            wg.async_wait(this_.unsafe_async_result());
             await this_.async_wait();
             return count;
         }
@@ -3935,7 +3938,7 @@ namespace Go
                     wg.done();
                 }, msg, null);
             }
-            wg.async_wait(this_.async_result());
+            wg.async_wait(this_.unsafe_async_result());
             await this_.async_wait();
             return count;
         }
@@ -3956,7 +3959,7 @@ namespace Go
                     wg.done();
                 }, msg, null);
             }
-            wg.async_wait(this_.async_result());
+            wg.async_wait(this_.unsafe_async_result());
             await this_.async_wait();
             return count;
         }
@@ -3974,14 +3977,14 @@ namespace Go
         static public Task mutex_cancel(mutex mtx)
         {
             generator this_ = self;
-            mtx.cancel(this_._id, this_.async_result());
+            mtx.cancel(this_._id, this_.unsafe_async_result());
             return this_.async_wait();
         }
 
         static public Task mutex_lock(mutex mtx)
         {
             generator this_ = self;
-            mtx.Lock(this_._id, this_.async_result());
+            mtx.Lock(this_._id, this_.unsafe_async_result());
             return this_.async_wait();
         }
 
@@ -4015,7 +4018,7 @@ namespace Go
         {
             generator this_ = self;
             async_result_wrap<bool> res = new async_result_wrap<bool>();
-            mtx.try_lock(this_._id, this_.async_result(res));
+            mtx.try_lock(this_._id, this_.unsafe_async_result(res));
             await this_.async_wait();
             return res.value1;
         }
@@ -4041,7 +4044,7 @@ namespace Go
         {
             generator this_ = self;
             async_result_wrap<bool> res = new async_result_wrap<bool>();
-            mtx.timed_lock(this_._id, ms, this_.async_result(res));
+            mtx.timed_lock(this_._id, ms, this_.unsafe_async_result(res));
             await this_.async_wait();
             return res.value1;
         }
@@ -4066,14 +4069,14 @@ namespace Go
         static public Task mutex_unlock(mutex mtx)
         {
             generator this_ = self;
-            mtx.unlock(this_._id, this_.async_result());
+            mtx.unlock(this_._id, this_.unsafe_async_result());
             return this_.async_wait();
         }
 
         static public Task mutex_lock_shared(shared_mutex mtx)
         {
             generator this_ = self;
-            mtx.lock_shared(this_._id, this_.async_result());
+            mtx.lock_shared(this_._id, this_.unsafe_async_result());
             return this_.async_wait();
         }
 
@@ -4106,7 +4109,7 @@ namespace Go
         static public Task mutex_lock_pess_shared(shared_mutex mtx)
         {
             generator this_ = self;
-            mtx.lock_pess_shared(this_._id, this_.async_result());
+            mtx.lock_pess_shared(this_._id, this_.unsafe_async_result());
             return this_.async_wait();
         }
 
@@ -4139,7 +4142,7 @@ namespace Go
         static public Task mutex_lock_upgrade(shared_mutex mtx)
         {
             generator this_ = self;
-            mtx.lock_upgrade(this_._id, this_.async_result());
+            mtx.lock_upgrade(this_._id, this_.unsafe_async_result());
             return this_.async_wait();
         }
 
@@ -4173,7 +4176,7 @@ namespace Go
         {
             generator this_ = self;
             async_result_wrap<bool> res = new async_result_wrap<bool>();
-            mtx.try_lock_shared(this_._id, this_.async_result(res));
+            mtx.try_lock_shared(this_._id, this_.unsafe_async_result(res));
             await this_.async_wait();
             return res.value1;
         }
@@ -4199,7 +4202,7 @@ namespace Go
         {
             generator this_ = self;
             async_result_wrap<bool> res = new async_result_wrap<bool>();
-            mtx.try_lock_upgrade(this_._id, this_.async_result(res));
+            mtx.try_lock_upgrade(this_._id, this_.unsafe_async_result(res));
             await this_.async_wait();
             return res.value1;
         }
@@ -4225,7 +4228,7 @@ namespace Go
         {
             generator this_ = self;
             async_result_wrap<bool> res = new async_result_wrap<bool>();
-            mtx.timed_lock_shared(this_._id, ms, this_.async_result(res));
+            mtx.timed_lock_shared(this_._id, ms, this_.unsafe_async_result(res));
             await this_.async_wait();
             return res.value1;
         }
@@ -4250,21 +4253,21 @@ namespace Go
         static public Task mutex_unlock_shared(shared_mutex mtx)
         {
             generator this_ = self;
-            mtx.unlock_shared(this_._id, this_.async_result());
+            mtx.unlock_shared(this_._id, this_.unsafe_async_result());
             return this_.async_wait();
         }
 
         static public Task mutex_unlock_upgrade(shared_mutex mtx)
         {
             generator this_ = self;
-            mtx.unlock_upgrade(this_._id, this_.async_result());
+            mtx.unlock_upgrade(this_._id, this_.unsafe_async_result());
             return this_.async_wait();
         }
 
         static public Task condition_wait(condition_variable conVar, mutex mutex)
         {
             generator this_ = self;
-            conVar.wait(this_._id, mutex, this_.async_result());
+            conVar.wait(this_._id, mutex, this_.unsafe_async_result());
             return this_.async_wait();
         }
 
@@ -4272,7 +4275,7 @@ namespace Go
         {
             generator this_ = self;
             async_result_wrap<bool> res = new async_result_wrap<bool>();
-            conVar.timed_wait(this_._id, ms, mutex, this_.async_result(res));
+            conVar.timed_wait(this_._id, ms, mutex, this_.unsafe_async_result(res));
             await this_.async_wait();
             return res.value1;
         }
@@ -4280,7 +4283,7 @@ namespace Go
         static public Task condition_cancel(condition_variable conVar)
         {
             generator this_ = self;
-            conVar.cancel(this_.id, this_.async_result());
+            conVar.cancel(this_.id, this_.unsafe_async_result());
             return this_.async_wait();
         }
 
@@ -4294,7 +4297,7 @@ namespace Go
             else
             {
                 System.Exception hasExcep = null;
-                strand.post(this_.async_callback(delegate ()
+                strand.post(this_.unsafe_async_callback(delegate ()
                 {
                     try
                     {
@@ -4324,7 +4327,7 @@ namespace Go
             {
                 R res = default(R);
                 System.Exception hasExcep = null;
-                strand.post(this_.async_callback(delegate ()
+                strand.post(this_.unsafe_async_callback(delegate ()
                 {
                     try
                     {
@@ -4406,7 +4409,7 @@ namespace Go
             }
             generator this_ = self;
             System.Exception hasExcep = null;
-            post_control(ctrl, this_.async_callback(delegate ()
+            post_control(ctrl, this_.unsafe_async_callback(delegate ()
             {
                 try
                 {
@@ -4433,7 +4436,7 @@ namespace Go
             generator this_ = self;
             R res = default(R);
             System.Exception hasExcep = null;
-            post_control(ctrl, this_.async_callback(delegate ()
+            post_control(ctrl, this_.unsafe_async_callback(delegate ()
             {
                 try
                 {
@@ -4583,7 +4586,7 @@ namespace Go
                 {
                     hasExcep = ec;
                 }
-            }, this_.async_result());
+            }, this_.unsafe_async_result());
             await self.async_wait();
             if (null != hasExcep)
             {
@@ -4635,7 +4638,7 @@ namespace Go
                 {
                     hasExcep = ec;
                 }
-            }, this_.async_result());
+            }, this_.unsafe_async_result());
             await self.async_wait();
             if (null != hasExcep)
             {
@@ -4678,7 +4681,7 @@ namespace Go
             if (!task.IsCompleted)
             {
                 generator this_ = self;
-                task.GetAwaiter().OnCompleted(this_.async_result());
+                task.GetAwaiter().OnCompleted(this_.unsafe_async_result());
                 return this_.async_wait();
             }
             return non_async();
@@ -4689,21 +4692,42 @@ namespace Go
             if (!task.IsCompleted)
             {
                 generator this_ = self;
-                task.GetAwaiter().OnCompleted(this_.async_result());
+                task.GetAwaiter().OnCompleted(this_.unsafe_async_result());
                 await this_.async_wait();
             }
             return task.Result;
+        }
+
+        static public Task wait_task<R>(async_result_wrap<R> res, Task<R> task)
+        {
+            if (!task.IsCompleted)
+            {
+                generator this_ = self;
+                task.GetAwaiter().OnCompleted(this_.async_callback(() => res.value1 = task.Result));
+                return this_.async_wait();
+            }
+            res.value1 = task.Result;
+            return non_async();
+        }
+
+        private Action set_overtime()
+        {
+            _overtime = false;
+            if (null == _setOvertime)
+            {
+                _setOvertime = () => _overtime = true;
+            }
+            return _setOvertime;
         }
 
         static public async Task<bool> timed_wait_task(int ms, Task task)
         {
             if (!task.IsCompleted)
             {
-                bool overtime = false;
                 generator this_ = self;
-                task.GetAwaiter().OnCompleted(this_.timed_async_result2(ms, () => overtime = true));
+                task.GetAwaiter().OnCompleted(this_.timed_async_result2(ms, this_.set_overtime()));
                 await this_.async_wait();
-                return !overtime;
+                return !this_._overtime;
             }
             return true;
         }
@@ -4712,19 +4736,36 @@ namespace Go
         {
             if (!task.IsCompleted)
             {
-                bool overtime = false;
                 generator this_ = self;
-                task.GetAwaiter().OnCompleted(this_.timed_async_result2(ms, () => overtime = true));
+                task.GetAwaiter().OnCompleted(this_.timed_async_result2(ms, this_.set_overtime()));
                 await this_.async_wait();
-                return tuple.make(!overtime, overtime ? default(R) : task.Result);
+                return tuple.make(!this_._overtime, this_._overtime ? default(R) : task.Result);
             }
             return tuple.make(true, task.Result);
+        }
+
+        static public Task timed_wait_task<R>(int ms, async_result_wrap<bool, R> res, Task<R> task)
+        {
+            if (!task.IsCompleted)
+            {
+                generator this_ = self;
+                res.value1 = false;
+                task.GetAwaiter().OnCompleted(this_.timed_async_callback2(ms, delegate ()
+                {
+                    res.value1 = true;
+                    res.value2 = task.Result;
+                }));
+                return this_.async_wait();
+            }
+            res.value1 = true;
+            res.value2 = task.Result;
+            return non_async();
         }
 
         static public Task stop_other(generator otherGen)
         {
             generator this_ = self;
-            otherGen.stop(this_.async_result());
+            otherGen.stop(this_.unsafe_async_result());
             return this_.async_wait();
         }
 
@@ -4750,7 +4791,7 @@ namespace Go
         static public Task wait_other(generator otherGen)
         {
             generator this_ = self;
-            otherGen.append_stop_callback(this_.async_result());
+            otherGen.append_stop_callback(this_.unsafe_async_result());
             return this_.async_wait();
         }
 
@@ -4776,11 +4817,10 @@ namespace Go
         static public async Task<bool> timed_wait_other(int ms, generator otherGen)
         {
             generator this_ = self;
-            bool overtime = false;
             nil_chan<LinkedListNode<Action>> waitRemove = new nil_chan<LinkedListNode<Action>>();
-            otherGen.append_stop_callback(this_.timed_async_result2(ms, () => overtime = true), waitRemove.wrap());
+            otherGen.append_stop_callback(this_.timed_async_result2(ms, this_.set_overtime()), waitRemove.wrap());
             await this_.async_wait();
-            if (overtime)
+            if (this_._overtime)
             {
                 LinkedListNode<Action> node = await chan_receive(waitRemove);
                 if (null != node)
@@ -4788,7 +4828,7 @@ namespace Go
                     otherGen.remove_stop_callback(node);
                 }
             }
-            return !overtime;
+            return !this_._overtime;
         }
 
         static public async Task<generator> wait_others_one(params generator[] otherGens)
@@ -4798,7 +4838,7 @@ namespace Go
                 generator this_ = self;
                 unlimit_chan<tuple<generator, LinkedListNode<Action>>> waitRemove = new unlimit_chan<tuple<generator, LinkedListNode<Action>>>(this_.strand);
                 async_result_wrap<generator> res = new async_result_wrap<generator>();
-                Action<generator> ntf = this_.safe_async_result(res);
+                Action<generator> ntf = this_.async_result(res);
                 Action<tuple<generator, LinkedListNode<Action>>> removeNtf = waitRemove.wrap();
                 int count = otherGens.Length;
                 for (int i = 0; i < count; i++)
@@ -4852,17 +4892,50 @@ namespace Go
         static public Task wait_group(wait_group wg)
         {
             generator this_ = self;
-            wg.async_wait(this_.async_result());
+            wg.async_wait(this_.unsafe_async_result());
             return this_.async_wait();
         }
 
         static public async Task<bool> timed_wait_group(int ms, wait_group wg)
         {
             generator this_ = self;
-            bool overtime = false;
-            wg.async_wait(this_.timed_async_result2(ms, () => overtime = true));
+            wg.async_wait(this_.timed_async_result2(ms, this_.set_overtime()));
             await this_.async_wait();
-            return !overtime;
+            return !this_._overtime;
+        }
+
+        static public Task unsafe_async_call(Action<Action> handler)
+        {
+            generator this_ = self;
+            handler(this_.unsafe_async_result());
+            return this_.async_wait();
+        }
+
+        static public async Task<R> unsafe_async_call<R>(Action<Action<R>> handler)
+        {
+            generator this_ = self;
+            async_result_wrap<R> res = new async_result_wrap<R>();
+            handler(this_.unsafe_async_result(res));
+            await this_.async_wait();
+            return res.value1;
+        }
+
+        static public async Task<async_result_wrap<R1, R2>> unsafe_async_call<R1, R2>(Action<Action<R1, R2>> handler)
+        {
+            generator this_ = self;
+            async_result_wrap<R1, R2> res = new async_result_wrap<R1, R2>();
+            handler(this_.unsafe_async_result(res));
+            await this_.async_wait();
+            return res;
+        }
+
+        static public async Task<async_result_wrap<R1, R2, R3>> unsafe_async_call<R1, R2, R3>(Action<Action<R1, R2, R3>> handler)
+        {
+            generator this_ = self;
+            async_result_wrap<R1, R2, R3> res = new async_result_wrap<R1, R2, R3>();
+            handler(this_.unsafe_async_result(res));
+            await this_.async_wait();
+            return res;
         }
 
         static public Task async_call(Action<Action> handler)
@@ -4899,118 +4972,84 @@ namespace Go
             return res;
         }
 
-        static public Task safe_async_call(Action<Action> handler)
-        {
-            generator this_ = self;
-            handler(this_.safe_async_result());
-            return this_.async_wait();
-        }
-
-        static public async Task<R> safe_async_call<R>(Action<Action<R>> handler)
-        {
-            generator this_ = self;
-            async_result_wrap<R> res = new async_result_wrap<R>();
-            handler(this_.safe_async_result(res));
-            await this_.async_wait();
-            return res.value1;
-        }
-
-        static public async Task<async_result_wrap<R1, R2>> safe_async_call<R1, R2>(Action<Action<R1, R2>> handler)
-        {
-            generator this_ = self;
-            async_result_wrap<R1, R2> res = new async_result_wrap<R1, R2>();
-            handler(this_.safe_async_result(res));
-            await this_.async_wait();
-            return res;
-        }
-
-        static public async Task<async_result_wrap<R1, R2, R3>> safe_async_call<R1, R2, R3>(Action<Action<R1, R2, R3>> handler)
-        {
-            generator this_ = self;
-            async_result_wrap<R1, R2, R3> res = new async_result_wrap<R1, R2, R3>();
-            handler(this_.safe_async_result(res));
-            await this_.async_wait();
-            return res;
-        }
-
         static public async Task<bool> timed_async_call(int ms, Action<Action> handler, Action timedHandler = null)
         {
             generator this_ = self;
-            bool overtime = false;
             if (null == timedHandler)
             {
-                handler(this_.timed_async_result2(ms, () => overtime = true));
+                handler(this_.timed_async_result2(ms, this_.set_overtime()));
             }
             else
             {
+                this_._overtime = false;
                 handler(this_.timed_async_result(ms, delegate ()
                 {
-                    overtime = true;
+                    this_._overtime = true;
                     timedHandler();
                 }));
             }
             await this_.async_wait();
-            return !overtime;
+            return !this_._overtime;
         }
 
         static public async Task<bool> timed_async_call<R>(int ms, async_result_wrap<R> res, Action<Action<R>> handler, Action timedHandler = null)
         {
             generator this_ = self;
-            bool overtime = false;
             if (null == timedHandler)
             {
-                handler(this_.timed_async_result2(ms, res, () => overtime = true));
+                handler(this_.timed_async_result2(ms, res, this_.set_overtime()));
             }
             else
             {
+                this_._overtime = false;
                 handler(this_.timed_async_result(ms, res, delegate ()
                 {
-                    overtime = true;
+                    this_._overtime = true;
                     timedHandler();
                 }));
             }
             await this_.async_wait();
-            return !overtime;
+            return !this_._overtime;
         }
 
         static public async Task<bool> timed_async_call<R1, R2>(int ms, async_result_wrap<R1, R2> res, Action<Action<R1, R2>> handler, Action timedHandler = null)
         {
             generator this_ = self;
-            bool overtime = false;
             if (null == timedHandler)
             {
-                handler(this_.timed_async_result2(ms, res, () => overtime = true));
+                handler(this_.timed_async_result2(ms, res, this_.set_overtime()));
             }
             else
             {
+                this_._overtime = false;
                 handler(this_.timed_async_result(ms, res, delegate ()
                 {
-                    overtime = true;
+                    this_._overtime = true;
                     timedHandler();
                 }));
             }
             await this_.async_wait();
-            return !overtime;
+            return !this_._overtime;
         }
 
         static public async Task<bool> timed_async_call<R1, R2, R3>(int ms, async_result_wrap<R1, R2, R3> res, Action<Action<R1, R2, R3>> handler, Action timedHandler = null)
         {
             generator this_ = self;
-            bool overtime = false;
             if (null == timedHandler)
             {
-                handler(this_.timed_async_result2(ms, res, () => overtime = true));
+                handler(this_.timed_async_result2(ms, res, this_.set_overtime()));
             }
             else
             {
+                this_._overtime = false;
                 handler(this_.timed_async_result(ms, res, delegate ()
                 {
-                    overtime = true;
+                    this_._overtime = true;
                     timedHandler();
                 }));
             }
             await this_.async_wait();
-            return !overtime;
+            return !this_._overtime;
         }
 #if DEBUG
         static public async Task call(action handler)
@@ -5047,7 +5086,7 @@ namespace Go
         {
             generator this_ = self;
             up_stack_frame(this_._makeStack, 2);
-            (new generator()).init(strand, handler, this_.async_result(), null, this_._makeStack).run();
+            (new generator()).init(strand, handler, this_.unsafe_async_result(), null, this_._makeStack).run();
             await lock_stop(() => this_.async_wait());
             this_._makeStack.RemoveFirst();
         }
@@ -5057,7 +5096,7 @@ namespace Go
             generator this_ = self;
             R res = default(R);
             up_stack_frame(this_._makeStack, 2);
-            (new generator()).init(strand, async () => res = await handler(), this_.async_result(), null, this_._makeStack).run();
+            (new generator()).init(strand, async () => res = await handler(), this_.unsafe_async_result(), null, this_._makeStack).run();
             await lock_stop(() => this_.async_wait());
             this_._makeStack.RemoveFirst();
             return res;
@@ -5076,7 +5115,7 @@ namespace Go
         static public Task depth_call(shared_strand strand, action handler)
         {
             generator this_ = self;
-            go(strand, handler, this_.async_result());
+            go(strand, handler, this_.unsafe_async_result());
             return lock_stop(() => this_.async_wait());
         }
 
@@ -5084,7 +5123,7 @@ namespace Go
         {
             generator this_ = self;
             R res = default(R);
-            go(strand, async () => res = await handler(), this_.async_result(), null);
+            go(strand, async () => res = await handler(), this_.unsafe_async_result(), null);
             await lock_stop(() => this_.async_wait());
             return res;
         }
@@ -5196,7 +5235,7 @@ namespace Go
                         {
                             lock_suspend_and_stop();
                             recvRes = new chan_recv_wrap<T> { state = chan_async_state.async_undefined };
-                            selfMb.try_recv_and_append_notify(self.async_callback(tryPopHandler), waitHasNtf, ntfSign);
+                            selfMb.try_recv_and_append_notify(self.unsafe_async_callback(tryPopHandler), waitHasNtf, ntfSign);
                             await self.async_wait();
                             if (chan_async_state.async_ok == recvRes.state)
                             {
@@ -5216,7 +5255,7 @@ namespace Go
                 catch (stop_exception)
                 {
                     lock_suspend_and_stop();
-                    selfMb.remove_recv_notify(self.async_ignore<chan_async_state>(), ntfSign);
+                    selfMb.remove_recv_notify(self.unsafe_async_ignore<chan_async_state>(), ntfSign);
                     await self.async_wait();
                     await unlock_suspend_and_stop();
                 }
@@ -5361,12 +5400,12 @@ namespace Go
                                     try
                                     {
                                         recvRes = new chan_recv_wrap<T> { state = chan_async_state.async_undefined };
-                                        chan.try_recv_and_append_notify(self.async_callback(tryPopHandler), waitHasNtf, ntfSign);
+                                        chan.try_recv_and_append_notify(self.unsafe_async_callback(tryPopHandler), waitHasNtf, ntfSign);
                                         await self.async_wait();
                                     }
                                     catch (stop_exception)
                                     {
-                                        chan.remove_recv_notify(self.async_ignore<chan_async_state>(), ntfSign);
+                                        chan.remove_recv_notify(self.unsafe_async_ignore<chan_async_state>(), ntfSign);
                                         await self.async_wait();
                                         if (chan_async_state.async_ok == recvRes.state)
                                         {
@@ -5410,7 +5449,7 @@ namespace Go
                         {
                             lock_stop();
                             self._mailboxMap = null;
-                            chan.remove_recv_notify(self.async_ignore<chan_async_state>(), ntfSign);
+                            chan.remove_recv_notify(self.unsafe_async_ignore<chan_async_state>(), ntfSign);
                             await self.async_wait();
                             await unlock_suspend_and_stop();
                         }
@@ -5472,7 +5511,7 @@ namespace Go
                             while (_run)
                             {
                                 chan_async_state result = chan_async_state.async_undefined;
-                                chan.append_recv_notify(self.async_callback((chan_async_state state) => result = state), ntfSign, ms);
+                                chan.append_recv_notify(self.unsafe_async_callback((chan_async_state state) => result = state), ntfSign, ms);
                                 await self.async_wait();
                                 await mutex_lock_shared(_mutex);
                                 try
@@ -5526,7 +5565,7 @@ namespace Go
                         {
                             lock_stop();
                             self._mailboxMap = null;
-                            chan.remove_recv_notify(self.async_ignore<chan_async_state>(), ntfSign);
+                            chan.remove_recv_notify(self.unsafe_async_ignore<chan_async_state>(), ntfSign);
                             await self.async_wait();
                             await unlock_suspend_and_stop();
                         }
@@ -5673,12 +5712,12 @@ namespace Go
                                     try
                                     {
                                         recvRes = new chan_recv_wrap<T> { state = chan_async_state.async_undefined };
-                                        chan.try_recv_and_append_notify(self.async_callback(tryPopHandler), waitHasNtf, ntfSign);
+                                        chan.try_recv_and_append_notify(self.unsafe_async_callback(tryPopHandler), waitHasNtf, ntfSign);
                                         await self.async_wait();
                                     }
                                     catch (stop_exception)
                                     {
-                                        chan.remove_recv_notify(self.async_ignore<chan_async_state>(), ntfSign);
+                                        chan.remove_recv_notify(self.unsafe_async_ignore<chan_async_state>(), ntfSign);
                                         await self.async_wait();
                                         if (chan_async_state.async_ok == recvRes.state)
                                         {
@@ -5722,7 +5761,7 @@ namespace Go
                         {
                             lock_stop();
                             self._mailboxMap = null;
-                            chan.remove_recv_notify(self.async_ignore<chan_async_state>(), ntfSign);
+                            chan.remove_recv_notify(self.unsafe_async_ignore<chan_async_state>(), ntfSign);
                             await self.async_wait();
                             await unlock_suspend_and_stop();
                         }
@@ -5785,7 +5824,7 @@ namespace Go
                             while (_run)
                             {
                                 chan_async_state result = chan_async_state.async_undefined;
-                                chan.append_recv_notify(self.async_callback((chan_async_state state) => result = state), ntfSign, ms);
+                                chan.append_recv_notify(self.unsafe_async_callback((chan_async_state state) => result = state), ntfSign, ms);
                                 await self.async_wait();
                                 await mutex_lock_shared(_mutex);
                                 try
@@ -5839,7 +5878,7 @@ namespace Go
                         {
                             lock_stop();
                             self._mailboxMap = null;
-                            chan.remove_recv_notify(self.async_ignore<chan_async_state>(), ntfSign);
+                            chan.remove_recv_notify(self.unsafe_async_ignore<chan_async_state>(), ntfSign);
                             await self.async_wait();
                             await unlock_suspend_and_stop();
                         }
@@ -6012,12 +6051,12 @@ namespace Go
                                     recvRes = new csp_wait_wrap<R, T> { state = chan_async_state.async_undefined };
                                     try
                                     {
-                                        chan.try_recv_and_append_notify(self.async_callback(tryPopHandler), waitHasNtf, ntfSign);
+                                        chan.try_recv_and_append_notify(self.unsafe_async_callback(tryPopHandler), waitHasNtf, ntfSign);
                                         await self.async_wait();
                                     }
                                     catch (stop_exception)
                                     {
-                                        chan.remove_recv_notify(self.async_ignore<chan_async_state>(), ntfSign);
+                                        chan.remove_recv_notify(self.unsafe_async_ignore<chan_async_state>(), ntfSign);
                                         await self.async_wait();
                                         if (chan_async_state.async_ok == recvRes.state)
                                         {
@@ -6074,7 +6113,7 @@ namespace Go
                         {
                             lock_stop();
                             self._mailboxMap = null;
-                            chan.remove_recv_notify(self.async_ignore<chan_async_state>(), ntfSign);
+                            chan.remove_recv_notify(self.unsafe_async_ignore<chan_async_state>(), ntfSign);
                             await self.async_wait();
                             await unlock_suspend_and_stop();
                         }
@@ -6168,7 +6207,7 @@ namespace Go
                             while (_run)
                             {
                                 chan_async_state result = chan_async_state.async_undefined;
-                                chan.append_recv_notify(self.async_callback((chan_async_state state) => result = state), ntfSign, ms);
+                                chan.append_recv_notify(self.unsafe_async_callback((chan_async_state state) => result = state), ntfSign, ms);
                                 await self.async_wait();
                                 await mutex_lock_shared(_mutex);
                                 try
@@ -6234,7 +6273,7 @@ namespace Go
                         {
                             lock_stop();
                             self._mailboxMap = null;
-                            chan.remove_recv_notify(self.async_ignore<chan_async_state>(), ntfSign);
+                            chan.remove_recv_notify(self.unsafe_async_ignore<chan_async_state>(), ntfSign);
                             await self.async_wait();
                             await unlock_suspend_and_stop();
                         }
@@ -7679,7 +7718,7 @@ namespace Go
 #endif
                 if (null != gen._childNode)
                 {
-                    gen.stop(_parent.async_result());
+                    gen.stop(_parent.unsafe_async_result());
                     await _parent.async_wait();
                     if (null != gen._childNode)
                     {
@@ -7737,7 +7776,7 @@ namespace Go
 #endif
                 if (null != gen._childNode)
                 {
-                    gen.append_stop_callback(_parent.async_result());
+                    gen.append_stop_callback(_parent.unsafe_async_result());
                     await _parent.async_wait();
                     if (null != gen._childNode)
                     {
@@ -7913,7 +7952,7 @@ namespace Go
                 {
                     unlimit_chan<tuple<child, LinkedListNode<Action>>> waitRemove = new unlimit_chan<tuple<child, LinkedListNode<Action>>>(_parent.strand);
                     async_result_wrap<child> res = new async_result_wrap<child>();
-                    Action<child> ntf = _parent.safe_async_result(res);
+                    Action<child> ntf = _parent.async_result(res);
                     Action<tuple<child, LinkedListNode<Action>>> removeNtf = waitRemove.wrap();
                     int count = 0;
                     for (LinkedListNode<child> it = _children.First; null != it; it = it.Next)
