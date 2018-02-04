@@ -3001,10 +3001,7 @@ namespace Go
                 chan.recv(this_.unsafe_async_callback(delegate (chan_async_state state, T msg)
                 {
                     result.state = state;
-                    if (chan_async_state.async_ok == state)
-                    {
-                        result.msg = msg;
-                    }
+                    result.msg = msg;
                 }), this_._ioSign, token);
                 await this_.async_wait();
                 return result;
@@ -3094,10 +3091,7 @@ namespace Go
                 chan.try_recv(this_.unsafe_async_callback(delegate (chan_async_state state, T msg)
                 {
                     result.state = state;
-                    if (chan_async_state.async_ok == state)
-                    {
-                        result.msg = msg;
-                    }
+                    result.msg = msg;
                 }), this_._ioSign, token);
                 await this_.async_wait();
                 return result;
@@ -3187,10 +3181,7 @@ namespace Go
                 chan.timed_recv(ms, this_.unsafe_async_callback(delegate (chan_async_state state, T msg)
                 {
                     result.state = state;
-                    if (chan_async_state.async_ok == state)
-                    {
-                        result.msg = msg;
-                    }
+                    result.msg = msg;
                 }), this_._ioSign, token);
                 await this_.async_wait();
                 return result;
@@ -3227,17 +3218,11 @@ namespace Go
                 chan.send(invokeMs, null == lostHandler ? this_.unsafe_async_callback(delegate (chan_async_state state, R resVal)
                 {
                     result.state = state;
-                    if (chan_async_state.async_ok == state)
-                    {
-                        result.result = resVal;
-                    }
+                    result.result = resVal;
                 }) : this_.async_callback(delegate (chan_async_state state, R resVal)
                 {
                     result.state = state;
-                    if (chan_async_state.async_ok == state)
-                    {
-                        result.result = resVal;
-                    }
+                    result.result = resVal;
                 }, delegate (chan_async_state state, R resVal)
                 {
                     if (chan_async_state.async_ok == state)
@@ -3292,11 +3277,8 @@ namespace Go
                 chan.recv(this_.unsafe_async_callback(delegate (chan_async_state state, T msg, csp_chan<R, T>.csp_result cspRes)
                 {
                     result.state = state;
-                    if (chan_async_state.async_ok == state)
-                    {
-                        result.msg = msg;
-                        result.result = cspRes;
-                    }
+                    result.msg = msg;
+                    result.result = cspRes;
                 }), this_._ioSign);
                 await this_.async_wait();
                 if (chan_async_state.async_ok == result.state)
@@ -3524,17 +3506,11 @@ namespace Go
                 chan.try_send(invokeMs, null == lostHandler ? this_.unsafe_async_callback(delegate (chan_async_state state, R resVal)
                 {
                     result.state = state;
-                    if (chan_async_state.async_ok == state)
-                    {
-                        result.result = resVal;
-                    }
+                    result.result = resVal;
                 }) : this_.async_callback(delegate (chan_async_state state, R resVal)
                 {
                     result.state = state;
-                    if (chan_async_state.async_ok == state)
-                    {
-                        result.result = resVal;
-                    }
+                    result.result = resVal;
                 }, delegate (chan_async_state state, R resVal)
                 {
                     if (chan_async_state.async_ok == state)
@@ -3589,11 +3565,8 @@ namespace Go
                 chan.try_recv(this_.unsafe_async_callback(delegate (chan_async_state state, T msg, csp_chan<R, T>.csp_result cspRes)
                 {
                     result.state = state;
-                    if (chan_async_state.async_ok == state)
-                    {
-                        result.msg = msg;
-                        result.result = cspRes;
-                    }
+                    result.msg = msg;
+                    result.result = cspRes;
                 }), this_._ioSign);
                 await this_.async_wait();
                 if (chan_async_state.async_ok == result.state)
@@ -3815,17 +3788,11 @@ namespace Go
                 chan.timed_send(ms.value1, ms.value2, null == lostHandler ? this_.unsafe_async_callback(delegate (chan_async_state state, R resVal)
                 {
                     result.state = state;
-                    if (chan_async_state.async_ok == state)
-                    {
-                        result.result = resVal;
-                    }
+                    result.result = resVal;
                 }) : this_.async_callback(delegate (chan_async_state state, R resVal)
                 {
                     result.state = state;
-                    if (chan_async_state.async_ok == state)
-                    {
-                        result.result = resVal;
-                    }
+                    result.result = resVal;
                 }, delegate (chan_async_state state, R resVal)
                 {
                     if (chan_async_state.async_ok == state)
@@ -3900,11 +3867,8 @@ namespace Go
                 chan.timed_recv(ms, this_.unsafe_async_callback(delegate (chan_async_state state, T msg, csp_chan<R, T>.csp_result cspRes)
                 {
                     result.state = state;
-                    if (chan_async_state.async_ok == state)
-                    {
-                        result.msg = msg;
-                        result.result = cspRes;
-                    }
+                    result.msg = msg;
+                    result.result = cspRes;
                 }), this_._ioSign);
                 await this_.async_wait();
                 if (chan_async_state.async_ok == result.state)
@@ -5607,10 +5571,7 @@ namespace Go
                     Action<chan_async_state, T> tryPopHandler = delegate (chan_async_state state, T msg)
                     {
                         recvRes.state = state;
-                        if (chan_async_state.async_ok == state)
-                        {
-                            recvRes.msg = msg;
-                        }
+                        recvRes.msg = msg;
                     };
                     selfMb.append_recv_notify(waitHasNtf, ntfSign);
                     while (true)
@@ -5770,10 +5731,7 @@ namespace Go
                             Action<chan_async_state, T> tryPopHandler = delegate (chan_async_state state, T msg)
                             {
                                 recvRes.state = state;
-                                if (chan_async_state.async_ok == state)
-                                {
-                                    recvRes.msg = msg;
-                                }
+                                recvRes.msg = msg;
                             };
                             chan.append_recv_notify(waitHasNtf, ntfSign);
                             while (_run)
@@ -6082,10 +6040,7 @@ namespace Go
                             Action<chan_async_state, T> tryPopHandler = delegate (chan_async_state state, T msg)
                             {
                                 recvRes.state = state;
-                                if (chan_async_state.async_ok == state)
-                                {
-                                    recvRes.msg = msg;
-                                }
+                                recvRes.msg = msg;
                             };
                             chan.append_recv_notify(waitHasNtf, ntfSign);
                             while (_run)
@@ -6420,11 +6375,8 @@ namespace Go
                             Action<chan_async_state, T, csp_chan<R, T>.csp_result> tryPopHandler = delegate (chan_async_state state, T msg, csp_chan<R, T>.csp_result cspRes)
                             {
                                 recvRes.state = state;
-                                if (chan_async_state.async_ok == state)
-                                {
-                                    recvRes.msg = msg;
-                                    recvRes.result = cspRes;
-                                }
+                                recvRes.msg = msg;
+                                recvRes.result = cspRes;
                             };
                             chan.append_recv_notify(waitHasNtf, ntfSign);
                             while (_run)

@@ -435,10 +435,7 @@ namespace Go
                     _tryPushHandler = delegate (chan_async_state state, T msg)
                     {
                         _tempResult.state = state;
-                        if (chan_async_state.async_ok == state)
-                        {
-                            _tempResult.msg = msg;
-                        }
+                        _tempResult.msg = msg;
                     };
                 }
                 try
@@ -2824,11 +2821,8 @@ namespace Go
                     _tryPopHandler = delegate (chan_async_state state, T msg, csp_result cspRes)
                     {
                         _tempResult.state = state;
-                        if (chan_async_state.async_ok == state)
-                        {
-                            _tempResult.msg = msg;
-                            _tempResult.result = cspRes;
-                        }
+                        _tempResult.msg = msg;
+                        _tempResult.result = cspRes;
                     };
                 }
                 try
@@ -2956,10 +2950,7 @@ namespace Go
                     _tryPushHandler = delegate (chan_async_state state, R resVal)
                     {
                         _tempResult.state = state;
-                        if (chan_async_state.async_ok == state)
-                        {
-                            _tempResult.result = resVal;
-                        }
+                        _tempResult.result = resVal;
                     };
                 }
                 try
