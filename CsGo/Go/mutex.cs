@@ -19,21 +19,13 @@ namespace Go
 
         public mutex(shared_strand strand)
         {
-            init(strand);
-        }
-
-        public mutex()
-        {
-            init(shared_strand.default_strand());
-        }
-
-        private void init(shared_strand strand)
-        {
             _strand = strand;
             _waitQueue = new LinkedList<wait_node>();
             _lockID = 0;
             _recCount = 0;
         }
+
+        public mutex() : this(shared_strand.default_strand()) { }
 
         protected virtual void lock_(long id, Action ntf)
         {
@@ -577,16 +569,7 @@ namespace Go
             _waitQueue = new LinkedList<tuple<long, mutex, Action>>();
         }
 
-        public condition_variable()
-        {
-            init(shared_strand.default_strand());
-        }
-
-        private void init(shared_strand strand)
-        {
-            _strand = strand;
-            _waitQueue = new LinkedList<tuple<long, mutex, Action>>();
-        }
+        public condition_variable() : this(shared_strand.default_strand()) { }
 
         internal void wait(long id, mutex mutex, Action ntf)
         {
