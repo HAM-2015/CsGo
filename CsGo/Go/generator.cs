@@ -2883,6 +2883,17 @@ namespace Go
             await unlock_suspend_and_stop();
         }
 
+        static public Task unsafe_chan_send<T>(chan<T> chan, async_result_wrap<chan_send_wrap> res, T msg)
+        {
+            generator this_ = self;
+            res.value1 = new chan_send_wrap { state = chan_async_state.async_undefined };
+            chan.send(this_.unsafe_async_callback(delegate (chan_async_state state)
+            {
+                res.value1 = new chan_send_wrap { state = state };
+            }), msg);
+            return this_.async_wait();
+        }
+
         static public async Task<chan_send_wrap> chan_send<T>(chan<T> chan, T msg, chan_lost_msg<T> lostMsg = null)
         {
             generator this_ = self;
@@ -2905,9 +2916,29 @@ namespace Go
             }
         }
 
+        static public Task unsafe_chan_send(chan<void_type> chan, async_result_wrap<chan_send_wrap> res)
+        {
+            return unsafe_chan_send(chan, res, default(void_type));
+        }
+
         static public Task<chan_send_wrap> chan_send(chan<void_type> chan, chan_lost_msg<void_type> lostMsg = null)
         {
             return chan_send(chan, default(void_type), lostMsg);
+        }
+
+        static public Task unsafe_chan_force_send<T>(limit_chan<T> chan, async_result_wrap<chan_send_wrap> res, T msg, chan_lost_msg<T> outMsg = null)
+        {
+            generator this_ = self;
+            res.value1 = new chan_send_wrap { state = chan_async_state.async_undefined };
+            chan.force_send(this_.unsafe_async_callback(delegate (chan_async_state state, bool hasOut, T freeMsg)
+            {
+                res.value1 = new chan_send_wrap { state = state };
+                if (hasOut)
+                {
+                    outMsg?.set(freeMsg);
+                }
+            }), msg);
+            return this_.async_wait();
         }
 
         static public async Task<chan_send_wrap> chan_force_send<T>(limit_chan<T> chan, T msg, chan_lost_msg<T> outMsg = null, chan_lost_msg<T> lostMsg = null)
@@ -2917,7 +2948,7 @@ namespace Go
             try
             {
                 outMsg?.clear();
-                chan.force_push(this_.unsafe_async_callback(delegate (chan_async_state state, bool hasOut, T freeMsg)
+                chan.force_send(this_.unsafe_async_callback(delegate (chan_async_state state, bool hasOut, T freeMsg)
                 {
                     result = state;
                     if (hasOut)
@@ -2940,9 +2971,25 @@ namespace Go
             }
         }
 
+        static public Task unsafe_chan_receive<T>(chan<T> chan, async_result_wrap<chan_recv_wrap<T>> res)
+        {
+            return unsafe_chan_receive(chan, broadcast_token._defToken, res);
+        }
+
         static public Task<chan_recv_wrap<T>> chan_receive<T>(chan<T> chan, chan_lost_msg<T> lostMsg = null)
         {
             return chan_receive(chan, broadcast_token._defToken, lostMsg);
+        }
+
+        static public Task unsafe_chan_receive<T>(chan<T> chan, broadcast_token token, async_result_wrap<chan_recv_wrap<T>> res)
+        {
+            generator this_ = self;
+            res.value1 = default(chan_recv_wrap<T>);
+            chan.recv(this_.unsafe_async_callback(delegate (chan_async_state state, T msg)
+            {
+                res.value1 = new chan_recv_wrap<T> { state = state, msg = msg };
+            }), null, token);
+            return this_.async_wait();
         }
 
         static public async Task<chan_recv_wrap<T>> chan_receive<T>(chan<T> chan, broadcast_token token, chan_lost_msg<T> lostMsg = null)
@@ -2974,6 +3021,17 @@ namespace Go
             }
         }
 
+        static public Task unsafe_chan_try_send<T>(chan<T> chan, async_result_wrap<chan_send_wrap> res, T msg)
+        {
+            generator this_ = self;
+            res.value1 = new chan_send_wrap { state = chan_async_state.async_undefined };
+            chan.try_send(this_.unsafe_async_callback(delegate (chan_async_state state)
+            {
+                res.value1 = new chan_send_wrap { state = state };
+            }), msg);
+            return this_.async_wait();
+        }
+
         static public async Task<chan_send_wrap> chan_try_send<T>(chan<T> chan, T msg, chan_lost_msg<T> lostMsg = null)
         {
             generator this_ = self;
@@ -2996,14 +3054,35 @@ namespace Go
             }
         }
 
+        static public Task unsafe_chan_try_send(chan<void_type> chan, async_result_wrap<chan_send_wrap> res)
+        {
+            return unsafe_chan_try_send(chan, res, default(void_type));
+        }
+
         static public Task<chan_send_wrap> chan_try_send(chan<void_type> chan, chan_lost_msg<void_type> lostMsg = null)
         {
             return chan_try_send(chan, default(void_type), lostMsg);
         }
 
+        static public Task unsafe_chan_try_receive<T>(chan<T> chan, async_result_wrap<chan_recv_wrap<T>> res)
+        {
+            return unsafe_chan_try_receive(chan, broadcast_token._defToken, res);
+        }
+
         static public Task<chan_recv_wrap<T>> chan_try_receive<T>(chan<T> chan, chan_lost_msg<T> lostMsg = null)
         {
             return chan_try_receive(chan, broadcast_token._defToken, lostMsg);
+        }
+
+        static public Task unsafe_chan_try_receive<T>(chan<T> chan, broadcast_token token, async_result_wrap<chan_recv_wrap<T>> res)
+        {
+            generator this_ = self;
+            res.value1 = default(chan_recv_wrap<T>);
+            chan.try_recv(this_.unsafe_async_callback(delegate (chan_async_state state, T msg)
+            {
+                res.value1 = new chan_recv_wrap<T> { state = state, msg = msg };
+            }), null, token);
+            return this_.async_wait();
         }
 
         static public async Task<chan_recv_wrap<T>> chan_try_receive<T>(chan<T> chan, broadcast_token token, chan_lost_msg<T> lostMsg = null)
@@ -3035,6 +3114,17 @@ namespace Go
             }
         }
 
+        static public Task unsafe_chan_timed_send<T>(chan<T> chan, int ms, T msg, async_result_wrap<chan_send_wrap> res)
+        {
+            generator this_ = self;
+            res.value1 = new chan_send_wrap { state = chan_async_state.async_undefined };
+            chan.timed_send(ms, this_.unsafe_async_callback(delegate (chan_async_state state)
+            {
+                res.value1 = new chan_send_wrap { state = state };
+            }), msg);
+            return this_.async_wait();
+        }
+
         static public async Task<chan_send_wrap> chan_timed_send<T>(chan<T> chan, int ms, T msg, chan_lost_msg<T> lostMsg = null)
         {
             generator this_ = self;
@@ -3057,14 +3147,35 @@ namespace Go
             }
         }
 
+        static public Task unsafe_chan_timed_send(chan<void_type> chan, int ms, async_result_wrap<chan_send_wrap> res)
+        {
+            return unsafe_chan_timed_send(chan, ms, default(void_type), res);
+        }
+
         static public Task<chan_send_wrap> chan_timed_send(chan<void_type> chan, int ms, chan_lost_msg<void_type> lostMsg = null)
         {
             return chan_timed_send(chan, ms, default(void_type), lostMsg);
         }
 
+        static public Task unsafe_chan_timed_receive<T>(chan<T> chan, int ms, async_result_wrap<chan_recv_wrap<T>> res)
+        {
+            return unsafe_chan_timed_receive(chan, ms, broadcast_token._defToken, res);
+        }
+
         static public Task<chan_recv_wrap<T>> chan_timed_receive<T>(chan<T> chan, int ms, chan_lost_msg<T> lostMsg = null)
         {
             return chan_timed_receive(chan, ms, broadcast_token._defToken, lostMsg);
+        }
+
+        static public Task unsafe_chan_timed_receive<T>(chan<T> chan, int ms, broadcast_token token, async_result_wrap<chan_recv_wrap<T>> res)
+        {
+            generator this_ = self;
+            res.value1 = default(chan_recv_wrap<T>);
+            chan.timed_recv(ms, this_.unsafe_async_callback(delegate (chan_async_state state, T msg)
+            {
+                res.value1 = new chan_recv_wrap<T> { state = state, msg = msg };
+            }), null, token);
+            return this_.async_wait();
         }
 
         static public async Task<chan_recv_wrap<T>> chan_timed_receive<T>(chan<T> chan, int ms, broadcast_token token, chan_lost_msg<T> lostMsg = null)
@@ -3094,6 +3205,17 @@ namespace Go
                 }
                 throw;
             }
+        }
+
+        static public Task unsafe_csp_invoke<R, T>(csp_chan<R, T> chan, async_result_wrap<csp_invoke_wrap<R>> res, T msg, int invokeMs = -1)
+        {
+            generator this_ = self;
+            res.value1 = new csp_invoke_wrap<R> { state = chan_async_state.async_undefined };
+            chan.send(invokeMs, this_.unsafe_async_callback(delegate (chan_async_state state, R resVal)
+            {
+                res.value1 = new csp_invoke_wrap<R> { state = state, result = resVal };
+            }), msg);
+            return this_.async_wait();
         }
 
         static public async Task<csp_invoke_wrap<R>> csp_invoke<R, T>(csp_chan<R, T> chan, T msg, int invokeMs = -1, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
@@ -3139,9 +3261,26 @@ namespace Go
             }
         }
 
+        static public Task unsafe_csp_invoke<R>(csp_chan<R, void_type> chan, async_result_wrap<csp_invoke_wrap<R>> res, int invokeMs = -1)
+        {
+            return unsafe_csp_invoke(chan, res, default(void_type), invokeMs);
+        }
+
         static public Task<csp_invoke_wrap<R>> csp_invoke<R>(csp_chan<R, void_type> chan, int invokeMs = -1, Action<R> lostHandler = null, chan_lost_msg<void_type> lostMsg = null)
         {
             return csp_invoke(chan, default(void_type), invokeMs, lostHandler, lostMsg);
+        }
+
+        static public Task unsafe_csp_wait<R, T>(csp_chan<R, T> chan, async_result_wrap<csp_wait_wrap<R, T>> res)
+        {
+            generator this_ = self;
+            res.value1 = new csp_wait_wrap<R, T> { state = chan_async_state.async_undefined };
+            chan.recv(this_.async_callback(delegate (chan_async_state state, T msg, csp_chan<R, T>.csp_result cspRes)
+            {
+                res.value1 = new csp_wait_wrap<R, T> { state = state, msg = msg, result = cspRes };
+                cspRes?.start_invoke_timer(this_);
+            }));
+            return this_.async_wait();
         }
 
         static public async Task<csp_wait_wrap<R, T>> csp_wait<R, T>(csp_chan<R, T> chan, chan_lost_msg<T> lostMsg = null)
@@ -3365,6 +3504,17 @@ namespace Go
             return result.state;
         }
 
+        static public Task unsafe_csp_try_invoke<R, T>(csp_chan<R, T> chan, async_result_wrap<csp_invoke_wrap<R>> res, T msg, int invokeMs = -1)
+        {
+            generator this_ = self;
+            res.value1 = new csp_invoke_wrap<R> { state = chan_async_state.async_undefined };
+            chan.try_send(invokeMs, this_.unsafe_async_callback(delegate (chan_async_state state, R resVal)
+            {
+                res.value1 = new csp_invoke_wrap<R> { state = state, result = resVal };
+            }), msg);
+            return this_.async_wait();
+        }
+
         static public async Task<csp_invoke_wrap<R>> csp_try_invoke<R, T>(csp_chan<R, T> chan, T msg, int invokeMs = -1, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
         {
             generator this_ = self;
@@ -3408,9 +3558,26 @@ namespace Go
             }
         }
 
+        static public Task unsafe_csp_try_invoke<R>(csp_chan<R, void_type> chan, async_result_wrap<csp_invoke_wrap<R>> res, int invokeMs = -1)
+        {
+            return unsafe_csp_try_invoke(chan, res, default(void_type), invokeMs);
+        }
+
         static public Task<csp_invoke_wrap<R>> csp_try_invoke<R>(csp_chan<R, void_type> chan, int invokeMs = -1, Action<R> lostHandler = null, chan_lost_msg<void_type> lostMsg = null)
         {
             return csp_try_invoke(chan, default(void_type), invokeMs, lostHandler, lostMsg);
+        }
+
+        static public Task unsafe_csp_try_wait<R, T>(csp_chan<R, T> chan, async_result_wrap<csp_wait_wrap<R, T>> res)
+        {
+            generator this_ = self;
+            res.value1 = new csp_wait_wrap<R, T> { state = chan_async_state.async_undefined };
+            chan.try_recv(this_.async_callback(delegate (chan_async_state state, T msg, csp_chan<R, T>.csp_result cspRes)
+            {
+                res.value1 = new csp_wait_wrap<R, T> { state = state, msg = msg, result = cspRes };
+                cspRes?.start_invoke_timer(this_);
+            }));
+            return this_.async_wait();
         }
 
         static public async Task<csp_wait_wrap<R, T>> csp_try_wait<R, T>(csp_chan<R, T> chan, chan_lost_msg<T> lostMsg = null)
@@ -3628,6 +3795,17 @@ namespace Go
             return result.state;
         }
 
+        static public Task unsafe_csp_timed_invoke<R, T>(csp_chan<R, T> chan, async_result_wrap<csp_invoke_wrap<R>> res, tuple<int, int> ms, T msg, int invokeMs = -1)
+        {
+            generator this_ = self;
+            res.value1 = new csp_invoke_wrap<R> { state = chan_async_state.async_undefined };
+            chan.timed_send(ms.value1, ms.value2, this_.unsafe_async_callback(delegate (chan_async_state state, R resVal)
+            {
+                res.value1 = new csp_invoke_wrap<R> { state = state, result = resVal };
+            }), msg);
+            return this_.async_wait();
+        }
+
         static public async Task<csp_invoke_wrap<R>> csp_timed_invoke<R, T>(csp_chan<R, T> chan, tuple<int, int> ms, T msg, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
         {
             generator this_ = self;
@@ -3671,9 +3849,19 @@ namespace Go
             }
         }
 
+        static public Task unsafe_csp_timed_invoke<R, T>(csp_chan<R, T> chan, async_result_wrap<csp_invoke_wrap<R>> res, int ms, T msg)
+        {
+            return unsafe_csp_timed_invoke(chan, res, tuple.make(ms, -1), msg);
+        }
+
         static public Task<csp_invoke_wrap<R>> csp_timed_invoke<R, T>(csp_chan<R, T> chan, int ms, T msg, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
         {
             return csp_timed_invoke(chan, tuple.make(ms, -1), msg, lostHandler, lostMsg);
+        }
+
+        static public Task unsafe_csp_timed_invoke<R>(csp_chan<R, void_type> chan, async_result_wrap<csp_invoke_wrap<R>> res, tuple<int, int> ms)
+        {
+            return unsafe_csp_timed_invoke(chan, res, ms, default(void_type));
         }
 
         static public Task<csp_invoke_wrap<R>> csp_timed_invoke<R>(csp_chan<R, void_type> chan, tuple<int, int> ms, Action<R> lostHandler = null, chan_lost_msg<void_type> lostMsg = null)
@@ -3681,9 +3869,26 @@ namespace Go
             return csp_timed_invoke(chan, ms, default(void_type), lostHandler, lostMsg);
         }
 
+        static public Task unsafe_csp_timed_invoke<R>(csp_chan<R, void_type> chan, async_result_wrap<csp_invoke_wrap<R>> res, int ms)
+        {
+            return unsafe_csp_timed_invoke(chan, res, ms, default(void_type));
+        }
+
         static public Task<csp_invoke_wrap<R>> csp_timed_invoke<R>(csp_chan<R, void_type> chan, int ms, Action<R> lostHandler = null, chan_lost_msg<void_type> lostMsg = null)
         {
             return csp_timed_invoke(chan, ms, default(void_type), lostHandler, lostMsg);
+        }
+
+        static public Task unsafe_csp_timed_wait<R, T>(csp_chan<R, T> chan, int ms, async_result_wrap<csp_wait_wrap<R, T>> res)
+        {
+            generator this_ = self;
+            res.value1 = new csp_wait_wrap<R, T> { state = chan_async_state.async_undefined };
+            chan.timed_recv(ms, this_.async_callback(delegate (chan_async_state state, T msg, csp_chan<R, T>.csp_result cspRes)
+            {
+                res.value1 = new csp_wait_wrap<R, T> { state = state, msg = msg, result = cspRes };
+                cspRes?.start_invoke_timer(this_);
+            }));
+            return this_.async_wait();
         }
 
         static public async Task<csp_wait_wrap<R, T>> csp_timed_wait<R, T>(csp_chan<R, T> chan, int ms, chan_lost_msg<T> lostMsg = null)
@@ -4014,6 +4219,14 @@ namespace Go
             }
         }
 
+        static public Task mutex_try_lock(mutex mtx, async_result_wrap<bool> res)
+        {
+            generator this_ = self;
+            res.value1 = false;
+            mtx.try_lock(this_._id, this_.async_result(res));
+            return this_.async_wait();
+        }
+
         static public async Task<bool> mutex_try_lock(mutex mtx)
         {
             generator this_ = self;
@@ -4038,6 +4251,14 @@ namespace Go
                 return true;
             }
             return false;
+        }
+
+        static public Task mutex_timed_lock(mutex mtx, int ms, async_result_wrap<bool> res)
+        {
+            generator this_ = self;
+            res.value1 = false;
+            mtx.timed_lock(this_._id, ms, this_.async_result(res));
+            return this_.async_wait();
         }
 
         static public async Task<bool> mutex_timed_lock(mutex mtx, int ms)
@@ -4172,6 +4393,14 @@ namespace Go
             }
         }
 
+        static public Task mutex_try_lock_shared(shared_mutex mtx, async_result_wrap<bool> res)
+        {
+            generator this_ = self;
+            res.value1 = false;
+            mtx.try_lock_shared(this_._id, this_.async_result(res));
+            return this_.async_wait();
+        }
+
         static public async Task<bool> mutex_try_lock_shared(shared_mutex mtx)
         {
             generator this_ = self;
@@ -4198,6 +4427,14 @@ namespace Go
             return false;
         }
 
+        static public Task mutex_try_lock_upgrade(shared_mutex mtx, async_result_wrap<bool> res)
+        {
+            generator this_ = self;
+            res.value1 = false;
+            mtx.try_lock_upgrade(this_._id, this_.async_result(res));
+            return this_.async_wait();
+        }
+
         static public async Task<bool> mutex_try_lock_upgrade(shared_mutex mtx)
         {
             generator this_ = self;
@@ -4222,6 +4459,14 @@ namespace Go
                 return true;
             }
             return false;
+        }
+
+        static public Task mutex_timed_lock_shared(shared_mutex mtx, int ms, async_result_wrap<bool> res)
+        {
+            generator this_ = self;
+            res.value1 = false;
+            mtx.timed_lock_shared(this_._id, ms, this_.async_result(res));
+            return this_.async_wait();
         }
 
         static public async Task<bool> mutex_timed_lock_shared(shared_mutex mtx, int ms)
@@ -4271,6 +4516,14 @@ namespace Go
             return this_.async_wait();
         }
 
+        static public Task condition_timed_wait(condition_variable conVar, mutex mutex, int ms, async_result_wrap<bool> res)
+        {
+            generator this_ = self;
+            res.value1 = false;
+            conVar.timed_wait(this_._id, ms, mutex, this_.async_result(res));
+            return this_.async_wait();
+        }
+
         static public async Task<bool> condition_timed_wait(condition_variable conVar, mutex mutex, int ms)
         {
             generator this_ = self;
@@ -4284,6 +4537,18 @@ namespace Go
         {
             generator this_ = self;
             conVar.cancel(this_.id, this_.unsafe_async_result());
+            return this_.async_wait();
+        }
+
+        static public Task unsafe_send_strand(shared_strand strand, Action handler)
+        {
+            generator this_ = self;
+            if (this_.strand == strand)
+            {
+                handler();
+                return non_async();
+            }
+            strand.post(this_.unsafe_async_callback(handler));
             return this_.async_wait();
         }
 
@@ -4314,6 +4579,22 @@ namespace Go
                     throw hasExcep;
                 }
             }
+        }
+
+        static public Task unsafe_send_strand<R>(shared_strand strand, async_result_wrap<R> res, Func<R> handler)
+        {
+            generator this_ = self;
+            if (this_.strand == strand)
+            {
+                res.value1 = handler();
+                return non_async();
+            }
+            res.clear();
+            strand.post(this_.unsafe_async_callback(delegate ()
+            {
+                res.value1 = handler();
+            }));
+            return this_.async_wait();
         }
 
         static public async Task<R> send_strand<R>(shared_strand strand, Func<R> handler)
@@ -4400,6 +4681,18 @@ namespace Go
             }
         }
 
+        static public Task unsafe_send_control(System.Windows.Forms.Control ctrl, Action handler)
+        {
+            if (!ctrl.InvokeRequired)
+            {
+                handler();
+                return non_async();
+            }
+            generator this_ = self;
+            post_control(ctrl, this_.unsafe_async_callback(handler));
+            return this_.async_wait();
+        }
+
         static public async Task send_control(System.Windows.Forms.Control ctrl, Action handler)
         {
             if (!ctrl.InvokeRequired)
@@ -4425,6 +4718,22 @@ namespace Go
             {
                 throw hasExcep;
             }
+        }
+
+        static public Task unsafe_send_control<R>(System.Windows.Forms.Control ctrl, async_result_wrap<R> res, Func<R> handler)
+        {
+            if (!ctrl.InvokeRequired)
+            {
+                res.value1 = handler();
+                return non_async();
+            }
+            res.clear();
+            generator this_ = self;
+            post_control(ctrl, this_.unsafe_async_callback(delegate ()
+            {
+                res.value1 = handler();
+            }));
+            return this_.async_wait();
         }
 
         static public async Task<R> send_control<R>(System.Windows.Forms.Control ctrl, Func<R> handler)
@@ -4490,6 +4799,19 @@ namespace Go
             };
         }
 #endif
+        static public Task unsafe_send_task(Action handler)
+        {
+            generator this_ = self;
+            this_._pullTask.new_task();
+            bool beginQuit = this_._beginQuit;
+            Task _ = Task.Run(delegate ()
+            {
+                handler();
+                this_.strand.post(beginQuit ? (Action)this_.quit_next : this_.no_quit_next);
+            });
+            return this_.async_wait();
+        }
+
         static public async Task send_task(Action handler)
         {
             generator this_ = self;
@@ -4513,6 +4835,19 @@ namespace Go
             {
                 throw hasExcep;
             }
+        }
+
+        static public Task unsafe_send_task<R>(async_result_wrap<R> res, Func<R> handler)
+        {
+            generator this_ = self;
+            this_._pullTask.new_task();
+            bool beginQuit = this_._beginQuit;
+            Task _ = Task.Run(delegate ()
+            {
+                res.value1 = handler();
+                this_.strand.post(beginQuit ? (Action)this_.quit_next : this_.no_quit_next);
+            });
+            return this_.async_wait();
         }
 
         static public async Task<R> send_task<R>(Func<R> handler)
@@ -4698,11 +5033,12 @@ namespace Go
             return task.Result;
         }
 
-        static public Task wait_task<R>(async_result_wrap<R> res, Task<R> task)
+        static public Task unsafe_wait_task<R>(async_result_wrap<R> res, Task<R> task)
         {
             if (!task.IsCompleted)
             {
                 generator this_ = self;
+                res.clear();
                 task.GetAwaiter().OnCompleted(this_.async_callback(() => res.value1 = task.Result));
                 return this_.async_wait();
             }
@@ -4732,6 +5068,19 @@ namespace Go
             return true;
         }
 
+        static public Task unsafe_timed_wait_task(int ms, async_result_wrap<bool> res, Task task)
+        {
+            if (!task.IsCompleted)
+            {
+                generator this_ = self;
+                res.value1 = false;
+                task.GetAwaiter().OnCompleted(this_.timed_async_callback2(ms, () => res.value1 = true));
+                return this_.async_wait();
+            }
+            res.value1 = true;
+            return non_async();
+        }
+
         static public async Task<tuple<bool, R>> timed_wait_task<R>(int ms, Task<R> task)
         {
             if (!task.IsCompleted)
@@ -4744,7 +5093,7 @@ namespace Go
             return tuple.make(true, task.Result);
         }
 
-        static public Task timed_wait_task<R>(int ms, async_result_wrap<bool, R> res, Task<R> task)
+        static public Task unsafe_timed_wait_task<R>(int ms, async_result_wrap<bool, R> res, Task<R> task)
         {
             if (!task.IsCompleted)
             {
@@ -4911,31 +5260,28 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public async Task<R> unsafe_async_call<R>(Action<Action<R>> handler)
+        static public Task unsafe_async_call<R>(async_result_wrap<R> res, Action<Action<R>> handler)
         {
             generator this_ = self;
-            async_result_wrap<R> res = new async_result_wrap<R>();
+            res.clear();
             handler(this_.unsafe_async_result(res));
-            await this_.async_wait();
-            return res.value1;
+            return this_.async_wait();
         }
 
-        static public async Task<async_result_wrap<R1, R2>> unsafe_async_call<R1, R2>(Action<Action<R1, R2>> handler)
+        static public Task unsafe_async_call<R1, R2>(async_result_wrap<R1, R2> res, Action<Action<R1, R2>> handler)
         {
             generator this_ = self;
-            async_result_wrap<R1, R2> res = new async_result_wrap<R1, R2>();
+            res.clear();
             handler(this_.unsafe_async_result(res));
-            await this_.async_wait();
-            return res;
+            return this_.async_wait();
         }
 
-        static public async Task<async_result_wrap<R1, R2, R3>> unsafe_async_call<R1, R2, R3>(Action<Action<R1, R2, R3>> handler)
+        static public Task unsafe_async_call<R1, R2, R3>(async_result_wrap<R1, R2, R3> res, Action<Action<R1, R2, R3>> handler)
         {
             generator this_ = self;
-            async_result_wrap<R1, R2, R3> res = new async_result_wrap<R1, R2, R3>();
+            res.clear();
             handler(this_.unsafe_async_result(res));
-            await this_.async_wait();
-            return res;
+            return this_.async_wait();
         }
 
         static public Task async_call(Action<Action> handler)
@@ -4954,102 +5300,141 @@ namespace Go
             return res.value1;
         }
 
-        static public async Task<async_result_wrap<R1, R2>> async_call<R1, R2>(Action<Action<R1, R2>> handler)
+        static public async Task<tuple<R1, R2>> async_call<R1, R2>(Action<Action<R1, R2>> handler)
         {
             generator this_ = self;
             async_result_wrap<R1, R2> res = new async_result_wrap<R1, R2>();
             handler(this_.async_result(res));
             await this_.async_wait();
-            return res;
+            return tuple.make(res.value1, res.value2);
         }
 
-        static public async Task<async_result_wrap<R1, R2, R3>> async_call<R1, R2, R3>(Action<Action<R1, R2, R3>> handler)
+        static public async Task<tuple<R1, R2, R3>> async_call<R1, R2, R3>(Action<Action<R1, R2, R3>> handler)
         {
             generator this_ = self;
             async_result_wrap<R1, R2, R3> res = new async_result_wrap<R1, R2, R3>();
             handler(this_.async_result(res));
             await this_.async_wait();
-            return res;
+            return tuple.make(res.value1, res.value2, res.value3);
+        }
+
+        static public Task unsafe_timed_async_call(int ms, async_result_wrap<bool> res, Action<Action> handler, Action timedHandler = null)
+        {
+            generator this_ = self;
+            res.value1 = false;
+            this_._overtime = false;
+            handler(this_.timed_async_callback(ms, () => res.value1 = !this_._overtime, null == timedHandler ? this_.set_overtime() : delegate ()
+            {
+                this_._overtime = true;
+                timedHandler();
+            }));
+            return this_.async_wait();
         }
 
         static public async Task<bool> timed_async_call(int ms, Action<Action> handler, Action timedHandler = null)
         {
             generator this_ = self;
-            if (null == timedHandler)
+            this_._overtime = false;
+            handler(this_.timed_async_callback(ms, nil_action.action, null == timedHandler ? this_.set_overtime() : delegate ()
             {
-                handler(this_.timed_async_result2(ms, this_.set_overtime()));
-            }
-            else
-            {
-                this_._overtime = false;
-                handler(this_.timed_async_result(ms, delegate ()
-                {
-                    this_._overtime = true;
-                    timedHandler();
-                }));
-            }
+                this_._overtime = true;
+                timedHandler();
+            }));
             await this_.async_wait();
             return !this_._overtime;
         }
 
-        static public async Task<bool> timed_async_call<R>(int ms, async_result_wrap<R> res, Action<Action<R>> handler, Action timedHandler = null)
+        static public Task unsafe_timed_async_call<R>(int ms, async_result_wrap<bool, R> res, Action<Action<R>> handler, Action timedHandler = null)
         {
             generator this_ = self;
-            if (null == timedHandler)
+            res.value1 = false;
+            this_._overtime = false;
+            handler(this_.timed_async_callback(ms, delegate (R res1)
             {
-                handler(this_.timed_async_result2(ms, res, this_.set_overtime()));
-            }
-            else
+                res.value1 = !this_._overtime;
+                res.value2 = res1;
+            }, null == timedHandler ? this_.set_overtime() : delegate ()
             {
-                this_._overtime = false;
-                handler(this_.timed_async_result(ms, res, delegate ()
-                {
-                    this_._overtime = true;
-                    timedHandler();
-                }));
-            }
-            await this_.async_wait();
-            return !this_._overtime;
+                this_._overtime = true;
+                timedHandler();
+            }));
+            return this_.async_wait();
         }
 
-        static public async Task<bool> timed_async_call<R1, R2>(int ms, async_result_wrap<R1, R2> res, Action<Action<R1, R2>> handler, Action timedHandler = null)
+        static public async Task<tuple<bool, R>> timed_async_call<R>(int ms, Action<Action<R>> handler, Action timedHandler = null)
         {
             generator this_ = self;
-            if (null == timedHandler)
+            R res = default(R);
+            this_._overtime = false;
+            handler(this_.timed_async_callback(ms, (R res1) => res = res1, null == timedHandler ? this_.set_overtime() : delegate ()
             {
-                handler(this_.timed_async_result2(ms, res, this_.set_overtime()));
-            }
-            else
-            {
-                this_._overtime = false;
-                handler(this_.timed_async_result(ms, res, delegate ()
-                {
-                    this_._overtime = true;
-                    timedHandler();
-                }));
-            }
+                this_._overtime = true;
+                timedHandler();
+            }));
             await this_.async_wait();
-            return !this_._overtime;
+            return tuple.make(!this_._overtime, res);
         }
 
-        static public async Task<bool> timed_async_call<R1, R2, R3>(int ms, async_result_wrap<R1, R2, R3> res, Action<Action<R1, R2, R3>> handler, Action timedHandler = null)
+        static public Task unsafe_timed_async_call<R1, R2>(int ms, async_result_wrap<bool, tuple<R1, R2>> res, Action<Action<R1, R2>> handler, Action timedHandler = null)
         {
             generator this_ = self;
-            if (null == timedHandler)
+            res.value1 = false;
+            this_._overtime = false;
+            handler(this_.timed_async_callback(ms, delegate (R1 res1, R2 res2)
             {
-                handler(this_.timed_async_result2(ms, res, this_.set_overtime()));
-            }
-            else
+                res.value1 = !this_._overtime;
+                res.value2 = tuple.make(res1, res2);
+            }, null == timedHandler ? this_.set_overtime() : delegate ()
             {
-                this_._overtime = false;
-                handler(this_.timed_async_result(ms, res, delegate ()
-                {
-                    this_._overtime = true;
-                    timedHandler();
-                }));
-            }
+                this_._overtime = true;
+                timedHandler();
+            }));
+            return this_.async_wait();
+        }
+
+        static public async Task<tuple<bool, tuple<R1, R2>>> timed_async_call<R1, R2>(int ms, Action<Action<R1, R2>> handler, Action timedHandler = null)
+        {
+            generator this_ = self;
+            tuple<R1, R2> res = default(tuple<R1, R2>);
+            this_._overtime = false;
+            handler(this_.timed_async_callback(ms, (R1 res1, R2 res2) => res = tuple.make(res1, res2), null == timedHandler ? this_.set_overtime() : delegate ()
+            {
+                this_._overtime = true;
+                timedHandler();
+            }));
             await this_.async_wait();
-            return !this_._overtime;
+            return tuple.make(!this_._overtime, res);
+        }
+
+        static public Task unsafe_timed_async_call<R1, R2, R3>(int ms, async_result_wrap<bool, tuple<R1, R2, R3>> res, Action<Action<R1, R2, R3>> handler, Action timedHandler = null)
+        {
+            generator this_ = self;
+            res.value1 = false;
+            this_._overtime = false;
+            handler(this_.timed_async_callback(ms, delegate (R1 res1, R2 res2, R3 res3)
+            {
+                res.value1 = !this_._overtime;
+                res.value2 = tuple.make(res1, res2, res3);
+            }, null == timedHandler ? this_.set_overtime() : delegate ()
+            {
+                this_._overtime = true;
+                timedHandler();
+            }));
+            return this_.async_wait();
+        }
+
+        static public async Task<tuple<bool, tuple<R1, R2, R3>>> timed_async_call<R1, R2, R3>(int ms, Action<Action<R1, R2, R3>> handler, Action timedHandler = null)
+        {
+            generator this_ = self;
+            tuple<R1, R2, R3> res = default(tuple<R1, R2, R3>);
+            this_._overtime = false;
+            handler(this_.timed_async_callback(ms, (R1 res1, R2 res2, R3 res3) => res = tuple.make(res1, res2, res3), null == timedHandler ? this_.set_overtime() : delegate ()
+            {
+                this_._overtime = true;
+                timedHandler();
+            }));
+            await this_.async_wait();
+            return tuple.make(!this_._overtime, res);
         }
 #if DEBUG
         static public async Task call(action handler)

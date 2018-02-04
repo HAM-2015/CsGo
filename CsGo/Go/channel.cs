@@ -1353,7 +1353,7 @@ namespace Go
             }
         }
 
-        private void force_push_(Action<chan_async_state, bool, T> ntf, T msg)
+        private void force_send_(Action<chan_async_state, bool, T> ntf, T msg)
         {
             if (_closed)
             {
@@ -1379,10 +1379,10 @@ namespace Go
             }
         }
 
-        public void force_push(Action<chan_async_state, bool, T> ntf, T msg)
+        public void force_send(Action<chan_async_state, bool, T> ntf, T msg)
         {
-            if (_strand.running_in_this_thread()) force_push_(ntf, msg);
-            else _strand.post(() => force_push_(ntf, msg));
+            if (_strand.running_in_this_thread()) force_send_(ntf, msg);
+            else _strand.post(() => force_send_(ntf, msg));
         }
 
         protected override void recv_(Action<chan_async_state, T> ntf, chan_notify_sign ntfSign)
@@ -2564,7 +2564,6 @@ namespace Go
                 ntfSign?.set(node);
                 timer.deadline(deadms, delegate ()
                 {
-                    ntfSign?.clear();
                     _popWait.Remove(node).Invoke(chan_async_state.async_overtime);
                 });
             }

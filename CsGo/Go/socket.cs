@@ -316,82 +316,162 @@ namespace Go
 
         public Task<socket_result> read_same(ArraySegment<byte> buff)
         {
-            return generator.unsafe_async_call((Action<socket_result> cb) => async_read_same(buff, cb));
+            return generator.async_call((Action<socket_result> cb) => async_read_same(buff, cb));
         }
 
         public Task<socket_result> read_same(byte[] buff)
         {
-            return generator.unsafe_async_call((Action<socket_result> cb) => async_read_same(buff, cb));
+            return generator.async_call((Action<socket_result> cb) => async_read_same(buff, cb));
         }
 
         public Task<socket_result> read(ArraySegment<byte> buff)
         {
-            return generator.unsafe_async_call((Action<socket_result> cb) => async_read(buff, cb));
+            return generator.async_call((Action<socket_result> cb) => async_read(buff, cb));
         }
 
         public Task<socket_result> read(byte[] buff)
         {
-            return generator.unsafe_async_call((Action<socket_result> cb) => async_read(buff, cb));
+            return generator.async_call((Action<socket_result> cb) => async_read(buff, cb));
         }
 
         public Task<socket_result> reads(IList<byte[]> buff)
         {
-            return generator.unsafe_async_call((Action<socket_result> cb) => _async_reads(0, 0, buff, cb));
+            return generator.async_call((Action<socket_result> cb) => _async_reads(0, 0, buff, cb));
         }
 
         public Task<socket_result> reads(IList<ArraySegment<byte>> buff)
         {
-            return generator.unsafe_async_call((Action<socket_result> cb) => _async_reads(0, 0, buff, cb));
+            return generator.async_call((Action<socket_result> cb) => _async_reads(0, 0, buff, cb));
         }
 
         public Task<socket_result> reads(params byte[][] buff)
         {
-            return generator.unsafe_async_call((Action<socket_result> cb) => _async_reads(0, 0, buff, cb));
+            return generator.async_call((Action<socket_result> cb) => _async_reads(0, 0, buff, cb));
         }
 
         public Task<socket_result> reads(params ArraySegment<byte>[] buff)
         {
-            return generator.unsafe_async_call((Action<socket_result> cb) => _async_reads(0, 0, buff, cb));
+            return generator.async_call((Action<socket_result> cb) => _async_reads(0, 0, buff, cb));
         }
 
         public Task<socket_result> write_same(ArraySegment<byte> buff)
         {
-            return generator.unsafe_async_call((Action<socket_result> cb) => async_write_same(buff, cb));
+            return generator.async_call((Action<socket_result> cb) => async_write_same(buff, cb));
         }
 
         public Task<socket_result> write_same(byte[] buff)
         {
-            return generator.unsafe_async_call((Action<socket_result> cb) => async_write_same(buff, cb));
+            return generator.async_call((Action<socket_result> cb) => async_write_same(buff, cb));
         }
 
         public Task<socket_result> write(ArraySegment<byte> buff)
         {
-            return generator.unsafe_async_call((Action<socket_result> cb) => async_write(buff, cb));
+            return generator.async_call((Action<socket_result> cb) => async_write(buff, cb));
         }
 
         public Task<socket_result> write(byte[] buff)
         {
-            return generator.unsafe_async_call((Action<socket_result> cb) => async_write(buff, cb));
+            return generator.async_call((Action<socket_result> cb) => async_write(buff, cb));
         }
 
         public Task<socket_result> writes(IList<byte[]> buff)
         {
-            return generator.unsafe_async_call((Action<socket_result> cb) => _async_writes(0, 0, buff, cb));
+            return generator.async_call((Action<socket_result> cb) => _async_writes(0, 0, buff, cb));
         }
 
         public Task<socket_result> writes(IList<ArraySegment<byte>> buff)
         {
-            return generator.unsafe_async_call((Action<socket_result> cb) => _async_writes(0, 0, buff, cb));
+            return generator.async_call((Action<socket_result> cb) => _async_writes(0, 0, buff, cb));
         }
 
         public Task<socket_result> writes(params byte[][] buff)
         {
-            return generator.unsafe_async_call((Action<socket_result> cb) => _async_writes(0, 0, buff, cb));
+            return generator.async_call((Action<socket_result> cb) => _async_writes(0, 0, buff, cb));
         }
 
         public Task<socket_result> writes(params ArraySegment<byte>[] buff)
         {
-            return generator.unsafe_async_call((Action<socket_result> cb) => _async_writes(0, 0, buff, cb));
+            return generator.async_call((Action<socket_result> cb) => _async_writes(0, 0, buff, cb));
+        }
+
+        public Task unsafe_read_same(async_result_wrap<socket_result> res, ArraySegment<byte> buff)
+        {
+            return generator.unsafe_async_call(res, (Action<socket_result> cb) => async_read_same(buff, cb));
+        }
+
+        public Task unsafe_read_same(async_result_wrap<socket_result> res, byte[] buff)
+        {
+            return generator.unsafe_async_call(res, (Action<socket_result> cb) => async_read_same(buff, cb));
+        }
+
+        public Task unsafe_read(async_result_wrap<socket_result> res, ArraySegment<byte> buff)
+        {
+            return generator.unsafe_async_call(res, (Action<socket_result> cb) => async_read(buff, cb));
+        }
+
+        public Task unsafe_read(async_result_wrap<socket_result> res, byte[] buff)
+        {
+            return generator.unsafe_async_call(res, (Action<socket_result> cb) => async_read(buff, cb));
+        }
+
+        public Task unsafe_reads(async_result_wrap<socket_result> res, IList<byte[]> buff)
+        {
+            return generator.unsafe_async_call(res, (Action<socket_result> cb) => _async_reads(0, 0, buff, cb));
+        }
+
+        public Task unsafe_reads(async_result_wrap<socket_result> res, IList<ArraySegment<byte>> buff)
+        {
+            return generator.unsafe_async_call(res, (Action<socket_result> cb) => _async_reads(0, 0, buff, cb));
+        }
+
+        public Task unsafe_reads(async_result_wrap<socket_result> res, params byte[][] buff)
+        {
+            return generator.unsafe_async_call(res, (Action<socket_result> cb) => _async_reads(0, 0, buff, cb));
+        }
+
+        public Task unsafe_reads(async_result_wrap<socket_result> res, params ArraySegment<byte>[] buff)
+        {
+            return generator.unsafe_async_call(res, (Action<socket_result> cb) => _async_reads(0, 0, buff, cb));
+        }
+
+        public Task unsafe_write_same(async_result_wrap<socket_result> res, ArraySegment<byte> buff)
+        {
+            return generator.unsafe_async_call(res, (Action<socket_result> cb) => async_write_same(buff, cb));
+        }
+
+        public Task unsafe_write_same(async_result_wrap<socket_result> res, byte[] buff)
+        {
+            return generator.unsafe_async_call(res, (Action<socket_result> cb) => async_write_same(buff, cb));
+        }
+
+        public Task unsafe_write(async_result_wrap<socket_result> res, ArraySegment<byte> buff)
+        {
+            return generator.unsafe_async_call(res, (Action<socket_result> cb) => async_write(buff, cb));
+        }
+
+        public Task unsafe_write(async_result_wrap<socket_result> res, byte[] buff)
+        {
+            return generator.unsafe_async_call(res, (Action<socket_result> cb) => async_write(buff, cb));
+        }
+
+        public Task unsafe_writes(async_result_wrap<socket_result> res, IList<byte[]> buff)
+        {
+            return generator.unsafe_async_call(res, (Action<socket_result> cb) => _async_writes(0, 0, buff, cb));
+        }
+
+        public Task unsafe_writes(async_result_wrap<socket_result> res, IList<ArraySegment<byte>> buff)
+        {
+            return generator.unsafe_async_call(res, (Action<socket_result> cb) => _async_writes(0, 0, buff, cb));
+        }
+
+        public Task unsafe_writes(async_result_wrap<socket_result> res, params byte[][] buff)
+        {
+            return generator.unsafe_async_call(res, (Action<socket_result> cb) => _async_writes(0, 0, buff, cb));
+        }
+
+        public Task unsafe_writes(async_result_wrap<socket_result> res, params ArraySegment<byte>[] buff)
+        {
+            return generator.unsafe_async_call(res, (Action<socket_result> cb) => _async_writes(0, 0, buff, cb));
         }
     }
 
@@ -881,42 +961,82 @@ namespace Go
 
         public Task<socket_result> read_same(IntPtr ptr, int offset, int size, object pinnedObj = null)
         {
-            return generator.unsafe_async_call((Action<socket_result> cb) => async_read_same(ptr, offset, size, cb, pinnedObj));
+            return generator.async_call((Action<socket_result> cb) => async_read_same(ptr, offset, size, cb, pinnedObj));
         }
 
         public Task<socket_result> write_same(IntPtr ptr, int offset, int size, object pinnedObj = null)
         {
-            return generator.unsafe_async_call((Action<socket_result> cb) => async_write_same(ptr, offset, size, cb, pinnedObj));
+            return generator.async_call((Action<socket_result> cb) => async_write_same(ptr, offset, size, cb, pinnedObj));
         }
 
         public Task<socket_result> read(IntPtr ptr, int offset, int size, object pinnedObj = null)
         {
-            return generator.unsafe_async_call((Action<socket_result> cb) => async_read(ptr, offset, size, cb, pinnedObj));
+            return generator.async_call((Action<socket_result> cb) => async_read(ptr, offset, size, cb, pinnedObj));
         }
 
         public Task<socket_result> write(IntPtr ptr, int offset, int size, object pinnedObj = null)
         {
-            return generator.unsafe_async_call((Action<socket_result> cb) => async_write(ptr, offset, size, cb, pinnedObj));
+            return generator.async_call((Action<socket_result> cb) => async_write(ptr, offset, size, cb, pinnedObj));
         }
 
         public Task<socket_result> send_file(SafeHandle fileHandle, long offset = 0, int size = 0, object pinnedObj = null)
         {
-            return generator.unsafe_async_call((Action<socket_result> cb) => async_send_file(fileHandle, offset, size, cb, pinnedObj));
+            return generator.async_call((Action<socket_result> cb) => async_send_file(fileHandle, offset, size, cb, pinnedObj));
         }
 
         public Task<socket_result> send_file(System.IO.FileStream file)
         {
-            return generator.unsafe_async_call((Action<socket_result> cb) => async_send_file(file.SafeFileHandle, -1, 0, cb, file));
+            return generator.async_call((Action<socket_result> cb) => async_send_file(file.SafeFileHandle, -1, 0, cb, file));
         }
 
         public Task<socket_result> connect(string ip, int port)
         {
-            return generator.unsafe_async_call((Action<socket_result> cb) => async_connect(ip, port, cb));
+            return generator.async_call((Action<socket_result> cb) => async_connect(ip, port, cb));
         }
 
         public Task<socket_result> disconnect(bool reuseSocket)
         {
-            return generator.unsafe_async_call((Action<socket_result> cb) => async_disconnect(reuseSocket, cb));
+            return generator.async_call((Action<socket_result> cb) => async_disconnect(reuseSocket, cb));
+        }
+
+        public Task unsafe_read_same(async_result_wrap<socket_result> res, IntPtr ptr, int offset, int size, object pinnedObj = null)
+        {
+            return generator.unsafe_async_call(res, (Action<socket_result> cb) => async_read_same(ptr, offset, size, cb, pinnedObj));
+        }
+
+        public Task unsafe_write_same(async_result_wrap<socket_result> res, IntPtr ptr, int offset, int size, object pinnedObj = null)
+        {
+            return generator.unsafe_async_call(res, (Action<socket_result> cb) => async_write_same(ptr, offset, size, cb, pinnedObj));
+        }
+
+        public Task unsafe_read(async_result_wrap<socket_result> res, IntPtr ptr, int offset, int size, object pinnedObj = null)
+        {
+            return generator.unsafe_async_call(res, (Action<socket_result> cb) => async_read(ptr, offset, size, cb, pinnedObj));
+        }
+
+        public Task unsafe_write(async_result_wrap<socket_result> res, IntPtr ptr, int offset, int size, object pinnedObj = null)
+        {
+            return generator.unsafe_async_call(res, (Action<socket_result> cb) => async_write(ptr, offset, size, cb, pinnedObj));
+        }
+
+        public Task unsafe_send_file(async_result_wrap<socket_result> res, SafeHandle fileHandle, long offset = 0, int size = 0, object pinnedObj = null)
+        {
+            return generator.unsafe_async_call(res, (Action<socket_result> cb) => async_send_file(fileHandle, offset, size, cb, pinnedObj));
+        }
+
+        public Task unsafe_send_file(async_result_wrap<socket_result> res, System.IO.FileStream file)
+        {
+            return generator.unsafe_async_call(res, (Action<socket_result> cb) => async_send_file(file.SafeFileHandle, -1, 0, cb, file));
+        }
+
+        public Task unsafe_connect(async_result_wrap<socket_result> res, string ip, int port)
+        {
+            return generator.unsafe_async_call(res, (Action<socket_result> cb) => async_connect(ip, port, cb));
+        }
+
+        public Task unsafe_disconnect(async_result_wrap<socket_result> res, bool reuseSocket)
+        {
+            return generator.unsafe_async_call(res, (Action<socket_result> cb) => async_disconnect(reuseSocket, cb));
         }
 
         public class acceptor
@@ -998,7 +1118,12 @@ namespace Go
 
             public Task<socket_result> accept(socket_tcp sck)
             {
-                return generator.unsafe_async_call((Action<socket_result> cb) => async_accept(sck, cb));
+                return generator.async_call((Action<socket_result> cb) => async_accept(sck, cb));
+            }
+
+            public Task unsafe_accept(async_result_wrap<socket_result> res, socket_tcp sck)
+            {
+                return generator.unsafe_async_call(res, (Action<socket_result> cb) => async_accept(sck, cb));
             }
         }
     }
@@ -1258,22 +1383,42 @@ namespace Go
 
         public Task<socket_result> read_same(IntPtr ptr, int offset, int size, object pinnedObj = null)
         {
-            return generator.unsafe_async_call((Action<socket_result> cb) => async_read_same(ptr, offset, size, cb, pinnedObj));
+            return generator.async_call((Action<socket_result> cb) => async_read_same(ptr, offset, size, cb, pinnedObj));
         }
 
         public Task<socket_result> write_same(IntPtr ptr, int offset, int size, object pinnedObj = null)
         {
-            return generator.unsafe_async_call((Action<socket_result> cb) => async_write_same(ptr, offset, size, cb, pinnedObj));
+            return generator.async_call((Action<socket_result> cb) => async_write_same(ptr, offset, size, cb, pinnedObj));
         }
 
         public Task<socket_result> read(IntPtr ptr, int offset, int size, object pinnedObj = null)
         {
-            return generator.unsafe_async_call((Action<socket_result> cb) => async_read(ptr, offset, size, cb, pinnedObj));
+            return generator.async_call((Action<socket_result> cb) => async_read(ptr, offset, size, cb, pinnedObj));
         }
 
         public Task<socket_result> write(IntPtr ptr, int offset, int size, object pinnedObj = null)
         {
-            return generator.unsafe_async_call((Action<socket_result> cb) => async_write(ptr, offset, size, cb, pinnedObj));
+            return generator.async_call((Action<socket_result> cb) => async_write(ptr, offset, size, cb, pinnedObj));
+        }
+
+        public Task unsafe_read_same(async_result_wrap<socket_result> res, IntPtr ptr, int offset, int size, object pinnedObj = null)
+        {
+            return generator.unsafe_async_call(res, (Action<socket_result> cb) => async_read_same(ptr, offset, size, cb, pinnedObj));
+        }
+
+        public Task unsafe_write_same(async_result_wrap<socket_result> res, IntPtr ptr, int offset, int size, object pinnedObj = null)
+        {
+            return generator.unsafe_async_call(res, (Action<socket_result> cb) => async_write_same(ptr, offset, size, cb, pinnedObj));
+        }
+
+        public Task unsafe_read(async_result_wrap<socket_result> res, IntPtr ptr, int offset, int size, object pinnedObj = null)
+        {
+            return generator.unsafe_async_call(res, (Action<socket_result> cb) => async_read(ptr, offset, size, cb, pinnedObj));
+        }
+
+        public Task unsafe_write(async_result_wrap<socket_result> res, IntPtr ptr, int offset, int size, object pinnedObj = null)
+        {
+            return generator.unsafe_async_call(res, (Action<socket_result> cb) => async_write(ptr, offset, size, cb, pinnedObj));
         }
     }
 
