@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading.Tasks;
 
 namespace Go
 {
@@ -27,7 +28,7 @@ namespace Go
 
         public mutex() : this(shared_strand.default_strand()) { }
 
-        protected virtual void lock_(long id, Action ntf)
+        protected virtual void async_lock_(long id, Action ntf)
         {
             if (0 == _lockID || id == _lockID)
             {
@@ -41,7 +42,7 @@ namespace Go
             }
         }
 
-        protected virtual void try_lock_(long id, Action<bool> ntf)
+        protected virtual void async_try_lock_(long id, Action<bool> ntf)
         {
             if (0 == _lockID || id == _lockID)
             {
@@ -55,7 +56,7 @@ namespace Go
             }
         }
 
-        protected virtual void timed_lock_(long id, int ms, Action<bool> ntf)
+        protected virtual void async_timed_lock_(long id, int ms, Action<bool> ntf)
         {
             if (0 == _lockID || id == _lockID)
             {
@@ -87,7 +88,7 @@ namespace Go
             }
         }
 
-        protected virtual void unlock_(long id, Action ntf)
+        protected virtual void async_unlock_(long id, Action ntf)
         {
 #if DEBUG
             Trace.Assert(id == _lockID);
@@ -110,12 +111,12 @@ namespace Go
             ntf();
         }
 
-        protected virtual void cancel_(long id, Action ntf)
+        protected virtual void async_cancel_(long id, Action ntf)
         {
             if (id == _lockID)
             {
                 _recCount = 1;
-                unlock_(id, ntf);
+                async_unlock_(id, ntf);
             }
             else
             {
@@ -131,34 +132,84 @@ namespace Go
             }
         }
 
-        internal void Lock(long id, Action ntf)
+        internal void async_lock(long id, Action ntf)
         {
-            if (_strand.running_in_this_thread()) lock_(id, ntf);
-            else _strand.post(() => lock_(id, ntf));
+            if (_strand.running_in_this_thread()) async_lock_(id, ntf);
+            else _strand.post(() => async_lock_(id, ntf));
         }
 
-        internal void try_lock(long id, Action<bool> ntf)
+        internal void async_try_lock(long id, Action<bool> ntf)
         {
-            if (_strand.running_in_this_thread()) try_lock_(id, ntf);
-            else _strand.post(() => try_lock_(id, ntf));
+            if (_strand.running_in_this_thread()) async_try_lock_(id, ntf);
+            else _strand.post(() => async_try_lock_(id, ntf));
         }
 
-        internal virtual void timed_lock(long id, int ms, Action<bool> ntf)
+        internal virtual void async_timed_lock(long id, int ms, Action<bool> ntf)
         {
-            if (_strand.running_in_this_thread()) timed_lock_(id, ms, ntf);
-            else _strand.post(() => timed_lock_(id, ms, ntf));
+            if (_strand.running_in_this_thread()) async_timed_lock_(id, ms, ntf);
+            else _strand.post(() => async_timed_lock_(id, ms, ntf));
         }
 
-        internal virtual void unlock(long id, Action ntf)
+        internal virtual void async_unlock(long id, Action ntf)
         {
-            if (_strand.running_in_this_thread()) unlock_(id, ntf);
-            else _strand.post(() => unlock_(id, ntf));
+            if (_strand.running_in_this_thread()) async_unlock_(id, ntf);
+            else _strand.post(() => async_unlock_(id, ntf));
         }
 
-        internal virtual void cancel(long id, Action ntf)
+        internal virtual void async_cancel(long id, Action ntf)
         {
-            if (_strand.running_in_this_thread()) cancel_(id, ntf);
-            else _strand.post(() => cancel_(id, ntf));
+            if (_strand.running_in_this_thread()) async_cancel_(id, ntf);
+            else _strand.post(() => async_cancel_(id, ntf));
+        }
+
+        public Task Lock()
+        {
+            return generator.mutex_lock(this);
+        }
+
+        public Task Lock(Func<Task> handler)
+        {
+            return generator.mutex_lock(this, handler);
+        }
+
+        public Task<R> Lock<R>(Func<Task<R>> handler)
+        {
+            return generator.mutex_lock(this, handler);
+        }
+
+        public Task try_lock(async_result_wrap<bool> res)
+        {
+            return generator.mutex_try_lock(res, this);
+        }
+
+        public Task<bool> try_lock()
+        {
+            return generator.mutex_try_lock(this);
+        }
+
+        public Task<bool> try_lock(Func<Task> handler)
+        {
+            return generator.mutex_try_lock(this, handler);
+        }
+
+        public Task timed_lock(async_result_wrap<bool> res, int ms)
+        {
+            return generator.mutex_timed_lock(res, this, ms);
+        }
+
+        public Task<bool> timed_lock(int ms)
+        {
+            return generator.mutex_timed_lock(this, ms);
+        }
+
+        public Task<bool> timed_lock(int ms, Func<Task> handler)
+        {
+            return generator.mutex_timed_lock(this, ms, handler);
+        }
+
+        public Task unlock()
+        {
+            return generator.mutex_unlock(this);
         }
 
         public shared_strand self_strand()
@@ -203,7 +254,7 @@ namespace Go
             _sharedMap = new Dictionary<long, shared_count>();
         }
 
-        protected override void lock_(long id, Action ntf)
+        protected override void async_lock_(long id, Action ntf)
         {
             if (0 == _sharedMap.Count && (0 == base._lockID || id == base._lockID))
             {
@@ -217,7 +268,7 @@ namespace Go
             }
         }
 
-        protected override void try_lock_(long id, Action<bool> ntf)
+        protected override void async_try_lock_(long id, Action<bool> ntf)
         {
             if (0 == _sharedMap.Count && (0 == base._lockID || id == base._lockID))
             {
@@ -231,7 +282,7 @@ namespace Go
             }
         }
 
-        protected override void timed_lock_(long id, int ms, Action<bool> ntf)
+        protected override void async_timed_lock_(long id, int ms, Action<bool> ntf)
         {
             if (0 == _sharedMap.Count && (0 == base._lockID || id == base._lockID))
             {
@@ -275,7 +326,7 @@ namespace Go
             return ct;
         }
 
-        private void lock_shared_(long id, Action ntf)
+        private void async_lock_shared_(long id, Action ntf)
         {
             if (0 != _sharedMap.Count || 0 == base._lockID)
             {
@@ -288,7 +339,7 @@ namespace Go
             }
         }
 
-        private void lock_pess_shared_(long id, Action ntf)
+        private void async_lock_pess_shared_(long id, Action ntf)
         {
             if (0 == _waitQueue.Count && (0 != _sharedMap.Count || 0 == base._lockID))
             {
@@ -301,7 +352,7 @@ namespace Go
             }
         }
 
-        private void try_lock_shared_(long id, Action<bool> ntf)
+        private void async_try_lock_shared_(long id, Action<bool> ntf)
         {
             if (0 != _sharedMap.Count || 0 == base._lockID)
             {
@@ -314,7 +365,7 @@ namespace Go
             }
         }
 
-        private void timed_lock_shared_(long id, int ms, Action<bool> ntf)
+        private void async_timed_lock_shared_(long id, int ms, Action<bool> ntf)
         {
             if (0 != _sharedMap.Count || 0 == base._lockID)
             {
@@ -346,17 +397,17 @@ namespace Go
             }
         }
 
-        private void lock_upgrade_(long id, Action ntf)
+        private void async_lock_upgrade_(long id, Action ntf)
         {
-            base.lock_(id, ntf);
+            base.async_lock_(id, ntf);
         }
 
-        private void try_lock_upgrade_(long id, Action<bool> ntf)
+        private void async_try_lock_upgrade_(long id, Action<bool> ntf)
         {
-            base.try_lock_(id, ntf);
+            base.async_try_lock_(id, ntf);
         }
 
-        protected override void unlock_(long id, Action ntf)
+        protected override void async_unlock_(long id, Action ntf)
         {
             if (0 == --base._recCount && 0 != _waitQueue.Count)
             {
@@ -392,7 +443,7 @@ namespace Go
             ntf();
         }
 
-        private void unlock_shared_(long id, Action ntf)
+        private void async_unlock_shared_(long id, Action ntf)
         {
             if (0 == --find_map(id)._count)
             {
@@ -432,44 +483,44 @@ namespace Go
             ntf();
         }
 
-        private void unlock_upgrade_(long id, Action ntf)
+        private void async_unlock_upgrade_(long id, Action ntf)
         {
-            base.unlock_(id, ntf);
+            base.async_unlock_(id, ntf);
         }
 
-        private void unlock_and_lock_shared_(long id, Action ntf)
+        private void async_unlock_and_lock_shared_(long id, Action ntf)
         {
-            unlock_(id, () => lock_shared_(id, ntf));
+            async_unlock_(id, () => async_lock_shared_(id, ntf));
         }
 
-        private void unlock_and_lock_upgrade_(long id, Action ntf)
+        private void async_unlock_and_lock_upgrade_(long id, Action ntf)
         {
-            unlock_and_lock_shared_(id, () => lock_upgrade_(id, ntf));
+            async_unlock_and_lock_shared_(id, () => async_lock_upgrade_(id, ntf));
         }
 
-        private void unlock_upgrade_and_lock_(long id, Action ntf)
+        private void async_unlock_upgrade_and_lock_(long id, Action ntf)
         {
-            unlock_upgrade_(id, () => unlock_shared_(id, () => lock_(id, ntf)));
+            async_unlock_upgrade_(id, () => async_unlock_shared_(id, () => async_lock_(id, ntf)));
         }
 
-        private void unlock_shared_and_lock_(long id, Action ntf)
+        private void async_unlock_shared_and_lock_(long id, Action ntf)
         {
-            unlock_shared_(id, () => lock_(id, ntf));
+            async_unlock_shared_(id, () => async_lock_(id, ntf));
         }
 
-        protected override void cancel_(long id, Action ntf)
+        protected override void async_cancel_(long id, Action ntf)
         {
             shared_count tempCount;
             if (_sharedMap.TryGetValue(id, out tempCount))
             {
-                base.cancel_(id, nil_action.action);
+                base.async_cancel_(id, nil_action.action);
                 tempCount._count = 1;
-                unlock_shared_(id, ntf);
+                async_unlock_shared_(id, ntf);
             }
             else if (id == base._lockID)
             {
                 base._recCount = 1;
-                unlock_(id, ntf);
+                async_unlock_(id, ntf);
             }
             else
             {
@@ -485,76 +536,176 @@ namespace Go
             }
         }
 
-        internal void lock_shared(long id, Action ntf)
+        internal void async_lock_shared(long id, Action ntf)
         {
-            if (self_strand().running_in_this_thread()) lock_shared_(id, ntf);
-            else self_strand().post(() => lock_shared_(id, ntf));
+            if (self_strand().running_in_this_thread()) async_lock_shared_(id, ntf);
+            else self_strand().post(() => async_lock_shared_(id, ntf));
         }
 
-        internal void lock_pess_shared(long id, Action ntf)
+        internal void async_lock_pess_shared(long id, Action ntf)
         {
-            if (self_strand().running_in_this_thread()) lock_pess_shared_(id, ntf);
-            else self_strand().post(() => lock_pess_shared_(id, ntf));
+            if (self_strand().running_in_this_thread()) async_lock_pess_shared_(id, ntf);
+            else self_strand().post(() => async_lock_pess_shared_(id, ntf));
         }
 
-        internal void try_lock_shared(long id, Action<bool> ntf)
+        internal void async_try_lock_shared(long id, Action<bool> ntf)
         {
-            if (self_strand().running_in_this_thread()) try_lock_shared_(id, ntf);
-            else self_strand().post(() => try_lock_shared_(id, ntf));
+            if (self_strand().running_in_this_thread()) async_try_lock_shared_(id, ntf);
+            else self_strand().post(() => async_try_lock_shared_(id, ntf));
         }
 
-        internal void timed_lock_shared(long id, int ms, Action<bool> ntf)
+        internal void async_timed_lock_shared(long id, int ms, Action<bool> ntf)
         {
-            if (self_strand().running_in_this_thread()) timed_lock_shared_(id, ms, ntf);
-            else self_strand().post(() => timed_lock_shared_(id, ms, ntf));
+            if (self_strand().running_in_this_thread()) async_timed_lock_shared_(id, ms, ntf);
+            else self_strand().post(() => async_timed_lock_shared_(id, ms, ntf));
         }
 
-        internal void lock_upgrade(long id, Action ntf)
+        internal void async_lock_upgrade(long id, Action ntf)
         {
-            if (self_strand().running_in_this_thread()) lock_upgrade_(id, ntf);
-            else self_strand().post(() => lock_upgrade_(id, ntf));
+            if (self_strand().running_in_this_thread()) async_lock_upgrade_(id, ntf);
+            else self_strand().post(() => async_lock_upgrade_(id, ntf));
         }
 
-        internal void try_lock_upgrade(long id, Action<bool> ntf)
+        internal void async_try_lock_upgrade(long id, Action<bool> ntf)
         {
-            if (self_strand().running_in_this_thread()) try_lock_upgrade_(id, ntf);
-            else self_strand().post(() => try_lock_upgrade_(id, ntf));
+            if (self_strand().running_in_this_thread()) async_try_lock_upgrade_(id, ntf);
+            else self_strand().post(() => async_try_lock_upgrade_(id, ntf));
         }
 
-        internal void unlock_shared(long id, Action ntf)
+        internal void async_unlock_shared(long id, Action ntf)
         {
-            if (self_strand().running_in_this_thread()) unlock_shared_(id, ntf);
-            else self_strand().post(() => unlock_shared_(id, ntf));
+            if (self_strand().running_in_this_thread()) async_unlock_shared_(id, ntf);
+            else self_strand().post(() => async_unlock_shared_(id, ntf));
         }
 
-        internal void unlock_upgrade(long id, Action ntf)
+        internal void async_unlock_upgrade(long id, Action ntf)
         {
-            if (self_strand().running_in_this_thread()) unlock_upgrade_(id, ntf);
-            else self_strand().post(() => unlock_upgrade_(id, ntf));
+            if (self_strand().running_in_this_thread()) async_unlock_upgrade_(id, ntf);
+            else self_strand().post(() => async_unlock_upgrade_(id, ntf));
         }
 
         internal void unlock_and_lock_shared(long id, Action ntf)
         {
-            if (self_strand().running_in_this_thread()) unlock_and_lock_shared_(id, ntf);
-            else self_strand().post(() => unlock_and_lock_shared_(id, ntf));
+            if (self_strand().running_in_this_thread()) async_unlock_and_lock_shared_(id, ntf);
+            else self_strand().post(() => async_unlock_and_lock_shared_(id, ntf));
         }
 
         internal void unlock_and_lock_upgrade(long id, Action ntf)
         {
-            if (self_strand().running_in_this_thread()) unlock_and_lock_upgrade_(id, ntf);
-            else self_strand().post(() => unlock_and_lock_upgrade_(id, ntf));
+            if (self_strand().running_in_this_thread()) async_unlock_and_lock_upgrade_(id, ntf);
+            else self_strand().post(() => async_unlock_and_lock_upgrade_(id, ntf));
         }
 
         internal void unlock_upgrade_and_lock(long id, Action ntf)
         {
-            if (self_strand().running_in_this_thread()) unlock_upgrade_and_lock_(id, ntf);
-            else self_strand().post(() => unlock_upgrade_and_lock_(id, ntf));
+            if (self_strand().running_in_this_thread()) async_unlock_upgrade_and_lock_(id, ntf);
+            else self_strand().post(() => async_unlock_upgrade_and_lock_(id, ntf));
         }
 
         internal void unlock_shared_and_lock(long id, Action ntf)
         {
-            if (self_strand().running_in_this_thread()) unlock_shared_and_lock_(id, ntf);
-            else self_strand().post(() => unlock_shared_and_lock_(id, ntf));
+            if (self_strand().running_in_this_thread()) async_unlock_shared_and_lock_(id, ntf);
+            else self_strand().post(() => async_unlock_shared_and_lock_(id, ntf));
+        }
+
+        public Task lock_shared()
+        {
+            return generator.mutex_lock_shared(this);
+        }
+
+        public Task lock_shared(Func<Task> handler)
+        {
+            return generator.mutex_lock_shared(this, handler);
+        }
+
+        public Task<R> lock_shared<R>(Func<Task<R>> handler)
+        {
+            return generator.mutex_lock_shared(this, handler);
+        }
+
+        public Task lock_pess_shared()
+        {
+            return generator.mutex_lock_pess_shared(this);
+        }
+
+        public Task lock_pess_shared(Func<Task> handler)
+        {
+            return generator.mutex_lock_pess_shared(this, handler);
+        }
+
+        public Task<R> lock_pess_shared<R>(Func<Task<R>> handler)
+        {
+            return generator.mutex_lock_pess_shared(this, handler);
+        }
+
+        public Task lock_upgrade()
+        {
+            return generator.mutex_lock_upgrade(this);
+        }
+
+        public Task lock_upgrade(shared_mutex mtx, Func<Task> handler)
+        {
+            return generator.mutex_lock_upgrade(this, handler);
+        }
+
+        public Task<R> lock_upgrade<R>(shared_mutex mtx, Func<Task<R>> handler)
+        {
+            return generator.mutex_lock_upgrade(this, handler);
+        }
+
+        public Task try_lock_shared(async_result_wrap<bool> res)
+        {
+            return generator.mutex_try_lock_shared(res, this);
+        }
+
+        public Task<bool> try_lock_shared()
+        {
+            return generator.mutex_try_lock_shared(this);
+        }
+
+        public Task<bool> try_lock_shared(Func<Task> handler)
+        {
+            return generator.mutex_try_lock_shared(this, handler);
+        }
+
+        public Task try_lock_upgrade(async_result_wrap<bool> res)
+        {
+            return generator.mutex_try_lock_upgrade(res, this);
+        }
+
+        public Task<bool> try_lock_upgrade()
+        {
+            return generator.mutex_try_lock_upgrade(this);
+        }
+
+        public Task<bool> try_lock_upgrade(Func<Task> handler)
+        {
+            return generator.mutex_try_lock_upgrade(this, handler);
+        }
+
+        public Task timed_lock_shared(async_result_wrap<bool> res, int ms)
+        {
+            return generator.mutex_timed_lock_shared(res, this, ms);
+        }
+
+        public Task<bool> timed_lock_shared(int ms)
+        {
+            return generator.mutex_timed_lock_shared(this, ms);
+        }
+
+        public Task<bool> timed_lock_shared(int ms, Func<Task> handler)
+        {
+            return generator.mutex_timed_lock_shared(this, ms, handler);
+        }
+
+        public Task unlock_shared()
+        {
+            return generator.mutex_unlock_shared(this);
+        }
+
+        public Task unlock_upgrade()
+        {
+            return generator.mutex_unlock_upgrade(this);
         }
     }
 
@@ -571,23 +722,23 @@ namespace Go
 
         public condition_variable() : this(shared_strand.default_strand()) { }
 
-        internal void wait(long id, mutex mutex, Action ntf)
+        internal void async_wait(long id, mutex mutex, Action ntf)
         {
-            mutex.unlock(id, delegate ()
+            mutex.async_unlock(id, delegate ()
             {
                 _strand.distribute(delegate ()
                 {
                     _waitQueue.AddLast(new tuple<long, mutex, Action>(id, mutex, delegate ()
                     {
-                        mutex.Lock(id, ntf);
+                        mutex.async_lock(id, ntf);
                     }));
                 });
             });
         }
 
-        internal void timed_wait(long id, int ms, mutex mutex, Action<bool> ntf)
+        internal void async_timed_wait(long id, int ms, mutex mutex, Action<bool> ntf)
         {
-            mutex.unlock(id, delegate ()
+            mutex.async_unlock(id, delegate ()
             {
                 _strand.distribute(delegate ()
                 {
@@ -597,7 +748,7 @@ namespace Go
                         LinkedListNode<tuple<long, mutex, Action>> node = _waitQueue.AddLast(new tuple<long, mutex, Action>(id, mutex, delegate ()
                         {
                             timer.cancel();
-                            mutex.Lock(id, delegate ()
+                            mutex.async_lock(id, delegate ()
                             {
                                 ntf(true);
                             });
@@ -605,7 +756,7 @@ namespace Go
                         timer.timeout(ms, delegate ()
                         {
                             _waitQueue.Remove(node);
-                            mutex.Lock(id, delegate ()
+                            mutex.async_lock(id, delegate ()
                             {
                                 ntf(false);
                             });
@@ -615,7 +766,7 @@ namespace Go
                     {
                         _waitQueue.AddLast(new tuple<long, mutex, Action>(id, mutex, delegate ()
                         {
-                            mutex.Lock(id, () => ntf(true));
+                            mutex.async_lock(id, () => ntf(true));
                         }));
                     }
                 });
@@ -651,7 +802,7 @@ namespace Go
             });
         }
 
-        internal void cancel(long id, Action ntf)
+        internal void async_cancel(long id, Action ntf)
         {
             _strand.distribute(delegate ()
             {
@@ -659,12 +810,32 @@ namespace Go
                 {
                     if (id == it.Value.value1)
                     {
-                        it.Value.value2.cancel(id, ntf);
+                        it.Value.value2.async_cancel(id, ntf);
                         return;
                     }
                 }
                 ntf();
             });
+        }
+
+        public Task wait(mutex mutex)
+        {
+            return generator.condition_wait(this, mutex);
+        }
+
+        public Task timed_wait(async_result_wrap<bool> res, mutex mutex, int ms)
+        {
+            return generator.condition_timed_wait(res, this, mutex, ms);
+        }
+
+        public Task<bool> timed_wait(mutex mutex, int ms)
+        {
+            return generator.condition_timed_wait(this, mutex, ms);
+        }
+
+        public Task cancel()
+        {
+            return generator.condition_cancel(this);
         }
     }
 }
