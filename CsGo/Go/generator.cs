@@ -337,9 +337,23 @@ namespace Go
     {
         internal Task task;
 
+        public GoTask(Task result)
+        {
+            task = result;
+        }
+
         public static implicit operator GoTask(Task rval)
         {
             return new GoTask { task = rval };
+        }
+
+        public static explicit operator Task(GoTask rval)
+        {
+            if (null != rval.task)
+            {
+                return rval.task;
+            }
+            return generator.non_async();
         }
 
         public GoTask GetAwaiter()
@@ -380,6 +394,18 @@ namespace Go
         T value;
         Task<T> task;
 
+        public GoTask(T result)
+        {
+            value = result;
+            task = null;
+        }
+
+        public GoTask(Task<T> result)
+        {
+            value = default(T);
+            task = result;
+        }
+
         public static implicit operator GoTask<T>(T rval)
         {
             return new GoTask<T> { value = rval };
@@ -393,6 +419,17 @@ namespace Go
         public static implicit operator GoTask(GoTask<T> rval)
         {
             return new GoTask { task = rval.task };
+        }
+
+        public static explicit operator Task<T>(GoTask<T> rval)
+        {
+            if (null != rval.task)
+            {
+                return rval.task;
+            }
+            Task<T> task = new Task<T>(() => rval.value);
+            task.RunSynchronously();
+            return task;
         }
 
         public GoTask<T> GetAwaiter()
@@ -456,6 +493,11 @@ namespace Go
             public static readonly stop_all_receive_exception val = new stop_all_receive_exception();
         }
 
+        public class gen_local_value_exception : System.Exception
+        {
+            public static readonly gen_local_value_exception val = new gen_local_value_exception();
+        }
+
         class nil_task<R>
         {
             static Func<R> _func = () => default(R);
@@ -489,6 +531,53 @@ namespace Go
             public mail_pck(chan_base mb)
             {
                 mailbox = mb;
+            }
+        }
+
+        abstract class local_wrap { }
+        class local_wrap<T> : local_wrap
+        {
+            internal T value;
+        }
+
+        public class local<T>
+        {
+            static long _idCount = 0;
+            readonly long _id = Interlocked.Increment(ref _idCount);
+
+            public T value
+            {
+                get
+                {
+                    generator host = self;
+                    if (null == host)
+                    {
+                        throw gen_local_value_exception.val;
+                    }
+                    if (null == host._genLocal)
+                    {
+                        return default(T);
+                    }
+                    local_wrap result;
+                    if (!host._genLocal.TryGetValue(_id, out result))
+                    {
+                        return default(T);
+                    }
+                    return ((local_wrap<T>)result).value;
+                }
+                set
+                {
+                    generator host = self;
+                    if (null == host)
+                    {
+                        throw gen_local_value_exception.val;
+                    }
+                    if (null == host._genLocal)
+                    {
+                        host._genLocal = new Dictionary<long, local_wrap>();
+                    }
+                    host._genLocal[_id] = new local_wrap<T> { value = value };
+                }
             }
         }
 
@@ -597,6 +686,7 @@ namespace Go
         static Dictionary<string, generator> _nameGens = new Dictionary<string, generator>();
 
         Dictionary<long, mail_pck> _mailboxMap;
+        Dictionary<long, local_wrap> _genLocal;
         LinkedList<LinkedList<select_chan_base>> _topSelectChans;
         LinkedList<children> _children;
         LinkedList<Action> _callbacks;
@@ -607,7 +697,6 @@ namespace Go
         pull_task _pullTask;
         children _agentMng;
         async_timer _timer;
-        object _selfValue;
         string _name;
         long _lastTm;
         long _yieldCount;
@@ -8130,30 +8219,6 @@ namespace Go
         static public Task enable_other_case_send(chan_base otherChan)
         {
             return disable_other_case_send(otherChan, false);
-        }
-
-        static public object self_value
-        {
-            get
-            {
-                return self._selfValue;
-            }
-            set
-            {
-                self._selfValue = value;
-            }
-        }
-
-        public object value
-        {
-            get
-            {
-                return _selfValue;
-            }
-            set
-            {
-                _selfValue = value;
-            }
         }
 
         static public System.Version version
