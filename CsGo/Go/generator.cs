@@ -542,8 +542,7 @@ namespace Go
 
         public class local<T>
         {
-            static long _idCount = 0;
-            readonly long _id = Interlocked.Increment(ref _idCount);
+            readonly long _id = Interlocked.Increment(ref generator._idCount);
 
             public T value
             {
@@ -5985,23 +5984,35 @@ namespace Go
             return chan_timed_receive(self_mailbox<T>(id), ms);
         }
 
-        public async Task<chan_send_wrap> send_msg<T>(int id, T msg)
+        private async Task<chan_send_wrap> send_msg_<T>(Task<chan<T>> mbTask, T msg)
         {
-            chan<T> mb = await get_mailbox<T>(id);
+            chan<T> mb = await mbTask;
             return null != mb ? await chan_send(mb, msg) : new chan_send_wrap { state = chan_async_state.async_fail };
         }
 
-        public Task<chan_send_wrap> send_msg<T>(T msg)
+        public GoTask<chan_send_wrap> send_msg<T>(int id, T msg)
+        {
+            generator host = self;
+            GoTask<chan<T>> mbTask = get_mailbox<T>(id);
+            if (!mbTask.IsCompleted)
+            {
+                return send_msg_((Task<chan<T>>)mbTask, msg);
+            }
+            chan<T> mb = mbTask.GetResult();
+            return null != mb ? chan_send(mb, msg) : new chan_send_wrap { state = chan_async_state.async_fail };
+        }
+
+        public GoTask<chan_send_wrap> send_msg<T>(T msg)
         {
             return send_msg(0, msg);
         }
 
-        public Task<chan_send_wrap> send_void_msg(int id)
+        public GoTask<chan_send_wrap> send_void_msg(int id)
         {
             return send_msg(id, default(void_type));
         }
 
-        public Task<chan_send_wrap> send_void_msg()
+        public GoTask<chan_send_wrap> send_void_msg()
         {
             return send_msg(0, default(void_type));
         }
