@@ -333,16 +333,16 @@ namespace Go
         }
     }
 
-    public struct ValueTask : INotifyCompletion
+    public struct GoTask : INotifyCompletion
     {
         internal Task task;
 
-        public static implicit operator ValueTask(Task rval)
+        public static implicit operator GoTask(Task rval)
         {
-            return new ValueTask { task = rval };
+            return new GoTask { task = rval };
         }
 
-        public ValueTask GetAwaiter()
+        public GoTask GetAwaiter()
         {
             return this;
         }
@@ -369,33 +369,33 @@ namespace Go
         {
         }
 
-        private ValueTask Case()
+        private GoTask Case()
         {
             return this;
         }
     }
 
-    public struct ValueTask<T> : INotifyCompletion
+    public struct GoTask<T> : INotifyCompletion
     {
         T value;
         Task<T> task;
 
-        public static implicit operator ValueTask<T>(T rval)
+        public static implicit operator GoTask<T>(T rval)
         {
-            return new ValueTask<T> { value = rval };
+            return new GoTask<T> { value = rval };
         }
 
-        public static implicit operator ValueTask<T>(Task<T> rval)
+        public static implicit operator GoTask<T>(Task<T> rval)
         {
-            return new ValueTask<T> { task = rval };
+            return new GoTask<T> { task = rval };
         }
 
-        public static implicit operator ValueTask(ValueTask<T> rval)
+        public static implicit operator GoTask(GoTask<T> rval)
         {
-            return new ValueTask { task = rval.task };
+            return new GoTask { task = rval.task };
         }
 
-        public ValueTask<T> GetAwaiter()
+        public GoTask<T> GetAwaiter()
         {
             return this;
         }
@@ -423,9 +423,9 @@ namespace Go
             return null == task ? value : task.Result;
         }
 
-        private ValueTask Case()
+        private GoTask Case()
         {
-            return new ValueTask { task = task };
+            return new GoTask { task = task };
         }
     }
 
@@ -1607,7 +1607,7 @@ namespace Go
             return non_async();
         }
 
-        public ValueTask<T> async_wait<T>(async_result_wrap<T> res)
+        public GoTask<T> async_wait<T>(async_result_wrap<T> res)
         {
             if (!new_task_completed())
             {
@@ -1616,7 +1616,7 @@ namespace Go
             return res.value1;
         }
 
-        public ValueTask<tuple<T1, T2>> async_wait<T1, T2>(async_result_wrap<T1, T2> res)
+        public GoTask<tuple<T1, T2>> async_wait<T1, T2>(async_result_wrap<T1, T2> res)
         {
             if (!new_task_completed())
             {
@@ -1625,7 +1625,7 @@ namespace Go
             return tuple.make(res.value1, res.value2);
         }
 
-        public ValueTask<tuple<T1, T2, T3>> async_wait<T1, T2, T3>(async_result_wrap<T1, T2, T3> res)
+        public GoTask<tuple<T1, T2, T3>> async_wait<T1, T2, T3>(async_result_wrap<T1, T2, T3> res)
         {
             if (!new_task_completed())
             {
@@ -2925,7 +2925,7 @@ namespace Go
             return is_closed;
         }
 
-        static public ValueTask<bool> chan_is_closed(chan_base chan)
+        static public GoTask<bool> chan_is_closed(chan_base chan)
         {
             generator this_ = self;
             bool is_closed = chan.is_closed();
@@ -3100,7 +3100,7 @@ namespace Go
             }
         }
 
-        static public ValueTask<chan_send_wrap> chan_send<T>(chan<T> chan, T msg, chan_lost_msg<T> lostMsg = null)
+        static public GoTask<chan_send_wrap> chan_send<T>(chan<T> chan, T msg, chan_lost_msg<T> lostMsg = null)
         {
             generator this_ = self;
             async_result_wrap<chan_async_state> result = new async_result_wrap<chan_async_state> { value1 = chan_async_state.async_undefined };
@@ -3117,7 +3117,7 @@ namespace Go
             return unsafe_chan_send(res, chan, default(void_type));
         }
 
-        static public ValueTask<chan_send_wrap> chan_send(chan<void_type> chan, chan_lost_msg<void_type> lostMsg = null)
+        static public GoTask<chan_send_wrap> chan_send(chan<void_type> chan, chan_lost_msg<void_type> lostMsg = null)
         {
             return chan_send(chan, default(void_type), lostMsg);
         }
@@ -3156,7 +3156,7 @@ namespace Go
             }
         }
 
-        static public ValueTask<chan_send_wrap> chan_force_send<T>(limit_chan<T> chan, T msg, chan_lost_msg<T> outMsg = null, chan_lost_msg<T> lostMsg = null)
+        static public GoTask<chan_send_wrap> chan_force_send<T>(limit_chan<T> chan, T msg, chan_lost_msg<T> outMsg = null, chan_lost_msg<T> lostMsg = null)
         {
             generator this_ = self;
             async_result_wrap<chan_async_state> result = new async_result_wrap<chan_async_state> { value1 = chan_async_state.async_undefined };
@@ -3181,7 +3181,7 @@ namespace Go
             return unsafe_chan_receive(res, chan, broadcast_token._defToken);
         }
 
-        static public ValueTask<chan_recv_wrap<T>> chan_receive<T>(chan<T> chan, chan_lost_msg<T> lostMsg = null)
+        static public GoTask<chan_recv_wrap<T>> chan_receive<T>(chan<T> chan, chan_lost_msg<T> lostMsg = null)
         {
             return chan_receive(chan, broadcast_token._defToken, lostMsg);
         }
@@ -3213,7 +3213,7 @@ namespace Go
             }
         }
 
-        static public ValueTask<chan_recv_wrap<T>> chan_receive<T>(chan<T> chan, broadcast_token token, chan_lost_msg<T> lostMsg = null)
+        static public GoTask<chan_recv_wrap<T>> chan_receive<T>(chan<T> chan, broadcast_token token, chan_lost_msg<T> lostMsg = null)
         {
             generator this_ = self;
             async_result_wrap<chan_recv_wrap<T>> result = new async_result_wrap<chan_recv_wrap<T>> { value1 = new chan_recv_wrap<T> { state = chan_async_state.async_undefined } };
@@ -3255,7 +3255,7 @@ namespace Go
             }
         }
 
-        static public ValueTask<chan_send_wrap> chan_try_send<T>(chan<T> chan, T msg, chan_lost_msg<T> lostMsg = null)
+        static public GoTask<chan_send_wrap> chan_try_send<T>(chan<T> chan, T msg, chan_lost_msg<T> lostMsg = null)
         {
             generator this_ = self;
             async_result_wrap<chan_async_state> result = new async_result_wrap<chan_async_state> { value1 = chan_async_state.async_undefined };
@@ -3272,7 +3272,7 @@ namespace Go
             return unsafe_chan_try_send(res, chan, default(void_type));
         }
 
-        static public ValueTask<chan_send_wrap> chan_try_send(chan<void_type> chan, chan_lost_msg<void_type> lostMsg = null)
+        static public GoTask<chan_send_wrap> chan_try_send(chan<void_type> chan, chan_lost_msg<void_type> lostMsg = null)
         {
             return chan_try_send(chan, default(void_type), lostMsg);
         }
@@ -3282,7 +3282,7 @@ namespace Go
             return unsafe_chan_try_receive(res, chan, broadcast_token._defToken);
         }
 
-        static public ValueTask<chan_recv_wrap<T>> chan_try_receive<T>(chan<T> chan, chan_lost_msg<T> lostMsg = null)
+        static public GoTask<chan_recv_wrap<T>> chan_try_receive<T>(chan<T> chan, chan_lost_msg<T> lostMsg = null)
         {
             return chan_try_receive(chan, broadcast_token._defToken, lostMsg);
         }
@@ -3314,7 +3314,7 @@ namespace Go
             }
         }
 
-        static public ValueTask<chan_recv_wrap<T>> chan_try_receive<T>(chan<T> chan, broadcast_token token, chan_lost_msg<T> lostMsg = null)
+        static public GoTask<chan_recv_wrap<T>> chan_try_receive<T>(chan<T> chan, broadcast_token token, chan_lost_msg<T> lostMsg = null)
         {
             generator this_ = self;
             async_result_wrap<chan_recv_wrap<T>> result = new async_result_wrap<chan_recv_wrap<T>> { value1 = new chan_recv_wrap<T> { state = chan_async_state.async_undefined } };
@@ -3356,7 +3356,7 @@ namespace Go
             }
         }
 
-        static public ValueTask<chan_send_wrap> chan_timed_send<T>(chan<T> chan, int ms, T msg, chan_lost_msg<T> lostMsg = null)
+        static public GoTask<chan_send_wrap> chan_timed_send<T>(chan<T> chan, int ms, T msg, chan_lost_msg<T> lostMsg = null)
         {
             generator this_ = self;
             async_result_wrap<chan_async_state> result = new async_result_wrap<chan_async_state> { value1 = chan_async_state.async_undefined };
@@ -3373,7 +3373,7 @@ namespace Go
             return unsafe_chan_timed_send(res, chan, ms, default(void_type));
         }
 
-        static public ValueTask<chan_send_wrap> chan_timed_send(chan<void_type> chan, int ms, chan_lost_msg<void_type> lostMsg = null)
+        static public GoTask<chan_send_wrap> chan_timed_send(chan<void_type> chan, int ms, chan_lost_msg<void_type> lostMsg = null)
         {
             return chan_timed_send(chan, ms, default(void_type), lostMsg);
         }
@@ -3383,7 +3383,7 @@ namespace Go
             return unsafe_chan_timed_receive(res, chan, ms, broadcast_token._defToken);
         }
 
-        static public ValueTask<chan_recv_wrap<T>> chan_timed_receive<T>(chan<T> chan, int ms, chan_lost_msg<T> lostMsg = null)
+        static public GoTask<chan_recv_wrap<T>> chan_timed_receive<T>(chan<T> chan, int ms, chan_lost_msg<T> lostMsg = null)
         {
             return chan_timed_receive(chan, ms, broadcast_token._defToken, lostMsg);
         }
@@ -3415,7 +3415,7 @@ namespace Go
             }
         }
 
-        static public ValueTask<chan_recv_wrap<T>> chan_timed_receive<T>(chan<T> chan, int ms, broadcast_token token, chan_lost_msg<T> lostMsg = null)
+        static public GoTask<chan_recv_wrap<T>> chan_timed_receive<T>(chan<T> chan, int ms, broadcast_token token, chan_lost_msg<T> lostMsg = null)
         {
             generator this_ = self;
             async_result_wrap<chan_recv_wrap<T>> result = new async_result_wrap<chan_recv_wrap<T>> { value1 = new chan_recv_wrap<T> { state = chan_async_state.async_undefined } };
@@ -3457,7 +3457,7 @@ namespace Go
             }
         }
 
-        static public ValueTask<csp_invoke_wrap<R>> csp_invoke<R, T>(csp_chan<R, T> chan, T msg, int invokeMs = -1, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
+        static public GoTask<csp_invoke_wrap<R>> csp_invoke<R, T>(csp_chan<R, T> chan, T msg, int invokeMs = -1, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
         {
             generator this_ = self;
             async_result_wrap<csp_invoke_wrap<R>> result = new async_result_wrap<csp_invoke_wrap<R>> { value1 = new csp_invoke_wrap<R> { state = chan_async_state.async_undefined } };
@@ -3486,7 +3486,7 @@ namespace Go
             return unsafe_csp_invoke(res, chan, default(void_type), invokeMs);
         }
 
-        static public ValueTask<csp_invoke_wrap<R>> csp_invoke<R>(csp_chan<R, void_type> chan, int invokeMs = -1, Action<R> lostHandler = null, chan_lost_msg<void_type> lostMsg = null)
+        static public GoTask<csp_invoke_wrap<R>> csp_invoke<R>(csp_chan<R, void_type> chan, int invokeMs = -1, Action<R> lostHandler = null, chan_lost_msg<void_type> lostMsg = null)
         {
             return csp_invoke(chan, default(void_type), invokeMs, lostHandler, lostMsg);
         }
@@ -3527,7 +3527,7 @@ namespace Go
             }
         }
 
-        static public ValueTask<csp_wait_wrap<R, T>> csp_wait<R, T>(csp_chan<R, T> chan, chan_lost_msg<T> lostMsg = null)
+        static public GoTask<csp_wait_wrap<R, T>> csp_wait<R, T>(csp_chan<R, T> chan, chan_lost_msg<T> lostMsg = null)
         {
             generator this_ = self;
             async_result_wrap<csp_wait_wrap<R, T>> result = new async_result_wrap<csp_wait_wrap<R, T>> { value1 = new csp_wait_wrap<R, T> { state = chan_async_state.async_undefined } };
@@ -3755,7 +3755,7 @@ namespace Go
             }
         }
 
-        static public ValueTask<csp_invoke_wrap<R>> csp_try_invoke<R, T>(csp_chan<R, T> chan, T msg, int invokeMs = -1, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
+        static public GoTask<csp_invoke_wrap<R>> csp_try_invoke<R, T>(csp_chan<R, T> chan, T msg, int invokeMs = -1, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
         {
             generator this_ = self;
             async_result_wrap<csp_invoke_wrap<R>> result = new async_result_wrap<csp_invoke_wrap<R>> { value1 = new csp_invoke_wrap<R> { state = chan_async_state.async_undefined } };
@@ -3784,7 +3784,7 @@ namespace Go
             return unsafe_csp_try_invoke(res, chan, default(void_type), invokeMs);
         }
 
-        static public ValueTask<csp_invoke_wrap<R>> csp_try_invoke<R>(csp_chan<R, void_type> chan, int invokeMs = -1, Action<R> lostHandler = null, chan_lost_msg<void_type> lostMsg = null)
+        static public GoTask<csp_invoke_wrap<R>> csp_try_invoke<R>(csp_chan<R, void_type> chan, int invokeMs = -1, Action<R> lostHandler = null, chan_lost_msg<void_type> lostMsg = null)
         {
             return csp_try_invoke(chan, default(void_type), invokeMs, lostHandler, lostMsg);
         }
@@ -3825,7 +3825,7 @@ namespace Go
             }
         }
 
-        static public ValueTask<csp_wait_wrap<R, T>> csp_try_wait<R, T>(csp_chan<R, T> chan, chan_lost_msg<T> lostMsg = null)
+        static public GoTask<csp_wait_wrap<R, T>> csp_try_wait<R, T>(csp_chan<R, T> chan, chan_lost_msg<T> lostMsg = null)
         {
             generator this_ = self;
             async_result_wrap<csp_wait_wrap<R, T>> result = new async_result_wrap<csp_wait_wrap<R, T>> { value1 = new csp_wait_wrap<R, T> { state = chan_async_state.async_undefined } };
@@ -4047,7 +4047,7 @@ namespace Go
             }
         }
 
-        static public ValueTask<csp_invoke_wrap<R>> csp_timed_invoke<R, T>(csp_chan<R, T> chan, tuple<int, int> ms, T msg, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
+        static public GoTask<csp_invoke_wrap<R>> csp_timed_invoke<R, T>(csp_chan<R, T> chan, tuple<int, int> ms, T msg, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
         {
             generator this_ = self;
             async_result_wrap<csp_invoke_wrap<R>> result = new async_result_wrap<csp_invoke_wrap<R>> { value1 = new csp_invoke_wrap<R> { state = chan_async_state.async_undefined } };
@@ -4076,7 +4076,7 @@ namespace Go
             return unsafe_csp_timed_invoke(res, chan, tuple.make(ms, -1), msg);
         }
 
-        static public ValueTask<csp_invoke_wrap<R>> csp_timed_invoke<R, T>(csp_chan<R, T> chan, int ms, T msg, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
+        static public GoTask<csp_invoke_wrap<R>> csp_timed_invoke<R, T>(csp_chan<R, T> chan, int ms, T msg, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
         {
             return csp_timed_invoke(chan, tuple.make(ms, -1), msg, lostHandler, lostMsg);
         }
@@ -4086,7 +4086,7 @@ namespace Go
             return unsafe_csp_timed_invoke(res, chan, ms, default(void_type));
         }
 
-        static public ValueTask<csp_invoke_wrap<R>> csp_timed_invoke<R>(csp_chan<R, void_type> chan, tuple<int, int> ms, Action<R> lostHandler = null, chan_lost_msg<void_type> lostMsg = null)
+        static public GoTask<csp_invoke_wrap<R>> csp_timed_invoke<R>(csp_chan<R, void_type> chan, tuple<int, int> ms, Action<R> lostHandler = null, chan_lost_msg<void_type> lostMsg = null)
         {
             return csp_timed_invoke(chan, ms, default(void_type), lostHandler, lostMsg);
         }
@@ -4096,7 +4096,7 @@ namespace Go
             return unsafe_csp_timed_invoke(res, chan, ms, default(void_type));
         }
 
-        static public ValueTask<csp_invoke_wrap<R>> csp_timed_invoke<R>(csp_chan<R, void_type> chan, int ms, Action<R> lostHandler = null, chan_lost_msg<void_type> lostMsg = null)
+        static public GoTask<csp_invoke_wrap<R>> csp_timed_invoke<R>(csp_chan<R, void_type> chan, int ms, Action<R> lostHandler = null, chan_lost_msg<void_type> lostMsg = null)
         {
             return csp_timed_invoke(chan, ms, default(void_type), lostHandler, lostMsg);
         }
@@ -4137,7 +4137,7 @@ namespace Go
             }
         }
 
-        static public ValueTask<csp_wait_wrap<R, T>> csp_timed_wait<R, T>(csp_chan<R, T> chan, int ms, chan_lost_msg<T> lostMsg = null)
+        static public GoTask<csp_wait_wrap<R, T>> csp_timed_wait<R, T>(csp_chan<R, T> chan, int ms, chan_lost_msg<T> lostMsg = null)
         {
             generator this_ = self;
             async_result_wrap<csp_wait_wrap<R, T>> result = new async_result_wrap<csp_wait_wrap<R, T>> { value1 = new csp_wait_wrap<R, T> { state = chan_async_state.async_undefined } };
@@ -4453,7 +4453,7 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public ValueTask<bool> mutex_try_lock(mutex mtx)
+        static public GoTask<bool> mutex_try_lock(mutex mtx)
         {
             generator this_ = self;
             async_result_wrap<bool> res = new async_result_wrap<bool>();
@@ -4486,7 +4486,7 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public ValueTask<bool> mutex_timed_lock(mutex mtx, int ms)
+        static public GoTask<bool> mutex_timed_lock(mutex mtx, int ms)
         {
             generator this_ = self;
             async_result_wrap<bool> res = new async_result_wrap<bool>();
@@ -4625,7 +4625,7 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public ValueTask<bool> mutex_try_lock_shared(shared_mutex mtx)
+        static public GoTask<bool> mutex_try_lock_shared(shared_mutex mtx)
         {
             generator this_ = self;
             async_result_wrap<bool> res = new async_result_wrap<bool>();
@@ -4658,7 +4658,7 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public ValueTask<bool> mutex_try_lock_upgrade(shared_mutex mtx)
+        static public GoTask<bool> mutex_try_lock_upgrade(shared_mutex mtx)
         {
             generator this_ = self;
             async_result_wrap<bool> res = new async_result_wrap<bool>();
@@ -4691,7 +4691,7 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public ValueTask<bool> mutex_timed_lock_shared(shared_mutex mtx, int ms)
+        static public GoTask<bool> mutex_timed_lock_shared(shared_mutex mtx, int ms)
         {
             generator this_ = self;
             async_result_wrap<bool> res = new async_result_wrap<bool>();
@@ -4745,7 +4745,7 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public ValueTask<bool> condition_timed_wait(condition_variable conVar, mutex mutex, int ms)
+        static public GoTask<bool> condition_timed_wait(condition_variable conVar, mutex mutex, int ms)
         {
             generator this_ = self;
             async_result_wrap<bool> res = new async_result_wrap<bool>();
@@ -4843,7 +4843,7 @@ namespace Go
             return res;
         }
 
-        static public ValueTask<R> send_strand<R>(shared_strand strand, Func<R> handler)
+        static public GoTask<R> send_strand<R>(shared_strand strand, Func<R> handler)
         {
             generator this_ = self;
             if (this_.strand == strand)
@@ -4863,7 +4863,7 @@ namespace Go
             return (T p) => send_strand(strand, () => handler(p));
         }
 
-        static public Func<ValueTask<R>> wrap_send_strand<R>(shared_strand strand, Func<R> handler)
+        static public Func<GoTask<R>> wrap_send_strand<R>(shared_strand strand, Func<R> handler)
         {
             return delegate ()
             {
@@ -4871,7 +4871,7 @@ namespace Go
             };
         }
 
-        static public Func<T, ValueTask<R>> wrap_send_strand<R, T>(shared_strand strand, Func<T, R> handler)
+        static public Func<T, GoTask<R>> wrap_send_strand<R, T>(shared_strand strand, Func<T, R> handler)
         {
             return delegate (T p)
             {
@@ -5766,7 +5766,7 @@ namespace Go
             return (chan<T>)mb.mailbox;
         }
 
-        public ValueTask<chan<T>> get_mailbox<T>(int id = 0)
+        public GoTask<chan<T>> get_mailbox<T>(int id = 0)
         {
             return send_strand(strand, delegate ()
             {
@@ -5881,17 +5881,17 @@ namespace Go
             return false;
         }
 
-        static public ValueTask<chan_recv_wrap<T>> recv_msg<T>(int id = 0)
+        static public GoTask<chan_recv_wrap<T>> recv_msg<T>(int id = 0)
         {
             return chan_receive(self_mailbox<T>(id));
         }
 
-        static public ValueTask<chan_recv_wrap<T>> try_recv_msg<T>(int id = 0)
+        static public GoTask<chan_recv_wrap<T>> try_recv_msg<T>(int id = 0)
         {
             return chan_try_receive(self_mailbox<T>(id));
         }
 
-        static public ValueTask<chan_recv_wrap<T>> timed_recv_msg<T>(int ms, int id = 0)
+        static public GoTask<chan_recv_wrap<T>> timed_recv_msg<T>(int ms, int id = 0)
         {
             return chan_timed_receive(self_mailbox<T>(id), ms);
         }
