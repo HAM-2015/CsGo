@@ -7,19 +7,16 @@ using System.Diagnostics;
 
 namespace Go
 {
-    class mutli_callback
+    struct multi_check
     {
-        bool _callbacked = false;
+        public bool callbacked;
+        public bool beginQuit;
+
         public bool check()
         {
-            bool t = _callbacked;
-            _callbacked = true;
+            bool t = callbacked;
+            callbacked = true;
             return t;
-        }
-
-        public bool callbacked()
-        {
-            return _callbacked;
         }
     }
 
@@ -336,6 +333,102 @@ namespace Go
         }
     }
 
+    public struct ValueTask : INotifyCompletion
+    {
+        internal Task task;
+
+        public static implicit operator ValueTask(Task rval)
+        {
+            return new ValueTask { task = rval };
+        }
+
+        public ValueTask GetAwaiter()
+        {
+            return this;
+        }
+
+        public void OnCompleted(Action continuation)
+        {
+            task.GetAwaiter().OnCompleted(continuation);
+        }
+
+        public void UnsafeOnCompleted(Action continuation)
+        {
+            task.GetAwaiter().UnsafeOnCompleted(continuation);
+        }
+
+        public bool IsCompleted
+        {
+            get
+            {
+                return null == task ? true : task.IsCompleted;
+            }
+        }
+
+        public void GetResult()
+        {
+        }
+
+        private ValueTask Case()
+        {
+            return this;
+        }
+    }
+
+    public struct ValueTask<T> : INotifyCompletion
+    {
+        T value;
+        Task<T> task;
+
+        public static implicit operator ValueTask<T>(T rval)
+        {
+            return new ValueTask<T> { value = rval };
+        }
+
+        public static implicit operator ValueTask<T>(Task<T> rval)
+        {
+            return new ValueTask<T> { task = rval };
+        }
+
+        public static implicit operator ValueTask(ValueTask<T> rval)
+        {
+            return new ValueTask { task = rval.task };
+        }
+
+        public ValueTask<T> GetAwaiter()
+        {
+            return this;
+        }
+
+        public void OnCompleted(Action continuation)
+        {
+            task.GetAwaiter().OnCompleted(continuation);
+        }
+
+        public void UnsafeOnCompleted(Action continuation)
+        {
+            task.GetAwaiter().UnsafeOnCompleted(continuation);
+        }
+
+        public bool IsCompleted
+        {
+            get
+            {
+                return null == task ? true : task.IsCompleted;
+            }
+        }
+
+        public T GetResult()
+        {
+            return null == task ? value : task.Result;
+        }
+
+        private ValueTask Case()
+        {
+            return new ValueTask { task = task };
+        }
+    }
+
     public class generator
     {
         public class stop_exception : System.Exception
@@ -510,7 +603,6 @@ namespace Go
         Action<bool> _suspendCb;
         Action _setOvertime;
         chan_notify_sign _ioSign;
-        mutli_callback _multiCb;
         System.Exception _excep;
         pull_task _pullTask;
         children _agentMng;
@@ -782,14 +874,10 @@ namespace Go
             next(false);
         }
 
-        mutli_callback new_multi_task()
+        multi_check new_multi_check()
         {
-            if (null == _multiCb)
-            {
-                _multiCb = new mutli_callback();
-                _pullTask.new_task();
-            }
-            return _multiCb;
+            _pullTask.new_task();
+            return new multi_check { callbacked = false, beginQuit = _beginQuit };
         }
 
         public void run()
@@ -1437,7 +1525,7 @@ namespace Go
             }
         }
 
-        public async Task async_wait()
+        private void enter_push()
         {
 #if DEBUG
             Trace.Assert(strand.running_in_this_thread(), "异常的 await 调用!");
@@ -1447,12 +1535,14 @@ namespace Go
                 Debug.WriteLine(string.Format("单步超时:\n{0}\n{1}\n{2}\n{3}\n{4}\n{5}\n{6}\n",
                     stackHead[0], stackHead[1], stackHead[2], stackHead[3], stackHead[4], stackHead[5], new StackTrace(true)));
             }
-            await _pullTask;
-            _beginStepTick = system_tick.get_tick_ms();
-#else
-            await _pullTask;
 #endif
-            _multiCb = null;
+        }
+
+        private void leave_push()
+        {
+#if DEBUG
+            _beginStepTick = system_tick.get_tick_ms();
+#endif
             _lastTm = 0;
             _pullTask.activated = true;
             if (!_beginQuit && 0 == _lockCount && _isForce)
@@ -1466,45 +1556,115 @@ namespace Go
             }
         }
 
-        public Task async_wait(Action handler)
+        private async Task push_task()
         {
-            handler();
-            return async_wait();
+            enter_push();
+            await _pullTask;
+            leave_push();
         }
 
-        public async Task<R> wait_result<R>(Action<async_result_wrap<R>> handler)
+        private async Task<T> push_task<T>(async_result_wrap<T> res)
         {
-            async_result_wrap<R> res = new async_result_wrap<R>();
-            handler(res);
-            await async_wait();
+            enter_push();
+            await _pullTask;
+            leave_push();
             return res.value1;
+        }
+
+        private async Task<tuple<T1, T2>> push_task<T1, T2>(async_result_wrap<T1, T2> res)
+        {
+            enter_push();
+            await _pullTask;
+            leave_push();
+            return tuple.make(res.value1, res.value2);
+        }
+
+        private async Task<tuple<T1, T2, T3>> push_task<T1, T2, T3>(async_result_wrap<T1, T2, T3> res)
+        {
+            enter_push();
+            await _pullTask;
+            leave_push();
+            return tuple.make(res.value1, res.value2, res.value3);
+        }
+
+        private bool new_task_completed()
+        {
+            if (_pullTask.IsCompleted)
+            {
+                enter_push();
+                leave_push();
+                return true;
+            }
+            return false;
+        }
+
+        public Task async_wait()
+        {
+            if (!new_task_completed())
+            {
+                return push_task();
+            }
+            return non_async();
+        }
+
+        public ValueTask<T> async_wait<T>(async_result_wrap<T> res)
+        {
+            if (!new_task_completed())
+            {
+                return push_task(res);
+            }
+            return res.value1;
+        }
+
+        public ValueTask<tuple<T1, T2>> async_wait<T1, T2>(async_result_wrap<T1, T2> res)
+        {
+            if (!new_task_completed())
+            {
+                return push_task(res);
+            }
+            return tuple.make(res.value1, res.value2);
+        }
+
+        public ValueTask<tuple<T1, T2, T3>> async_wait<T1, T2, T3>(async_result_wrap<T1, T2, T3> res)
+        {
+            if (!new_task_completed())
+            {
+                return push_task(res);
+            }
+            return tuple.make(res.value1, res.value2, res.value3);
         }
 
         public SameAction unsafe_async_same_callback()
         {
             _pullTask.new_task();
-            bool beginQuit = _beginQuit;
-            return delegate (object[] args)
+            return _beginQuit ? (SameAction)delegate (object[] args)
             {
-                strand.distribute(beginQuit ? (Action)quit_next : no_quit_next);
+                strand.distribute(quit_next);
+            }
+            : delegate (object[] args)
+            {
+                strand.distribute(no_quit_next);
             };
         }
 
         public SameAction unsafe_async_same_callback(SameAction handler)
         {
             _pullTask.new_task();
-            bool beginQuit = _beginQuit;
-            return delegate (object[] args)
+            return _beginQuit ? (SameAction)delegate (object[] args)
             {
                 handler(args);
-                strand.distribute(beginQuit ? (Action)quit_next : no_quit_next);
+                strand.distribute(quit_next);
+            }
+            : delegate (object[] args)
+            {
+                handler(args);
+                strand.distribute(no_quit_next);
             };
         }
 
         public SameAction timed_async_same_callback(int ms, Action timedHandler = null, SameAction lostHandler = null)
         {
-            mutli_callback multiCb = new_multi_task();
-            bool beginQuit = _beginQuit;
+            multi_check multiCheck = new_multi_check();
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
@@ -1513,22 +1673,22 @@ namespace Go
                     {
                         timedHandler();
                     }
-                    else if (!multiCb.check())
+                    else if (!multiCheck.check())
                     {
-                        next(beginQuit);
+                        next(multiCheck.beginQuit);
                     }
                 });
             }
             return delegate (object[] args)
             {
-                if (multiCb.callbacked())
+                if (multiCheck.callbacked)
                 {
                     lostHandler?.Invoke(args);
                     return;
                 }
                 strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
                         _timer.cancel();
                         no_check_next();
@@ -1540,29 +1700,28 @@ namespace Go
 
         public SameAction timed_async_same_callback2(int ms, Action timedHandler = null, SameAction lostHandler = null)
         {
-            mutli_callback multiCb = new_multi_task();
-            bool beginQuit = _beginQuit;
+            multi_check multiCheck = new_multi_check();
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
                 {
                     functional.catch_invoke(timedHandler);
-                    if (!multiCb.check())
+                    if (!multiCheck.check())
                     {
-                        next(beginQuit);
+                        next(multiCheck.beginQuit);
                     }
                 });
             }
             return delegate (object[] args)
             {
-                if (multiCb.callbacked())
+                if (multiCheck.callbacked)
                 {
                     lostHandler?.Invoke(args);
                     return;
                 }
                 strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
                         _timer.cancel();
                         no_check_next();
@@ -1574,8 +1733,7 @@ namespace Go
 
         public SameAction timed_async_same_callback(int ms, SameAction handler, Action timedHandler = null, SameAction lostHandler = null)
         {
-            mutli_callback multiCb = new_multi_task();
-            bool beginQuit = _beginQuit;
+            multi_check multiCheck = new_multi_check();
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
@@ -1584,22 +1742,22 @@ namespace Go
                     {
                         timedHandler();
                     }
-                    else if (!multiCb.check())
+                    else if (!multiCheck.check())
                     {
-                        next(beginQuit);
+                        next(multiCheck.beginQuit);
                     }
                 });
             }
             return delegate (object[] args)
             {
-                if (multiCb.callbacked())
+                if (multiCheck.callbacked)
                 {
                     lostHandler?.Invoke(args);
                     return;
                 }
                 strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
                         _timer.cancel();
                         handler(args);
@@ -1612,29 +1770,28 @@ namespace Go
 
         public SameAction timed_async_same_callback2(int ms, SameAction handler, Action timedHandler = null, SameAction lostHandler = null)
         {
-            mutli_callback multiCb = new_multi_task();
-            bool beginQuit = _beginQuit;
+            multi_check multiCheck = new_multi_check();
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
                 {
                     functional.catch_invoke(timedHandler);
-                    if (!multiCb.check())
+                    if (!multiCheck.check())
                     {
-                        next(beginQuit);
+                        next(multiCheck.beginQuit);
                     }
                 });
             }
             return delegate (object[] args)
             {
-                if (multiCb.callbacked())
+                if (multiCheck.callbacked)
                 {
                     lostHandler?.Invoke(args);
                     return;
                 }
                 strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
                         _timer.cancel();
                         handler(args);
@@ -1648,51 +1805,66 @@ namespace Go
         public Action unsafe_async_callback(Action handler)
         {
             _pullTask.new_task();
-            bool beginQuit = _beginQuit;
-            return delegate ()
+            return _beginQuit ? (Action)delegate ()
             {
                 handler();
-                strand.distribute(beginQuit ? (Action)quit_next : no_quit_next);
+                strand.distribute(quit_next);
+            }
+            : delegate ()
+            {
+                handler();
+                strand.distribute(no_quit_next);
             };
         }
 
         public Action<T1> unsafe_async_callback<T1>(Action<T1> handler)
         {
             _pullTask.new_task();
-            bool beginQuit = _beginQuit;
-            return delegate (T1 p1)
+            return _beginQuit ? (Action<T1>)delegate (T1 p1)
             {
                 handler(p1);
-                strand.distribute(beginQuit ? (Action)quit_next : no_quit_next);
+                strand.distribute(quit_next);
+            }
+            : delegate (T1 p1)
+            {
+                handler(p1);
+                strand.distribute(no_quit_next);
             };
         }
 
         public Action<T1, T2> unsafe_async_callback<T1, T2>(Action<T1, T2> handler)
         {
             _pullTask.new_task();
-            bool beginQuit = _beginQuit;
-            return delegate (T1 p1, T2 p2)
+            return _beginQuit ? (Action<T1, T2>)delegate (T1 p1, T2 p2)
             {
                 handler(p1, p2);
-                strand.distribute(beginQuit ? (Action)quit_next : no_quit_next);
+                strand.distribute(quit_next);
+            }
+            : delegate (T1 p1, T2 p2)
+            {
+                handler(p1, p2);
+                strand.distribute(no_quit_next);
             };
         }
 
         public Action<T1, T2, T3> unsafe_async_callback<T1, T2, T3>(Action<T1, T2, T3> handler)
         {
             _pullTask.new_task();
-            bool beginQuit = _beginQuit;
-            return delegate (T1 p1, T2 p2, T3 p3)
+            return _beginQuit ? (Action<T1, T2, T3>)delegate (T1 p1, T2 p2, T3 p3)
             {
                 handler(p1, p2, p3);
-                strand.distribute(beginQuit ? (Action)quit_next : no_quit_next);
+                strand.distribute(quit_next);
+            }
+            : delegate (T1 p1, T2 p2, T3 p3)
+            {
+                handler(p1, p2, p3);
+                strand.distribute(no_quit_next);
             };
         }
 
         public Action timed_async_callback(int ms, Action handler, Action timedHandler = null, Action lostHandler = null)
         {
-            mutli_callback multiCb = new_multi_task();
-            bool beginQuit = _beginQuit;
+            multi_check multiCheck = new_multi_check();
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
@@ -1701,22 +1873,22 @@ namespace Go
                     {
                         timedHandler();
                     }
-                    else if (!multiCb.check())
+                    else if (!multiCheck.check())
                     {
-                        next(beginQuit);
+                        next(multiCheck.beginQuit);
                     }
                 });
             }
             return delegate ()
             {
-                if (multiCb.callbacked())
+                if (multiCheck.callbacked)
                 {
                     lostHandler?.Invoke();
                     return;
                 }
                 strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
                         _timer.cancel();
                         handler();
@@ -1729,29 +1901,28 @@ namespace Go
 
         public Action timed_async_callback2(int ms, Action handler, Action timedHandler = null, Action lostHandler = null)
         {
-            mutli_callback multiCb = new_multi_task();
-            bool beginQuit = _beginQuit;
+            multi_check multiCheck = new_multi_check();
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
                 {
                     functional.catch_invoke(timedHandler);
-                    if (!multiCb.check())
+                    if (!multiCheck.check())
                     {
-                        next(beginQuit);
+                        next(multiCheck.beginQuit);
                     }
                 });
             }
             return delegate ()
             {
-                if (multiCb.callbacked())
+                if (multiCheck.callbacked)
                 {
                     lostHandler?.Invoke();
                     return;
                 }
                 strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
                         _timer.cancel();
                         handler();
@@ -1764,8 +1935,7 @@ namespace Go
 
         public Action<T1> timed_async_callback<T1>(int ms, Action<T1> handler, Action timedHandler = null, Action<T1> lostHandler = null)
         {
-            mutli_callback multiCb = new_multi_task();
-            bool beginQuit = _beginQuit;
+            multi_check multiCheck = new_multi_check();
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
@@ -1774,22 +1944,22 @@ namespace Go
                     {
                         timedHandler();
                     }
-                    else if (!multiCb.check())
+                    else if (!multiCheck.check())
                     {
-                        next(beginQuit);
+                        next(multiCheck.beginQuit);
                     }
                 });
             }
             return delegate (T1 p1)
             {
-                if (multiCb.callbacked())
+                if (multiCheck.callbacked)
                 {
                     lostHandler?.Invoke(p1);
                     return;
                 }
                 strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
                         _timer.cancel();
                         handler(p1);
@@ -1802,29 +1972,28 @@ namespace Go
 
         public Action<T1> timed_async_callback2<T1>(int ms, Action<T1> handler, Action timedHandler = null, Action<T1> lostHandler = null)
         {
-            mutli_callback multiCb = new_multi_task();
-            bool beginQuit = _beginQuit;
+            multi_check multiCheck = new_multi_check();
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
                 {
                     functional.catch_invoke(timedHandler);
-                    if (!multiCb.check())
+                    if (!multiCheck.check())
                     {
-                        next(beginQuit);
+                        next(multiCheck.beginQuit);
                     }
                 });
             }
             return delegate (T1 p1)
             {
-                if (multiCb.callbacked())
+                if (multiCheck.callbacked)
                 {
                     lostHandler?.Invoke(p1);
                     return;
                 }
                 strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
                         _timer.cancel();
                         handler(p1);
@@ -1837,8 +2006,7 @@ namespace Go
 
         public Action<T1, T2> timed_async_callback<T1, T2>(int ms, Action<T1, T2> handler, Action timedHandler = null, Action<T1, T2> lostHandler = null)
         {
-            mutli_callback multiCb = new_multi_task();
-            bool beginQuit = _beginQuit;
+            multi_check multiCheck = new_multi_check();
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
@@ -1847,22 +2015,22 @@ namespace Go
                     {
                         timedHandler();
                     }
-                    else if (!multiCb.check())
+                    else if (!multiCheck.check())
                     {
-                        next(beginQuit);
+                        next(multiCheck.beginQuit);
                     }
                 });
             }
             return delegate (T1 p1, T2 p2)
             {
-                if (multiCb.callbacked())
+                if (multiCheck.callbacked)
                 {
                     lostHandler?.Invoke(p1, p2);
                     return;
                 }
                 strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
                         _timer.cancel();
                         handler(p1, p2);
@@ -1875,29 +2043,28 @@ namespace Go
 
         public Action<T1, T2> timed_async_callback2<T1, T2>(int ms, Action<T1, T2> handler, Action timedHandler = null, Action<T1, T2> lostHandler = null)
         {
-            mutli_callback multiCb = new_multi_task();
-            bool beginQuit = _beginQuit;
+            multi_check multiCheck = new_multi_check();
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
                 {
                     functional.catch_invoke(timedHandler);
-                    if (!multiCb.check())
+                    if (!multiCheck.check())
                     {
-                        next(beginQuit);
+                        next(multiCheck.beginQuit);
                     }
                 });
             }
             return delegate (T1 p1, T2 p2)
             {
-                if (multiCb.callbacked())
+                if (multiCheck.callbacked)
                 {
                     lostHandler?.Invoke(p1, p2);
                     return;
                 }
                 strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
                         _timer.cancel();
                         handler(p1, p2);
@@ -1910,8 +2077,7 @@ namespace Go
 
         public Action<T1, T2, T3> timed_async_callback<T1, T2, T3>(int ms, Action<T1, T2, T3> handler, Action timedHandler = null, Action<T1, T2, T3> lostHandler = null)
         {
-            mutli_callback multiCb = new_multi_task();
-            bool beginQuit = _beginQuit;
+            multi_check multiCheck = new_multi_check();
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
@@ -1920,22 +2086,22 @@ namespace Go
                     {
                         timedHandler();
                     }
-                    else if (!multiCb.check())
+                    else if (!multiCheck.check())
                     {
-                        next(beginQuit);
+                        next(multiCheck.beginQuit);
                     }
                 });
             }
             return delegate (T1 p1, T2 p2, T3 p3)
             {
-                if (multiCb.callbacked())
+                if (multiCheck.callbacked)
                 {
                     lostHandler?.Invoke(p1, p2, p3);
                     return;
                 }
                 strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
                         _timer.cancel();
                         handler(p1, p2, p3);
@@ -1948,29 +2114,28 @@ namespace Go
 
         public Action<T1, T2, T3> timed_async_callback2<T1, T2, T3>(int ms, Action<T1, T2, T3> handler, Action timedHandler = null, Action<T1, T2, T3> lostHandler = null)
         {
-            mutli_callback multiCb = new_multi_task();
-            bool beginQuit = _beginQuit;
+            multi_check multiCheck = new_multi_check();
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
                 {
                     functional.catch_invoke(timedHandler);
-                    if (!multiCb.check())
+                    if (!multiCheck.check())
                     {
-                        next(beginQuit);
+                        next(multiCheck.beginQuit);
                     }
                 });
             }
             return delegate (T1 p1, T2 p2, T3 p3)
             {
-                if (multiCb.callbacked())
+                if (multiCheck.callbacked)
                 {
                     lostHandler?.Invoke(p1, p2, p3);
                     return;
                 }
                 strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
                         _timer.cancel();
                         handler(p1, p2, p3);
@@ -1983,20 +2148,19 @@ namespace Go
 
         public SameAction async_same_callback(SameAction lostHandler = null)
         {
-            mutli_callback multiCb = new_multi_task();
-            bool beginQuit = _beginQuit;
+            multi_check multiCheck = new_multi_check();
             return delegate (object[] args)
             {
-                if (multiCb.callbacked())
+                if (multiCheck.callbacked)
                 {
                     lostHandler?.Invoke(args);
                     return;
                 }
                 strand.distribute(delegate ()
                 {
-                    if (!multiCb.check())
+                    if (!multiCheck.check())
                     {
-                        next(beginQuit);
+                        next(multiCheck.beginQuit);
                     }
                     else lostHandler?.Invoke(args);
                 });
@@ -2005,18 +2169,17 @@ namespace Go
 
         public SameAction async_same_callback(SameAction handler, SameAction lostHandler = null)
         {
-            mutli_callback multiCb = new_multi_task();
-            bool beginQuit = _beginQuit;
+            multi_check multiCheck = new_multi_check();
             return delegate (object[] args)
             {
-                if (multiCb.callbacked())
+                if (multiCheck.callbacked)
                 {
                     lostHandler?.Invoke(args);
                     return;
                 }
                 strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
                         handler(args);
                         no_check_next();
@@ -2028,18 +2191,17 @@ namespace Go
 
         public Action async_callback(Action handler, Action lostHandler = null)
         {
-            mutli_callback multiCb = new_multi_task();
-            bool beginQuit = _beginQuit;
+            multi_check multiCheck = new_multi_check();
             return delegate ()
             {
-                if (multiCb.callbacked())
+                if (multiCheck.callbacked)
                 {
                     lostHandler?.Invoke();
                     return;
                 }
                 strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
                         handler();
                         no_check_next();
@@ -2051,18 +2213,17 @@ namespace Go
 
         public Action<T1> async_callback<T1>(Action<T1> handler, Action<T1> lostHandler = null)
         {
-            mutli_callback multiCb = new_multi_task();
-            bool beginQuit = _beginQuit;
+            multi_check multiCheck = new_multi_check();
             return delegate (T1 p1)
             {
-                if (multiCb.callbacked())
+                if (multiCheck.callbacked)
                 {
                     lostHandler?.Invoke(p1);
                     return;
                 }
                 strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
                         handler(p1);
                         no_check_next();
@@ -2074,18 +2235,17 @@ namespace Go
 
         public Action<T1, T2> async_callback<T1, T2>(Action<T1, T2> handler, Action<T1, T2> lostHandler = null)
         {
-            mutli_callback multiCb = new_multi_task();
-            bool beginQuit = _beginQuit;
+            multi_check multiCheck = new_multi_check();
             return delegate (T1 p1, T2 p2)
             {
-                if (multiCb.callbacked())
+                if (multiCheck.callbacked)
                 {
                     lostHandler?.Invoke(p1, p2);
                     return;
                 }
                 strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
                         handler(p1, p2);
                         no_check_next();
@@ -2097,18 +2257,17 @@ namespace Go
 
         public Action<T1, T2, T3> async_callback<T1, T2, T3>(Action<T1, T2, T3> handler, Action<T1, T2, T3> lostHandler = null)
         {
-            mutli_callback multiCb = new_multi_task();
-            bool beginQuit = _beginQuit;
+            multi_check multiCheck = new_multi_check();
             return delegate (T1 p1, T2 p2, T3 p3)
             {
-                if (multiCb.callbacked())
+                if (multiCheck.callbacked)
                 {
                     lostHandler?.Invoke(p1, p2, p3);
                     return;
                 }
                 strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
                         handler(p1, p2, p3);
                         no_check_next();
@@ -2127,43 +2286,57 @@ namespace Go
         public Action unsafe_async_result()
         {
             _pullTask.new_task();
-            bool beginQuit = _beginQuit;
-            return () => strand.distribute(beginQuit ? (Action)quit_next : no_quit_next);
+            return _beginQuit ? strand.wrap(quit_next) : strand.wrap(no_quit_next);
         }
 
         public Action<T1> unsafe_async_result<T1>(async_result_wrap<T1> res)
         {
             _pullTask.new_task();
-            bool beginQuit = _beginQuit;
-            return delegate (T1 p1)
+            return _beginQuit ? (Action<T1>)delegate (T1 p1)
             {
                 res.value1 = p1;
-                strand.distribute(beginQuit ? (Action)quit_next : no_quit_next);
+                strand.distribute(quit_next);
+            }
+            : delegate (T1 p1)
+            {
+                res.value1 = p1;
+                strand.distribute(no_quit_next);
             };
         }
 
         public Action<T1, T2> unsafe_async_result<T1, T2>(async_result_wrap<T1, T2> res)
         {
             _pullTask.new_task();
-            bool beginQuit = _beginQuit;
-            return delegate (T1 p1, T2 p2)
+            return _beginQuit ? (Action<T1, T2>)delegate (T1 p1, T2 p2)
             {
                 res.value1 = p1;
                 res.value2 = p2;
-                strand.distribute(beginQuit ? (Action)quit_next : no_quit_next);
+                strand.distribute(quit_next);
+            }
+            : delegate (T1 p1, T2 p2)
+            {
+                res.value1 = p1;
+                res.value2 = p2;
+                strand.distribute(no_quit_next);
             };
         }
 
         public Action<T1, T2, T3> unsafe_async_result<T1, T2, T3>(async_result_wrap<T1, T2, T3> res)
         {
             _pullTask.new_task();
-            bool beginQuit = _beginQuit;
-            return delegate (T1 p1, T2 p2, T3 p3)
+            return _beginQuit ? (Action<T1, T2, T3>)delegate (T1 p1, T2 p2, T3 p3)
             {
                 res.value1 = p1;
                 res.value2 = p2;
                 res.value3 = p3;
-                strand.distribute(beginQuit ? (Action)quit_next : no_quit_next);
+                strand.distribute(quit_next);
+            }
+            : delegate (T1 p1, T2 p2, T3 p3)
+            {
+                res.value1 = p1;
+                res.value2 = p2;
+                res.value3 = p3;
+                strand.distribute(no_quit_next);
             };
         }
 
@@ -2184,19 +2357,18 @@ namespace Go
 
         public Action async_result()
         {
-            mutli_callback multiCb = new_multi_task();
-            bool beginQuit = _beginQuit;
+            multi_check multiCheck = new_multi_check();
             return delegate ()
             {
-                if (multiCb.callbacked())
+                if (multiCheck.callbacked)
                 {
                     return;
                 }
                 strand.distribute(delegate ()
                 {
-                    if (!multiCb.check())
+                    if (!multiCheck.check())
                     {
-                        next(beginQuit);
+                        next(multiCheck.beginQuit);
                     }
                 });
             };
@@ -2204,17 +2376,16 @@ namespace Go
 
         public Action<T1> async_result<T1>(async_result_wrap<T1> res)
         {
-            mutli_callback multiCb = new_multi_task();
-            bool beginQuit = _beginQuit;
+            multi_check multiCheck = new_multi_check();
             return delegate (T1 p1)
             {
-                if (multiCb.callbacked())
+                if (multiCheck.callbacked)
                 {
                     return;
                 }
                 strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
                         res.value1 = p1;
                         no_check_next();
@@ -2225,17 +2396,16 @@ namespace Go
 
         public Action<T1, T2> async_result<T1, T2>(async_result_wrap<T1, T2> res)
         {
-            mutli_callback multiCb = new_multi_task();
-            bool beginQuit = _beginQuit;
+            multi_check multiCheck = new_multi_check();
             return delegate (T1 p1, T2 p2)
             {
-                if (multiCb.callbacked())
+                if (multiCheck.callbacked)
                 {
                     return;
                 }
                 strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
                         res.value1 = p1;
                         res.value2 = p2;
@@ -2247,17 +2417,16 @@ namespace Go
 
         public Action<T1, T2, T3> async_result<T1, T2, T3>(async_result_wrap<T1, T2, T3> res)
         {
-            mutli_callback multiCb = new_multi_task();
-            bool beginQuit = _beginQuit;
+            multi_check multiCheck = new_multi_check();
             return delegate (T1 p1, T2 p2, T3 p3)
             {
-                if (multiCb.callbacked())
+                if (multiCheck.callbacked)
                 {
                     return;
                 }
                 strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
                         res.value1 = p1;
                         res.value2 = p2;
@@ -2285,8 +2454,7 @@ namespace Go
 
         public Action timed_async_result(int ms, Action timedHandler = null)
         {
-            mutli_callback multiCb = new_multi_task();
-            bool beginQuit = _beginQuit;
+            multi_check multiCheck = new_multi_check();
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
@@ -2295,21 +2463,21 @@ namespace Go
                     {
                         timedHandler();
                     }
-                    else if (!multiCb.check())
+                    else if (!multiCheck.check())
                     {
-                        next(beginQuit);
+                        next(multiCheck.beginQuit);
                     }
                 });
             }
             return delegate ()
             {
-                if (multiCb.callbacked())
+                if (multiCheck.callbacked)
                 {
                     return;
                 }
                 strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
                         _timer.cancel();
                         no_check_next();
@@ -2320,8 +2488,7 @@ namespace Go
 
         public Action<T1> timed_async_result<T1>(int ms, async_result_wrap<T1> res, Action timedHandler = null)
         {
-            mutli_callback multiCb = new_multi_task();
-            bool beginQuit = _beginQuit;
+            multi_check multiCheck = new_multi_check();
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
@@ -2330,21 +2497,21 @@ namespace Go
                     {
                         timedHandler();
                     }
-                    else if (!multiCb.check())
+                    else if (!multiCheck.check())
                     {
-                        next(beginQuit);
+                        next(multiCheck.beginQuit);
                     }
                 });
             }
             return delegate (T1 p1)
             {
-                if (multiCb.callbacked())
+                if (multiCheck.callbacked)
                 {
                     return;
                 }
                 strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
                         _timer.cancel();
                         res.value1 = p1;
@@ -2356,8 +2523,7 @@ namespace Go
 
         public Action<T1, T2> timed_async_result<T1, T2>(int ms, async_result_wrap<T1, T2> res, Action timedHandler = null)
         {
-            mutli_callback multiCb = new_multi_task();
-            bool beginQuit = _beginQuit;
+            multi_check multiCheck = new_multi_check();
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
@@ -2366,21 +2532,21 @@ namespace Go
                     {
                         timedHandler();
                     }
-                    else if (!multiCb.check())
+                    else if (!multiCheck.check())
                     {
-                        next(beginQuit);
+                        next(multiCheck.beginQuit);
                     }
                 });
             }
             return delegate (T1 p1, T2 p2)
             {
-                if (multiCb.callbacked())
+                if (multiCheck.callbacked)
                 {
                     return;
                 }
                 strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
                         _timer.cancel();
                         res.value1 = p1;
@@ -2393,8 +2559,7 @@ namespace Go
 
         public Action<T1, T2, T3> timed_async_result<T1, T2, T3>(int ms, async_result_wrap<T1, T2, T3> res, Action timedHandler = null)
         {
-            mutli_callback multiCb = new_multi_task();
-            bool beginQuit = _beginQuit;
+            multi_check multiCheck = new_multi_check();
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
@@ -2403,21 +2568,21 @@ namespace Go
                     {
                         timedHandler();
                     }
-                    else if (!multiCb.check())
+                    else if (!multiCheck.check())
                     {
-                        next(beginQuit);
+                        next(multiCheck.beginQuit);
                     }
                 });
             }
             return delegate (T1 p1, T2 p2, T3 p3)
             {
-                if (multiCb.callbacked())
+                if (multiCheck.callbacked)
                 {
                     return;
                 }
                 strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
                         _timer.cancel();
                         res.value1 = p1;
@@ -2431,28 +2596,27 @@ namespace Go
 
         public Action timed_async_result2(int ms, Action timedHandler = null)
         {
-            mutli_callback multiCb = new_multi_task();
-            bool beginQuit = _beginQuit;
+            multi_check multiCheck = new_multi_check();
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
                 {
                     functional.catch_invoke(timedHandler);
-                    if (!multiCb.check())
+                    if (!multiCheck.check())
                     {
-                        next(beginQuit);
+                        next(multiCheck.beginQuit);
                     }
                 });
             }
             return delegate ()
             {
-                if (multiCb.callbacked())
+                if (multiCheck.callbacked)
                 {
                     return;
                 }
                 strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
                         _timer.cancel();
                         no_check_next();
@@ -2463,28 +2627,27 @@ namespace Go
 
         public Action<T1> timed_async_result2<T1>(int ms, async_result_wrap<T1> res, Action timedHandler = null)
         {
-            mutli_callback multiCb = new_multi_task();
-            bool beginQuit = _beginQuit;
+            multi_check multiCheck = new_multi_check();
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
                 {
                     functional.catch_invoke(timedHandler);
-                    if (!multiCb.check())
+                    if (!multiCheck.check())
                     {
-                        next(beginQuit);
+                        next(multiCheck.beginQuit);
                     }
                 });
             }
             return delegate (T1 p1)
             {
-                if (multiCb.callbacked())
+                if (multiCheck.callbacked)
                 {
                     return;
                 }
                 strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
                         _timer.cancel();
                         res.value1 = p1;
@@ -2496,28 +2659,27 @@ namespace Go
 
         public Action<T1, T2> timed_async_result2<T1, T2>(int ms, async_result_wrap<T1, T2> res, Action timedHandler = null)
         {
-            mutli_callback multiCb = new_multi_task();
-            bool beginQuit = _beginQuit;
+            multi_check multiCheck = new_multi_check();
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
                 {
                     functional.catch_invoke(timedHandler);
-                    if (!multiCb.check())
+                    if (!multiCheck.check())
                     {
-                        next(beginQuit);
+                        next(multiCheck.beginQuit);
                     }
                 });
             }
             return delegate (T1 p1, T2 p2)
             {
-                if (multiCb.callbacked())
+                if (multiCheck.callbacked)
                 {
                     return;
                 }
                 strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
                         _timer.cancel();
                         res.value1 = p1;
@@ -2530,28 +2692,27 @@ namespace Go
 
         public Action<T1, T2, T3> timed_async_result2<T1, T2, T3>(int ms, async_result_wrap<T1, T2, T3> res, Action timedHandler = null)
         {
-            mutli_callback multiCb = new_multi_task();
-            bool beginQuit = _beginQuit;
+            multi_check multiCheck = new_multi_check();
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
                 {
                     functional.catch_invoke(timedHandler);
-                    if (!multiCb.check())
+                    if (!multiCheck.check())
                     {
-                        next(beginQuit);
+                        next(multiCheck.beginQuit);
                     }
                 });
             }
             return delegate (T1 p1, T2 p2, T3 p3)
             {
-                if (multiCb.callbacked())
+                if (multiCheck.callbacked)
                 {
                     return;
                 }
                 strand.distribute(delegate ()
                 {
-                    if (!multiCb.check() && !_isStop && _beginQuit == beginQuit)
+                    if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
                         _timer.cancel();
                         res.value1 = p1;
@@ -2751,19 +2912,26 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public async Task<bool> chan_is_closed(chan_base chan)
+        private async Task<bool> chan_is_closed_(chan_base chan)
+        {
+            bool is_closed = false;
+            Action continuation = unsafe_async_result();
+            chan.self_strand().post(delegate ()
+            {
+                is_closed = chan.is_closed();
+                continuation();
+            });
+            await push_task();
+            return is_closed;
+        }
+
+        static public ValueTask<bool> chan_is_closed(chan_base chan)
         {
             generator this_ = self;
             bool is_closed = chan.is_closed();
             if (!is_closed && chan.self_strand() != this_.strand)
             {
-                Action continuation = this_.unsafe_async_result();
-                chan.self_strand().post(delegate ()
-                {
-                    is_closed = chan.is_closed();
-                    continuation();
-                });
-                await this_.async_wait();
+                return this_.chan_is_closed_(chan);
             }
             return is_closed;
         }
@@ -2913,21 +3081,18 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public async Task<chan_send_wrap> chan_send<T>(chan<T> chan, T msg, chan_lost_msg<T> lostMsg = null)
+        private async Task<chan_send_wrap> chan_send_<T>(async_result_wrap<chan_async_state> res, chan<T> chan, T msg, chan_lost_msg<T> lostMsg)
         {
-            generator this_ = self;
-            chan_async_state result = chan_async_state.async_undefined;
             try
             {
-                chan.async_send(this_.unsafe_async_callback((chan_async_state state) => result = state), msg, this_._ioSign);
-                await this_.async_wait();
-                return new chan_send_wrap { state = result };
+                await push_task();
+                return new chan_send_wrap { state = res.value1 };
             }
             catch (stop_exception)
             {
-                chan.async_remove_send_notify(this_.unsafe_async_callback(nil_action<chan_async_state>.action), this_._ioSign);
-                await this_.async_wait();
-                if (chan_async_state.async_ok != result)
+                chan.async_remove_send_notify(unsafe_async_callback(nil_action<chan_async_state>.action), _ioSign);
+                await async_wait();
+                if (chan_async_state.async_ok != res.value1)
                 {
                     lostMsg?.set(msg);
                 }
@@ -2935,12 +3100,24 @@ namespace Go
             }
         }
 
+        static public ValueTask<chan_send_wrap> chan_send<T>(chan<T> chan, T msg, chan_lost_msg<T> lostMsg = null)
+        {
+            generator this_ = self;
+            async_result_wrap<chan_async_state> result = new async_result_wrap<chan_async_state> { value1 = chan_async_state.async_undefined };
+            chan.async_send(this_.unsafe_async_callback((chan_async_state state) => result.value1 = state), msg, this_._ioSign);
+            if (!this_.new_task_completed())
+            {
+                return this_.chan_send_(result, chan, msg, lostMsg);
+            }
+            return new chan_send_wrap { state = result.value1 };
+        }
+
         static public Task unsafe_chan_send(async_result_wrap<chan_send_wrap> res, chan<void_type> chan)
         {
             return unsafe_chan_send(res, chan, default(void_type));
         }
 
-        static public Task<chan_send_wrap> chan_send(chan<void_type> chan, chan_lost_msg<void_type> lostMsg = null)
+        static public ValueTask<chan_send_wrap> chan_send(chan<void_type> chan, chan_lost_msg<void_type> lostMsg = null)
         {
             return chan_send(chan, default(void_type), lostMsg);
         }
@@ -2960,29 +3137,18 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public async Task<chan_send_wrap> chan_force_send<T>(limit_chan<T> chan, T msg, chan_lost_msg<T> outMsg = null, chan_lost_msg<T> lostMsg = null)
+        private async Task<chan_send_wrap> chan_force_send_<T>(async_result_wrap<chan_async_state> res, limit_chan<T> chan, T msg, chan_lost_msg<T> lostMsg)
         {
-            generator this_ = self;
-            chan_async_state result = chan_async_state.async_undefined;
             try
             {
-                outMsg?.clear();
-                chan.async_force_send(this_.unsafe_async_callback(delegate (chan_async_state state, bool hasOut, T freeMsg)
-                {
-                    result = state;
-                    if (hasOut)
-                    {
-                        outMsg?.set(freeMsg);
-                    }
-                }), msg);
-                await this_.async_wait();
-                return new chan_send_wrap { state = result };
+                await push_task();
+                return new chan_send_wrap { state = res.value1 };
             }
             catch (stop_exception)
             {
-                chan.self_strand().distribute(this_._async_result());
-                await this_.async_wait();
-                if (chan_async_state.async_ok != result)
+                chan.self_strand().distribute(_async_result());
+                await async_wait();
+                if (chan_async_state.async_ok != res.value1)
                 {
                     lostMsg?.set(msg);
                 }
@@ -2990,12 +3156,32 @@ namespace Go
             }
         }
 
+        static public ValueTask<chan_send_wrap> chan_force_send<T>(limit_chan<T> chan, T msg, chan_lost_msg<T> outMsg = null, chan_lost_msg<T> lostMsg = null)
+        {
+            generator this_ = self;
+            async_result_wrap<chan_async_state> result = new async_result_wrap<chan_async_state> { value1 = chan_async_state.async_undefined };
+            outMsg?.clear();
+            chan.async_force_send(this_.unsafe_async_callback(delegate (chan_async_state state, bool hasOut, T freeMsg)
+            {
+                result.value1 = state;
+                if (hasOut)
+                {
+                    outMsg?.set(freeMsg);
+                }
+            }), msg);
+            if (!this_.new_task_completed())
+            {
+                return this_.chan_force_send_(result, chan, msg, lostMsg);
+            }
+            return new chan_send_wrap { state = result.value1 };
+        }
+
         static public Task unsafe_chan_receive<T>(async_result_wrap<chan_recv_wrap<T>> res, chan<T> chan)
         {
             return unsafe_chan_receive(res, chan, broadcast_token._defToken);
         }
 
-        static public Task<chan_recv_wrap<T>> chan_receive<T>(chan<T> chan, chan_lost_msg<T> lostMsg = null)
+        static public ValueTask<chan_recv_wrap<T>> chan_receive<T>(chan<T> chan, chan_lost_msg<T> lostMsg = null)
         {
             return chan_receive(chan, broadcast_token._defToken, lostMsg);
         }
@@ -3008,30 +3194,38 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public async Task<chan_recv_wrap<T>> chan_receive<T>(chan<T> chan, broadcast_token token, chan_lost_msg<T> lostMsg = null)
+        private async Task<chan_recv_wrap<T>> chan_receive_<T>(async_result_wrap<chan_recv_wrap<T>> res, chan<T> chan, chan_lost_msg<T> lostMsg)
         {
-            generator this_ = self;
-            chan_recv_wrap<T> result = new chan_recv_wrap<T> { state = chan_async_state.async_undefined };
             try
             {
-                chan.async_recv(this_.unsafe_async_callback(delegate (chan_async_state state, T msg)
-                {
-                    result.state = state;
-                    result.msg = msg;
-                }), token, this_._ioSign);
-                await this_.async_wait();
-                return result;
+                await push_task();
+                return res.value1;
             }
             catch (stop_exception)
             {
-                chan.async_remove_recv_notify(this_.unsafe_async_callback(nil_action<chan_async_state>.action), this_._ioSign);
-                await this_.async_wait();
-                if (chan_async_state.async_ok == result.state)
+                chan.async_remove_recv_notify(unsafe_async_callback(nil_action<chan_async_state>.action), _ioSign);
+                await async_wait();
+                if (chan_async_state.async_ok == res.value1.state)
                 {
-                    lostMsg?.set(result.msg);
+                    lostMsg?.set(res.value1.msg);
                 }
                 throw;
             }
+        }
+
+        static public ValueTask<chan_recv_wrap<T>> chan_receive<T>(chan<T> chan, broadcast_token token, chan_lost_msg<T> lostMsg = null)
+        {
+            generator this_ = self;
+            async_result_wrap<chan_recv_wrap<T>> result = new async_result_wrap<chan_recv_wrap<T>> { value1 = new chan_recv_wrap<T> { state = chan_async_state.async_undefined } };
+            chan.async_recv(this_.unsafe_async_callback(delegate (chan_async_state state, T msg)
+            {
+                result.value1 = new chan_recv_wrap<T> { state = state, msg = msg };
+            }), token, this_._ioSign);
+            if (!this_.new_task_completed())
+            {
+                return this_.chan_receive_(result, chan, lostMsg);
+            }
+            return result.value1;
         }
 
         static public Task unsafe_chan_try_send<T>(async_result_wrap<chan_send_wrap> res, chan<T> chan, T msg)
@@ -3042,21 +3236,18 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public async Task<chan_send_wrap> chan_try_send<T>(chan<T> chan, T msg, chan_lost_msg<T> lostMsg = null)
+        private async Task<chan_send_wrap> chan_try_send_<T>(async_result_wrap<chan_async_state> res, chan<T> chan, T msg, chan_lost_msg<T> lostMsg)
         {
-            generator this_ = self;
-            chan_async_state result = chan_async_state.async_undefined;
             try
             {
-                chan.async_try_send(this_.unsafe_async_callback((chan_async_state state) => result = state), msg, this_._ioSign);
-                await this_.async_wait();
-                return new chan_send_wrap { state = result };
+                await push_task();
+                return new chan_send_wrap { state = res.value1 };
             }
             catch (stop_exception)
             {
-                chan.async_remove_send_notify(this_.unsafe_async_callback(nil_action<chan_async_state>.action), this_._ioSign);
-                await this_.async_wait();
-                if (chan_async_state.async_ok != result)
+                chan.async_remove_send_notify(unsafe_async_callback(nil_action<chan_async_state>.action), _ioSign);
+                await async_wait();
+                if (chan_async_state.async_ok != res.value1)
                 {
                     lostMsg?.set(msg);
                 }
@@ -3064,12 +3255,24 @@ namespace Go
             }
         }
 
+        static public ValueTask<chan_send_wrap> chan_try_send<T>(chan<T> chan, T msg, chan_lost_msg<T> lostMsg = null)
+        {
+            generator this_ = self;
+            async_result_wrap<chan_async_state> result = new async_result_wrap<chan_async_state> { value1 = chan_async_state.async_undefined };
+            chan.async_try_send(this_.unsafe_async_callback((chan_async_state state) => result.value1 = state), msg, this_._ioSign);
+            if (!this_.new_task_completed())
+            {
+                return this_.chan_try_send_(result, chan, msg, lostMsg);
+            }
+            return new chan_send_wrap { state = result.value1 };
+        }
+
         static public Task unsafe_chan_try_send(async_result_wrap<chan_send_wrap> res, chan<void_type> chan)
         {
             return unsafe_chan_try_send(res, chan, default(void_type));
         }
 
-        static public Task<chan_send_wrap> chan_try_send(chan<void_type> chan, chan_lost_msg<void_type> lostMsg = null)
+        static public ValueTask<chan_send_wrap> chan_try_send(chan<void_type> chan, chan_lost_msg<void_type> lostMsg = null)
         {
             return chan_try_send(chan, default(void_type), lostMsg);
         }
@@ -3079,7 +3282,7 @@ namespace Go
             return unsafe_chan_try_receive(res, chan, broadcast_token._defToken);
         }
 
-        static public Task<chan_recv_wrap<T>> chan_try_receive<T>(chan<T> chan, chan_lost_msg<T> lostMsg = null)
+        static public ValueTask<chan_recv_wrap<T>> chan_try_receive<T>(chan<T> chan, chan_lost_msg<T> lostMsg = null)
         {
             return chan_try_receive(chan, broadcast_token._defToken, lostMsg);
         }
@@ -3092,30 +3295,38 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public async Task<chan_recv_wrap<T>> chan_try_receive<T>(chan<T> chan, broadcast_token token, chan_lost_msg<T> lostMsg = null)
+        private async Task<chan_recv_wrap<T>> chan_try_receive_<T>(async_result_wrap<chan_recv_wrap<T>> res, chan<T> chan, chan_lost_msg<T> lostMsg)
         {
-            generator this_ = self;
-            chan_recv_wrap<T> result = new chan_recv_wrap<T> { state = chan_async_state.async_undefined };
             try
             {
-                chan.async_try_recv(this_.unsafe_async_callback(delegate (chan_async_state state, T msg)
-                {
-                    result.state = state;
-                    result.msg = msg;
-                }), token, this_._ioSign);
-                await this_.async_wait();
-                return result;
+                await push_task();
+                return res.value1;
             }
             catch (stop_exception)
             {
-                chan.async_remove_recv_notify(this_.unsafe_async_callback(nil_action<chan_async_state>.action), this_._ioSign);
-                await this_.async_wait();
-                if (chan_async_state.async_ok == result.state)
+                chan.async_remove_recv_notify(unsafe_async_callback(nil_action<chan_async_state>.action), _ioSign);
+                await async_wait();
+                if (chan_async_state.async_ok == res.value1.state)
                 {
-                    lostMsg?.set(result.msg);
+                    lostMsg?.set(res.value1.msg);
                 }
                 throw;
             }
+        }
+
+        static public ValueTask<chan_recv_wrap<T>> chan_try_receive<T>(chan<T> chan, broadcast_token token, chan_lost_msg<T> lostMsg = null)
+        {
+            generator this_ = self;
+            async_result_wrap<chan_recv_wrap<T>> result = new async_result_wrap<chan_recv_wrap<T>> { value1 = new chan_recv_wrap<T> { state = chan_async_state.async_undefined } };
+            chan.async_try_recv(this_.unsafe_async_callback(delegate (chan_async_state state, T msg)
+            {
+                result.value1 = new chan_recv_wrap<T> { state = state, msg = msg };
+            }), token, this_._ioSign);
+            if (!this_.new_task_completed())
+            {
+                return this_.chan_try_receive_(result, chan, lostMsg);
+            }
+            return result.value1;
         }
 
         static public Task unsafe_chan_timed_send<T>(async_result_wrap<chan_send_wrap> res, chan<T> chan, int ms, T msg)
@@ -3126,21 +3337,18 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public async Task<chan_send_wrap> chan_timed_send<T>(chan<T> chan, int ms, T msg, chan_lost_msg<T> lostMsg = null)
+        private async Task<chan_send_wrap> chan_timed_send_<T>(async_result_wrap<chan_async_state> res, chan<T> chan, int ms, T msg, chan_lost_msg<T> lostMsg)
         {
-            generator this_ = self;
-            chan_async_state result = chan_async_state.async_undefined;
             try
             {
-                chan.async_timed_send(ms, this_.unsafe_async_callback((chan_async_state state) => result = state), msg, this_._ioSign);
-                await this_.async_wait();
-                return new chan_send_wrap { state = result };
+                await push_task();
+                return new chan_send_wrap { state = res.value1 };
             }
             catch (stop_exception)
             {
-                chan.async_remove_send_notify(this_.unsafe_async_callback(nil_action<chan_async_state>.action), this_._ioSign);
-                await this_.async_wait();
-                if (chan_async_state.async_ok != result)
+                chan.async_remove_send_notify(unsafe_async_callback(nil_action<chan_async_state>.action), _ioSign);
+                await async_wait();
+                if (chan_async_state.async_ok != res.value1)
                 {
                     lostMsg?.set(msg);
                 }
@@ -3148,12 +3356,24 @@ namespace Go
             }
         }
 
+        static public ValueTask<chan_send_wrap> chan_timed_send<T>(chan<T> chan, int ms, T msg, chan_lost_msg<T> lostMsg = null)
+        {
+            generator this_ = self;
+            async_result_wrap<chan_async_state> result = new async_result_wrap<chan_async_state> { value1 = chan_async_state.async_undefined };
+            chan.async_timed_send(ms, this_.unsafe_async_callback((chan_async_state state) => result.value1 = state), msg, this_._ioSign);
+            if (!this_.new_task_completed())
+            {
+                return this_.chan_timed_send_(result, chan, ms, msg, lostMsg);
+            }
+            return new chan_send_wrap { state = result.value1 };
+        }
+
         static public Task unsafe_chan_timed_send(async_result_wrap<chan_send_wrap> res, chan<void_type> chan, int ms)
         {
             return unsafe_chan_timed_send(res, chan, ms, default(void_type));
         }
 
-        static public Task<chan_send_wrap> chan_timed_send(chan<void_type> chan, int ms, chan_lost_msg<void_type> lostMsg = null)
+        static public ValueTask<chan_send_wrap> chan_timed_send(chan<void_type> chan, int ms, chan_lost_msg<void_type> lostMsg = null)
         {
             return chan_timed_send(chan, ms, default(void_type), lostMsg);
         }
@@ -3163,7 +3383,7 @@ namespace Go
             return unsafe_chan_timed_receive(res, chan, ms, broadcast_token._defToken);
         }
 
-        static public Task<chan_recv_wrap<T>> chan_timed_receive<T>(chan<T> chan, int ms, chan_lost_msg<T> lostMsg = null)
+        static public ValueTask<chan_recv_wrap<T>> chan_timed_receive<T>(chan<T> chan, int ms, chan_lost_msg<T> lostMsg = null)
         {
             return chan_timed_receive(chan, ms, broadcast_token._defToken, lostMsg);
         }
@@ -3176,30 +3396,38 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public async Task<chan_recv_wrap<T>> chan_timed_receive<T>(chan<T> chan, int ms, broadcast_token token, chan_lost_msg<T> lostMsg = null)
+        private async Task<chan_recv_wrap<T>> chan_timed_receive_<T>(async_result_wrap<chan_recv_wrap<T>> res, chan<T> chan, int ms, chan_lost_msg<T> lostMsg)
         {
-            generator this_ = self;
-            chan_recv_wrap<T> result = new chan_recv_wrap<T> { state = chan_async_state.async_undefined };
             try
             {
-                chan.async_timed_recv(ms, this_.unsafe_async_callback(delegate (chan_async_state state, T msg)
-                {
-                    result.state = state;
-                    result.msg = msg;
-                }), token, this_._ioSign);
-                await this_.async_wait();
-                return result;
+                await push_task();
+                return res.value1;
             }
             catch (stop_exception)
             {
-                chan.async_remove_recv_notify(this_.unsafe_async_callback(nil_action<chan_async_state>.action), this_._ioSign);
-                await this_.async_wait();
-                if (chan_async_state.async_ok == result.state)
+                chan.async_remove_recv_notify(unsafe_async_callback(nil_action<chan_async_state>.action), _ioSign);
+                await async_wait();
+                if (chan_async_state.async_ok == res.value1.state)
                 {
-                    lostMsg?.set(result.msg);
+                    lostMsg?.set(res.value1.msg);
                 }
                 throw;
             }
+        }
+
+        static public ValueTask<chan_recv_wrap<T>> chan_timed_receive<T>(chan<T> chan, int ms, broadcast_token token, chan_lost_msg<T> lostMsg = null)
+        {
+            generator this_ = self;
+            async_result_wrap<chan_recv_wrap<T>> result = new async_result_wrap<chan_recv_wrap<T>> { value1 = new chan_recv_wrap<T> { state = chan_async_state.async_undefined } };
+            chan.async_timed_recv(ms, this_.unsafe_async_callback(delegate (chan_async_state state, T msg)
+            {
+                result.value1 = new chan_recv_wrap<T> { state = state, msg = msg };
+            }), token, this_._ioSign);
+            if (!this_.new_task_completed())
+            {
+                return this_.chan_timed_receive_(result, chan, ms, lostMsg);
+            }
+            return result.value1;
         }
 
         static public Task unsafe_csp_invoke<R, T>(async_result_wrap<csp_invoke_wrap<R>> res, csp_chan<R, T> chan, T msg, int invokeMs = -1)
@@ -3210,36 +3438,18 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public async Task<csp_invoke_wrap<R>> csp_invoke<R, T>(csp_chan<R, T> chan, T msg, int invokeMs = -1, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
+        private async Task<csp_invoke_wrap<R>> csp_invoke_<R, T>(async_result_wrap<csp_invoke_wrap<R>> res, csp_chan<R, T> chan, T msg, chan_lost_msg<T> lostMsg)
         {
-            generator this_ = self;
             try
             {
-                csp_invoke_wrap<R> result = new csp_invoke_wrap<R> { state = chan_async_state.async_undefined };
-                chan.async_send(invokeMs, null == lostHandler ? this_.unsafe_async_callback(delegate (chan_async_state state, R resVal)
-                {
-                    result.state = state;
-                    result.result = resVal;
-                }) : this_.async_callback(delegate (chan_async_state state, R resVal)
-                {
-                    result.state = state;
-                    result.result = resVal;
-                }, delegate (chan_async_state state, R resVal)
-                {
-                    if (chan_async_state.async_ok == state)
-                    {
-                        lostHandler(resVal);
-                    }
-                }), msg, this_._ioSign);
-                await this_.async_wait();
-                return result;
+                await push_task();
+                return res.value1;
             }
             catch (stop_exception)
             {
-                chan_async_state rmState = chan_async_state.async_undefined;
-                chan.async_remove_send_notify(this_.unsafe_async_callback(null == lostMsg ? nil_action<chan_async_state>.action : (chan_async_state state) => rmState = state), this_._ioSign);
-                await this_.async_wait();
-                if (chan_async_state.async_ok == rmState)
+                chan.async_remove_send_notify(unsafe_async_callback(null == lostMsg ? nil_action<chan_async_state>.action : (chan_async_state state) => res.value1 = new csp_invoke_wrap<R> { state = state }), _ioSign);
+                await async_wait();
+                if (chan_async_state.async_ok == res.value1.state)
                 {
                     lostMsg?.set(msg);
                 }
@@ -3247,12 +3457,36 @@ namespace Go
             }
         }
 
+        static public ValueTask<csp_invoke_wrap<R>> csp_invoke<R, T>(csp_chan<R, T> chan, T msg, int invokeMs = -1, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
+        {
+            generator this_ = self;
+            async_result_wrap<csp_invoke_wrap<R>> result = new async_result_wrap<csp_invoke_wrap<R>> { value1 = new csp_invoke_wrap<R> { state = chan_async_state.async_undefined } };
+            chan.async_send(invokeMs, null == lostHandler ? this_.unsafe_async_callback(delegate (chan_async_state state, R resVal)
+            {
+                result.value1 = new csp_invoke_wrap<R> { state = state, result = resVal };
+            }) : this_.async_callback(delegate (chan_async_state state, R resVal)
+            {
+                result.value1 = new csp_invoke_wrap<R> { state = state, result = resVal };
+            }, delegate (chan_async_state state, R resVal)
+            {
+                if (chan_async_state.async_ok == state)
+                {
+                    lostHandler(resVal);
+                }
+            }), msg, this_._ioSign);
+            if (!this_.new_task_completed())
+            {
+                return this_.csp_invoke_(result, chan, msg, lostMsg);
+            }
+            return result.value1;
+        }
+
         static public Task unsafe_csp_invoke<R>(async_result_wrap<csp_invoke_wrap<R>> res, csp_chan<R, void_type> chan, int invokeMs = -1)
         {
             return unsafe_csp_invoke(res, chan, default(void_type), invokeMs);
         }
 
-        static public Task<csp_invoke_wrap<R>> csp_invoke<R>(csp_chan<R, void_type> chan, int invokeMs = -1, Action<R> lostHandler = null, chan_lost_msg<void_type> lostMsg = null)
+        static public ValueTask<csp_invoke_wrap<R>> csp_invoke<R>(csp_chan<R, void_type> chan, int invokeMs = -1, Action<R> lostHandler = null, chan_lost_msg<void_type> lostMsg = null)
         {
             return csp_invoke(chan, default(void_type), invokeMs, lostHandler, lostMsg);
         }
@@ -3269,36 +3503,43 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public async Task<csp_wait_wrap<R, T>> csp_wait<R, T>(csp_chan<R, T> chan, chan_lost_msg<T> lostMsg = null)
+        private async Task<csp_wait_wrap<R, T>> csp_wait_<R, T>(async_result_wrap<csp_wait_wrap<R, T>> res, csp_chan<R, T> chan, chan_lost_msg<T> lostMsg)
         {
-            generator this_ = self;
-            csp_wait_wrap<R, T> result = new csp_wait_wrap<R, T> { state = chan_async_state.async_undefined };
             try
             {
-                chan.async_recv(this_.unsafe_async_callback(delegate (chan_async_state state, T msg, csp_chan<R, T>.csp_result cspRes)
+                await push_task();
+                if (chan_async_state.async_ok == res.value1.state)
                 {
-                    result.state = state;
-                    result.msg = msg;
-                    result.result = cspRes;
-                }), this_._ioSign);
-                await this_.async_wait();
-                if (chan_async_state.async_ok == result.state)
-                {
-                    result.result.start_invoke_timer(this_);
+                    res.value1.result.start_invoke_timer(self);
                 }
-                return result;
+                return res.value1;
             }
             catch (stop_exception)
             {
-                chan.async_remove_recv_notify(this_.unsafe_async_callback(nil_action<chan_async_state>.action), this_._ioSign);
-                await this_.async_wait();
-                if (chan_async_state.async_ok == result.state)
+                chan.async_remove_recv_notify(unsafe_async_callback(nil_action<chan_async_state>.action), _ioSign);
+                await async_wait();
+                if (chan_async_state.async_ok == res.value1.state)
                 {
-                    lostMsg?.set(result.msg);
-                    result.fail();
+                    lostMsg?.set(res.value1.msg);
+                    res.value1.fail();
                 }
                 throw;
             }
+        }
+
+        static public ValueTask<csp_wait_wrap<R, T>> csp_wait<R, T>(csp_chan<R, T> chan, chan_lost_msg<T> lostMsg = null)
+        {
+            generator this_ = self;
+            async_result_wrap<csp_wait_wrap<R, T>> result = new async_result_wrap<csp_wait_wrap<R, T>> { value1 = new csp_wait_wrap<R, T> { state = chan_async_state.async_undefined } };
+            chan.async_recv(this_.unsafe_async_callback(delegate (chan_async_state state, T msg, csp_chan<R, T>.csp_result cspRes)
+            {
+                result.value1 = new csp_wait_wrap<R, T> { state = state, msg = msg, result = cspRes };
+            }), this_._ioSign);
+            if (!this_.new_task_completed())
+            {
+                return this_.csp_wait_(result, chan, lostMsg);
+            }
+            return result.value1;
         }
 
         static public void csp_fail()
@@ -3495,36 +3736,18 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public async Task<csp_invoke_wrap<R>> csp_try_invoke<R, T>(csp_chan<R, T> chan, T msg, int invokeMs = -1, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
+        private async Task<csp_invoke_wrap<R>> csp_try_invoke_<R, T>(async_result_wrap<csp_invoke_wrap<R>> res, csp_chan<R, T> chan, T msg, chan_lost_msg<T> lostMsg)
         {
-            generator this_ = self;
             try
             {
-                csp_invoke_wrap<R> result = new csp_invoke_wrap<R> { state = chan_async_state.async_undefined };
-                chan.async_try_send(invokeMs, null == lostHandler ? this_.unsafe_async_callback(delegate (chan_async_state state, R resVal)
-                {
-                    result.state = state;
-                    result.result = resVal;
-                }) : this_.async_callback(delegate (chan_async_state state, R resVal)
-                {
-                    result.state = state;
-                    result.result = resVal;
-                }, delegate (chan_async_state state, R resVal)
-                {
-                    if (chan_async_state.async_ok == state)
-                    {
-                        lostHandler(resVal);
-                    }
-                }), msg, this_._ioSign);
-                await this_.async_wait();
-                return result;
+                await push_task();
+                return res.value1;
             }
             catch (stop_exception)
             {
-                chan_async_state rmState = chan_async_state.async_undefined;
-                chan.async_remove_send_notify(this_.unsafe_async_callback(null == lostMsg ? nil_action<chan_async_state>.action : (chan_async_state state) => rmState = state), this_._ioSign);
-                await this_.async_wait();
-                if (chan_async_state.async_ok == rmState)
+                chan.async_remove_send_notify(unsafe_async_callback(null == lostMsg ? nil_action<chan_async_state>.action : (chan_async_state state) => res.value1 = new csp_invoke_wrap<R> { state = state }), _ioSign);
+                await async_wait();
+                if (chan_async_state.async_ok == res.value1.state)
                 {
                     lostMsg?.set(msg);
                 }
@@ -3532,12 +3755,36 @@ namespace Go
             }
         }
 
+        static public ValueTask<csp_invoke_wrap<R>> csp_try_invoke<R, T>(csp_chan<R, T> chan, T msg, int invokeMs = -1, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
+        {
+            generator this_ = self;
+            async_result_wrap<csp_invoke_wrap<R>> result = new async_result_wrap<csp_invoke_wrap<R>> { value1 = new csp_invoke_wrap<R> { state = chan_async_state.async_undefined } };
+            chan.async_try_send(invokeMs, null == lostHandler ? this_.unsafe_async_callback(delegate (chan_async_state state, R resVal)
+            {
+                result.value1 = new csp_invoke_wrap<R> { state = state, result = resVal };
+            }) : this_.async_callback(delegate (chan_async_state state, R resVal)
+            {
+                result.value1 = new csp_invoke_wrap<R> { state = state, result = resVal };
+            }, delegate (chan_async_state state, R resVal)
+            {
+                if (chan_async_state.async_ok == state)
+                {
+                    lostHandler(resVal);
+                }
+            }), msg, this_._ioSign);
+            if (!this_.new_task_completed())
+            {
+                return this_.csp_try_invoke_(result, chan, msg, lostMsg);
+            }
+            return result.value1;
+        }
+
         static public Task unsafe_csp_try_invoke<R>(async_result_wrap<csp_invoke_wrap<R>> res, csp_chan<R, void_type> chan, int invokeMs = -1)
         {
             return unsafe_csp_try_invoke(res, chan, default(void_type), invokeMs);
         }
 
-        static public Task<csp_invoke_wrap<R>> csp_try_invoke<R>(csp_chan<R, void_type> chan, int invokeMs = -1, Action<R> lostHandler = null, chan_lost_msg<void_type> lostMsg = null)
+        static public ValueTask<csp_invoke_wrap<R>> csp_try_invoke<R>(csp_chan<R, void_type> chan, int invokeMs = -1, Action<R> lostHandler = null, chan_lost_msg<void_type> lostMsg = null)
         {
             return csp_try_invoke(chan, default(void_type), invokeMs, lostHandler, lostMsg);
         }
@@ -3554,36 +3801,43 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public async Task<csp_wait_wrap<R, T>> csp_try_wait<R, T>(csp_chan<R, T> chan, chan_lost_msg<T> lostMsg = null)
+        private async Task<csp_wait_wrap<R, T>> csp_try_wait_<R, T>(async_result_wrap<csp_wait_wrap<R, T>> res, csp_chan<R, T> chan, chan_lost_msg<T> lostMsg)
         {
-            generator this_ = self;
-            csp_wait_wrap<R, T> result = new csp_wait_wrap<R, T> { state = chan_async_state.async_undefined };
             try
             {
-                chan.async_try_recv(this_.unsafe_async_callback(delegate (chan_async_state state, T msg, csp_chan<R, T>.csp_result cspRes)
+                await push_task();
+                if (chan_async_state.async_ok == res.value1.state)
                 {
-                    result.state = state;
-                    result.msg = msg;
-                    result.result = cspRes;
-                }), this_._ioSign);
-                await this_.async_wait();
-                if (chan_async_state.async_ok == result.state)
-                {
-                    result.result.start_invoke_timer(this_);
+                    res.value1.result.start_invoke_timer(self);
                 }
-                return result;
+                return res.value1;
             }
             catch (stop_exception)
             {
-                chan.async_remove_recv_notify(this_.unsafe_async_callback(nil_action<chan_async_state>.action), this_._ioSign);
-                await this_.async_wait();
-                if (chan_async_state.async_ok == result.state)
+                chan.async_remove_recv_notify(unsafe_async_callback(nil_action<chan_async_state>.action), _ioSign);
+                await async_wait();
+                if (chan_async_state.async_ok == res.value1.state)
                 {
-                    lostMsg?.set(result.msg);
-                    result.fail();
+                    lostMsg?.set(res.value1.msg);
+                    res.value1.fail();
                 }
                 throw;
             }
+        }
+
+        static public ValueTask<csp_wait_wrap<R, T>> csp_try_wait<R, T>(csp_chan<R, T> chan, chan_lost_msg<T> lostMsg = null)
+        {
+            generator this_ = self;
+            async_result_wrap<csp_wait_wrap<R, T>> result = new async_result_wrap<csp_wait_wrap<R, T>> { value1 = new csp_wait_wrap<R, T> { state = chan_async_state.async_undefined } };
+            chan.async_try_recv(this_.unsafe_async_callback(delegate (chan_async_state state, T msg, csp_chan<R, T>.csp_result cspRes)
+            {
+                result.value1 = new csp_wait_wrap<R, T> { state = state, msg = msg, result = cspRes };
+            }), this_._ioSign);
+            if (!this_.new_task_completed())
+            {
+                return this_.csp_try_wait_(result, chan, lostMsg);
+            }
+            return result.value1;
         }
 
         static public async Task<chan_async_state> csp_try_wait<R, T>(csp_chan<R, T> chan, Func<T, Task<R>> handler, chan_lost_msg<T> lostMsg = null)
@@ -3774,36 +4028,18 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public async Task<csp_invoke_wrap<R>> csp_timed_invoke<R, T>(csp_chan<R, T> chan, tuple<int, int> ms, T msg, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
+        private async Task<csp_invoke_wrap<R>> csp_timed_invoke_<R, T>(async_result_wrap<csp_invoke_wrap<R>> res, csp_chan<R, T> chan, T msg, chan_lost_msg<T> lostMsg)
         {
-            generator this_ = self;
             try
             {
-                csp_invoke_wrap<R> result = new csp_invoke_wrap<R> { state = chan_async_state.async_undefined };
-                chan.async_timed_send(ms.value1, ms.value2, null == lostHandler ? this_.unsafe_async_callback(delegate (chan_async_state state, R resVal)
-                {
-                    result.state = state;
-                    result.result = resVal;
-                }) : this_.async_callback(delegate (chan_async_state state, R resVal)
-                {
-                    result.state = state;
-                    result.result = resVal;
-                }, delegate (chan_async_state state, R resVal)
-                {
-                    if (chan_async_state.async_ok == state)
-                    {
-                        lostHandler(resVal);
-                    }
-                }), msg, this_._ioSign);
-                await this_.async_wait();
-                return result;
+                await push_task();
+                return res.value1;
             }
             catch (stop_exception)
             {
-                chan_async_state rmState = chan_async_state.async_undefined;
-                chan.async_remove_send_notify(this_.unsafe_async_callback(null == lostMsg ? nil_action<chan_async_state>.action : (chan_async_state state) => rmState = state), this_._ioSign);
-                await this_.async_wait();
-                if (chan_async_state.async_ok == rmState)
+                chan.async_remove_send_notify(unsafe_async_callback(null == lostMsg ? nil_action<chan_async_state>.action : (chan_async_state state) => res.value1 = new csp_invoke_wrap<R> { state = state }), _ioSign);
+                await async_wait();
+                if (chan_async_state.async_ok == res.value1.state)
                 {
                     lostMsg?.set(msg);
                 }
@@ -3811,12 +4047,36 @@ namespace Go
             }
         }
 
+        static public ValueTask<csp_invoke_wrap<R>> csp_timed_invoke<R, T>(csp_chan<R, T> chan, tuple<int, int> ms, T msg, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
+        {
+            generator this_ = self;
+            async_result_wrap<csp_invoke_wrap<R>> result = new async_result_wrap<csp_invoke_wrap<R>> { value1 = new csp_invoke_wrap<R> { state = chan_async_state.async_undefined } };
+            chan.async_timed_send(ms.value1, ms.value2, null == lostHandler ? this_.unsafe_async_callback(delegate (chan_async_state state, R resVal)
+            {
+                result.value1 = new csp_invoke_wrap<R> { state = state, result = resVal };
+            }) : this_.async_callback(delegate (chan_async_state state, R resVal)
+            {
+                result.value1 = new csp_invoke_wrap<R> { state = state, result = resVal };
+            }, delegate (chan_async_state state, R resVal)
+            {
+                if (chan_async_state.async_ok == state)
+                {
+                    lostHandler(resVal);
+                }
+            }), msg, this_._ioSign);
+            if (!this_.new_task_completed())
+            {
+                return this_.csp_timed_invoke_(result, chan, msg, lostMsg);
+            }
+            return result.value1;
+        }
+
         static public Task unsafe_csp_timed_invoke<R, T>(async_result_wrap<csp_invoke_wrap<R>> res, csp_chan<R, T> chan, int ms, T msg)
         {
             return unsafe_csp_timed_invoke(res, chan, tuple.make(ms, -1), msg);
         }
 
-        static public Task<csp_invoke_wrap<R>> csp_timed_invoke<R, T>(csp_chan<R, T> chan, int ms, T msg, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
+        static public ValueTask<csp_invoke_wrap<R>> csp_timed_invoke<R, T>(csp_chan<R, T> chan, int ms, T msg, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
         {
             return csp_timed_invoke(chan, tuple.make(ms, -1), msg, lostHandler, lostMsg);
         }
@@ -3826,7 +4086,7 @@ namespace Go
             return unsafe_csp_timed_invoke(res, chan, ms, default(void_type));
         }
 
-        static public Task<csp_invoke_wrap<R>> csp_timed_invoke<R>(csp_chan<R, void_type> chan, tuple<int, int> ms, Action<R> lostHandler = null, chan_lost_msg<void_type> lostMsg = null)
+        static public ValueTask<csp_invoke_wrap<R>> csp_timed_invoke<R>(csp_chan<R, void_type> chan, tuple<int, int> ms, Action<R> lostHandler = null, chan_lost_msg<void_type> lostMsg = null)
         {
             return csp_timed_invoke(chan, ms, default(void_type), lostHandler, lostMsg);
         }
@@ -3836,7 +4096,7 @@ namespace Go
             return unsafe_csp_timed_invoke(res, chan, ms, default(void_type));
         }
 
-        static public Task<csp_invoke_wrap<R>> csp_timed_invoke<R>(csp_chan<R, void_type> chan, int ms, Action<R> lostHandler = null, chan_lost_msg<void_type> lostMsg = null)
+        static public ValueTask<csp_invoke_wrap<R>> csp_timed_invoke<R>(csp_chan<R, void_type> chan, int ms, Action<R> lostHandler = null, chan_lost_msg<void_type> lostMsg = null)
         {
             return csp_timed_invoke(chan, ms, default(void_type), lostHandler, lostMsg);
         }
@@ -3853,36 +4113,43 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public async Task<csp_wait_wrap<R, T>> csp_timed_wait<R, T>(csp_chan<R, T> chan, int ms, chan_lost_msg<T> lostMsg = null)
+        private async Task<csp_wait_wrap<R, T>> csp_timed_wait_<R, T>(async_result_wrap<csp_wait_wrap<R, T>> res, csp_chan<R, T> chan, chan_lost_msg<T> lostMsg = null)
         {
-            generator this_ = self;
-            csp_wait_wrap<R, T> result = new csp_wait_wrap<R, T> { state = chan_async_state.async_undefined };
             try
             {
-                chan.async_timed_recv(ms, this_.unsafe_async_callback(delegate (chan_async_state state, T msg, csp_chan<R, T>.csp_result cspRes)
+                await push_task();
+                if (chan_async_state.async_ok == res.value1.state)
                 {
-                    result.state = state;
-                    result.msg = msg;
-                    result.result = cspRes;
-                }), this_._ioSign);
-                await this_.async_wait();
-                if (chan_async_state.async_ok == result.state)
-                {
-                    result.result.start_invoke_timer(this_);
+                    res.value1.result.start_invoke_timer(self);
                 }
-                return result;
+                return res.value1;
             }
             catch (stop_exception)
             {
-                chan.async_remove_recv_notify(this_.unsafe_async_callback(nil_action<chan_async_state>.action), this_._ioSign);
-                await this_.async_wait();
-                if (chan_async_state.async_ok == result.state)
+                chan.async_remove_recv_notify(unsafe_async_callback(nil_action<chan_async_state>.action), _ioSign);
+                await async_wait();
+                if (chan_async_state.async_ok == res.value1.state)
                 {
-                    lostMsg?.set(result.msg);
-                    result.fail();
+                    lostMsg?.set(res.value1.msg);
+                    res.value1.fail();
                 }
                 throw;
             }
+        }
+
+        static public ValueTask<csp_wait_wrap<R, T>> csp_timed_wait<R, T>(csp_chan<R, T> chan, int ms, chan_lost_msg<T> lostMsg = null)
+        {
+            generator this_ = self;
+            async_result_wrap<csp_wait_wrap<R, T>> result = new async_result_wrap<csp_wait_wrap<R, T>> { value1 = new csp_wait_wrap<R, T> { state = chan_async_state.async_undefined } };
+            chan.async_timed_recv(ms, this_.unsafe_async_callback(delegate (chan_async_state state, T msg, csp_chan<R, T>.csp_result cspRes)
+            {
+                result.value1 = new csp_wait_wrap<R, T> { state = state, msg = msg, result = cspRes };
+            }), this_._ioSign);
+            if (!this_.new_task_completed())
+            {
+                return this_.csp_timed_wait_(result, chan, lostMsg);
+            }
+            return result.value1;
         }
 
         static public async Task<chan_async_state> csp_timed_wait<R, T>(csp_chan<R, T> chan, int ms, Func<T, Task<R>> handler, chan_lost_msg<T> lostMsg = null)
@@ -4186,13 +4453,12 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public async Task<bool> mutex_try_lock(mutex mtx)
+        static public ValueTask<bool> mutex_try_lock(mutex mtx)
         {
             generator this_ = self;
             async_result_wrap<bool> res = new async_result_wrap<bool>();
             mtx.async_try_lock(this_._id, this_.unsafe_async_result(res));
-            await this_.async_wait();
-            return res.value1;
+            return this_.async_wait(res);
         }
 
         static public async Task<bool> mutex_try_lock(mutex mtx, Func<Task> handler)
@@ -4220,13 +4486,12 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public async Task<bool> mutex_timed_lock(mutex mtx, int ms)
+        static public ValueTask<bool> mutex_timed_lock(mutex mtx, int ms)
         {
             generator this_ = self;
             async_result_wrap<bool> res = new async_result_wrap<bool>();
             mtx.async_timed_lock(this_._id, ms, this_.unsafe_async_result(res));
-            await this_.async_wait();
-            return res.value1;
+            return this_.async_wait(res);
         }
 
         static public async Task<bool> mutex_timed_lock(mutex mtx, int ms, Func<Task> handler)
@@ -4360,13 +4625,12 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public async Task<bool> mutex_try_lock_shared(shared_mutex mtx)
+        static public ValueTask<bool> mutex_try_lock_shared(shared_mutex mtx)
         {
             generator this_ = self;
             async_result_wrap<bool> res = new async_result_wrap<bool>();
             mtx.async_try_lock_shared(this_._id, this_.unsafe_async_result(res));
-            await this_.async_wait();
-            return res.value1;
+            return this_.async_wait(res);
         }
 
         static public async Task<bool> mutex_try_lock_shared(shared_mutex mtx, Func<Task> handler)
@@ -4394,13 +4658,12 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public async Task<bool> mutex_try_lock_upgrade(shared_mutex mtx)
+        static public ValueTask<bool> mutex_try_lock_upgrade(shared_mutex mtx)
         {
             generator this_ = self;
             async_result_wrap<bool> res = new async_result_wrap<bool>();
             mtx.async_try_lock_upgrade(this_._id, this_.unsafe_async_result(res));
-            await this_.async_wait();
-            return res.value1;
+            return this_.async_wait(res);
         }
 
         static public async Task<bool> mutex_try_lock_upgrade(shared_mutex mtx, Func<Task> handler)
@@ -4428,13 +4691,12 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public async Task<bool> mutex_timed_lock_shared(shared_mutex mtx, int ms)
+        static public ValueTask<bool> mutex_timed_lock_shared(shared_mutex mtx, int ms)
         {
             generator this_ = self;
             async_result_wrap<bool> res = new async_result_wrap<bool>();
             mtx.async_timed_lock_shared(this_._id, ms, this_.unsafe_async_result(res));
-            await this_.async_wait();
-            return res.value1;
+            return this_.async_wait(res);
         }
 
         static public async Task<bool> mutex_timed_lock_shared(shared_mutex mtx, int ms, Func<Task> handler)
@@ -4483,13 +4745,12 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public async Task<bool> condition_timed_wait(condition_variable conVar, mutex mutex, int ms)
+        static public ValueTask<bool> condition_timed_wait(condition_variable conVar, mutex mutex, int ms)
         {
             generator this_ = self;
             async_result_wrap<bool> res = new async_result_wrap<bool>();
             conVar.async_timed_wait(this_._id, ms, mutex, this_.unsafe_async_result(res));
-            await this_.async_wait();
-            return res.value1;
+            return this_.async_wait(res);
         }
 
         static public Task condition_cancel(condition_variable conVar)
@@ -4511,33 +4772,36 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public async Task send_strand(shared_strand strand, Action handler)
+        private async Task send_strand_(shared_strand strand, Action handler)
+        {
+            System.Exception hasExcep = null;
+            strand.post(unsafe_async_callback(delegate ()
+            {
+                try
+                {
+                    handler();
+                }
+                catch (System.Exception ec)
+                {
+                    hasExcep = ec;
+                }
+            }));
+            await async_wait();
+            if (null != hasExcep)
+            {
+                throw hasExcep;
+            }
+        }
+
+        static public Task send_strand(shared_strand strand, Action handler)
         {
             generator this_ = self;
             if (this_.strand == strand)
             {
                 handler();
+                return non_async();
             }
-            else
-            {
-                System.Exception hasExcep = null;
-                strand.post(this_.unsafe_async_callback(delegate ()
-                {
-                    try
-                    {
-                        handler();
-                    }
-                    catch (System.Exception ec)
-                    {
-                        hasExcep = ec;
-                    }
-                }));
-                await this_.async_wait();
-                if (null != hasExcep)
-                {
-                    throw hasExcep;
-                }
-            }
+            return this_.send_strand_(strand, handler);
         }
 
         static public Task unsafe_send_strand<R>(async_result_wrap<R> res, shared_strand strand, Func<R> handler)
@@ -4556,35 +4820,37 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public async Task<R> send_strand<R>(shared_strand strand, Func<R> handler)
+        private async Task<R> send_strand_<R>(shared_strand strand, Func<R> handler)
+        {
+            R res = default(R);
+            System.Exception hasExcep = null;
+            strand.post(unsafe_async_callback(delegate ()
+            {
+                try
+                {
+                    res = handler();
+                }
+                catch (System.Exception ec)
+                {
+                    hasExcep = ec;
+                }
+            }));
+            await async_wait();
+            if (null != hasExcep)
+            {
+                throw hasExcep;
+            }
+            return res;
+        }
+
+        static public ValueTask<R> send_strand<R>(shared_strand strand, Func<R> handler)
         {
             generator this_ = self;
             if (this_.strand == strand)
             {
                 return handler();
             }
-            else
-            {
-                R res = default(R);
-                System.Exception hasExcep = null;
-                strand.post(this_.unsafe_async_callback(delegate ()
-                {
-                    try
-                    {
-                        res = handler();
-                    }
-                    catch (System.Exception ec)
-                    {
-                        hasExcep = ec;
-                    }
-                }));
-                await this_.async_wait();
-                if (null != hasExcep)
-                {
-                    throw hasExcep;
-                }
-                return res;
-            }
+            return this_.send_strand_(strand, handler);
         }
 
         static public Func<Task> wrap_send_strand(shared_strand strand, Action handler)
@@ -4597,23 +4863,19 @@ namespace Go
             return (T p) => send_strand(strand, () => handler(p));
         }
 
-        static public Func<Task<R>> wrap_send_strand<R>(shared_strand strand, Func<R> handler)
+        static public Func<ValueTask<R>> wrap_send_strand<R>(shared_strand strand, Func<R> handler)
         {
-            return async delegate ()
+            return delegate ()
             {
-                R res = default(R);
-                await send_strand(strand, () => res = handler());
-                return res;
+                return send_strand(strand, handler);
             };
         }
 
-        static public Func<T, Task<R>> wrap_send_strand<R, T>(shared_strand strand, Func<T, R> handler)
+        static public Func<T, ValueTask<R>> wrap_send_strand<R, T>(shared_strand strand, Func<T, R> handler)
         {
-            return async delegate (T p)
+            return delegate (T p)
             {
-                R res = default(R);
-                await send_strand(strand, () => res = handler(p));
-                return res;
+                return send_strand(strand, () => handler(p));
             };
         }
 #if NETCORE
@@ -5504,7 +5766,7 @@ namespace Go
             return (chan<T>)mb.mailbox;
         }
 
-        public Task<chan<T>> get_mailbox<T>(int id = 0)
+        public ValueTask<chan<T>> get_mailbox<T>(int id = 0)
         {
             return send_strand(strand, delegate ()
             {
@@ -5619,17 +5881,17 @@ namespace Go
             return false;
         }
 
-        static public Task<chan_recv_wrap<T>> recv_msg<T>(int id = 0)
+        static public ValueTask<chan_recv_wrap<T>> recv_msg<T>(int id = 0)
         {
             return chan_receive(self_mailbox<T>(id));
         }
 
-        static public Task<chan_recv_wrap<T>> try_recv_msg<T>(int id = 0)
+        static public ValueTask<chan_recv_wrap<T>> try_recv_msg<T>(int id = 0)
         {
             return chan_try_receive(self_mailbox<T>(id));
         }
 
-        static public Task<chan_recv_wrap<T>> timed_recv_msg<T>(int ms, int id = 0)
+        static public ValueTask<chan_recv_wrap<T>> timed_recv_msg<T>(int ms, int id = 0)
         {
             return chan_timed_receive(self_mailbox<T>(id), ms);
         }
