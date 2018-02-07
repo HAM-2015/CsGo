@@ -6396,7 +6396,6 @@ namespace Go
 
         public GoTask<chan_send_wrap> send_msg<T>(int id, T msg)
         {
-            generator host = self;
             GoTask<chan<T>> mbTask = get_mailbox<T>(id);
             if (!mbTask.IsCompleted)
             {
