@@ -3336,7 +3336,7 @@ namespace Go
             return generator.csp_wait(this, lostMsg);
         }
 
-        public Task<chan_async_state> wait(Func<T, Task<R>> handler, chan_lost_msg<T> lostMsg = null)
+        public GoTask<chan_async_state> wait(Func<T, Task<R>> handler, chan_lost_msg<T> lostMsg = null)
         {
             return generator.csp_wait(this, handler, lostMsg);
         }
@@ -3361,7 +3361,7 @@ namespace Go
             return generator.csp_try_wait(this, lostMsg);
         }
 
-        public Task<chan_async_state> try_wait(Func<T, Task<R>> handler, chan_lost_msg<T> lostMsg = null)
+        public GoTask<chan_async_state> try_wait(Func<T, Task<R>> handler, chan_lost_msg<T> lostMsg = null)
         {
             return generator.csp_try_wait(this, handler, lostMsg);
         }
@@ -3396,7 +3396,7 @@ namespace Go
             return generator.csp_timed_wait(this, ms, lostMsg);
         }
 
-        public Task<chan_async_state> timed_wait(int ms, Func<T, Task<R>> handler, chan_lost_msg<T> lostMsg = null)
+        public GoTask<chan_async_state> timed_wait(int ms, Func<T, Task<R>> handler, chan_lost_msg<T> lostMsg = null)
         {
             return generator.csp_timed_wait(this, ms, handler, lostMsg);
         }
