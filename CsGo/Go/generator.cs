@@ -3855,7 +3855,10 @@ namespace Go
             {
                 return this_.csp_wait_(result, chan, lostMsg);
             }
-            result.value1.result.start_invoke_timer(this_);
+            if (chan_async_state.async_ok == result.value1.state)
+            {
+                result.value1.result.start_invoke_timer(this_);
+            }
             return result.value1;
         }
 
@@ -4518,7 +4521,10 @@ namespace Go
             {
                 return this_.csp_try_wait_(result, chan, lostMsg);
             }
-            result.value1.result.start_invoke_timer(this_);
+            if (chan_async_state.async_ok == result.value1.state)
+            {
+                result.value1.result.start_invoke_timer(this_);
+            }
             return result.value1;
         }
 
@@ -4731,7 +4737,10 @@ namespace Go
             {
                 return this_.csp_timed_wait_(result, chan, lostMsg);
             }
-            result.value1.result.start_invoke_timer(this_);
+            if (chan_async_state.async_ok == result.value1.state)
+            {
+                result.value1.result.start_invoke_timer(this_);
+            }
             return result.value1;
         }
 
