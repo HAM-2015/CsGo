@@ -90,9 +90,7 @@ namespace Go
 
         protected virtual void async_unlock_(long id, Action ntf)
         {
-#if DEBUG
-            Trace.Assert(id == _lockID);
-#endif
+            Debug.Assert(id == _lockID);
             if (0 == --_recCount)
             {
                 if (0 != _waitQueue.Count)

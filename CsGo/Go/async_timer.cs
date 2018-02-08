@@ -689,9 +689,7 @@ namespace Go
 
         public long timeout_us(long us, Action handler)
         {
-#if DEBUG
-            Trace.Assert(_strand.running_in_this_thread() && null == _handler && null != handler);
-#endif
+            Debug.Assert(_strand.running_in_this_thread() && null == _handler && null != handler, "不正确的 timeout_us 调用!");
             _isInterval = false;
             _handler = handler;
             _strand.hold_work();
@@ -709,9 +707,7 @@ namespace Go
 
         public long deadline_us(long us, Action handler)
         {
-#if DEBUG
-            Trace.Assert(_strand.running_in_this_thread() && null == _handler && null != handler);
-#endif
+            Debug.Assert(_strand.running_in_this_thread() && null == _handler && null != handler, "不正确的 deadline_us 调用!");
             _isInterval = false;
             _handler = handler;
             _strand.hold_work();
@@ -774,9 +770,7 @@ namespace Go
 
         public long interval2_us(long us1, long us2, Action handler, bool immed = false)
         {
-#if DEBUG
-            Trace.Assert(_strand.running_in_this_thread() && null == _handler && null != handler);
-#endif
+            Debug.Assert(_strand.running_in_this_thread() && null == _handler && null != handler, "不正确的 interval2_us 调用!");
             _isInterval = true;
             _handler = handler;
             _strand.hold_work();
@@ -796,9 +790,7 @@ namespace Go
 
         public bool restart_us(long us = -1)
         {
-#if DEBUG
-            Trace.Assert(_strand.running_in_this_thread());
-#endif
+            Debug.Assert(_strand.running_in_this_thread(), "不正确的 restart_us 调用!");
             if (null != _handler)
             {
                 _beginTick = _utcMode ? utc_tick.get_tick_us() : system_tick.get_tick_us();
@@ -829,9 +821,7 @@ namespace Go
 
         public bool advance()
         {
-#if DEBUG
-            Trace.Assert(_strand.running_in_this_thread());
-#endif
+            Debug.Assert(_strand.running_in_this_thread(), "不正确的 advance 调用!");
             if (null != _handler)
             {
                 if (!_isInterval)
@@ -852,9 +842,7 @@ namespace Go
 
         public long cancel()
         {
-#if DEBUG
-            Trace.Assert(_strand.running_in_this_thread());
-#endif
+            Debug.Assert(_strand.running_in_this_thread(), "不正确的 cancel 调用!");
             if (null != _handler)
             {
                 _timerCount++;

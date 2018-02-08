@@ -1396,9 +1396,7 @@ namespace Go
 
         public limit_chan(shared_strand strand, int len) : base(strand)
         {
-#if DEBUG
-            Trace.Assert(len > 0, string.Format("limit_chan<{0}>长度必须大于0!", typeof(T).Name));
-#endif
+            Debug.Assert(len > 0, string.Format("limit_chan<{0}>长度必须大于0!", typeof(T).Name));
             _msgQueue = default(T) is void_type ? (msg_queue<T>)new void_msg_queue<T>() : new no_void_msg_queue<T>();
             _sendQueue = new priority_queue<notify_pck>();
             _recvQueue = new priority_queue<notify_pck>();
@@ -2875,7 +2873,7 @@ namespace Go
             public bool complete(R res)
             {
 #if DEBUG
-                Trace.Assert(_hostStrand.running_in_this_thread(), "不正确的 complete 调用!");
+                Debug.Assert(_hostStrand.running_in_this_thread(), "不正确的 complete 调用!");
 #endif
                 _invokeTimer?.cancel();
                 _invokeTimer = null;
@@ -2892,7 +2890,7 @@ namespace Go
             public void fail()
             {
 #if DEBUG
-                Trace.Assert(_hostStrand.running_in_this_thread(), "不正确的 fail 调用!");
+                Debug.Assert(_hostStrand.running_in_this_thread(), "不正确的 fail 调用!");
 #endif
                 _invokeTimer?.cancel();
                 _invokeTimer = null;

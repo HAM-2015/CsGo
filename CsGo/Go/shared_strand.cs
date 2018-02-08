@@ -471,34 +471,26 @@ namespace Go
         static public void next_tick(Action action)
         {
             shared_strand currStrand = running_strand();
-#if DEBUG
-            Trace.Assert(null != currStrand, "不正确的 next_tick 调用!");
-#endif
+            Debug.Assert(null != currStrand, "不正确的 next_tick 调用!");
             currStrand._readyQueue.AddFirst(action);
         }
 
         static public void last_tick(Action action)
         {
             shared_strand currStrand = running_strand();
-#if DEBUG
-            Trace.Assert(null != currStrand, "不正确的 last_tick 调用!");
-#endif
+            Debug.Assert(null != currStrand, "不正确的 last_tick 调用!");
             currStrand._readyQueue.AddLast(action);
         }
 
         public void add_next(Action action)
         {
-#if DEBUG
-            Trace.Assert(running_in_this_thread(), "不正确的 add_next 调用!");
-#endif
+            Debug.Assert(running_in_this_thread(), "不正确的 add_next 调用!");
             _readyQueue.AddFirst(action);
         }
 
         public void add_last(Action action)
         {
-#if DEBUG
-            Trace.Assert(running_in_this_thread(), "不正确的 add_last 调用!");
-#endif
+            Debug.Assert(running_in_this_thread(), "不正确的 add_last 调用!");
             _readyQueue.AddLast(action);
         }
 

@@ -627,26 +627,20 @@ namespace Go
 
             public void new_task()
             {
-#if DEBUG
-                Trace.Assert(_completed && _activated, "不对称的推入操作!");
-#endif
+                Debug.Assert(_completed && _activated, "不对称的推入操作!");
                 _completed = false;
                 _activated = false;
             }
 
             public void ahead_complete()
             {
-#if DEBUG
-                Trace.Assert(!_completed, "不对称的拉取操作!");
-#endif
+                Debug.Assert(!_completed, "不对称的拉取操作!");
                 _completed = true;
             }
 
             public void complete()
             {
-#if DEBUG
-                Trace.Assert(!_completed, "不对称的拉取操作!");
-#endif
+                Debug.Assert(!_completed, "不对称的拉取操作!");
                 _completed = true;
                 Action continuation = _continuation;
                 _continuation = null;
@@ -1266,25 +1260,19 @@ namespace Go
 
         public bool is_force()
         {
-#if DEBUG
-            Trace.Assert(_isStop, "不正确的 is_force 调用，generator 还没有结束");
-#endif
+            Debug.Assert(_isStop, "不正确的 is_force 调用，generator 还没有结束");
             return _isForce;
         }
 
         public bool is_exception()
         {
-#if DEBUG
-            Trace.Assert(_isStop, "不正确的 is_exception 调用，generator 还没有结束");
-#endif
+            Debug.Assert(_isStop, "不正确的 is_exception 调用，generator 还没有结束");
             return null != _excep;
         }
 
         public System.Exception exception()
         {
-#if DEBUG
-            Trace.Assert(_isStop, "不正确的 exception 调用，generator 还没有结束");
-#endif
+            Debug.Assert(_isStop, "不正确的 exception 调用，generator 还没有结束");
             return _excep;
         }
 
@@ -1313,9 +1301,7 @@ namespace Go
 
         public void sync_wait()
         {
-#if DEBUG
-            Trace.Assert(strand.wait_safe(), "不正确的 sync_wait 调用!");
-#endif
+            Debug.Assert(strand.wait_safe(), "不正确的 sync_wait 调用!");
             wait_group wg = new wait_group(1);
             stop(wg.wrap_done());
             wg.sync_wait();
@@ -1323,9 +1309,7 @@ namespace Go
 
         public bool sync_timed_wait(int ms)
         {
-#if DEBUG
-            Trace.Assert(strand.wait_safe(), "不正确的 sync_timed_wait 调用!");
-#endif
+            Debug.Assert(strand.wait_safe(), "不正确的 sync_timed_wait 调用!");
             wait_group wg = new wait_group(1);
             stop(wg.wrap_done());
             return wg.sync_timed_wait(ms);
@@ -1333,9 +1317,7 @@ namespace Go
 
         static public R sync_go<R>(shared_strand strand, Func<Task<R>> handler)
         {
-#if DEBUG
-            Trace.Assert(strand.wait_safe(), "不正确的 sync_go 调用!");
-#endif
+            Debug.Assert(strand.wait_safe(), "不正确的 sync_go 调用!");
             R res = default(R);
             System.Exception hasExcep = null;
             wait_group wg = new wait_group(1);
@@ -1364,9 +1346,7 @@ namespace Go
 
         static public void sync_go(shared_strand strand, action handler)
         {
-#if DEBUG
-            Trace.Assert(strand.wait_safe(), "不正确的 sync_go 调用!");
-#endif
+            Debug.Assert(strand.wait_safe(), "不正确的 sync_go 调用!");
             System.Exception hasExcep = null;
             wait_group wg = new wait_group(1);
             go(strand, async delegate ()
@@ -1441,12 +1421,10 @@ namespace Go
         static public void unlock_stop()
         {
             generator this_ = self;
-#if DEBUG
             if (!this_._beginQuit)
             {
-                Trace.Assert(this_._lockCount > 0, "unlock_stop 不匹配");
+                Debug.Assert(this_._lockCount > 0, "unlock_stop 不匹配");
             }
-#endif
             if (!this_._beginQuit && 0 == --this_._lockCount && this_._isForce)
             {
                 this_._lockSuspendCount = 0;
@@ -1540,12 +1518,10 @@ namespace Go
         static public Task unlock_suspend()
         {
             generator this_ = self;
-#if DEBUG
             if (!this_._beginQuit)
             {
-                Trace.Assert(this_._lockSuspendCount > 0, "unlock_suspend 不匹配");
+                Debug.Assert(this_._lockSuspendCount > 0, "unlock_suspend 不匹配");
             }
-#endif
             if (!this_._beginQuit && 0 == --this_._lockSuspendCount && this_._holdSuspend)
             {
                 this_._holdSuspend = false;
@@ -1692,13 +1668,11 @@ namespace Go
         static public Task unlock_suspend_and_stop()
         {
             generator this_ = self;
-#if DEBUG
             if (!this_._beginQuit)
             {
-                Trace.Assert(this_._lockCount > 0, "unlock_stop 不匹配");
-                Trace.Assert(this_._lockSuspendCount > 0, "unlock_suspend 不匹配");
+                Debug.Assert(this_._lockCount > 0, "unlock_stop 不匹配");
+                Debug.Assert(this_._lockSuspendCount > 0, "unlock_suspend 不匹配");
             }
-#endif
             if (!this_._beginQuit && 0 == --this_._lockCount && this_._isForce)
             {
                 this_._lockSuspendCount = 0;
@@ -1844,7 +1818,7 @@ namespace Go
         private void enter_push()
         {
 #if DEBUG
-            Trace.Assert(strand.running_in_this_thread(), "异常的 await 调用!");
+            Debug.Assert(strand.running_in_this_thread(), "异常的 await 调用!");
             if (!system_tick.check_step_debugging() && system_tick.get_tick_ms() - _beginStepTick > _stepMaxCycle)
             {
                 call_stack_info[] stackHead = _makeStack.Last.Value;
@@ -3272,9 +3246,7 @@ namespace Go
         static public async Task<chan_async_state> chan_wait_free(chan_base chan)
         {
             generator this_ = self;
-#if DEBUG
-            Trace.Assert(!this_._ioSign._ntfNode.effect && !this_._ioSign._success, "重叠的 chan_wait 操作!");
-#endif
+            Debug.Assert(!this_._ioSign._ntfNode.effect && !this_._ioSign._success, "重叠的 chan_wait 操作!");
             try
             {
                 chan_async_state result = chan_async_state.async_undefined;
@@ -3295,9 +3267,7 @@ namespace Go
         static public async Task<chan_async_state> chan_timed_wait_free(chan_base chan, int ms)
         {
             generator this_ = self;
-#if DEBUG
-            Trace.Assert(!this_._ioSign._ntfNode.effect && !this_._ioSign._success, "重叠的 chan_wait 操作!");
-#endif
+            Debug.Assert(!this_._ioSign._ntfNode.effect && !this_._ioSign._success, "重叠的 chan_wait 操作!");
             try
             {
                 chan_async_state result = chan_async_state.async_undefined;
@@ -3318,9 +3288,7 @@ namespace Go
         static public async Task<chan_async_state> chan_wait_has(chan_base chan, broadcast_token token)
         {
             generator this_ = self;
-#if DEBUG
-            Trace.Assert(!this_._ioSign._ntfNode.effect && !this_._ioSign._success, "重叠的 chan_wait 操作!");
-#endif
+            Debug.Assert(!this_._ioSign._ntfNode.effect && !this_._ioSign._success, "重叠的 chan_wait 操作!");
             try
             {
                 chan_async_state result = chan_async_state.async_undefined;
@@ -3346,9 +3314,7 @@ namespace Go
         static public async Task<chan_async_state> chan_timed_wait_has(chan_base chan, int ms, broadcast_token token)
         {
             generator this_ = self;
-#if DEBUG
-            Trace.Assert(!this_._ioSign._ntfNode.effect && !this_._ioSign._success, "重叠的 chan_wait 操作!");
-#endif
+            Debug.Assert(!this_._ioSign._ntfNode.effect && !this_._ioSign._success, "重叠的 chan_wait 操作!");
             try
             {
                 chan_async_state result = chan_async_state.async_undefined;
@@ -7691,19 +7657,13 @@ namespace Go
 
         static public void stop_this_receive()
         {
-#if DEBUG
-            generator this_ = self;
-            Trace.Assert(null != this_ && null != this_.parent() && this_.parent()._mailboxMap == this_._mailboxMap, "不正确的 stop_this_receive 调用!");
-#endif
+            Debug.Assert(null != self && null != self.parent() && self.parent()._mailboxMap == self._mailboxMap, "不正确的 stop_this_receive 调用!");
             throw stop_this_receive_exception.val;
         }
 
         static public void stop_all_receive()
         {
-#if DEBUG
-            generator this_ = self;
-            Trace.Assert(null != this_ && null != this_.parent() && this_.parent()._mailboxMap == this_._mailboxMap, "不正确的 stop_all_receive 调用!");
-#endif
+            Debug.Assert(null != self && null != self.parent() && self.parent()._mailboxMap == self._mailboxMap, "不正确的 stop_all_receive 调用!");
             throw stop_all_receive_exception.val;
         }
 
@@ -8532,19 +8492,13 @@ namespace Go
 
         static public void stop_select()
         {
-#if DEBUG
-            generator this_ = self;
-            Trace.Assert(null != this_ && null != this_._topSelectChans && 0 != this_._topSelectChans.Count, "不正确的 stop_select 调用!");
-#endif
+            Debug.Assert(null != self && null != self._topSelectChans && 0 != self._topSelectChans.Count, "不正确的 stop_select 调用!");
             throw stop_select_exception.val;
         }
 
         static public void stop_this_case()
         {
-#if DEBUG
-            generator this_ = self;
-            Trace.Assert(null != this_ && null != this_._topSelectChans && 0 != this_._topSelectChans.Count, "不正确的 stop_this_case 调用!");
-#endif
+            Debug.Assert(null != self && null != self._topSelectChans && 0 != self._topSelectChans.Count, "不正确的 stop_this_case 调用!");
             throw stop_this_case_exception.val;
         }
 
@@ -8720,9 +8674,7 @@ namespace Go
 
             public child make(shared_strand strand, action handler, Action callback = null, Action<bool> suspendCb = null)
             {
-#if DEBUG
-                Trace.Assert(self == _parent, "此 children 不属于当前 generator");
-#endif
+                Debug.Assert(self == _parent, "此 children 不属于当前 generator");
                 check_append_node();
                 child newGen = child.make(this, strand, handler, callback, suspendCb);
                 newGen._childNode = _children.AddLast(newGen);
@@ -8731,9 +8683,7 @@ namespace Go
 
             public child free_make(shared_strand strand, action handler, Action callback = null, Action<bool> suspendCb = null)
             {
-#if DEBUG
-                Trace.Assert(self == _parent, "此 children 不属于当前 generator");
-#endif
+                Debug.Assert(self == _parent, "此 children 不属于当前 generator");
                 check_append_node();
                 child newGen = null;
                 _freeCount++;
@@ -8808,9 +8758,7 @@ namespace Go
 
             public void ignore_suspend(bool igonre = true)
             {
-#if DEBUG
-                Trace.Assert(self == _parent, "此 children 不属于当前 generator");
-#endif
+                Debug.Assert(self == _parent, "此 children 不属于当前 generator");
                 _ignoreSuspend = igonre;
             }
 
@@ -8841,9 +8789,7 @@ namespace Go
 
             public int count()
             {
-#if DEBUG
-                Trace.Assert(self == _parent, "此 children 不属于当前 generator");
-#endif
+                Debug.Assert(self == _parent, "此 children 不属于当前 generator");
                 return _children.Count;
             }
 
@@ -8854,9 +8800,7 @@ namespace Go
 
             public int discard(params child[] gens)
             {
-#if DEBUG
-                Trace.Assert(self == _parent, "此 children 不属于当前 generator");
-#endif
+                Debug.Assert(self == _parent, "此 children 不属于当前 generator");
                 int count = 0;
                 if (0 != gens.Length)
                 {
@@ -8865,9 +8809,7 @@ namespace Go
                         child ele = gens[i];
                         if (null != ele._childNode)
                         {
-#if DEBUG
-                            Trace.Assert(ele._childNode.List == _children, "此 child 不属于当前 children");
-#endif
+                            Debug.Assert(ele._childNode.List == _children, "此 child 不属于当前 children");
                             count++;
                             _children.Remove(ele._childNode);
                             ele._childNode = null;
@@ -8884,15 +8826,10 @@ namespace Go
                 int count = 0;
                 if (0 != childrens.Length)
                 {
-#if DEBUG
-                    generator self = generator.self;
-#endif
                     for (int i = 0; i < childrens.Length; i++)
                     {
                         children childs = childrens[i];
-#if DEBUG
-                        Trace.Assert(self == childs._parent, "此 children 不属于当前 generator");
-#endif
+                        Debug.Assert(self == childs._parent, "此 children 不属于当前 generator");
                         for (LinkedListNode<child> it = childs._children.First; null != it; it = it.Next)
                         {
                             count++;
@@ -8908,10 +8845,8 @@ namespace Go
 
             public async Task<bool> stop(child gen)
             {
-#if DEBUG
-                Trace.Assert(self == _parent, "此 children 不属于当前 generator");
-                Trace.Assert(null == gen._childNode || gen._childNode.List == _children, "此 child 不属于当前 children");
-#endif
+                Debug.Assert(self == _parent, "此 children 不属于当前 generator");
+                Debug.Assert(null == gen._childNode || gen._childNode.List == _children, "此 child 不属于当前 children");
                 if (null != gen._childNode)
                 {
                     gen.stop(_parent.unsafe_async_result());
@@ -8930,9 +8865,7 @@ namespace Go
 
             public async Task<int> stop(params child[] gens)
             {
-#if DEBUG
-                Trace.Assert(self == _parent, "此 children 不属于当前 generator");
-#endif
+                Debug.Assert(self == _parent, "此 children 不属于当前 generator");
                 int count = 0;
                 if (0 != gens.Length)
                 {
@@ -8942,9 +8875,7 @@ namespace Go
                         child ele = gens[i];
                         if (null != ele._childNode)
                         {
-#if DEBUG
-                            Trace.Assert(ele._childNode.List == _children, "此 child 不属于当前 children");
-#endif
+                            Debug.Assert(ele._childNode.List == _children, "此 child 不属于当前 children");
                             count++;
                             ele.stop(() => waitStop.post(ele));
                         }
@@ -8966,10 +8897,8 @@ namespace Go
 
             public async Task<bool> wait(child gen)
             {
-#if DEBUG
-                Trace.Assert(self == _parent, "此 children 不属于当前 generator");
-                Trace.Assert(null == gen._childNode || gen._childNode.List == _children, "此 child 不属于当前 children");
-#endif
+                Debug.Assert(self == _parent, "此 children 不属于当前 generator");
+                Debug.Assert(null == gen._childNode || gen._childNode.List == _children, "此 child 不属于当前 children");
                 if (null != gen._childNode)
                 {
                     gen.append_stop_callback(_parent.unsafe_async_result());
@@ -8988,9 +8917,7 @@ namespace Go
 
             public async Task<int> wait(params child[] gens)
             {
-#if DEBUG
-                Trace.Assert(self == _parent, "此 children 不属于当前 generator");
-#endif
+                Debug.Assert(self == _parent, "此 children 不属于当前 generator");
                 int count = 0;
                 if (0 != gens.Length)
                 {
@@ -9000,9 +8927,7 @@ namespace Go
                         child ele = gens[i];
                         if (null != ele._childNode)
                         {
-#if DEBUG
-                            Trace.Assert(ele._childNode.List == _children, "此 child 不属于当前 children");
-#endif
+                            Debug.Assert(ele._childNode.List == _children, "此 child 不属于当前 children");
                             count++;
                             ele.append_stop_callback(() => waitStop.post(ele));
                         }
@@ -9024,10 +8949,8 @@ namespace Go
 
             public async Task<bool> timed_wait(int ms, child gen)
             {
-#if DEBUG
-                Trace.Assert(self == _parent, "此 children 不属于当前 generator");
-                Trace.Assert(null == gen._childNode || gen._childNode.List == _children, "此 child 不属于当前 children");
-#endif
+                Debug.Assert(self == _parent, "此 children 不属于当前 generator");
+                Debug.Assert(null == gen._childNode || gen._childNode.List == _children, "此 child 不属于当前 children");
                 bool overtime = false;
                 if (null != gen._childNode)
                 {
@@ -9045,9 +8968,7 @@ namespace Go
 
             public async Task stop(bool containFree = true)
             {
-#if DEBUG
-                Trace.Assert(self == _parent, "此 children 不属于当前 generator");
-#endif
+                Debug.Assert(self == _parent, "此 children 不属于当前 generator");
                 if (0 != _children.Count)
                 {
                     unlimit_chan<child> waitStop = new unlimit_chan<child>(_parent.strand);
@@ -9099,9 +9020,7 @@ namespace Go
                     for (int i = 0; i < childrens.Length; i++)
                     {
                         children childs = childrens[i];
-#if DEBUG
-                        Trace.Assert(self == childs._parent, "此 children 不属于当前 generator");
-#endif
+                        Debug.Assert(self == childs._parent, "此 children 不属于当前 generator");
                         if (0 != childs._children.Count)
                         {
                             count += childs._children.Count;
@@ -9141,9 +9060,7 @@ namespace Go
 
             public async Task<child> wait_one(bool containFree = false)
             {
-#if DEBUG
-                Trace.Assert(self == _parent, "此 children 不属于当前 generator");
-#endif
+                Debug.Assert(self == _parent, "此 children 不属于当前 generator");
                 if (0 != _children.Count)
                 {
                     unlimit_chan<tuple<child, LinkedListNode<Action>>> waitRemove = new unlimit_chan<tuple<child, LinkedListNode<Action>>>(_parent.strand);
@@ -9187,9 +9104,7 @@ namespace Go
 
             public async Task<child> timed_wait_one(int ms, bool containFree = false)
             {
-#if DEBUG
-                Trace.Assert(self == _parent, "此 children 不属于当前 generator");
-#endif
+                Debug.Assert(self == _parent, "此 children 不属于当前 generator");
                 if (0 != _children.Count)
                 {
                     unlimit_chan<tuple<child, LinkedListNode<Action>>> waitRemove = new unlimit_chan<tuple<child, LinkedListNode<Action>>>(_parent.strand);
@@ -9233,9 +9148,7 @@ namespace Go
 
             public async Task wait_all(bool containFree = true)
             {
-#if DEBUG
-                Trace.Assert(self == _parent, "此 children 不属于当前 generator");
-#endif
+                Debug.Assert(self == _parent, "此 children 不属于当前 generator");
                 if (0 != _children.Count)
                 {
                     unlimit_chan<child> waitStop = new unlimit_chan<child>(_parent.strand);
@@ -9391,9 +9304,7 @@ namespace Go
 
         public void reset()
         {
-#if DEBUG
-            Trace.Assert(0 == _tasks, "不正确的 reset 调用!");
-#endif
+            Debug.Assert(0 == _tasks, "不正确的 reset 调用!");
             Monitor.Enter(this);
             if (null != _waitList)
             {
