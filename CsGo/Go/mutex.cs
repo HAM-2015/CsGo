@@ -180,7 +180,7 @@ namespace Go
             return generator.mutex_try_lock(res, this);
         }
 
-        public GoTask<bool> try_lock()
+        public ValueTask<bool> try_lock()
         {
             return generator.mutex_try_lock(this);
         }
@@ -195,7 +195,7 @@ namespace Go
             return generator.mutex_timed_lock(res, this, ms);
         }
 
-        public GoTask<bool> timed_lock(int ms)
+        public ValueTask<bool> timed_lock(int ms)
         {
             return generator.mutex_timed_lock(this, ms);
         }
@@ -656,7 +656,7 @@ namespace Go
             return generator.mutex_try_lock_shared(res, this);
         }
 
-        public GoTask<bool> try_lock_shared()
+        public ValueTask<bool> try_lock_shared()
         {
             return generator.mutex_try_lock_shared(this);
         }
@@ -671,7 +671,7 @@ namespace Go
             return generator.mutex_try_lock_upgrade(res, this);
         }
 
-        public GoTask<bool> try_lock_upgrade()
+        public ValueTask<bool> try_lock_upgrade()
         {
             return generator.mutex_try_lock_upgrade(this);
         }
@@ -686,7 +686,7 @@ namespace Go
             return generator.mutex_timed_lock_shared(res, this, ms);
         }
 
-        public GoTask<bool> timed_lock_shared(int ms)
+        public ValueTask<bool> timed_lock_shared(int ms)
         {
             return generator.mutex_timed_lock_shared(this, ms);
         }
@@ -826,7 +826,7 @@ namespace Go
             return generator.condition_timed_wait(res, this, mutex, ms);
         }
 
-        public GoTask<bool> timed_wait(mutex mutex, int ms)
+        public ValueTask<bool> timed_wait(mutex mutex, int ms)
         {
             return generator.condition_timed_wait(this, mutex, ms);
         }

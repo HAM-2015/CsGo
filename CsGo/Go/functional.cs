@@ -410,5 +410,47 @@ namespace Go
         {
             return action.Invoke();
         }
+
+#if NETCORE
+        public static Func<ValueTask<R>> acry<R>(Func<ValueTask<R>> handler)
+        {
+            return handler;
+        }
+
+        public static Func<T1, ValueTask<R>> acry<R, T1>(Func<T1, ValueTask<R>> handler)
+        {
+            return handler;
+        }
+
+        public static Func<T1, T2, ValueTask<R>> acry<R, T1, T2>(Func<T1, T2, ValueTask<R>> handler)
+        {
+            return handler;
+        }
+
+        public static Func<T1, T2, T3, ValueTask<R>> acry<R, T1, T2, T3>(Func<T1, T2, T3, ValueTask<R>> handler)
+        {
+            return handler;
+        }
+#else
+        public static Func<Task<R>> acry<R>(Func<Task<R>> handler)
+        {
+            return handler;
+        }
+
+        public static Func<T1, Task<R>> acry<R, T1>(Func<T1, Task<R>> handler)
+        {
+            return handler;
+        }
+
+        public static Func<T1, T2, Task<R>> acry<R, T1, T2>(Func<T1, T2, Task<R>> handler)
+        {
+            return handler;
+        }
+
+        public static Func<T1, T2, T3, Task<R>> acry<R, T1, T2, T3>(Func<T1, T2, T3, Task<R>> handler)
+        {
+            return handler;
+        }
+#endif
     }
 }

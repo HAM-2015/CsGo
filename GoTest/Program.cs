@@ -71,12 +71,12 @@ namespace GoTest
                 {
                     Console.WriteLine("select receive chan3 {0}", msg);
                     await generator.sleep(100);
-                }).case_receive(_csp, async delegate (long msg)
+                }).case_receive(_csp, functional.acry(async delegate (long msg)
                 {
                     Console.WriteLine("select csp delay {0}", system_tick.get_tick_us() - msg);
                     await generator.sleep(100);
                     return system_tick.get_tick_us();
-                }).end();
+                })).end();
             }
         }
 

@@ -699,7 +699,7 @@ namespace Go
             return generator.unsafe_chan_send(res, this, msg);
         }
 
-        public GoTask<chan_send_wrap> send(T msg, chan_lost_msg<T> lostMsg = null)
+        public ValueTask<chan_send_wrap> send(T msg, chan_lost_msg<T> lostMsg = null)
         {
             return generator.chan_send(this, msg, lostMsg);
         }
@@ -709,7 +709,7 @@ namespace Go
             return generator.unsafe_chan_receive(res, this);
         }
 
-        public GoTask<chan_recv_wrap<T>> receive(chan_lost_msg<T> lostMsg = null)
+        public ValueTask<chan_recv_wrap<T>> receive(chan_lost_msg<T> lostMsg = null)
         {
             return generator.chan_receive(this, lostMsg);
         }
@@ -719,7 +719,7 @@ namespace Go
             return generator.unsafe_chan_try_send(res, this, msg);
         }
 
-        public GoTask<chan_send_wrap> try_send(T msg, chan_lost_msg<T> lostMsg = null)
+        public ValueTask<chan_send_wrap> try_send(T msg, chan_lost_msg<T> lostMsg = null)
         {
             return generator.chan_try_send(this, msg, lostMsg);
         }
@@ -729,7 +729,7 @@ namespace Go
             return generator.unsafe_chan_try_receive(res, this);
         }
 
-        public GoTask<chan_recv_wrap<T>> try_receive(chan_lost_msg<T> lostMsg = null)
+        public ValueTask<chan_recv_wrap<T>> try_receive(chan_lost_msg<T> lostMsg = null)
         {
             return generator.chan_try_receive(this, lostMsg);
         }
@@ -739,7 +739,7 @@ namespace Go
             return generator.unsafe_chan_timed_send(res, this, ms, msg);
         }
 
-        public GoTask<chan_send_wrap> timed_send(int ms, T msg, chan_lost_msg<T> lostMsg = null)
+        public ValueTask<chan_send_wrap> timed_send(int ms, T msg, chan_lost_msg<T> lostMsg = null)
         {
             return generator.chan_timed_send(this, ms, msg, lostMsg);
         }
@@ -749,7 +749,7 @@ namespace Go
             return generator.unsafe_chan_timed_receive(res, this, ms);
         }
 
-        public GoTask<chan_recv_wrap<T>> timed_receive(int ms, chan_lost_msg<T> lostMsg = null)
+        public ValueTask<chan_recv_wrap<T>> timed_receive(int ms, chan_lost_msg<T> lostMsg = null)
         {
             return generator.chan_timed_receive(this, ms, lostMsg);
         }
@@ -951,7 +951,7 @@ namespace Go
             return generator.unsafe_chan_receive(res, this, token);
         }
 
-        public GoTask<chan_recv_wrap<T>> receive(broadcast_token token, chan_lost_msg<T> lostMsg = null)
+        public ValueTask<chan_recv_wrap<T>> receive(broadcast_token token, chan_lost_msg<T> lostMsg = null)
         {
             return generator.chan_receive(this, token, lostMsg);
         }
@@ -961,7 +961,7 @@ namespace Go
             return generator.unsafe_chan_try_receive(res, this, token);
         }
 
-        public GoTask<chan_recv_wrap<T>> try_receive(broadcast_token token, chan_lost_msg<T> lostMsg = null)
+        public ValueTask<chan_recv_wrap<T>> try_receive(broadcast_token token, chan_lost_msg<T> lostMsg = null)
         {
             return generator.chan_try_receive(this, token, lostMsg);
         }
@@ -971,7 +971,7 @@ namespace Go
             return generator.unsafe_chan_timed_receive(res, this, ms, token);
         }
 
-        public GoTask<chan_recv_wrap<T>> timed_receive(int ms, broadcast_token token, chan_lost_msg<T> lostMsg = null)
+        public ValueTask<chan_recv_wrap<T>> timed_receive(int ms, broadcast_token token, chan_lost_msg<T> lostMsg = null)
         {
             return generator.chan_timed_receive(this, ms, token, lostMsg);
         }
@@ -1481,7 +1481,7 @@ namespace Go
             return generator.unsafe_chan_force_send(res, this, msg, outMsg);
         }
 
-        public GoTask<chan_send_wrap> force_send(T msg, chan_lost_msg<T> outMsg = null, chan_lost_msg<T> lostMsg = null)
+        public ValueTask<chan_send_wrap> force_send(T msg, chan_lost_msg<T> outMsg = null, chan_lost_msg<T> lostMsg = null)
         {
             return generator.chan_force_send(this, msg, outMsg, lostMsg);
         }
@@ -2904,7 +2904,7 @@ namespace Go
         {
             public csp_chan<R, T> _chan;
             public Func<T, Task<R>> _handler;
-            public Func<T, GoTask<R>> _gohandler;
+            public Func<T, ValueTask<R>> _gohandler;
             public Func<chan_async_state, Task<bool>> _errHandler;
             public chan_lost_msg<T> _lostMsg;
             public int _chanTimeout = -1;
@@ -3180,22 +3180,22 @@ namespace Go
             return new select_csp_reader() { _chanTimeout = ms, _chan = this, _handler = handler, _errHandler = errHandler, _lostMsg = lostMsg };
         }
 
-        internal select_chan_base make_select_reader(Func<T, GoTask<R>> handler, chan_lost_msg<T> lostMsg)
+        internal select_chan_base make_select_reader(Func<T, ValueTask<R>> handler, chan_lost_msg<T> lostMsg)
         {
             return new select_csp_reader() { _chan = this, _gohandler = handler, _lostMsg = lostMsg };
         }
 
-        internal select_chan_base make_select_reader(Func<T, GoTask<R>> handler, Func<chan_async_state, Task<bool>> errHandler, chan_lost_msg<T> lostMsg)
+        internal select_chan_base make_select_reader(Func<T, ValueTask<R>> handler, Func<chan_async_state, Task<bool>> errHandler, chan_lost_msg<T> lostMsg)
         {
             return new select_csp_reader() { _chan = this, _gohandler = handler, _errHandler = errHandler, _lostMsg = lostMsg };
         }
 
-        internal select_chan_base make_select_reader(int ms, Func<T, GoTask<R>> handler, chan_lost_msg<T> lostMsg)
+        internal select_chan_base make_select_reader(int ms, Func<T, ValueTask<R>> handler, chan_lost_msg<T> lostMsg)
         {
             return new select_csp_reader() { _chanTimeout = ms, _chan = this, _gohandler = handler, _lostMsg = lostMsg };
         }
 
-        internal select_chan_base make_select_reader(int ms, Func<T, GoTask<R>> handler, Func<chan_async_state, Task<bool>> errHandler, chan_lost_msg<T> lostMsg)
+        internal select_chan_base make_select_reader(int ms, Func<T, ValueTask<R>> handler, Func<chan_async_state, Task<bool>> errHandler, chan_lost_msg<T> lostMsg)
         {
             return new select_csp_reader() { _chanTimeout = ms, _chan = this, _gohandler = handler, _errHandler = errHandler, _lostMsg = lostMsg };
         }
@@ -3311,7 +3311,7 @@ namespace Go
             return generator.unsafe_csp_invoke(res, this, msg, invokeMs);
         }
 
-        public GoTask<csp_invoke_wrap<R>> invoke(T msg, int invokeMs = -1, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
+        public ValueTask<csp_invoke_wrap<R>> invoke(T msg, int invokeMs = -1, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
         {
             return generator.csp_invoke(this, msg, invokeMs, lostHandler, lostMsg);
         }
@@ -3321,12 +3321,12 @@ namespace Go
             return generator.unsafe_csp_wait(res, this);
         }
 
-        public GoTask<csp_wait_wrap<R, T>> wait(chan_lost_msg<T> lostMsg = null)
+        public ValueTask<csp_wait_wrap<R, T>> wait(chan_lost_msg<T> lostMsg = null)
         {
             return generator.csp_wait(this, lostMsg);
         }
 
-        public GoTask<chan_async_state> wait(Func<T, Task<R>> handler, chan_lost_msg<T> lostMsg = null)
+        public ValueTask<chan_async_state> wait(Func<T, Task<R>> handler, chan_lost_msg<T> lostMsg = null)
         {
             return generator.csp_wait(this, handler, lostMsg);
         }
@@ -3336,7 +3336,7 @@ namespace Go
             return generator.unsafe_csp_try_invoke(res, this, msg, invokeMs);
         }
 
-        public GoTask<csp_invoke_wrap<R>> try_invoke(T msg, int invokeMs = -1, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
+        public ValueTask<csp_invoke_wrap<R>> try_invoke(T msg, int invokeMs = -1, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
         {
             return generator.csp_try_invoke(this, msg, invokeMs, lostHandler, lostMsg);
         }
@@ -3346,12 +3346,12 @@ namespace Go
             return generator.unsafe_csp_try_wait(res, this);
         }
 
-        public GoTask<csp_wait_wrap<R, T>> try_wait(chan_lost_msg<T> lostMsg = null)
+        public ValueTask<csp_wait_wrap<R, T>> try_wait(chan_lost_msg<T> lostMsg = null)
         {
             return generator.csp_try_wait(this, lostMsg);
         }
 
-        public GoTask<chan_async_state> try_wait(Func<T, Task<R>> handler, chan_lost_msg<T> lostMsg = null)
+        public ValueTask<chan_async_state> try_wait(Func<T, Task<R>> handler, chan_lost_msg<T> lostMsg = null)
         {
             return generator.csp_try_wait(this, handler, lostMsg);
         }
@@ -3361,7 +3361,7 @@ namespace Go
             return generator.unsafe_csp_timed_invoke(res, this, ms, msg);
         }
 
-        public GoTask<csp_invoke_wrap<R>> timed_invoke(tuple<int, int> ms, T msg, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
+        public ValueTask<csp_invoke_wrap<R>> timed_invoke(tuple<int, int> ms, T msg, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
         {
             return generator.csp_timed_invoke(this, ms, msg, lostHandler, lostMsg);
         }
@@ -3371,7 +3371,7 @@ namespace Go
             return generator.unsafe_csp_timed_invoke(res, this, ms, msg);
         }
 
-        public GoTask<csp_invoke_wrap<R>> timed_invoke(int ms, T msg, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
+        public ValueTask<csp_invoke_wrap<R>> timed_invoke(int ms, T msg, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
         {
             return generator.csp_timed_invoke(this, ms, msg, lostHandler, lostMsg);
         }
@@ -3381,12 +3381,12 @@ namespace Go
             return generator.unsafe_csp_timed_wait(res, this, ms);
         }
 
-        public GoTask<csp_wait_wrap<R, T>> timed_wait(int ms, chan_lost_msg<T> lostMsg = null)
+        public ValueTask<csp_wait_wrap<R, T>> timed_wait(int ms, chan_lost_msg<T> lostMsg = null)
         {
             return generator.csp_timed_wait(this, ms, lostMsg);
         }
 
-        public GoTask<chan_async_state> timed_wait(int ms, Func<T, Task<R>> handler, chan_lost_msg<T> lostMsg = null)
+        public ValueTask<chan_async_state> timed_wait(int ms, Func<T, Task<R>> handler, chan_lost_msg<T> lostMsg = null)
         {
             return generator.csp_timed_wait(this, ms, handler, lostMsg);
         }
