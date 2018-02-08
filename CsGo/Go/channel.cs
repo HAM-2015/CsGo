@@ -1008,11 +1008,11 @@ namespace Go
 
     class no_void_msg_queue<T> : msg_queue<T>
     {
-        LinkedList<T> _msgBuff;
+        MsgQueue<T> _msgBuff;
 
         public no_void_msg_queue()
         {
-            _msgBuff = new LinkedList<T>();
+            _msgBuff = new MsgQueue<T>();
         }
 
         public override void AddLast(T msg)

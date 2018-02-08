@@ -12,19 +12,19 @@ namespace Go
         int _work;
         int _waiting;
         volatile bool _runSign;
-        LinkedList<Action> _opQueue;
+        MsgQueue<Action> _opQueue;
 
         public work_service()
         {
             _work = 0;
             _waiting = 0;
             _runSign = true;
-            _opQueue = new LinkedList<Action>();
+            _opQueue = new MsgQueue<Action>();
         }
 
         public void push_option(Action handler)
         {
-            LinkedListNode<Action> newNode = new LinkedListNode<Action>(handler);
+            MsgQueueNode<Action> newNode = new MsgQueueNode<Action>(handler);
             Monitor.Enter(_opQueue);
             _opQueue.AddLast(newNode);
             if (0 != _waiting)
@@ -40,10 +40,10 @@ namespace Go
             Monitor.Enter(_opQueue);
             if (_runSign && 0 != _opQueue.Count)
             {
-                LinkedListNode<Action> firstNode = _opQueue.First;
+                MsgQueueNode<Action> firstNode = _opQueue.First;
                 _opQueue.RemoveFirst();
                 Monitor.Exit(_opQueue);
-                firstNode.Value();
+                firstNode.Value.Invoke();
                 return true;
             }
             Monitor.Exit(_opQueue);
@@ -58,11 +58,11 @@ namespace Go
                 Monitor.Enter(_opQueue);
                 if (0 != _opQueue.Count)
                 {
-                    LinkedListNode<Action> firstNode = _opQueue.First;
+                    MsgQueueNode<Action> firstNode = _opQueue.First;
                     _opQueue.RemoveFirst();
                     Monitor.Exit(_opQueue);
                     count++;
-                    firstNode.Value();
+                    firstNode.Value.Invoke();
                 }
                 else if (0 != _work)
                 {
@@ -305,8 +305,8 @@ namespace Go
         protected volatile bool _locked;
         protected volatile int _pauseState;
         protected queue_mutex _mutex;
-        protected LinkedList<Action> _readyQueue;
-        protected LinkedList<Action> _waitQueue;
+        protected MsgQueue<Action> _readyQueue;
+        protected MsgQueue<Action> _waitQueue;
         protected Action _runTask;
 
         public shared_strand()
@@ -316,8 +316,8 @@ namespace Go
             _mutex = new queue_mutex();
             _sysTimer = new async_timer.steady_timer(this, false);
             _utcTimer = new async_timer.steady_timer(this, true);
-            _readyQueue = new LinkedList<Action>();
-            _waitQueue = new LinkedList<Action>();
+            _readyQueue = new MsgQueue<Action>();
+            _waitQueue = new MsgQueue<Action>();
             make_run_task();
         }
 
@@ -344,7 +344,7 @@ namespace Go
             _mutex.enter();
             if (0 != _waitQueue.Count)
             {
-                LinkedList<Action> t = _readyQueue;
+                MsgQueue<Action> t = _readyQueue;
                 _readyQueue = _waitQueue;
                 _waitQueue = t;
                 _mutex.exit();
@@ -381,7 +381,7 @@ namespace Go
 
         public void post(Action action)
         {
-            LinkedListNode<Action> newNode = new LinkedListNode<Action>(action);
+            MsgQueueNode<Action> newNode = new MsgQueueNode<Action>(action);
             _mutex.enter();
             if (_locked)
             {
@@ -407,7 +407,7 @@ namespace Go
             }
             else
             {
-                LinkedListNode<Action> newNode = new LinkedListNode<Action>(action);
+                MsgQueueNode<Action> newNode = new MsgQueueNode<Action>(action);
                 _mutex.enter();
                 if (_locked)
                 {
@@ -577,7 +577,7 @@ namespace Go
             }
             else
             {
-                LinkedListNode<Action> newNode = new LinkedListNode<Action>(action);
+                MsgQueueNode<Action> newNode = new MsgQueueNode<Action>(action);
                 _mutex.enter();
                 if (_locked)
                 {
@@ -654,7 +654,7 @@ namespace Go
             }
             else
             {
-                LinkedListNode<Action> newNode = new LinkedListNode<Action>(action);
+                MsgQueueNode<Action> newNode = new MsgQueueNode<Action>(action);
                 _mutex.enter();
                 if (_locked)
                 {
