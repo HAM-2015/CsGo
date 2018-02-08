@@ -333,7 +333,7 @@ namespace Go
         }
     }
 
-    public struct GoTask : INotifyCompletion
+    public struct GoTask : ICriticalNotifyCompletion
     {
         internal Task task;
 
@@ -389,7 +389,7 @@ namespace Go
         }
     }
 
-    public struct GoTask<T> : INotifyCompletion
+    public struct GoTask<T> : ICriticalNotifyCompletion
     {
         T value;
         Task<T> task;
@@ -5695,7 +5695,7 @@ namespace Go
             if (!task.IsCompleted)
             {
                 generator this_ = self;
-                task.GetAwaiter().OnCompleted(this_.unsafe_async_result());
+                task.GetAwaiter().UnsafeOnCompleted(this_.unsafe_async_result());
                 return this_.async_wait();
             }
             return non_async();
@@ -5706,7 +5706,7 @@ namespace Go
             if (!task.IsCompleted)
             {
                 generator this_ = self;
-                task.GetAwaiter().OnCompleted(this_.unsafe_async_result());
+                task.GetAwaiter().UnsafeOnCompleted(this_.unsafe_async_result());
                 await this_.async_wait();
             }
             return task.Result;
@@ -5718,7 +5718,7 @@ namespace Go
             {
                 generator this_ = self;
                 res.clear();
-                task.GetAwaiter().OnCompleted(this_.async_callback(() => res.value1 = task.Result));
+                task.GetAwaiter().UnsafeOnCompleted(this_.async_callback(() => res.value1 = task.Result));
                 return this_.async_wait();
             }
             res.value1 = task.Result;
@@ -5740,7 +5740,7 @@ namespace Go
             if (!task.IsCompleted)
             {
                 generator this_ = self;
-                task.GetAwaiter().OnCompleted(this_.timed_async_result2(ms, this_.set_overtime()));
+                task.GetAwaiter().UnsafeOnCompleted(this_.timed_async_result2(ms, this_.set_overtime()));
                 await this_.async_wait();
                 return !this_._overtime;
             }
@@ -5753,7 +5753,7 @@ namespace Go
             {
                 generator this_ = self;
                 res.value1 = false;
-                task.GetAwaiter().OnCompleted(this_.timed_async_callback2(ms, () => res.value1 = true));
+                task.GetAwaiter().UnsafeOnCompleted(this_.timed_async_callback2(ms, () => res.value1 = true));
                 return this_.async_wait();
             }
             res.value1 = true;
@@ -5765,7 +5765,7 @@ namespace Go
             if (!task.IsCompleted)
             {
                 generator this_ = self;
-                task.GetAwaiter().OnCompleted(this_.timed_async_result2(ms, this_.set_overtime()));
+                task.GetAwaiter().UnsafeOnCompleted(this_.timed_async_result2(ms, this_.set_overtime()));
                 await this_.async_wait();
                 return tuple.make(!this_._overtime, this_._overtime ? default(R) : task.Result);
             }
@@ -5778,7 +5778,7 @@ namespace Go
             {
                 generator this_ = self;
                 res.value1 = false;
-                task.GetAwaiter().OnCompleted(this_.timed_async_callback2(ms, delegate ()
+                task.GetAwaiter().UnsafeOnCompleted(this_.timed_async_callback2(ms, delegate ()
                 {
                     res.value1 = true;
                     res.value2 = task.Result;
