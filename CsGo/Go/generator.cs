@@ -637,7 +637,6 @@ namespace Go
         LinkedList<children> _children;
         LinkedList<Action> _callbacks;
         Action<bool> _suspendCb;
-        Action _setOvertime;
         chan_notify_sign _ioSign;
         System.Exception _excep;
         pull_task _pullTask;
@@ -1213,20 +1212,28 @@ namespace Go
 
         public bool is_force()
         {
-            Debug.Assert(_isStop, "不正确的 is_force 调用，generator 还没有结束");
+            Debug.Assert(_isStop, "不正确的 is_force 调用，generator 还没有结束!");
             return _isForce;
         }
 
         public bool is_exception()
         {
-            Debug.Assert(_isStop, "不正确的 is_exception 调用，generator 还没有结束");
+            Debug.Assert(_isStop, "不正确的 is_exception 调用，generator 还没有结束!");
             return null != _excep;
         }
 
         public System.Exception exception()
         {
-            Debug.Assert(_isStop, "不正确的 exception 调用，generator 还没有结束");
+            Debug.Assert(_isStop, "不正确的 exception 调用，generator 还没有结束!");
             return _excep;
+        }
+
+        static public void check_exception(generator gen)
+        {
+            if (gen.is_exception())
+            {
+                throw gen.exception();
+            }
         }
 
         public bool is_completed()
@@ -1887,6 +1894,74 @@ namespace Go
             return to_vtask(tuple.make(res.value1, res.value2, res.value3));
         }
 
+        private async Task<bool> timed_push_task()
+        {
+            enter_push();
+            await _pullTask;
+            leave_push();
+            return !_overtime;
+        }
+
+        private async Task<tuple<bool, T>> timed_push_task<T>(async_result_wrap<T> res)
+        {
+            enter_push();
+            await _pullTask;
+            leave_push();
+            return tuple.make(!_overtime, res.value1);
+        }
+
+        private async Task<tuple<bool, tuple<T1, T2>>> timed_push_task<T1, T2>(async_result_wrap<T1, T2> res)
+        {
+            enter_push();
+            await _pullTask;
+            leave_push();
+            return tuple.make(!_overtime, tuple.make(res.value1, res.value2));
+        }
+
+        private async Task<tuple<bool, tuple<T1, T2, T3>>> timed_push_task<T1, T2, T3>(async_result_wrap<T1, T2, T3> res)
+        {
+            enter_push();
+            await _pullTask;
+            leave_push();
+            return tuple.make(!_overtime, tuple.make(res.value1, res.value2, res.value3));
+        }
+
+        public ValueTask<bool> timed_async_wait()
+        {
+            if (!new_task_completed())
+            {
+                return to_vtask(timed_push_task());
+            }
+            return to_vtask(!_overtime);
+        }
+
+        public ValueTask<tuple<bool, T>> timed_async_wait<T>(async_result_wrap<T> res)
+        {
+            if (!new_task_completed())
+            {
+                return to_vtask(timed_push_task(res));
+            }
+            return to_vtask(tuple.make(!_overtime, res.value1));
+        }
+
+        public ValueTask<tuple<bool, tuple<T1, T2>>> timed_async_wait<T1, T2>(async_result_wrap<T1, T2> res)
+        {
+            if (!new_task_completed())
+            {
+                return to_vtask(timed_push_task(res));
+            }
+            return to_vtask(tuple.make(!_overtime, tuple.make(res.value1, res.value2)));
+        }
+
+        public ValueTask<tuple<bool, tuple<T1, T2, T3>>> timed_async_wait<T1, T2, T3>(async_result_wrap<T1, T2, T3> res)
+        {
+            if (!new_task_completed())
+            {
+                return to_vtask(timed_push_task(res));
+            }
+            return to_vtask(tuple.make(!_overtime, tuple.make(res.value1, res.value2, res.value3)));
+        }
+
         public SameAction unsafe_async_same_callback()
         {
             _pullTask.new_task();
@@ -1918,10 +1993,12 @@ namespace Go
         public SameAction timed_async_same_callback(int ms, Action timedHandler = null, SameAction lostHandler = null)
         {
             multi_check multiCheck = new_multi_check();
+            _overtime = false;
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
                 {
+                    _overtime = true;
                     if (null != timedHandler)
                     {
                         timedHandler();
@@ -1954,10 +2031,12 @@ namespace Go
         public SameAction timed_async_same_callback2(int ms, Action timedHandler = null, SameAction lostHandler = null)
         {
             multi_check multiCheck = new_multi_check();
+            _overtime = false;
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
                 {
+                    _overtime = true;
                     functional.catch_invoke(timedHandler);
                     if (!multiCheck.check())
                     {
@@ -1987,10 +2066,12 @@ namespace Go
         public SameAction timed_async_same_callback(int ms, SameAction handler, Action timedHandler = null, SameAction lostHandler = null)
         {
             multi_check multiCheck = new_multi_check();
+            _overtime = false;
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
                 {
+                    _overtime = true;
                     if (null != timedHandler)
                     {
                         timedHandler();
@@ -2024,10 +2105,12 @@ namespace Go
         public SameAction timed_async_same_callback2(int ms, SameAction handler, Action timedHandler = null, SameAction lostHandler = null)
         {
             multi_check multiCheck = new_multi_check();
+            _overtime = false;
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
                 {
+                    _overtime = true;
                     functional.catch_invoke(timedHandler);
                     if (!multiCheck.check())
                     {
@@ -2118,10 +2201,12 @@ namespace Go
         public Action timed_async_callback(int ms, Action handler, Action timedHandler = null, Action lostHandler = null)
         {
             multi_check multiCheck = new_multi_check();
+            _overtime = false;
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
                 {
+                    _overtime = true;
                     if (null != timedHandler)
                     {
                         timedHandler();
@@ -2155,10 +2240,12 @@ namespace Go
         public Action timed_async_callback2(int ms, Action handler, Action timedHandler = null, Action lostHandler = null)
         {
             multi_check multiCheck = new_multi_check();
+            _overtime = false;
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
                 {
+                    _overtime = true;
                     functional.catch_invoke(timedHandler);
                     if (!multiCheck.check())
                     {
@@ -2189,10 +2276,12 @@ namespace Go
         public Action<T1> timed_async_callback<T1>(int ms, Action<T1> handler, Action timedHandler = null, Action<T1> lostHandler = null)
         {
             multi_check multiCheck = new_multi_check();
+            _overtime = false;
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
                 {
+                    _overtime = true;
                     if (null != timedHandler)
                     {
                         timedHandler();
@@ -2226,10 +2315,12 @@ namespace Go
         public Action<T1> timed_async_callback2<T1>(int ms, Action<T1> handler, Action timedHandler = null, Action<T1> lostHandler = null)
         {
             multi_check multiCheck = new_multi_check();
+            _overtime = false;
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
                 {
+                    _overtime = true;
                     functional.catch_invoke(timedHandler);
                     if (!multiCheck.check())
                     {
@@ -2260,10 +2351,12 @@ namespace Go
         public Action<T1, T2> timed_async_callback<T1, T2>(int ms, Action<T1, T2> handler, Action timedHandler = null, Action<T1, T2> lostHandler = null)
         {
             multi_check multiCheck = new_multi_check();
+            _overtime = false;
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
                 {
+                    _overtime = true;
                     if (null != timedHandler)
                     {
                         timedHandler();
@@ -2297,10 +2390,12 @@ namespace Go
         public Action<T1, T2> timed_async_callback2<T1, T2>(int ms, Action<T1, T2> handler, Action timedHandler = null, Action<T1, T2> lostHandler = null)
         {
             multi_check multiCheck = new_multi_check();
+            _overtime = false;
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
                 {
+                    _overtime = true;
                     functional.catch_invoke(timedHandler);
                     if (!multiCheck.check())
                     {
@@ -2331,10 +2426,12 @@ namespace Go
         public Action<T1, T2, T3> timed_async_callback<T1, T2, T3>(int ms, Action<T1, T2, T3> handler, Action timedHandler = null, Action<T1, T2, T3> lostHandler = null)
         {
             multi_check multiCheck = new_multi_check();
+            _overtime = false;
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
                 {
+                    _overtime = true;
                     if (null != timedHandler)
                     {
                         timedHandler();
@@ -2368,10 +2465,12 @@ namespace Go
         public Action<T1, T2, T3> timed_async_callback2<T1, T2, T3>(int ms, Action<T1, T2, T3> handler, Action timedHandler = null, Action<T1, T2, T3> lostHandler = null)
         {
             multi_check multiCheck = new_multi_check();
+            _overtime = false;
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
                 {
+                    _overtime = true;
                     functional.catch_invoke(timedHandler);
                     if (!multiCheck.check())
                     {
@@ -2708,10 +2807,12 @@ namespace Go
         public Action timed_async_result(int ms, Action timedHandler = null)
         {
             multi_check multiCheck = new_multi_check();
+            _overtime = false;
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
                 {
+                    _overtime = true;
                     if (null != timedHandler)
                     {
                         timedHandler();
@@ -2742,10 +2843,12 @@ namespace Go
         public Action<T1> timed_async_result<T1>(int ms, async_result_wrap<T1> res, Action timedHandler = null)
         {
             multi_check multiCheck = new_multi_check();
+            _overtime = false;
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
                 {
+                    _overtime = true;
                     if (null != timedHandler)
                     {
                         timedHandler();
@@ -2777,10 +2880,12 @@ namespace Go
         public Action<T1, T2> timed_async_result<T1, T2>(int ms, async_result_wrap<T1, T2> res, Action timedHandler = null)
         {
             multi_check multiCheck = new_multi_check();
+            _overtime = false;
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
                 {
+                    _overtime = true;
                     if (null != timedHandler)
                     {
                         timedHandler();
@@ -2813,10 +2918,12 @@ namespace Go
         public Action<T1, T2, T3> timed_async_result<T1, T2, T3>(int ms, async_result_wrap<T1, T2, T3> res, Action timedHandler = null)
         {
             multi_check multiCheck = new_multi_check();
+            _overtime = false;
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
                 {
+                    _overtime = true;
                     if (null != timedHandler)
                     {
                         timedHandler();
@@ -2850,10 +2957,12 @@ namespace Go
         public Action timed_async_result2(int ms, Action timedHandler = null)
         {
             multi_check multiCheck = new_multi_check();
+            _overtime = false;
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
                 {
+                    _overtime = true;
                     functional.catch_invoke(timedHandler);
                     if (!multiCheck.check())
                     {
@@ -2881,10 +2990,12 @@ namespace Go
         public Action<T1> timed_async_result2<T1>(int ms, async_result_wrap<T1> res, Action timedHandler = null)
         {
             multi_check multiCheck = new_multi_check();
+            _overtime = false;
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
                 {
+                    _overtime = true;
                     functional.catch_invoke(timedHandler);
                     if (!multiCheck.check())
                     {
@@ -2913,10 +3024,12 @@ namespace Go
         public Action<T1, T2> timed_async_result2<T1, T2>(int ms, async_result_wrap<T1, T2> res, Action timedHandler = null)
         {
             multi_check multiCheck = new_multi_check();
+            _overtime = false;
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
                 {
+                    _overtime = true;
                     functional.catch_invoke(timedHandler);
                     if (!multiCheck.check())
                     {
@@ -2946,10 +3059,12 @@ namespace Go
         public Action<T1, T2, T3> timed_async_result2<T1, T2, T3>(int ms, async_result_wrap<T1, T2, T3> res, Action timedHandler = null)
         {
             multi_check multiCheck = new_multi_check();
+            _overtime = false;
             if (ms >= 0)
             {
                 _timer.timeout(ms, delegate ()
                 {
+                    _overtime = true;
                     functional.catch_invoke(timedHandler);
                     if (!multiCheck.check())
                     {
@@ -5664,15 +5779,21 @@ namespace Go
             return non_async();
         }
 
-        static public async Task<R> wait_task<R>(Task<R> task)
+        private async Task<R> wait_task_<R>(Task<R> task)
+        {
+            await async_wait();
+            return task.Result;
+        }
+
+        static public ValueTask<R> wait_task<R>(Task<R> task)
         {
             if (!task.IsCompleted)
             {
                 generator this_ = self;
                 task.GetAwaiter().UnsafeOnCompleted(this_.unsafe_async_result());
-                await this_.async_wait();
+                return to_vtask(this_.wait_task_(task));
             }
-            return task.Result;
+            return to_vtask(task.Result);
         }
 
         static public Task unsafe_wait_task<R>(async_result_wrap<R> res, Task<R> task)
@@ -5688,26 +5809,21 @@ namespace Go
             return non_async();
         }
 
-        private Action set_overtime()
+        private async Task<bool> timed_wait_task_()
         {
-            _overtime = false;
-            if (null == _setOvertime)
-            {
-                _setOvertime = () => _overtime = true;
-            }
-            return _setOvertime;
+            await async_wait();
+            return !_overtime;
         }
 
-        static public async Task<bool> timed_wait_task(int ms, Task task)
+        static public ValueTask<bool> timed_wait_task(int ms, Task task)
         {
             if (!task.IsCompleted)
             {
                 generator this_ = self;
-                task.GetAwaiter().UnsafeOnCompleted(this_.timed_async_result2(ms, this_.set_overtime()));
-                await this_.async_wait();
-                return !this_._overtime;
+                task.GetAwaiter().UnsafeOnCompleted(this_.timed_async_result(ms));
+                return to_vtask(this_.timed_wait_task_());
             }
-            return true;
+            return to_vtask(true);
         }
 
         static public Task unsafe_timed_wait_task(async_result_wrap<bool> res, int ms, Task task)
@@ -5723,16 +5839,21 @@ namespace Go
             return non_async();
         }
 
-        static public async Task<tuple<bool, R>> timed_wait_task<R>(int ms, Task<R> task)
+        private async Task<tuple<bool, R>> timed_wait_task_<R>(Task<R> task)
+        {
+            await async_wait();
+            return tuple.make(!_overtime, _overtime ? default(R) : task.Result);
+        }
+
+        static public ValueTask<tuple<bool, R>> timed_wait_task<R>(int ms, Task<R> task)
         {
             if (!task.IsCompleted)
             {
                 generator this_ = self;
-                task.GetAwaiter().UnsafeOnCompleted(this_.timed_async_result2(ms, this_.set_overtime()));
-                await this_.async_wait();
-                return tuple.make(!this_._overtime, this_._overtime ? default(R) : task.Result);
+                task.GetAwaiter().UnsafeOnCompleted(this_.timed_async_result(ms));
+                return to_vtask(this_.timed_wait_task_(task));
             }
-            return tuple.make(true, task.Result);
+            return to_vtask(tuple.make(true, task.Result));
         }
 
         static public Task unsafe_timed_wait_task<R>(async_result_wrap<bool, R> res, int ms, Task<R> task)
@@ -5805,13 +5926,10 @@ namespace Go
             }
         }
 
-        static public async Task<bool> timed_wait_other(int ms, generator otherGen)
+        private async Task<bool> timed_wait_other_(nil_chan<LinkedListNode<Action>> waitRemove, generator otherGen)
         {
-            generator this_ = self;
-            nil_chan<LinkedListNode<Action>> waitRemove = new nil_chan<LinkedListNode<Action>>();
-            otherGen.append_stop_callback(this_.timed_async_result2(ms, this_.set_overtime()), waitRemove.wrap());
-            await this_.async_wait();
-            if (this_._overtime)
+            await async_wait();
+            if (_overtime)
             {
                 LinkedListNode<Action> node = await chan_receive(waitRemove);
                 if (null != node)
@@ -5819,7 +5937,19 @@ namespace Go
                     otherGen.remove_stop_callback(node);
                 }
             }
-            return !this_._overtime;
+            return !_overtime;
+        }
+
+        static public ValueTask<bool> timed_wait_other(int ms, generator otherGen)
+        {
+            generator this_ = self;
+            nil_chan<LinkedListNode<Action>> waitRemove = new nil_chan<LinkedListNode<Action>>();
+            otherGen.append_stop_callback(this_.timed_async_result(ms), waitRemove.wrap());
+            if (!this_.new_task_completed())
+            {
+                return to_vtask(this_.timed_wait_other_(waitRemove, otherGen));
+            }
+            return to_vtask(!this_._overtime);
         }
 
         static public async Task<generator> wait_others_one(params generator[] otherGens)
@@ -5887,12 +6017,21 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public async Task<bool> timed_wait_group(int ms, wait_group wg)
+        private async Task<bool> timed_wait_group_()
+        {
+            await async_wait();
+            return !_overtime;
+        }
+
+        static public ValueTask<bool> timed_wait_group(int ms, wait_group wg)
         {
             generator this_ = self;
-            wg.async_wait(this_.timed_async_result2(ms, this_.set_overtime()));
-            await this_.async_wait();
-            return !this_._overtime;
+            wg.async_wait(this_.timed_async_result(ms));
+            if (!this_.new_task_completed())
+            {
+                return to_vtask(this_.timed_wait_group_());
+            }
+            return to_vtask(!this_._overtime);
         }
 
         static public Task unsafe_async_call(Action<Action> handler)
@@ -5933,150 +6072,103 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public async Task<R> async_call<R>(Action<Action<R>> handler)
+        static public ValueTask<R> async_call<R>(Action<Action<R>> handler)
         {
             generator this_ = self;
             async_result_wrap<R> res = new async_result_wrap<R>();
             handler(this_.async_result(res));
-            await this_.async_wait();
-            return res.value1;
+            return this_.async_wait(res);
         }
 
-        static public async Task<tuple<R1, R2>> async_call<R1, R2>(Action<Action<R1, R2>> handler)
+        static public ValueTask<tuple<R1, R2>> async_call<R1, R2>(Action<Action<R1, R2>> handler)
         {
             generator this_ = self;
             async_result_wrap<R1, R2> res = new async_result_wrap<R1, R2>();
             handler(this_.async_result(res));
-            await this_.async_wait();
-            return tuple.make(res.value1, res.value2);
+            return this_.async_wait(res);
         }
 
-        static public async Task<tuple<R1, R2, R3>> async_call<R1, R2, R3>(Action<Action<R1, R2, R3>> handler)
+        static public ValueTask<tuple<R1, R2, R3>> async_call<R1, R2, R3>(Action<Action<R1, R2, R3>> handler)
         {
             generator this_ = self;
             async_result_wrap<R1, R2, R3> res = new async_result_wrap<R1, R2, R3>();
             handler(this_.async_result(res));
-            await this_.async_wait();
-            return tuple.make(res.value1, res.value2, res.value3);
+            return this_.async_wait(res);
         }
 
         static public Task unsafe_timed_async_call(async_result_wrap<bool> res, int ms, Action<Action> handler, Action timedHandler = null)
         {
             generator this_ = self;
             res.value1 = false;
-            this_._overtime = false;
-            handler(this_.timed_async_callback(ms, () => res.value1 = !this_._overtime, null == timedHandler ? this_.set_overtime() : delegate ()
-            {
-                this_._overtime = true;
-                timedHandler();
-            }));
+            handler(this_.timed_async_callback(ms, () => res.value1 = !this_._overtime, timedHandler));
             return this_.async_wait();
         }
 
-        static public async Task<bool> timed_async_call(int ms, Action<Action> handler, Action timedHandler = null)
+        static public ValueTask<bool> timed_async_call(int ms, Action<Action> handler, Action timedHandler = null)
         {
             generator this_ = self;
-            this_._overtime = false;
-            handler(this_.timed_async_callback(ms, nil_action.action, null == timedHandler ? this_.set_overtime() : delegate ()
-            {
-                this_._overtime = true;
-                timedHandler();
-            }));
-            await this_.async_wait();
-            return !this_._overtime;
+            handler(this_.timed_async_callback(ms, nil_action.action, timedHandler));
+            return this_.timed_async_wait();
         }
 
         static public Task unsafe_timed_async_call<R>(async_result_wrap<bool, R> res, int ms, Action<Action<R>> handler, Action timedHandler = null)
         {
             generator this_ = self;
             res.value1 = false;
-            this_._overtime = false;
             handler(this_.timed_async_callback(ms, delegate (R res1)
             {
                 res.value1 = !this_._overtime;
                 res.value2 = res1;
-            }, null == timedHandler ? this_.set_overtime() : delegate ()
-            {
-                this_._overtime = true;
-                timedHandler();
-            }));
+            }, timedHandler));
             return this_.async_wait();
         }
 
-        static public async Task<tuple<bool, R>> timed_async_call<R>(int ms, Action<Action<R>> handler, Action timedHandler = null)
+        static public ValueTask<tuple<bool, R>> timed_async_call<R>(int ms, Action<Action<R>> handler, Action timedHandler = null)
         {
             generator this_ = self;
-            R res = default(R);
-            this_._overtime = false;
-            handler(this_.timed_async_callback(ms, (R res1) => res = res1, null == timedHandler ? this_.set_overtime() : delegate ()
-            {
-                this_._overtime = true;
-                timedHandler();
-            }));
-            await this_.async_wait();
-            return tuple.make(!this_._overtime, res);
+            async_result_wrap<R> res = new async_result_wrap<R>();
+            handler(this_.timed_async_result(ms, res, timedHandler));
+            return this_.timed_async_wait(res);
         }
 
         static public Task unsafe_timed_async_call<R1, R2>(async_result_wrap<bool, tuple<R1, R2>> res, int ms, Action<Action<R1, R2>> handler, Action timedHandler = null)
         {
             generator this_ = self;
             res.value1 = false;
-            this_._overtime = false;
             handler(this_.timed_async_callback(ms, delegate (R1 res1, R2 res2)
             {
                 res.value1 = !this_._overtime;
                 res.value2 = tuple.make(res1, res2);
-            }, null == timedHandler ? this_.set_overtime() : delegate ()
-            {
-                this_._overtime = true;
-                timedHandler();
-            }));
+            }, timedHandler));
             return this_.async_wait();
         }
 
-        static public async Task<tuple<bool, tuple<R1, R2>>> timed_async_call<R1, R2>(int ms, Action<Action<R1, R2>> handler, Action timedHandler = null)
+        static public ValueTask<tuple<bool, tuple<R1, R2>>> timed_async_call<R1, R2>(int ms, Action<Action<R1, R2>> handler, Action timedHandler = null)
         {
             generator this_ = self;
-            tuple<R1, R2> res = default(tuple<R1, R2>);
-            this_._overtime = false;
-            handler(this_.timed_async_callback(ms, (R1 res1, R2 res2) => res = tuple.make(res1, res2), null == timedHandler ? this_.set_overtime() : delegate ()
-            {
-                this_._overtime = true;
-                timedHandler();
-            }));
-            await this_.async_wait();
-            return tuple.make(!this_._overtime, res);
+            async_result_wrap<R1, R2> res = new async_result_wrap<R1, R2>();
+            handler(this_.timed_async_result(ms, res, timedHandler));
+            return this_.timed_async_wait(res);
         }
 
         static public Task unsafe_timed_async_call<R1, R2, R3>(async_result_wrap<bool, tuple<R1, R2, R3>> res, int ms, Action<Action<R1, R2, R3>> handler, Action timedHandler = null)
         {
             generator this_ = self;
             res.value1 = false;
-            this_._overtime = false;
             handler(this_.timed_async_callback(ms, delegate (R1 res1, R2 res2, R3 res3)
             {
                 res.value1 = !this_._overtime;
                 res.value2 = tuple.make(res1, res2, res3);
-            }, null == timedHandler ? this_.set_overtime() : delegate ()
-            {
-                this_._overtime = true;
-                timedHandler();
-            }));
+            }, timedHandler));
             return this_.async_wait();
         }
 
-        static public async Task<tuple<bool, tuple<R1, R2, R3>>> timed_async_call<R1, R2, R3>(int ms, Action<Action<R1, R2, R3>> handler, Action timedHandler = null)
+        static public ValueTask<tuple<bool, tuple<R1, R2, R3>>> timed_async_call<R1, R2, R3>(int ms, Action<Action<R1, R2, R3>> handler, Action timedHandler = null)
         {
             generator this_ = self;
-            tuple<R1, R2, R3> res = default(tuple<R1, R2, R3>);
-            this_._overtime = false;
-            handler(this_.timed_async_callback(ms, (R1 res1, R2 res2, R3 res3) => res = tuple.make(res1, res2, res3), null == timedHandler ? this_.set_overtime() : delegate ()
-            {
-                this_._overtime = true;
-                timedHandler();
-            }));
-            await this_.async_wait();
-            return tuple.make(!this_._overtime, res);
+            async_result_wrap<R1, R2, R3> res = new async_result_wrap<R1, R2, R3>();
+            handler(this_.timed_async_result(ms, res, timedHandler));
+            return this_.timed_async_wait(res);
         }
 #if DEBUG
         static public async Task call(action handler)
@@ -8821,14 +8913,30 @@ namespace Go
                 return count;
             }
 
-            public async Task<bool> stop(child gen)
+            private async Task<bool> stop_(child gen)
+            {
+                await _parent.async_wait();
+                if (null != gen._childNode)
+                {
+                    _children.Remove(gen._childNode);
+                    gen._childNode = null;
+                    gen._childrenMgr = null;
+                    check_remove_node();
+                }
+                return true;
+            }
+
+            public ValueTask<bool> stop(child gen)
             {
                 Debug.Assert(self == _parent, "此 children 不属于当前 generator");
                 Debug.Assert(null == gen._childNode || gen._childNode.List == _children, "此 child 不属于当前 children");
                 if (null != gen._childNode)
                 {
                     gen.stop(_parent.unsafe_async_result());
-                    await _parent.async_wait();
+                    if (!_parent.new_task_completed())
+                    {
+                        return to_vtask(stop_(gen));
+                    }
                     if (null != gen._childNode)
                     {
                         _children.Remove(gen._childNode);
@@ -8836,9 +8944,9 @@ namespace Go
                         gen._childrenMgr = null;
                         check_remove_node();
                     }
-                    return true;
+                    return to_vtask(true);
                 }
-                return false;
+                return to_vtask(false);
             }
 
             public async Task<int> stop(params child[] gens)
@@ -8873,14 +8981,30 @@ namespace Go
                 return count;
             }
 
-            public async Task<bool> wait(child gen)
+            private async Task<bool> wait_(child gen)
+            {
+                await _parent.async_wait();
+                if (null != gen._childNode)
+                {
+                    _children.Remove(gen._childNode);
+                    gen._childNode = null;
+                    gen._childrenMgr = null;
+                    check_remove_node();
+                }
+                return true;
+            }
+
+            public ValueTask<bool> wait(child gen)
             {
                 Debug.Assert(self == _parent, "此 children 不属于当前 generator");
                 Debug.Assert(null == gen._childNode || gen._childNode.List == _children, "此 child 不属于当前 children");
                 if (null != gen._childNode)
                 {
                     gen.append_stop_callback(_parent.unsafe_async_result());
-                    await _parent.async_wait();
+                    if (!_parent.new_task_completed())
+                    {
+                        return to_vtask(wait_(gen));
+                    }
                     if (null != gen._childNode)
                     {
                         _children.Remove(gen._childNode);
@@ -8888,9 +9012,9 @@ namespace Go
                         gen._childrenMgr = null;
                         check_remove_node();
                     }
-                    return true;
+                    return to_vtask(true);
                 }
-                return false;
+                return to_vtask(false);
             }
 
             public async Task<int> wait(params child[] gens)
@@ -8925,14 +9049,32 @@ namespace Go
                 return count;
             }
 
-            public async Task<bool> timed_wait(int ms, child gen)
+            private async Task<bool> timed_wait_(ValueTask<bool> task, child gen)
+            {
+                bool overtime = !await task;
+                if (!overtime && null != gen._childNode)
+                {
+                    _children.Remove(gen._childNode);
+                    gen._childNode = null;
+                    gen._childrenMgr = null;
+                    check_remove_node();
+                }
+                return !overtime;
+            }
+
+            public ValueTask<bool> timed_wait(int ms, child gen)
             {
                 Debug.Assert(self == _parent, "此 children 不属于当前 generator");
                 Debug.Assert(null == gen._childNode || gen._childNode.List == _children, "此 child 不属于当前 children");
                 bool overtime = false;
                 if (null != gen._childNode)
                 {
-                    overtime = !await timed_wait_other(ms, gen);
+                    ValueTask<bool> task = timed_wait_other(ms, gen);
+                    if (!task.IsCompleted)
+                    {
+                        return to_vtask(timed_wait_(task, gen));
+                    }
+                    overtime = !task.Result;
                     if (!overtime && null != gen._childNode)
                     {
                         _children.Remove(gen._childNode);
@@ -8941,7 +9083,7 @@ namespace Go
                         check_remove_node();
                     }
                 }
-                return !overtime;
+                return to_vtask(!overtime);
             }
 
             public async Task stop(bool containFree = true)

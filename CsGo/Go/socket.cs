@@ -314,82 +314,82 @@ namespace Go
             _async_write(0, new ArraySegment<byte>(buff), cb);
         }
 
-        public Task<socket_result> read_same(ArraySegment<byte> buff)
+        public ValueTask<socket_result> read_same(ArraySegment<byte> buff)
         {
             return generator.async_call((Action<socket_result> cb) => async_read_same(buff, cb));
         }
 
-        public Task<socket_result> read_same(byte[] buff)
+        public ValueTask<socket_result> read_same(byte[] buff)
         {
             return generator.async_call((Action<socket_result> cb) => async_read_same(buff, cb));
         }
 
-        public Task<socket_result> read(ArraySegment<byte> buff)
+        public ValueTask<socket_result> read(ArraySegment<byte> buff)
         {
             return generator.async_call((Action<socket_result> cb) => async_read(buff, cb));
         }
 
-        public Task<socket_result> read(byte[] buff)
+        public ValueTask<socket_result> read(byte[] buff)
         {
             return generator.async_call((Action<socket_result> cb) => async_read(buff, cb));
         }
 
-        public Task<socket_result> reads(IList<byte[]> buff)
+        public ValueTask<socket_result> reads(IList<byte[]> buff)
         {
             return generator.async_call((Action<socket_result> cb) => _async_reads(0, 0, buff, cb));
         }
 
-        public Task<socket_result> reads(IList<ArraySegment<byte>> buff)
+        public ValueTask<socket_result> reads(IList<ArraySegment<byte>> buff)
         {
             return generator.async_call((Action<socket_result> cb) => _async_reads(0, 0, buff, cb));
         }
 
-        public Task<socket_result> reads(params byte[][] buff)
+        public ValueTask<socket_result> reads(params byte[][] buff)
         {
             return generator.async_call((Action<socket_result> cb) => _async_reads(0, 0, buff, cb));
         }
 
-        public Task<socket_result> reads(params ArraySegment<byte>[] buff)
+        public ValueTask<socket_result> reads(params ArraySegment<byte>[] buff)
         {
             return generator.async_call((Action<socket_result> cb) => _async_reads(0, 0, buff, cb));
         }
 
-        public Task<socket_result> write_same(ArraySegment<byte> buff)
+        public ValueTask<socket_result> write_same(ArraySegment<byte> buff)
         {
             return generator.async_call((Action<socket_result> cb) => async_write_same(buff, cb));
         }
 
-        public Task<socket_result> write_same(byte[] buff)
+        public ValueTask<socket_result> write_same(byte[] buff)
         {
             return generator.async_call((Action<socket_result> cb) => async_write_same(buff, cb));
         }
 
-        public Task<socket_result> write(ArraySegment<byte> buff)
+        public ValueTask<socket_result> write(ArraySegment<byte> buff)
         {
             return generator.async_call((Action<socket_result> cb) => async_write(buff, cb));
         }
 
-        public Task<socket_result> write(byte[] buff)
+        public ValueTask<socket_result> write(byte[] buff)
         {
             return generator.async_call((Action<socket_result> cb) => async_write(buff, cb));
         }
 
-        public Task<socket_result> writes(IList<byte[]> buff)
+        public ValueTask<socket_result> writes(IList<byte[]> buff)
         {
             return generator.async_call((Action<socket_result> cb) => _async_writes(0, 0, buff, cb));
         }
 
-        public Task<socket_result> writes(IList<ArraySegment<byte>> buff)
+        public ValueTask<socket_result> writes(IList<ArraySegment<byte>> buff)
         {
             return generator.async_call((Action<socket_result> cb) => _async_writes(0, 0, buff, cb));
         }
 
-        public Task<socket_result> writes(params byte[][] buff)
+        public ValueTask<socket_result> writes(params byte[][] buff)
         {
             return generator.async_call((Action<socket_result> cb) => _async_writes(0, 0, buff, cb));
         }
 
-        public Task<socket_result> writes(params ArraySegment<byte>[] buff)
+        public ValueTask<socket_result> writes(params ArraySegment<byte>[] buff)
         {
             return generator.async_call((Action<socket_result> cb) => _async_writes(0, 0, buff, cb));
         }
@@ -959,42 +959,42 @@ namespace Go
             _async_write(0, ptr, offset, size, cb, pinnedObj);
         }
 
-        public Task<socket_result> read_same(IntPtr ptr, int offset, int size, object pinnedObj = null)
+        public ValueTask<socket_result> read_same(IntPtr ptr, int offset, int size, object pinnedObj = null)
         {
             return generator.async_call((Action<socket_result> cb) => async_read_same(ptr, offset, size, cb, pinnedObj));
         }
 
-        public Task<socket_result> write_same(IntPtr ptr, int offset, int size, object pinnedObj = null)
+        public ValueTask<socket_result> write_same(IntPtr ptr, int offset, int size, object pinnedObj = null)
         {
             return generator.async_call((Action<socket_result> cb) => async_write_same(ptr, offset, size, cb, pinnedObj));
         }
 
-        public Task<socket_result> read(IntPtr ptr, int offset, int size, object pinnedObj = null)
+        public ValueTask<socket_result> read(IntPtr ptr, int offset, int size, object pinnedObj = null)
         {
             return generator.async_call((Action<socket_result> cb) => async_read(ptr, offset, size, cb, pinnedObj));
         }
 
-        public Task<socket_result> write(IntPtr ptr, int offset, int size, object pinnedObj = null)
+        public ValueTask<socket_result> write(IntPtr ptr, int offset, int size, object pinnedObj = null)
         {
             return generator.async_call((Action<socket_result> cb) => async_write(ptr, offset, size, cb, pinnedObj));
         }
 
-        public Task<socket_result> send_file(SafeHandle fileHandle, long offset = 0, int size = 0, object pinnedObj = null)
+        public ValueTask<socket_result> send_file(SafeHandle fileHandle, long offset = 0, int size = 0, object pinnedObj = null)
         {
             return generator.async_call((Action<socket_result> cb) => async_send_file(fileHandle, offset, size, cb, pinnedObj));
         }
 
-        public Task<socket_result> send_file(System.IO.FileStream file)
+        public ValueTask<socket_result> send_file(System.IO.FileStream file)
         {
             return generator.async_call((Action<socket_result> cb) => async_send_file(file.SafeFileHandle, -1, 0, cb, file));
         }
 
-        public Task<socket_result> connect(string ip, int port)
+        public ValueTask<socket_result> connect(string ip, int port)
         {
             return generator.async_call((Action<socket_result> cb) => async_connect(ip, port, cb));
         }
 
-        public Task<socket_result> disconnect(bool reuseSocket)
+        public ValueTask<socket_result> disconnect(bool reuseSocket)
         {
             return generator.async_call((Action<socket_result> cb) => async_disconnect(reuseSocket, cb));
         }
@@ -1116,7 +1116,7 @@ namespace Go
                 }
             }
 
-            public Task<socket_result> accept(socket_tcp sck)
+            public ValueTask<socket_result> accept(socket_tcp sck)
             {
                 return generator.async_call((Action<socket_result> cb) => async_accept(sck, cb));
             }
@@ -1381,22 +1381,22 @@ namespace Go
             _async_write(0, ptr, offset, size, cb, pinnedObj);
         }
 
-        public Task<socket_result> read_same(IntPtr ptr, int offset, int size, object pinnedObj = null)
+        public ValueTask<socket_result> read_same(IntPtr ptr, int offset, int size, object pinnedObj = null)
         {
             return generator.async_call((Action<socket_result> cb) => async_read_same(ptr, offset, size, cb, pinnedObj));
         }
 
-        public Task<socket_result> write_same(IntPtr ptr, int offset, int size, object pinnedObj = null)
+        public ValueTask<socket_result> write_same(IntPtr ptr, int offset, int size, object pinnedObj = null)
         {
             return generator.async_call((Action<socket_result> cb) => async_write_same(ptr, offset, size, cb, pinnedObj));
         }
 
-        public Task<socket_result> read(IntPtr ptr, int offset, int size, object pinnedObj = null)
+        public ValueTask<socket_result> read(IntPtr ptr, int offset, int size, object pinnedObj = null)
         {
             return generator.async_call((Action<socket_result> cb) => async_read(ptr, offset, size, cb, pinnedObj));
         }
 
-        public Task<socket_result> write(IntPtr ptr, int offset, int size, object pinnedObj = null)
+        public ValueTask<socket_result> write(IntPtr ptr, int offset, int size, object pinnedObj = null)
         {
             return generator.async_call((Action<socket_result> cb) => async_write(ptr, offset, size, cb, pinnedObj));
         }
