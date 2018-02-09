@@ -768,6 +768,33 @@ namespace Go
             return !newNode.Isolated;
         }
 
+        public IEnumerator<tuple<TKey, TValue>> GetEnumerator()
+        {
+            MapNode<TKey, TValue> it = First;
+            while (null != it)
+            {
+                yield return tuple.make(it.key, it.value);
+                it = it.Next;
+            }
+            yield break;
+        }
+
+        public tuple<TKey, TValue>[] ToList
+        {
+            get
+            {
+                int idx = 0;
+                tuple<TKey, TValue>[] list = new tuple<TKey, TValue>[_count];
+                MapNode<TKey, TValue> it = First;
+                while (null != it)
+                {
+                    list[idx++] = tuple.make(it.key, it.value);
+                    it = it.Next;
+                }
+                return list;
+            }
+        }
+
         public MapNode<TKey, TValue> First
         {
             get
@@ -869,6 +896,33 @@ namespace Go
         {
             _count = 0;
             _head = _tail = null;
+        }
+
+        public IEnumerator<T> GetEnumerator()
+        {
+            MsgQueueNode<T> it = _head;
+            while (null != it)
+            {
+                yield return it._value;
+                it = it._next;
+            }
+            yield break;
+        }
+
+        public T[] ToList
+        {
+            get
+            {
+                int idx = 0;
+                T[] list = new T[_count];
+                MsgQueueNode<T> it = _head;
+                while (null != it)
+                {
+                    list[idx++] = it._value;
+                    it = it._next;
+                }
+                return list;
+            }
         }
 
         public MsgQueueNode<T> First
