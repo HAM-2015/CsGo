@@ -2861,7 +2861,10 @@ namespace Go
             public bool complete(R res)
             {
 #if DEBUG
-                Debug.Assert(_hostStrand.running_in_this_thread(), "不正确的 complete 调用!");
+                if (null != _hostStrand)
+                {
+                    Debug.Assert(_hostStrand.running_in_this_thread(), "不正确的 complete 调用!");
+                }
 #endif
                 _invokeTimer?.cancel();
                 _invokeTimer = null;
@@ -2878,7 +2881,10 @@ namespace Go
             public void fail()
             {
 #if DEBUG
-                Debug.Assert(_hostStrand.running_in_this_thread(), "不正确的 fail 调用!");
+                if (null != _hostStrand)
+                {
+                    Debug.Assert(_hostStrand.running_in_this_thread(), "不正确的 fail 调用!");
+                }
 #endif
                 _invokeTimer?.cancel();
                 _invokeTimer = null;
