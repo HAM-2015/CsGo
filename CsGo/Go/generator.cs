@@ -3291,6 +3291,7 @@ namespace Go
             {
                 chan.async_remove_send_notify(unsafe_async_callback(nil_action<chan_async_state>.action), _ioSign);
                 await async_wait();
+                res.value1 = chan_async_state.async_undefined;
                 throw;
             }
         }
@@ -3337,6 +3338,7 @@ namespace Go
             {
                 chan.async_remove_recv_notify(unsafe_async_callback(nil_action<chan_async_state>.action), _ioSign);
                 await async_wait();
+                res.value1 = chan_async_state.async_undefined;
                 throw;
             }
         }
@@ -3428,6 +3430,7 @@ namespace Go
                 {
                     lostMsg?.set(msg);
                 }
+                res.value1 = new chan_send_wrap { state = chan_async_state.async_undefined };
                 throw;
             }
         }
@@ -3484,6 +3487,7 @@ namespace Go
                 {
                     lostMsg?.set(msg);
                 }
+                res.value1 = chan_async_state.async_undefined;
                 throw;
             }
         }
@@ -3541,6 +3545,7 @@ namespace Go
                 {
                     lostMsg?.set(res.value1.msg);
                 }
+                res.value1 = new chan_recv_wrap<T> { state = chan_async_state.async_undefined };
                 throw;
             }
         }
@@ -3565,25 +3570,6 @@ namespace Go
             return this_.async_wait();
         }
 
-        private async Task<chan_send_wrap> chan_try_send_<T>(async_result_wrap<chan_send_wrap> res, chan<T> chan, T msg, chan_lost_msg<T> lostMsg)
-        {
-            try
-            {
-                await push_task();
-                return res.value1;
-            }
-            catch (stop_exception)
-            {
-                chan.async_remove_send_notify(unsafe_async_callback(nil_action<chan_async_state>.action), _ioSign);
-                await async_wait();
-                if (chan_async_state.async_ok != res.value1.state)
-                {
-                    lostMsg?.set(msg);
-                }
-                throw;
-            }
-        }
-
         static public ValueTask<chan_send_wrap> chan_try_send<T>(chan<T> chan, T msg, chan_lost_msg<T> lostMsg = null)
         {
             generator this_ = self;
@@ -3591,7 +3577,7 @@ namespace Go
             chan.async_try_send(this_.unsafe_async_result(result), msg, this_._ioSign);
             if (!this_.new_task_completed())
             {
-                return to_vtask(this_.chan_try_send_(result, chan, msg, lostMsg));
+                return to_vtask(this_.chan_send_(result, chan, msg, lostMsg));
             }
             return to_vtask(result.value1);
         }
@@ -3624,25 +3610,6 @@ namespace Go
             return this_.async_wait();
         }
 
-        private async Task<chan_recv_wrap<T>> chan_try_receive_<T>(async_result_wrap<chan_recv_wrap<T>> res, chan<T> chan, chan_lost_msg<T> lostMsg)
-        {
-            try
-            {
-                await push_task();
-                return res.value1;
-            }
-            catch (stop_exception)
-            {
-                chan.async_remove_recv_notify(unsafe_async_callback(nil_action<chan_async_state>.action), _ioSign);
-                await async_wait();
-                if (chan_async_state.async_ok == res.value1.state)
-                {
-                    lostMsg?.set(res.value1.msg);
-                }
-                throw;
-            }
-        }
-
         static public ValueTask<chan_recv_wrap<T>> chan_try_receive<T>(chan<T> chan, broadcast_token token, chan_lost_msg<T> lostMsg = null)
         {
             generator this_ = self;
@@ -3650,7 +3617,7 @@ namespace Go
             chan.async_try_recv(this_.unsafe_async_result(result), token, this_._ioSign);
             if (!this_.new_task_completed())
             {
-                return to_vtask(this_.chan_try_receive_(result, chan, lostMsg));
+                return to_vtask(this_.chan_receive_(result, chan, lostMsg));
             }
             return to_vtask(result.value1);
         }
@@ -3663,25 +3630,6 @@ namespace Go
             return this_.async_wait();
         }
 
-        private async Task<chan_send_wrap> chan_timed_send_<T>(async_result_wrap<chan_send_wrap> res, chan<T> chan, int ms, T msg, chan_lost_msg<T> lostMsg)
-        {
-            try
-            {
-                await push_task();
-                return res.value1;
-            }
-            catch (stop_exception)
-            {
-                chan.async_remove_send_notify(unsafe_async_callback(nil_action<chan_async_state>.action), _ioSign);
-                await async_wait();
-                if (chan_async_state.async_ok != res.value1.state)
-                {
-                    lostMsg?.set(msg);
-                }
-                throw;
-            }
-        }
-
         static public ValueTask<chan_send_wrap> chan_timed_send<T>(chan<T> chan, int ms, T msg, chan_lost_msg<T> lostMsg = null)
         {
             generator this_ = self;
@@ -3689,7 +3637,7 @@ namespace Go
             chan.async_timed_send(ms, this_.unsafe_async_result(result), msg, this_._ioSign);
             if (!this_.new_task_completed())
             {
-                return to_vtask(this_.chan_timed_send_(result, chan, ms, msg, lostMsg));
+                return to_vtask(this_.chan_send_(result, chan, msg, lostMsg));
             }
             return to_vtask(result.value1);
         }
@@ -3722,25 +3670,6 @@ namespace Go
             return this_.async_wait();
         }
 
-        private async Task<chan_recv_wrap<T>> chan_timed_receive_<T>(async_result_wrap<chan_recv_wrap<T>> res, chan<T> chan, int ms, chan_lost_msg<T> lostMsg)
-        {
-            try
-            {
-                await push_task();
-                return res.value1;
-            }
-            catch (stop_exception)
-            {
-                chan.async_remove_recv_notify(unsafe_async_callback(nil_action<chan_async_state>.action), _ioSign);
-                await async_wait();
-                if (chan_async_state.async_ok == res.value1.state)
-                {
-                    lostMsg?.set(res.value1.msg);
-                }
-                throw;
-            }
-        }
-
         static public ValueTask<chan_recv_wrap<T>> chan_timed_receive<T>(chan<T> chan, int ms, broadcast_token token, chan_lost_msg<T> lostMsg = null)
         {
             generator this_ = self;
@@ -3748,7 +3677,7 @@ namespace Go
             chan.async_timed_recv(ms, this_.unsafe_async_result(result), token, this_._ioSign);
             if (!this_.new_task_completed())
             {
-                return to_vtask(this_.chan_timed_receive_(result, chan, ms, lostMsg));
+                return to_vtask(this_.chan_receive_(result, chan, lostMsg));
             }
             return to_vtask(result.value1);
         }
@@ -3761,6 +3690,27 @@ namespace Go
             return this_.async_wait();
         }
 
+        private Action<csp_invoke_wrap<R>> async_csp_invoke<R>(async_result_wrap<csp_invoke_wrap<R>> res, Action<R> lostHandler)
+        {
+            _pullTask.new_task();
+            bool beginQuit = _beginQuit;
+            return delegate (csp_invoke_wrap<R> cspRes)
+            {
+                strand.distribute(delegate ()
+                {
+                    if (!_isStop && _beginQuit == beginQuit)
+                    {
+                        res.value1 = cspRes;
+                        no_check_next();
+                    }
+                    else if (chan_async_state.async_ok == cspRes.state)
+                    {
+                        lostHandler(cspRes.result);
+                    }
+                });
+            };
+        }
+
         private async Task<csp_invoke_wrap<R>> csp_invoke_<R, T>(async_result_wrap<csp_invoke_wrap<R>> res, csp_chan<R, T> chan, T msg, chan_lost_msg<T> lostMsg)
         {
             try
@@ -3770,12 +3720,13 @@ namespace Go
             }
             catch (stop_exception)
             {
-                chan.async_remove_send_notify(unsafe_async_callback(null == lostMsg ? nil_action<chan_async_state>.action : (chan_async_state state) => res.value1 = new csp_invoke_wrap<R> { state = state }), _ioSign);
+                chan.async_remove_send_notify(null == lostMsg ? unsafe_async_callback(nil_action<chan_async_state>.action) : async_callback((chan_async_state state) => res.value1 = new csp_invoke_wrap<R> { state = state }), _ioSign);
                 await async_wait();
                 if (chan_async_state.async_ok == res.value1.state)
                 {
                     lostMsg?.set(msg);
                 }
+                res.value1 = new csp_invoke_wrap<R> { state = chan_async_state.async_undefined };
                 throw;
             }
         }
@@ -3784,13 +3735,7 @@ namespace Go
         {
             generator this_ = self;
             async_result_wrap<csp_invoke_wrap<R>> result = new async_result_wrap<csp_invoke_wrap<R>> { value1 = new csp_invoke_wrap<R> { state = chan_async_state.async_undefined } };
-            chan.async_send(invokeMs, null == lostHandler ? this_.unsafe_async_result(result) : this_.async_result(result, delegate (csp_invoke_wrap<R> cspRes)
-            {
-                if (chan_async_state.async_ok == cspRes.state)
-                {
-                    lostHandler(cspRes.result);
-                }
-            }), msg, this_._ioSign);
+            chan.async_send(invokeMs, null == lostHandler ? this_.unsafe_async_result(result) : this_.async_csp_invoke(result, lostHandler), msg, this_._ioSign);
             if (!this_.new_task_completed())
             {
                 return to_vtask(this_.csp_invoke_(result, chan, msg, lostMsg));
@@ -3808,12 +3753,30 @@ namespace Go
             return csp_invoke(chan, default(void_type), invokeMs, lostHandler, lostMsg);
         }
 
+        private Action<csp_wait_wrap<R, T>> async_csp_wait<R, T>(async_result_wrap<csp_wait_wrap<R, T>> res)
+        {
+            _pullTask.new_task();
+            bool beginQuit = _beginQuit;
+            return delegate (csp_wait_wrap<R, T> cspRes)
+            {
+                strand.distribute(delegate ()
+                {
+                    if (!_isStop && _beginQuit == beginQuit)
+                    {
+                        cspRes.result?.start_invoke_timer(this);
+                        res.value1 = cspRes;
+                        no_check_next();
+                    }
+                    else cspRes.result?.fail();
+                });
+            };
+        }
+
         static public Task unsafe_csp_wait<R, T>(async_result_wrap<csp_wait_wrap<R, T>> res, csp_chan<R, T> chan)
         {
             generator this_ = self;
             res.value1 = new csp_wait_wrap<R, T> { state = chan_async_state.async_undefined };
-            chan.async_recv(this_.async_result(res));
-            res.value1.result?.start_invoke_timer(this_);
+            chan.async_recv(this_.async_csp_wait(res));
             return this_.async_wait();
         }
 
@@ -3822,21 +3785,13 @@ namespace Go
             try
             {
                 await push_task();
-                if (chan_async_state.async_ok == res.value1.state)
-                {
-                    res.value1.result.start_invoke_timer(self);
-                }
                 return res.value1;
             }
             catch (stop_exception)
             {
                 chan.async_remove_recv_notify(unsafe_async_callback(nil_action<chan_async_state>.action), _ioSign);
                 await async_wait();
-                if (chan_async_state.async_ok == res.value1.state)
-                {
-                    lostMsg?.set(res.value1.msg);
-                    res.value1.fail();
-                }
+                res.value1 = new csp_wait_wrap<R, T> { state = chan_async_state.async_undefined };
                 throw;
             }
         }
@@ -3845,14 +3800,10 @@ namespace Go
         {
             generator this_ = self;
             async_result_wrap<csp_wait_wrap<R, T>> result = new async_result_wrap<csp_wait_wrap<R, T>> { value1 = new csp_wait_wrap<R, T> { state = chan_async_state.async_undefined } };
-            chan.async_recv(this_.unsafe_async_result(result), this_._ioSign);
+            chan.async_recv(this_.async_csp_wait(result), this_._ioSign);
             if (!this_.new_task_completed())
             {
                 return to_vtask(this_.csp_wait_(result, chan, lostMsg));
-            }
-            if (chan_async_state.async_ok == result.value1.state)
-            {
-                result.value1.result.start_invoke_timer(this_);
             }
             return to_vtask(result.value1);
         }
@@ -4415,39 +4366,14 @@ namespace Go
             return this_.async_wait();
         }
 
-        private async Task<csp_invoke_wrap<R>> csp_try_invoke_<R, T>(async_result_wrap<csp_invoke_wrap<R>> res, csp_chan<R, T> chan, T msg, chan_lost_msg<T> lostMsg)
-        {
-            try
-            {
-                await push_task();
-                return res.value1;
-            }
-            catch (stop_exception)
-            {
-                chan.async_remove_send_notify(unsafe_async_callback(null == lostMsg ? nil_action<chan_async_state>.action : (chan_async_state state) => res.value1 = new csp_invoke_wrap<R> { state = state }), _ioSign);
-                await async_wait();
-                if (chan_async_state.async_ok == res.value1.state)
-                {
-                    lostMsg?.set(msg);
-                }
-                throw;
-            }
-        }
-
         static public ValueTask<csp_invoke_wrap<R>> csp_try_invoke<R, T>(csp_chan<R, T> chan, T msg, int invokeMs = -1, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
         {
             generator this_ = self;
             async_result_wrap<csp_invoke_wrap<R>> result = new async_result_wrap<csp_invoke_wrap<R>> { value1 = new csp_invoke_wrap<R> { state = chan_async_state.async_undefined } };
-            chan.async_try_send(invokeMs, null == lostHandler ? this_.unsafe_async_result(result) : this_.async_result(result, delegate (csp_invoke_wrap<R> cspRes)
-            {
-                if (chan_async_state.async_ok == cspRes.state)
-                {
-                    lostHandler(cspRes.result);
-                }
-            }), msg, this_._ioSign);
+            chan.async_try_send(invokeMs, null == lostHandler ? this_.unsafe_async_result(result) : this_.async_csp_invoke(result, lostHandler), msg, this_._ioSign);
             if (!this_.new_task_completed())
             {
-                return to_vtask(this_.csp_try_invoke_(result, chan, msg, lostMsg));
+                return to_vtask(this_.csp_invoke_(result, chan, msg, lostMsg));
             }
             return to_vtask(result.value1);
         }
@@ -4466,47 +4392,18 @@ namespace Go
         {
             generator this_ = self;
             res.value1 = new csp_wait_wrap<R, T> { state = chan_async_state.async_undefined };
-            chan.async_try_recv(this_.async_result(res));
-            res.value1.result?.start_invoke_timer(this_);
+            chan.async_try_recv(this_.async_csp_wait(res));
             return this_.async_wait();
-        }
-
-        private async Task<csp_wait_wrap<R, T>> csp_try_wait_<R, T>(async_result_wrap<csp_wait_wrap<R, T>> res, csp_chan<R, T> chan, chan_lost_msg<T> lostMsg)
-        {
-            try
-            {
-                await push_task();
-                if (chan_async_state.async_ok == res.value1.state)
-                {
-                    res.value1.result.start_invoke_timer(self);
-                }
-                return res.value1;
-            }
-            catch (stop_exception)
-            {
-                chan.async_remove_recv_notify(unsafe_async_callback(nil_action<chan_async_state>.action), _ioSign);
-                await async_wait();
-                if (chan_async_state.async_ok == res.value1.state)
-                {
-                    lostMsg?.set(res.value1.msg);
-                    res.value1.fail();
-                }
-                throw;
-            }
         }
 
         static public ValueTask<csp_wait_wrap<R, T>> csp_try_wait<R, T>(csp_chan<R, T> chan, chan_lost_msg<T> lostMsg = null)
         {
             generator this_ = self;
             async_result_wrap<csp_wait_wrap<R, T>> result = new async_result_wrap<csp_wait_wrap<R, T>> { value1 = new csp_wait_wrap<R, T> { state = chan_async_state.async_undefined } };
-            chan.async_try_recv(this_.unsafe_async_result(result), this_._ioSign);
+            chan.async_try_recv(this_.async_csp_wait(result), this_._ioSign);
             if (!this_.new_task_completed())
             {
-                return to_vtask(this_.csp_try_wait_(result, chan, lostMsg));
-            }
-            if (chan_async_state.async_ok == result.value1.state)
-            {
-                result.value1.result.start_invoke_timer(this_);
+                return to_vtask(this_.csp_wait_(result, chan, lostMsg));
             }
             return to_vtask(result.value1);
         }
@@ -4599,39 +4496,14 @@ namespace Go
             return this_.async_wait();
         }
 
-        private async Task<csp_invoke_wrap<R>> csp_timed_invoke_<R, T>(async_result_wrap<csp_invoke_wrap<R>> res, csp_chan<R, T> chan, T msg, chan_lost_msg<T> lostMsg)
-        {
-            try
-            {
-                await push_task();
-                return res.value1;
-            }
-            catch (stop_exception)
-            {
-                chan.async_remove_send_notify(unsafe_async_callback(null == lostMsg ? nil_action<chan_async_state>.action : (chan_async_state state) => res.value1 = new csp_invoke_wrap<R> { state = state }), _ioSign);
-                await async_wait();
-                if (chan_async_state.async_ok == res.value1.state)
-                {
-                    lostMsg?.set(msg);
-                }
-                throw;
-            }
-        }
-
         static public ValueTask<csp_invoke_wrap<R>> csp_timed_invoke<R, T>(csp_chan<R, T> chan, tuple<int, int> ms, T msg, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
         {
             generator this_ = self;
             async_result_wrap<csp_invoke_wrap<R>> result = new async_result_wrap<csp_invoke_wrap<R>> { value1 = new csp_invoke_wrap<R> { state = chan_async_state.async_undefined } };
-            chan.async_timed_send(ms.value1, ms.value2, null == lostHandler ? this_.unsafe_async_result(result) : this_.async_result(result, delegate (csp_invoke_wrap<R> cspRes)
-            {
-                if (chan_async_state.async_ok == cspRes.state)
-                {
-                    lostHandler(cspRes.result);
-                }
-            }), msg, this_._ioSign);
+            chan.async_timed_send(ms.value1, ms.value2, null == lostHandler ? this_.unsafe_async_result(result) : this_.async_csp_invoke(result, lostHandler), msg, this_._ioSign);
             if (!this_.new_task_completed())
             {
-                return to_vtask(this_.csp_timed_invoke_(result, chan, msg, lostMsg));
+                return to_vtask(this_.csp_invoke_(result, chan, msg, lostMsg));
             }
             return to_vtask(result.value1);
         }
@@ -4670,47 +4542,18 @@ namespace Go
         {
             generator this_ = self;
             res.value1 = new csp_wait_wrap<R, T> { state = chan_async_state.async_undefined };
-            chan.async_timed_recv(ms, this_.async_result(res));
-            res.value1.result?.start_invoke_timer(this_);
+            chan.async_timed_recv(ms, this_.async_csp_wait(res));
             return this_.async_wait();
-        }
-
-        private async Task<csp_wait_wrap<R, T>> csp_timed_wait_<R, T>(async_result_wrap<csp_wait_wrap<R, T>> res, csp_chan<R, T> chan, chan_lost_msg<T> lostMsg = null)
-        {
-            try
-            {
-                await push_task();
-                if (chan_async_state.async_ok == res.value1.state)
-                {
-                    res.value1.result.start_invoke_timer(self);
-                }
-                return res.value1;
-            }
-            catch (stop_exception)
-            {
-                chan.async_remove_recv_notify(unsafe_async_callback(nil_action<chan_async_state>.action), _ioSign);
-                await async_wait();
-                if (chan_async_state.async_ok == res.value1.state)
-                {
-                    lostMsg?.set(res.value1.msg);
-                    res.value1.fail();
-                }
-                throw;
-            }
         }
 
         static public ValueTask<csp_wait_wrap<R, T>> csp_timed_wait<R, T>(csp_chan<R, T> chan, int ms, chan_lost_msg<T> lostMsg = null)
         {
             generator this_ = self;
             async_result_wrap<csp_wait_wrap<R, T>> result = new async_result_wrap<csp_wait_wrap<R, T>> { value1 = new csp_wait_wrap<R, T> { state = chan_async_state.async_undefined } };
-            chan.async_timed_recv(ms, this_.unsafe_async_result(result), this_._ioSign);
+            chan.async_timed_recv(ms, this_.async_csp_wait(result), this_._ioSign);
             if (!this_.new_task_completed())
             {
-                return to_vtask(this_.csp_timed_wait_(result, chan, lostMsg));
-            }
-            if (chan_async_state.async_ok == result.value1.state)
-            {
-                result.value1.result.start_invoke_timer(this_);
+                return to_vtask(this_.csp_wait_(result, chan, lostMsg));
             }
             return to_vtask(result.value1);
         }
@@ -7131,6 +6974,7 @@ namespace Go
                                     }
                                     try
                                     {
+                                        recvRes.value1.result?.start_invoke_timer(self);
                                         await unlock_suspend();
                                         if (chan_async_state.async_ok == recvRes.value1.state)
                                         {
