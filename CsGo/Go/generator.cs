@@ -22,119 +22,53 @@ namespace Go
 
     public class async_result_wrap<T1>
     {
-        T1 p1;
-
-        public virtual T1 value1
-        {
-            get { return p1; }
-            set { p1 = value; }
-        }
+        public T1 value1;
 
         public void clear()
         {
-            p1 = default(T1);
+            value1 = default(T1);
         }
     }
 
     public class async_result_wrap<T1, T2>
     {
-        T1 p1;
-        T2 p2;
-
-        public virtual T1 value1
-        {
-            get { return p1; }
-            set { p1 = value; }
-        }
-
-        public virtual T2 value2
-        {
-            get { return p2; }
-            set { p2 = value; }
-        }
+        public T1 value1;
+        public T2 value2;
 
         public void clear()
         {
-            p1 = default(T1);
-            p2 = default(T2);
+            value1 = default(T1);
+            value2 = default(T2);
         }
     }
 
     public class async_result_wrap<T1, T2, T3>
     {
-        T1 p1;
-        T2 p2;
-        T3 p3;
-
-        public virtual T1 value1
-        {
-            get { return p1; }
-            set { p1 = value; }
-        }
-
-        public virtual T2 value2
-        {
-            get { return p2; }
-            set { p2 = value; }
-        }
-
-        public virtual T3 value3
-        {
-            get { return p3; }
-            set { p3 = value; }
-        }
+        public T1 value1;
+        public T2 value2;
+        public T3 value3;
 
         public void clear()
         {
-            p1 = default(T1);
-            p2 = default(T2);
-            p3 = default(T3);
+            value1 = default(T1);
+            value2 = default(T2);
+            value3 = default(T3);
         }
     }
 
-    public class async_result_ignore_wrap<T1> : async_result_wrap<T1>
+    public abstract class async_result_ignore_wrap<T1>
     {
-        static public async_result_ignore_wrap<T1> value = new async_result_ignore_wrap<T1>();
-
-        public override T1 value1
-        {
-            set { }
-        }
+        static readonly public async_result_wrap<T1> value = new async_result_wrap<T1>();
     }
 
-    public class async_result_ignore_wrap<T1, T2> : async_result_wrap<T1, T2>
+    public abstract class async_result_ignore_wrap<T1, T2>
     {
-        static public async_result_ignore_wrap<T1, T2> value = new async_result_ignore_wrap<T1, T2>();
-
-        public override T1 value1
-        {
-            set { }
-        }
-
-        public override T2 value2
-        {
-            set { }
-        }
+        static readonly public async_result_wrap<T1, T2> value = new async_result_wrap<T1, T2>();
     }
 
-    public class async_result_ignore_wrap<T1, T2, T3> : async_result_wrap<T1, T2, T3>
+    public abstract class async_result_ignore_wrap<T1, T2, T3>
     {
-        static public async_result_ignore_wrap<T1, T2, T3> value = new async_result_ignore_wrap<T1, T2, T3>();
-
-        public override T1 value1
-        {
-            set { }
-        }
-
-        public override T2 value2
-        {
-            set { }
-        }
-
-        public override T3 value3
-        {
-            set { }
-        }
+        static readonly public async_result_wrap<T1, T2, T3> value = new async_result_wrap<T1, T2, T3>();
     }
 
     public class chan_lost_msg<T>

@@ -418,14 +418,14 @@ namespace Go
             public Func<chan_async_state, Task<bool>> _errHandler;
             public chan_lost_msg<T> _lostMsg;
             public int _chanTimeout = -1;
-            async_result_wrap<chan_recv_wrap<T>> _tryPushRes;
+            async_result_wrap<chan_recv_wrap<T>> _tryRecvRes;
             generator _host;
 
             public override void begin(generator host)
             {
                 ntfSign._disable = false;
                 _host = host;
-                _tryPushRes = new async_result_wrap<chan_recv_wrap<T>>();
+                _tryRecvRes = new async_result_wrap<chan_recv_wrap<T>>();
                 _chan.async_append_recv_notify(nextSelect, ntfSign, _chanTimeout);
             }
 
@@ -433,24 +433,24 @@ namespace Go
             {
                 try
                 {
-                    _tryPushRes.value1 = new chan_recv_wrap<T> { state = chan_async_state.async_undefined };
-                    _chan.async_try_recv_and_append_notify(_host.unsafe_async_result(_tryPushRes), nextSelect, _token, ntfSign, _chanTimeout);
+                    _tryRecvRes.value1 = new chan_recv_wrap<T> { state = chan_async_state.async_undefined };
+                    _chan.async_try_recv_and_append_notify(_host.unsafe_async_result(_tryRecvRes), nextSelect, _token, ntfSign, _chanTimeout);
                     await _host.async_wait();
                 }
                 catch (generator.stop_exception)
                 {
                     _chan.async_remove_recv_notify(_host.unsafe_async_ignore<chan_async_state>(), ntfSign);
                     await _host.async_wait();
-                    if (chan_async_state.async_ok == _tryPushRes.value1.state)
+                    if (chan_async_state.async_ok == _tryRecvRes.value1.state)
                     {
-                        _lostMsg?.set(_tryPushRes.value1.msg);
+                        _lostMsg?.set(_tryRecvRes.value1.msg);
                     }
                     throw;
                 }
                 select_chan_state chanState = new select_chan_state() { failed = false, nextRound = true };
-                if (chan_async_state.async_ok == _tryPushRes.value1.state)
+                if (chan_async_state.async_ok == _tryRecvRes.value1.state)
                 {
-                    _lostMsg?.set(_tryPushRes.value1.msg);
+                    _lostMsg?.set(_tryRecvRes.value1.msg);
                     if (null != stepOne)
                     {
                         await stepOne();
@@ -459,14 +459,14 @@ namespace Go
                     {
                         await generator.unlock_suspend();
                         _lostMsg?.clear();
-                        await _handler(_tryPushRes.value1.msg);
+                        await _handler(_tryRecvRes.value1.msg);
                     }
                     finally
                     {
                         generator.lock_suspend();
                     }
                 }
-                else if (chan_async_state.async_closed == _tryPushRes.value1.state)
+                else if (chan_async_state.async_closed == _tryRecvRes.value1.state)
                 {
                     await end();
                     chanState.failed = true;
@@ -526,14 +526,14 @@ namespace Go
             public Func<chan_async_state, Task<bool>> _errHandler;
             public chan_lost_msg<T> _lostMsg;
             public int _chanTimeout = -1;
-            async_result_wrap<chan_send_wrap> _tryPushRes;
+            async_result_wrap<chan_send_wrap> _trySendRes;
             generator _host;
 
             public override void begin(generator host)
             {
                 ntfSign._disable = false;
                 _host = host;
-                _tryPushRes = new async_result_wrap<chan_send_wrap>();
+                _trySendRes = new async_result_wrap<chan_send_wrap>();
                 _chan.async_append_send_notify(nextSelect, ntfSign, _chanTimeout);
             }
 
@@ -541,22 +541,22 @@ namespace Go
             {
                 try
                 {
-                    _tryPushRes.value1 = new chan_send_wrap { state = chan_async_state.async_undefined };
-                    _chan.async_try_send_and_append_notify(_host.unsafe_async_result(_tryPushRes), nextSelect, ntfSign, _msg.value1, _chanTimeout);
+                    _trySendRes.value1 = new chan_send_wrap { state = chan_async_state.async_undefined };
+                    _chan.async_try_send_and_append_notify(_host.unsafe_async_result(_trySendRes), nextSelect, ntfSign, _msg.value1, _chanTimeout);
                     await _host.async_wait();
                 }
                 catch (generator.stop_exception)
                 {
                     _chan.async_remove_send_notify(_host.unsafe_async_callback(nil_action<chan_async_state>.action), ntfSign);
                     await _host.async_wait();
-                    if (chan_async_state.async_ok != _tryPushRes.value1.state)
+                    if (chan_async_state.async_ok != _trySendRes.value1.state)
                     {
                         _lostMsg?.set(_msg.value1);
                     }
                     throw;
                 }
                 select_chan_state chanState = new select_chan_state() { failed = false, nextRound = true };
-                if (chan_async_state.async_ok == _tryPushRes.value1.state)
+                if (chan_async_state.async_ok == _trySendRes.value1.state)
                 {
                     if (null != stepOne)
                     {
@@ -572,7 +572,7 @@ namespace Go
                         generator.lock_suspend();
                     }
                 }
-                else if (chan_async_state.async_closed == _tryPushRes.value1.state)
+                else if (chan_async_state.async_closed == _trySendRes.value1.state)
                 {
                     await end();
                     chanState.failed = true;
@@ -2896,14 +2896,14 @@ namespace Go
             public Func<chan_async_state, Task<bool>> _errHandler;
             public chan_lost_msg<T> _lostMsg;
             public int _chanTimeout = -1;
-            async_result_wrap<csp_wait_wrap<R, T>> _tryPopRes;
+            async_result_wrap<csp_wait_wrap<R, T>> _tryRecvRes;
             generator _host;
 
             public override void begin(generator host)
             {
                 ntfSign._disable = false;
                 _host = host;
-                _tryPopRes = new async_result_wrap<csp_wait_wrap<R, T>>();
+                _tryRecvRes = new async_result_wrap<csp_wait_wrap<R, T>>();
                 _chan.async_append_recv_notify(nextSelect, ntfSign, _chanTimeout);
             }
 
@@ -2911,43 +2911,43 @@ namespace Go
             {
                 try
                 {
-                    _tryPopRes.value1 = new csp_wait_wrap<R, T> { state = chan_async_state.async_undefined };
-                    _chan.async_try_recv_and_append_notify(_host.unsafe_async_result(_tryPopRes), nextSelect, ntfSign, _chanTimeout);
+                    _tryRecvRes.value1 = new csp_wait_wrap<R, T> { state = chan_async_state.async_undefined };
+                    _chan.async_try_recv_and_append_notify(_host.unsafe_async_result(_tryRecvRes), nextSelect, ntfSign, _chanTimeout);
                     await _host.async_wait();
                 }
                 catch (generator.stop_exception)
                 {
                     _chan.async_remove_recv_notify(_host.unsafe_async_ignore<chan_async_state>(), ntfSign);
                     await _host.async_wait();
-                    if (chan_async_state.async_ok == _tryPopRes.value1.state)
+                    if (chan_async_state.async_ok == _tryRecvRes.value1.state)
                     {
-                        _lostMsg?.set(_tryPopRes.value1.msg);
-                        _tryPopRes.value1.fail();
+                        _lostMsg?.set(_tryRecvRes.value1.msg);
+                        _tryRecvRes.value1.fail();
                     }
                     throw;
                 }
                 select_chan_state chanState = new select_chan_state() { failed = false, nextRound = true };
-                if (chan_async_state.async_ok == _tryPopRes.value1.state)
+                if (chan_async_state.async_ok == _tryRecvRes.value1.state)
                 {
-                    _lostMsg?.set(_tryPopRes.value1.msg);
+                    _lostMsg?.set(_tryRecvRes.value1.msg);
                     if (null != stepOne)
                     {
                         await stepOne();
                     }
                     try
                     {
-                        _tryPopRes.value1.result.start_invoke_timer(_host);
+                        _tryRecvRes.value1.result.start_invoke_timer(_host);
                         await generator.unlock_suspend();
                         _lostMsg?.clear();
-                        _tryPopRes.value1.complete(null != _handler ? await _handler(_tryPopRes.value1.msg) : await _gohandler(_tryPopRes.value1.msg));
+                        _tryRecvRes.value1.complete(null != _handler ? await _handler(_tryRecvRes.value1.msg) : await _gohandler(_tryRecvRes.value1.msg));
                     }
                     catch (csp_fail_exception)
                     {
-                        _tryPopRes.value1.fail();
+                        _tryRecvRes.value1.fail();
                     }
                     catch (generator.stop_exception)
                     {
-                        _tryPopRes.value1.fail();
+                        _tryRecvRes.value1.fail();
                         throw;
                     }
                     finally
@@ -2955,7 +2955,7 @@ namespace Go
                         generator.lock_suspend();
                     }
                 }
-                else if (chan_async_state.async_closed == _tryPopRes.value1.state)
+                else if (chan_async_state.async_closed == _tryRecvRes.value1.state)
                 {
                     await end();
                     chanState.failed = true;
@@ -3016,14 +3016,14 @@ namespace Go
             public Action<csp_invoke_wrap<R>> _lostHandler;
             public chan_lost_msg<T> _lostMsg;
             public int _chanTimeout = -1;
-            async_result_wrap<csp_invoke_wrap<R>> _tryPushRes;
+            async_result_wrap<csp_invoke_wrap<R>> _trySendRes;
             generator _host;
 
             public override void begin(generator host)
             {
                 ntfSign._disable = false;
                 _host = host;
-                _tryPushRes = new async_result_wrap<csp_invoke_wrap<R>>();
+                _trySendRes = new async_result_wrap<csp_invoke_wrap<R>>();
                 _chan.async_append_send_notify(nextSelect, ntfSign, _chanTimeout);
             }
 
@@ -3031,8 +3031,8 @@ namespace Go
             {
                 try
                 {
-                    _tryPushRes.value1 = new csp_invoke_wrap<R> { state = chan_async_state.async_undefined };
-                    _chan.async_try_send_and_append_notify(null == _lostHandler ? _host.unsafe_async_result(_tryPushRes) : _host.async_result(_tryPushRes, _lostHandler), nextSelect, ntfSign, _msg.value1, _chanTimeout);
+                    _trySendRes.value1 = new csp_invoke_wrap<R> { state = chan_async_state.async_undefined };
+                    _chan.async_try_send_and_append_notify(null == _lostHandler ? _host.unsafe_async_result(_trySendRes) : _host.async_result(_trySendRes, _lostHandler), nextSelect, ntfSign, _msg.value1, _chanTimeout);
                     await _host.async_wait();
                 }
                 catch (generator.stop_exception)
@@ -3047,7 +3047,7 @@ namespace Go
                     throw;
                 }
                 select_chan_state chanState = new select_chan_state() { failed = false, nextRound = true };
-                if (chan_async_state.async_ok == _tryPushRes.value1.state)
+                if (chan_async_state.async_ok == _trySendRes.value1.state)
                 {
                     if (null != stepOne)
                     {
@@ -3057,14 +3057,14 @@ namespace Go
                     {
                         await generator.unlock_suspend();
                         _lostMsg?.clear();
-                        await _handler(_tryPushRes.value1.result);
+                        await _handler(_trySendRes.value1.result);
                     }
                     finally
                     {
                         generator.lock_suspend();
                     }
                 }
-                else if (chan_async_state.async_closed == _tryPushRes.value1.state)
+                else if (chan_async_state.async_closed == _trySendRes.value1.state)
                 {
                     await end();
                     chanState.failed = true;
