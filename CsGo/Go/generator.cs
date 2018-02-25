@@ -1901,11 +1901,25 @@ namespace Go
             _pullTask.new_task();
             return _beginQuit ? (SameAction)delegate (object[] args)
             {
-                strand.distribute(quit_next);
+                if (strand.running_in_this_thread())
+                {
+                    quit_next();
+                }
+                else
+                {
+                    strand.post(quit_next);
+                }
             }
             : delegate (object[] args)
             {
-                strand.distribute(no_quit_next);
+                if (strand.running_in_this_thread())
+                {
+                    no_quit_next();
+                }
+                else
+                {
+                    strand.post(no_quit_next);
+                }
             };
         }
 
@@ -1915,12 +1929,26 @@ namespace Go
             return _beginQuit ? (SameAction)delegate (object[] args)
             {
                 handler(args);
-                strand.distribute(quit_next);
+                if (strand.running_in_this_thread())
+                {
+                    quit_next();
+                }
+                else
+                {
+                    strand.post(quit_next);
+                }
             }
             : delegate (object[] args)
             {
                 handler(args);
-                strand.distribute(no_quit_next);
+                if (strand.running_in_this_thread())
+                {
+                    no_quit_next();
+                }
+                else
+                {
+                    strand.post(no_quit_next);
+                }
             };
         }
 
@@ -1950,7 +1978,7 @@ namespace Go
                     lostHandler?.Invoke(args);
                     return;
                 }
-                strand.distribute(delegate ()
+                if (strand.running_in_this_thread())
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -1958,7 +1986,19 @@ namespace Go
                         no_check_next();
                     }
                     else lostHandler?.Invoke(args);
-                });
+                }
+                else
+                {
+                    strand.post(delegate ()
+                    {
+                        if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
+                        {
+                            _timer.cancel();
+                            no_check_next();
+                        }
+                        else lostHandler?.Invoke(args);
+                    });
+                }
             };
         }
 
@@ -1985,7 +2025,7 @@ namespace Go
                     lostHandler?.Invoke(args);
                     return;
                 }
-                strand.distribute(delegate ()
+                if (strand.running_in_this_thread())
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -1993,7 +2033,19 @@ namespace Go
                         no_check_next();
                     }
                     else lostHandler?.Invoke(args);
-                });
+                }
+                else
+                {
+                    strand.post(delegate ()
+                    {
+                        if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
+                        {
+                            _timer.cancel();
+                            no_check_next();
+                        }
+                        else lostHandler?.Invoke(args);
+                    });
+                }
             };
         }
 
@@ -2023,7 +2075,7 @@ namespace Go
                     lostHandler?.Invoke(args);
                     return;
                 }
-                strand.distribute(delegate ()
+                if (strand.running_in_this_thread())
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -2032,7 +2084,20 @@ namespace Go
                         no_check_next();
                     }
                     else lostHandler?.Invoke(args);
-                });
+                }
+                else
+                {
+                    strand.post(delegate ()
+                    {
+                        if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
+                        {
+                            _timer.cancel();
+                            handler(args);
+                            no_check_next();
+                        }
+                        else lostHandler?.Invoke(args);
+                    });
+                }
             };
         }
 
@@ -2059,7 +2124,7 @@ namespace Go
                     lostHandler?.Invoke(args);
                     return;
                 }
-                strand.distribute(delegate ()
+                if (strand.running_in_this_thread())
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -2068,7 +2133,20 @@ namespace Go
                         no_check_next();
                     }
                     else lostHandler?.Invoke(args);
-                });
+                }
+                else
+                {
+                    strand.post(delegate ()
+                    {
+                        if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
+                        {
+                            _timer.cancel();
+                            handler(args);
+                            no_check_next();
+                        }
+                        else lostHandler?.Invoke(args);
+                    });
+                }
             };
         }
 
@@ -2078,12 +2156,26 @@ namespace Go
             return _beginQuit ? (Action)delegate ()
             {
                 handler();
-                strand.distribute(quit_next);
+                if (strand.running_in_this_thread())
+                {
+                    quit_next();
+                }
+                else
+                {
+                    strand.post(quit_next);
+                }
             }
             : delegate ()
             {
                 handler();
-                strand.distribute(no_quit_next);
+                if (strand.running_in_this_thread())
+                {
+                    no_quit_next();
+                }
+                else
+                {
+                    strand.post(no_quit_next);
+                }
             };
         }
 
@@ -2093,12 +2185,26 @@ namespace Go
             return _beginQuit ? (Action<T1>)delegate (T1 p1)
             {
                 handler(p1);
-                strand.distribute(quit_next);
+                if (strand.running_in_this_thread())
+                {
+                    quit_next();
+                }
+                else
+                {
+                    strand.post(quit_next);
+                }
             }
             : delegate (T1 p1)
             {
                 handler(p1);
-                strand.distribute(no_quit_next);
+                if (strand.running_in_this_thread())
+                {
+                    no_quit_next();
+                }
+                else
+                {
+                    strand.post(no_quit_next);
+                }
             };
         }
 
@@ -2108,12 +2214,26 @@ namespace Go
             return _beginQuit ? (Action<T1, T2>)delegate (T1 p1, T2 p2)
             {
                 handler(p1, p2);
-                strand.distribute(quit_next);
+                if (strand.running_in_this_thread())
+                {
+                    quit_next();
+                }
+                else
+                {
+                    strand.post(quit_next);
+                }
             }
             : delegate (T1 p1, T2 p2)
             {
                 handler(p1, p2);
-                strand.distribute(no_quit_next);
+                if (strand.running_in_this_thread())
+                {
+                    no_quit_next();
+                }
+                else
+                {
+                    strand.post(no_quit_next);
+                }
             };
         }
 
@@ -2123,12 +2243,26 @@ namespace Go
             return _beginQuit ? (Action<T1, T2, T3>)delegate (T1 p1, T2 p2, T3 p3)
             {
                 handler(p1, p2, p3);
-                strand.distribute(quit_next);
+                if (strand.running_in_this_thread())
+                {
+                    quit_next();
+                }
+                else
+                {
+                    strand.post(quit_next);
+                }
             }
             : delegate (T1 p1, T2 p2, T3 p3)
             {
                 handler(p1, p2, p3);
-                strand.distribute(no_quit_next);
+                if (strand.running_in_this_thread())
+                {
+                    no_quit_next();
+                }
+                else
+                {
+                    strand.post(no_quit_next);
+                }
             };
         }
 
@@ -2158,7 +2292,7 @@ namespace Go
                     lostHandler?.Invoke();
                     return;
                 }
-                strand.distribute(delegate ()
+                if (strand.running_in_this_thread())
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -2167,7 +2301,20 @@ namespace Go
                         no_check_next();
                     }
                     else lostHandler?.Invoke();
-                });
+                }
+                else
+                {
+                    strand.post(delegate ()
+                    {
+                        if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
+                        {
+                            _timer.cancel();
+                            handler();
+                            no_check_next();
+                        }
+                        else lostHandler?.Invoke();
+                    });
+                }
             };
         }
 
@@ -2194,7 +2341,7 @@ namespace Go
                     lostHandler?.Invoke();
                     return;
                 }
-                strand.distribute(delegate ()
+                if (strand.running_in_this_thread())
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -2203,7 +2350,20 @@ namespace Go
                         no_check_next();
                     }
                     else lostHandler?.Invoke();
-                });
+                }
+                else
+                {
+                    strand.post(delegate ()
+                    {
+                        if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
+                        {
+                            _timer.cancel();
+                            handler();
+                            no_check_next();
+                        }
+                        else lostHandler?.Invoke();
+                    });
+                }
             };
         }
 
@@ -2233,7 +2393,7 @@ namespace Go
                     lostHandler?.Invoke(p1);
                     return;
                 }
-                strand.distribute(delegate ()
+                if (strand.running_in_this_thread())
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -2242,7 +2402,20 @@ namespace Go
                         no_check_next();
                     }
                     else lostHandler?.Invoke(p1);
-                });
+                }
+                else
+                {
+                    strand.post(delegate ()
+                    {
+                        if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
+                        {
+                            _timer.cancel();
+                            handler(p1);
+                            no_check_next();
+                        }
+                        else lostHandler?.Invoke(p1);
+                    });
+                }
             };
         }
 
@@ -2269,7 +2442,7 @@ namespace Go
                     lostHandler?.Invoke(p1);
                     return;
                 }
-                strand.distribute(delegate ()
+                if (strand.running_in_this_thread())
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -2278,7 +2451,20 @@ namespace Go
                         no_check_next();
                     }
                     else lostHandler?.Invoke(p1);
-                });
+                }
+                else
+                {
+                    strand.post(delegate ()
+                    {
+                        if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
+                        {
+                            _timer.cancel();
+                            handler(p1);
+                            no_check_next();
+                        }
+                        else lostHandler?.Invoke(p1);
+                    });
+                }
             };
         }
 
@@ -2308,7 +2494,7 @@ namespace Go
                     lostHandler?.Invoke(p1, p2);
                     return;
                 }
-                strand.distribute(delegate ()
+                if (strand.running_in_this_thread())
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -2317,7 +2503,20 @@ namespace Go
                         no_check_next();
                     }
                     else lostHandler?.Invoke(p1, p2);
-                });
+                }
+                else
+                {
+                    strand.post(delegate ()
+                    {
+                        if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
+                        {
+                            _timer.cancel();
+                            handler(p1, p2);
+                            no_check_next();
+                        }
+                        else lostHandler?.Invoke(p1, p2);
+                    });
+                }
             };
         }
 
@@ -2344,7 +2543,7 @@ namespace Go
                     lostHandler?.Invoke(p1, p2);
                     return;
                 }
-                strand.distribute(delegate ()
+                if (strand.running_in_this_thread())
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -2353,7 +2552,20 @@ namespace Go
                         no_check_next();
                     }
                     else lostHandler?.Invoke(p1, p2);
-                });
+                }
+                else
+                {
+                    strand.post(delegate ()
+                    {
+                        if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
+                        {
+                            _timer.cancel();
+                            handler(p1, p2);
+                            no_check_next();
+                        }
+                        else lostHandler?.Invoke(p1, p2);
+                    });
+                }
             };
         }
 
@@ -2383,7 +2595,7 @@ namespace Go
                     lostHandler?.Invoke(p1, p2, p3);
                     return;
                 }
-                strand.distribute(delegate ()
+                if (strand.running_in_this_thread())
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -2392,7 +2604,20 @@ namespace Go
                         no_check_next();
                     }
                     else lostHandler?.Invoke(p1, p2, p3);
-                });
+                }
+                else
+                {
+                    strand.post(delegate ()
+                    {
+                        if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
+                        {
+                            _timer.cancel();
+                            handler(p1, p2, p3);
+                            no_check_next();
+                        }
+                        else lostHandler?.Invoke(p1, p2, p3);
+                    });
+                }
             };
         }
 
@@ -2419,7 +2644,7 @@ namespace Go
                     lostHandler?.Invoke(p1, p2, p3);
                     return;
                 }
-                strand.distribute(delegate ()
+                if (strand.running_in_this_thread())
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -2428,7 +2653,20 @@ namespace Go
                         no_check_next();
                     }
                     else lostHandler?.Invoke(p1, p2, p3);
-                });
+                }
+                else
+                {
+                    strand.post(delegate ()
+                    {
+                        if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
+                        {
+                            _timer.cancel();
+                            handler(p1, p2, p3);
+                            no_check_next();
+                        }
+                        else lostHandler?.Invoke(p1, p2, p3);
+                    });
+                }
             };
         }
 
@@ -2442,14 +2680,25 @@ namespace Go
                     lostHandler?.Invoke(args);
                     return;
                 }
-                strand.distribute(delegate ()
+                if (strand.running_in_this_thread())
                 {
                     if (!multiCheck.check())
                     {
                         next(multiCheck.beginQuit);
                     }
                     else lostHandler?.Invoke(args);
-                });
+                }
+                else
+                {
+                    strand.post(delegate ()
+                    {
+                        if (!multiCheck.check())
+                        {
+                            next(multiCheck.beginQuit);
+                        }
+                        else lostHandler?.Invoke(args);
+                    });
+                }
             };
         }
 
@@ -2463,7 +2712,7 @@ namespace Go
                     lostHandler?.Invoke(args);
                     return;
                 }
-                strand.distribute(delegate ()
+                if (strand.running_in_this_thread())
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -2471,7 +2720,19 @@ namespace Go
                         no_check_next();
                     }
                     else lostHandler?.Invoke(args);
-                });
+                }
+                else
+                {
+                    strand.post(delegate ()
+                    {
+                        if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
+                        {
+                            handler(args);
+                            no_check_next();
+                        }
+                        else lostHandler?.Invoke(args);
+                    });
+                }
             };
         }
 
@@ -2485,7 +2746,7 @@ namespace Go
                     lostHandler?.Invoke();
                     return;
                 }
-                strand.distribute(delegate ()
+                if (strand.running_in_this_thread())
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -2493,7 +2754,19 @@ namespace Go
                         no_check_next();
                     }
                     else lostHandler?.Invoke();
-                });
+                }
+                else
+                {
+                    strand.post(delegate ()
+                    {
+                        if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
+                        {
+                            handler();
+                            no_check_next();
+                        }
+                        else lostHandler?.Invoke();
+                    });
+                }
             };
         }
 
@@ -2507,7 +2780,7 @@ namespace Go
                     lostHandler?.Invoke(p1);
                     return;
                 }
-                strand.distribute(delegate ()
+                if (strand.running_in_this_thread())
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -2515,7 +2788,19 @@ namespace Go
                         no_check_next();
                     }
                     else lostHandler?.Invoke(p1);
-                });
+                }
+                else
+                {
+                    strand.post(delegate ()
+                    {
+                        if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
+                        {
+                            handler(p1);
+                            no_check_next();
+                        }
+                        else lostHandler?.Invoke(p1);
+                    });
+                }
             };
         }
 
@@ -2529,7 +2814,7 @@ namespace Go
                     lostHandler?.Invoke(p1, p2);
                     return;
                 }
-                strand.distribute(delegate ()
+                if (strand.running_in_this_thread())
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -2537,7 +2822,19 @@ namespace Go
                         no_check_next();
                     }
                     else lostHandler?.Invoke(p1, p2);
-                });
+                }
+                else
+                {
+                    strand.post(delegate ()
+                    {
+                        if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
+                        {
+                            handler(p1, p2);
+                            no_check_next();
+                        }
+                        else lostHandler?.Invoke(p1, p2);
+                    });
+                }
             };
         }
 
@@ -2551,7 +2848,7 @@ namespace Go
                     lostHandler?.Invoke(p1, p2, p3);
                     return;
                 }
-                strand.distribute(delegate ()
+                if (strand.running_in_this_thread())
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -2559,7 +2856,19 @@ namespace Go
                         no_check_next();
                     }
                     else lostHandler?.Invoke(p1, p2, p3);
-                });
+                }
+                else
+                {
+                    strand.post(delegate ()
+                    {
+                        if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
+                        {
+                            handler(p1, p2, p3);
+                            no_check_next();
+                        }
+                        else lostHandler?.Invoke(p1, p2, p3);
+                    });
+                }
             };
         }
 
@@ -2581,12 +2890,26 @@ namespace Go
             return _beginQuit ? (Action<T1>)delegate (T1 p1)
             {
                 res.value1 = p1;
-                strand.distribute(quit_next);
+                if (strand.running_in_this_thread())
+                {
+                    quit_next();
+                }
+                else
+                {
+                    strand.post(quit_next);
+                }
             }
             : delegate (T1 p1)
             {
                 res.value1 = p1;
-                strand.distribute(no_quit_next);
+                if (strand.running_in_this_thread())
+                {
+                    no_quit_next();
+                }
+                else
+                {
+                    strand.post(no_quit_next);
+                }
             };
         }
 
@@ -2597,13 +2920,27 @@ namespace Go
             {
                 res.value1 = p1;
                 res.value2 = p2;
-                strand.distribute(quit_next);
+                if (strand.running_in_this_thread())
+                {
+                    quit_next();
+                }
+                else
+                {
+                    strand.post(quit_next);
+                }
             }
             : delegate (T1 p1, T2 p2)
             {
                 res.value1 = p1;
                 res.value2 = p2;
-                strand.distribute(no_quit_next);
+                if (strand.running_in_this_thread())
+                {
+                    no_quit_next();
+                }
+                else
+                {
+                    strand.post(no_quit_next);
+                }
             };
         }
 
@@ -2615,14 +2952,28 @@ namespace Go
                 res.value1 = p1;
                 res.value2 = p2;
                 res.value3 = p3;
-                strand.distribute(quit_next);
+                if (strand.running_in_this_thread())
+                {
+                    quit_next();
+                }
+                else
+                {
+                    strand.post(quit_next);
+                }
             }
             : delegate (T1 p1, T2 p2, T3 p3)
             {
                 res.value1 = p1;
                 res.value2 = p2;
                 res.value3 = p3;
-                strand.distribute(no_quit_next);
+                if (strand.running_in_this_thread())
+                {
+                    no_quit_next();
+                }
+                else
+                {
+                    strand.post(no_quit_next);
+                }
             };
         }
 
@@ -2651,14 +3002,25 @@ namespace Go
                     lostHandler?.Invoke();
                     return;
                 }
-                strand.distribute(delegate ()
+                if (strand.running_in_this_thread())
                 {
                     if (!multiCheck.check())
                     {
                         next(multiCheck.beginQuit);
                     }
                     else lostHandler?.Invoke();
-                });
+                }
+                else
+                {
+                    strand.post(delegate ()
+                    {
+                        if (!multiCheck.check())
+                        {
+                            next(multiCheck.beginQuit);
+                        }
+                        else lostHandler?.Invoke();
+                    });
+                }
             };
         }
 
@@ -2672,7 +3034,7 @@ namespace Go
                     lostHandler?.Invoke(p1);
                     return;
                 }
-                strand.distribute(delegate ()
+                if (strand.running_in_this_thread())
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -2680,7 +3042,19 @@ namespace Go
                         no_check_next();
                     }
                     else lostHandler?.Invoke(p1);
-                });
+                }
+                else
+                {
+                    strand.post(delegate ()
+                    {
+                        if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
+                        {
+                            res.value1 = p1;
+                            no_check_next();
+                        }
+                        else lostHandler?.Invoke(p1);
+                    });
+                }
             };
         }
 
@@ -2694,7 +3068,7 @@ namespace Go
                     lostHandler?.Invoke(p1, p2);
                     return;
                 }
-                strand.distribute(delegate ()
+                if (strand.running_in_this_thread())
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -2703,7 +3077,20 @@ namespace Go
                         no_check_next();
                     }
                     else lostHandler?.Invoke(p1, p2);
-                });
+                }
+                else
+                {
+                    strand.post(delegate ()
+                    {
+                        if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
+                        {
+                            res.value1 = p1;
+                            res.value2 = p2;
+                            no_check_next();
+                        }
+                        else lostHandler?.Invoke(p1, p2);
+                    });
+                }
             };
         }
 
@@ -2717,7 +3104,7 @@ namespace Go
                     lostHandler?.Invoke(p1, p2, p3);
                     return;
                 }
-                strand.distribute(delegate ()
+                if (strand.running_in_this_thread())
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -2727,7 +3114,21 @@ namespace Go
                         no_check_next();
                     }
                     else lostHandler?.Invoke(p1, p2, p3);
-                });
+                }
+                else
+                {
+                    strand.post(delegate ()
+                    {
+                        if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
+                        {
+                            res.value1 = p1;
+                            res.value2 = p2;
+                            res.value3 = p3;
+                            no_check_next();
+                        }
+                        else lostHandler?.Invoke(p1, p2, p3);
+                    });
+                }
             };
         }
 
@@ -2772,7 +3173,7 @@ namespace Go
                     lostHandler?.Invoke();
                     return;
                 }
-                strand.distribute(delegate ()
+                if (strand.running_in_this_thread())
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -2780,7 +3181,19 @@ namespace Go
                         no_check_next();
                     }
                     else lostHandler?.Invoke();
-                });
+                }
+                else
+                {
+                    strand.post(delegate ()
+                    {
+                        if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
+                        {
+                            _timer.cancel();
+                            no_check_next();
+                        }
+                        else lostHandler?.Invoke();
+                    });
+                }
             };
         }
 
@@ -2810,7 +3223,7 @@ namespace Go
                     lostHandler?.Invoke(p1);
                     return;
                 }
-                strand.distribute(delegate ()
+                if (strand.running_in_this_thread())
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -2819,7 +3232,20 @@ namespace Go
                         no_check_next();
                     }
                     else lostHandler?.Invoke(p1);
-                });
+                }
+                else
+                {
+                    strand.post(delegate ()
+                    {
+                        if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
+                        {
+                            _timer.cancel();
+                            res.value1 = p1;
+                            no_check_next();
+                        }
+                        else lostHandler?.Invoke(p1);
+                    });
+                }
             };
         }
 
@@ -2849,7 +3275,7 @@ namespace Go
                     lostHandler?.Invoke(p1, p2);
                     return;
                 }
-                strand.distribute(delegate ()
+                if (strand.running_in_this_thread())
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -2859,7 +3285,21 @@ namespace Go
                         no_check_next();
                     }
                     else lostHandler?.Invoke(p1, p2);
-                });
+                }
+                else
+                {
+                    strand.post(delegate ()
+                    {
+                        if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
+                        {
+                            _timer.cancel();
+                            res.value1 = p1;
+                            res.value2 = p2;
+                            no_check_next();
+                        }
+                        else lostHandler?.Invoke(p1, p2);
+                    });
+                }
             };
         }
 
@@ -2889,7 +3329,7 @@ namespace Go
                     lostHandler?.Invoke(p1, p2, p3);
                     return;
                 }
-                strand.distribute(delegate ()
+                if (strand.running_in_this_thread())
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -2900,7 +3340,22 @@ namespace Go
                         no_check_next();
                     }
                     else lostHandler?.Invoke(p1, p2, p3);
-                });
+                }
+                else
+                {
+                    strand.post(delegate ()
+                    {
+                        if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
+                        {
+                            _timer.cancel();
+                            res.value1 = p1;
+                            res.value2 = p2;
+                            res.value3 = p3;
+                            no_check_next();
+                        }
+                        else lostHandler?.Invoke(p1, p2, p3);
+                    });
+                }
             };
         }
 
@@ -2927,7 +3382,7 @@ namespace Go
                     lostHandler?.Invoke();
                     return;
                 }
-                strand.distribute(delegate ()
+                if (strand.running_in_this_thread())
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -2935,7 +3390,19 @@ namespace Go
                         no_check_next();
                     }
                     else lostHandler?.Invoke();
-                });
+                }
+                else
+                {
+                    strand.post(delegate ()
+                    {
+                        if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
+                        {
+                            _timer.cancel();
+                            no_check_next();
+                        }
+                        else lostHandler?.Invoke();
+                    });
+                }
             };
         }
 
@@ -2962,7 +3429,7 @@ namespace Go
                     lostHandler?.Invoke(p1);
                     return;
                 }
-                strand.distribute(delegate ()
+                if (strand.running_in_this_thread())
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -2971,7 +3438,20 @@ namespace Go
                         no_check_next();
                     }
                     else lostHandler?.Invoke(p1);
-                });
+                }
+                else
+                {
+                    strand.post(delegate ()
+                    {
+                        if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
+                        {
+                            _timer.cancel();
+                            res.value1 = p1;
+                            no_check_next();
+                        }
+                        else lostHandler?.Invoke(p1);
+                    });
+                }
             };
         }
 
@@ -2998,7 +3478,7 @@ namespace Go
                     lostHandler?.Invoke(p1, p2);
                     return;
                 }
-                strand.distribute(delegate ()
+                if (strand.running_in_this_thread())
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -3008,7 +3488,21 @@ namespace Go
                         no_check_next();
                     }
                     else lostHandler?.Invoke(p1, p2);
-                });
+                }
+                else
+                {
+                    strand.post(delegate ()
+                    {
+                        if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
+                        {
+                            _timer.cancel();
+                            res.value1 = p1;
+                            res.value2 = p2;
+                            no_check_next();
+                        }
+                        else lostHandler?.Invoke(p1, p2);
+                    });
+                }
             };
         }
 
@@ -3035,7 +3529,7 @@ namespace Go
                     lostHandler?.Invoke(p1, p2, p3);
                     return;
                 }
-                strand.distribute(delegate ()
+                if (strand.running_in_this_thread())
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -3046,7 +3540,22 @@ namespace Go
                         no_check_next();
                     }
                     else lostHandler?.Invoke(p1, p2, p3);
-                });
+                }
+                else
+                {
+                    strand.post(delegate ()
+                    {
+                        if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
+                        {
+                            _timer.cancel();
+                            res.value1 = p1;
+                            res.value2 = p2;
+                            res.value3 = p3;
+                            no_check_next();
+                        }
+                        else lostHandler?.Invoke(p1, p2, p3);
+                    });
+                }
             };
         }
 
@@ -3696,7 +4205,7 @@ namespace Go
             bool beginQuit = _beginQuit;
             return delegate (csp_invoke_wrap<R> cspRes)
             {
-                strand.distribute(delegate ()
+                if (strand.running_in_this_thread())
                 {
                     if (!_isStop && _beginQuit == beginQuit)
                     {
@@ -3707,7 +4216,22 @@ namespace Go
                     {
                         lostHandler(cspRes.result);
                     }
-                });
+                }
+                else
+                {
+                    strand.post(delegate ()
+                    {
+                        if (!_isStop && _beginQuit == beginQuit)
+                        {
+                            res.value1 = cspRes;
+                            no_check_next();
+                        }
+                        else if (chan_async_state.async_ok == cspRes.state)
+                        {
+                            lostHandler(cspRes.result);
+                        }
+                    });
+                }
             };
         }
 
@@ -3759,7 +4283,7 @@ namespace Go
             bool beginQuit = _beginQuit;
             return delegate (csp_wait_wrap<R, T> cspRes)
             {
-                strand.distribute(delegate ()
+                if (strand.running_in_this_thread())
                 {
                     if (!_isStop && _beginQuit == beginQuit)
                     {
@@ -3768,7 +4292,20 @@ namespace Go
                         no_check_next();
                     }
                     else cspRes.result?.fail();
-                });
+                }
+                else
+                {
+                    strand.post(delegate ()
+                    {
+                        if (!_isStop && _beginQuit == beginQuit)
+                        {
+                            cspRes.result?.start_invoke_timer(this);
+                            res.value1 = cspRes;
+                            no_check_next();
+                        }
+                        else cspRes.result?.fail();
+                    });
+                }
             };
         }
 
