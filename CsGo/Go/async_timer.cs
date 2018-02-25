@@ -233,12 +233,6 @@ namespace Go
             {
                 public int id;
                 public steady_timer steadyTimer;
-
-                public waitable_event_handle(int i, steady_timer h)
-                {
-                    id = i;
-                    steadyTimer = h;
-                }
             }
 
             class waitable_timer
@@ -574,11 +568,11 @@ namespace Go
             {
                 if (_utcMode)
                 {
-                    waitable_timer.utcTimer.appendEvent(absus, new waitable_event_handle(++_timerCount, this));
+                    waitable_timer.utcTimer.appendEvent(absus, new waitable_event_handle { id = ++_timerCount, steadyTimer = this });
                 }
                 else
                 {
-                    waitable_timer.sysTimer.appendEvent(absus, new waitable_event_handle(++_timerCount, this));
+                    waitable_timer.sysTimer.appendEvent(absus, new waitable_event_handle { id = ++_timerCount, steadyTimer = this });
                 }
             }
 
@@ -586,11 +580,11 @@ namespace Go
             {
                 if (_utcMode)
                 {
-                    waitable_timer.utcTimer.updateEvent(absus, new waitable_event_handle(++_timerCount, this));
+                    waitable_timer.utcTimer.updateEvent(absus, new waitable_event_handle { id = ++_timerCount, steadyTimer = this });
                 }
                 else
                 {
-                    waitable_timer.sysTimer.updateEvent(absus, new waitable_event_handle(++_timerCount, this));
+                    waitable_timer.sysTimer.updateEvent(absus, new waitable_event_handle { id = ++_timerCount, steadyTimer = this });
                 }
             }
         }

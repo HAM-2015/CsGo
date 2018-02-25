@@ -433,7 +433,7 @@ namespace Go
             {
                 try
                 {
-                    _tryRecvRes.value1 = new chan_recv_wrap<T> { state = chan_async_state.async_undefined };
+                    _tryRecvRes.value1 = chan_recv_wrap<T>.def;
                     _chan.async_try_recv_and_append_notify(_host.unsafe_async_result(_tryRecvRes), nextSelect, _token, ntfSign, _chanTimeout);
                     await _host.async_wait();
                 }
@@ -541,7 +541,7 @@ namespace Go
             {
                 try
                 {
-                    _trySendRes.value1 = new chan_send_wrap { state = chan_async_state.async_undefined };
+                    _trySendRes.value1 = chan_send_wrap.def;
                     _chan.async_try_send_and_append_notify(_host.unsafe_async_result(_trySendRes), nextSelect, ntfSign, _msg.value1, _chanTimeout);
                     await _host.async_wait();
                 }
@@ -2917,7 +2917,7 @@ namespace Go
             {
                 try
                 {
-                    _tryRecvRes.value1 = new csp_wait_wrap<R, T> { state = chan_async_state.async_undefined };
+                    _tryRecvRes.value1 = csp_wait_wrap<R, T>.def;
                     _chan.async_try_recv_and_append_notify(_host.unsafe_async_result(_tryRecvRes), nextSelect, ntfSign, _chanTimeout);
                     await _host.async_wait();
                 }
@@ -3037,7 +3037,7 @@ namespace Go
             {
                 try
                 {
-                    _trySendRes.value1 = new csp_invoke_wrap<R> { state = chan_async_state.async_undefined };
+                    _trySendRes.value1 = csp_invoke_wrap<R>.def;
                     _chan.async_try_send_and_append_notify(null == _lostHandler ? _host.unsafe_async_result(_trySendRes) : _host.async_result(_trySendRes, _lostHandler), nextSelect, ntfSign, _msg.value1, _chanTimeout);
                     await _host.async_wait();
                 }
