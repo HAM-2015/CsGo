@@ -514,7 +514,7 @@ namespace Go
 
         public Action wrap(Action handler)
         {
-            return () => distribute(() => handler());
+            return () => distribute(handler);
         }
 
         public Action<T1> wrap<T1>(Action<T1> handler)
@@ -534,7 +534,7 @@ namespace Go
 
         public Action wrap_post(Action handler)
         {
-            return () => post(() => handler());
+            return () => post(handler);
         }
 
         public Action<T1> wrap_post<T1>(Action<T1> handler)
