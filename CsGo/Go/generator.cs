@@ -747,7 +747,7 @@ namespace Go
             _ioSign = new chan_notify_sign();
             _timer = new async_timer(strand);
             strand.hold_work();
-            strand.distribute(async delegate ()
+            strand.dispatch(async delegate ()
             {
                 try
                 {
@@ -882,7 +882,7 @@ namespace Go
 
         public void run()
         {
-            strand.distribute(delegate ()
+            strand.dispatch(delegate ()
             {
                 if (-1 == _lockCount)
                 {
@@ -973,7 +973,7 @@ namespace Go
 
         public void suspend(Action cb = null)
         {
-            strand.distribute(delegate ()
+            strand.dispatch(delegate ()
             {
                 if (-1 == _lockCount)
                 {
@@ -1027,7 +1027,7 @@ namespace Go
 
         public void resume(Action cb = null)
         {
-            strand.distribute(delegate ()
+            strand.dispatch(delegate ()
             {
                 if (-1 == _lockCount)
                 {
@@ -1146,7 +1146,7 @@ namespace Go
 
         public void append_stop_callback(Action continuation, Action<LinkedListNode<Action>> removeCb = null)
         {
-            strand.distribute(delegate ()
+            strand.dispatch(delegate ()
             {
                 if (!_isStop)
                 {
@@ -1166,7 +1166,7 @@ namespace Go
 
         public void remove_stop_callback(LinkedListNode<Action> node, Action cb = null)
         {
-            strand.distribute(delegate ()
+            strand.dispatch(delegate ()
             {
                 if (null != node.List)
                 {
@@ -4022,7 +4022,7 @@ namespace Go
             }
             catch (stop_exception)
             {
-                chan.self_strand().distribute(_async_result());
+                chan.self_strand().dispatch(_async_result());
                 await async_wait();
                 if (chan_async_state.async_ok != res.value1)
                 {
@@ -9080,7 +9080,7 @@ namespace Go
                 newGen = child.free_make(this, strand, handler, delegate ()
                 {
                     _freeCount--;
-                    _parent.strand.distribute(delegate ()
+                    _parent.strand.dispatch(delegate ()
                     {
                         if (null != newGen._childNode)
                         {

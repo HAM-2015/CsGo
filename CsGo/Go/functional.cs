@@ -17,6 +17,17 @@ namespace Go
         {
             return string.Format("({0})", value1);
         }
+#if NETCORE
+        public static implicit operator tuple<T1>(ValueTuple<T1> rval)
+        {
+            return new tuple<T1>(rval.Item1);
+        }
+
+        public static implicit operator ValueTuple<T1>(tuple<T1> rval)
+        {
+            return new ValueTuple<T1>(rval.value1);
+        }
+#endif
     }
 
     [Serializable]
@@ -29,6 +40,17 @@ namespace Go
         {
             return string.Format("({0},{1})", value1, value2);
         }
+#if NETCORE
+        public static implicit operator tuple<T1, T2>(ValueTuple<T1, T2> rval)
+        {
+            return new tuple<T1, T2>(rval.Item1, rval.Item2);
+        }
+
+        public static implicit operator ValueTuple<T1, T2>(tuple<T1, T2> rval)
+        {
+            return new ValueTuple<T1, T2>(rval.value1, rval.value2);
+        }
+#endif
     }
 
     [Serializable]
@@ -41,6 +63,17 @@ namespace Go
         {
             return string.Format("({0},{1},{2})", value1, value2, value3);
         }
+#if NETCORE
+        public static implicit operator tuple<T1, T2, T3>(ValueTuple<T1, T2, T3> rval)
+        {
+            return new tuple<T1, T2, T3>(rval.Item1, rval.Item2, rval.Item3);
+        }
+
+        public static implicit operator ValueTuple<T1, T2, T3>(tuple<T1, T2, T3> rval)
+        {
+            return new ValueTuple<T1, T2, T3>(rval.value1, rval.value2, rval.value3);
+        }
+#endif
     }
 
     [Serializable]
@@ -53,6 +86,17 @@ namespace Go
         {
             return string.Format("({0},{1},{2},{3})", value1, value2, value3, value4);
         }
+#if NETCORE
+        public static implicit operator tuple<T1, T2, T3, T4>(ValueTuple<T1, T2, T3, T4> rval)
+        {
+            return new tuple<T1, T2, T3, T4>(rval.Item1, rval.Item2, rval.Item3, rval.Item4);
+        }
+
+        public static implicit operator ValueTuple<T1, T2, T3, T4>(tuple<T1, T2, T3, T4> rval)
+        {
+            return new ValueTuple<T1, T2, T3, T4>(rval.value1, rval.value2, rval.value3, rval.value4);
+        }
+#endif
     }
 
     [Serializable]
@@ -65,6 +109,17 @@ namespace Go
         {
             return string.Format("({0},{1},{2},{3},{4})", value1, value2, value3, value4, value5);
         }
+#if NETCORE
+        public static implicit operator tuple<T1, T2, T3, T4, T5>(ValueTuple<T1, T2, T3, T4, T5> rval)
+        {
+            return new tuple<T1, T2, T3, T4, T5>(rval.Item1, rval.Item2, rval.Item3, rval.Item4, rval.Item5);
+        }
+
+        public static implicit operator ValueTuple<T1, T2, T3, T4, T5>(tuple<T1, T2, T3, T4, T5> rval)
+        {
+            return new ValueTuple<T1, T2, T3, T4, T5>(rval.value1, rval.value2, rval.value3, rval.value4, rval.value5);
+        }
+#endif
     }
 
     public abstract class tuple

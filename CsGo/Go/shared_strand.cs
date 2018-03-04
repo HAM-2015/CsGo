@@ -397,7 +397,33 @@ namespace Go
             }
         }
 
-        public virtual bool distribute(Action action)
+        public void next_dispatch(Action action)
+        {
+            curr_strand currStrand = _currStrand.Value;
+            if (null != currStrand && this == currStrand.strand)
+            {
+                _readyQueue.AddFirst(action);
+            }
+            else
+            {
+                MsgQueueNode<Action> newNode = new MsgQueueNode<Action>(action);
+                _mutex.enter();
+                if (_locked)
+                {
+                    _waitQueue.AddFirst(newNode);
+                    _mutex.exit();
+                }
+                else
+                {
+                    _locked = true;
+                    _readyQueue.AddFirst(newNode);
+                    _mutex.exit();
+                    run_task();
+                }
+            }
+        }
+
+        public virtual bool dispatch(Action action)
         {
             curr_strand currStrand = _currStrand.Value;
             if (null != currStrand && this == currStrand.strand)
@@ -514,22 +540,22 @@ namespace Go
 
         public Action wrap(Action handler)
         {
-            return () => distribute(handler);
+            return () => dispatch(handler);
         }
 
         public Action<T1> wrap<T1>(Action<T1> handler)
         {
-            return (T1 p1) => distribute(() => handler(p1));
+            return (T1 p1) => dispatch(() => handler(p1));
         }
 
         public Action<T1, T2> wrap<T1, T2>(Action<T1, T2> handler)
         {
-            return (T1 p1, T2 p2) => distribute(() => handler(p1, p2));
+            return (T1 p1, T2 p2) => dispatch(() => handler(p1, p2));
         }
 
         public Action<T1, T2, T3> wrap<T1, T2, T3>(Action<T1, T2, T3> handler)
         {
-            return (T1 p1, T2 p2, T3 p3) => distribute(() => handler(p1, p2, p3));
+            return (T1 p1, T2 p2, T3 p3) => dispatch(() => handler(p1, p2, p3));
         }
 
         public Action wrap_post(Action handler)
@@ -567,7 +593,7 @@ namespace Go
             _service = eng.service();
         }
 
-        public override bool distribute(Action action)
+        public override bool dispatch(Action action)
         {
             curr_strand currStrand = _currStrand.Value;
             if (null != currStrand && this == currStrand.strand)
@@ -644,7 +670,7 @@ namespace Go
             _checkRequired = checkRequired;
         }
 
-        public override bool distribute(Action action)
+        public override bool dispatch(Action action)
         {
             curr_strand currStrand = _currStrand.Value;
             if (null != currStrand && this == currStrand.strand)

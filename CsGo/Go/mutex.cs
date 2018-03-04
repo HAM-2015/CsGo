@@ -724,7 +724,7 @@ namespace Go
         {
             mutex.async_unlock(id, delegate ()
             {
-                _strand.distribute(delegate ()
+                _strand.dispatch(delegate ()
                 {
                     _waitQueue.AddLast(new tuple<long, mutex, Action>(id, mutex, delegate ()
                     {
@@ -738,7 +738,7 @@ namespace Go
         {
             mutex.async_unlock(id, delegate ()
             {
-                _strand.distribute(delegate ()
+                _strand.dispatch(delegate ()
                 {
                     if (ms >= 0)
                     {
@@ -773,7 +773,7 @@ namespace Go
 
         public void notify_one()
         {
-            _strand.distribute(delegate ()
+            _strand.dispatch(delegate ()
             {
                 if (_waitQueue.Count > 0)
                 {
@@ -786,7 +786,7 @@ namespace Go
 
         public void notify_all()
         {
-            _strand.distribute(delegate ()
+            _strand.dispatch(delegate ()
             {
                 if (_waitQueue.Count > 0)
                 {
@@ -802,7 +802,7 @@ namespace Go
 
         internal void async_cancel(long id, Action ntf)
         {
-            _strand.distribute(delegate ()
+            _strand.dispatch(delegate ()
             {
                 for (LinkedListNode<tuple<long, mutex, Action>> it = _waitQueue.First; null != it; it = it.Next)
                 {
