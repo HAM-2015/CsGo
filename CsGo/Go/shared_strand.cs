@@ -399,8 +399,7 @@ namespace Go
 
         public void next_dispatch(Action action)
         {
-            curr_strand currStrand = _currStrand.Value;
-            if (null != currStrand && this == currStrand.strand)
+            if (running_in_this_thread())
             {
                 _readyQueue.AddFirst(action);
             }
@@ -417,6 +416,31 @@ namespace Go
                 {
                     _locked = true;
                     _readyQueue.AddFirst(newNode);
+                    _mutex.exit();
+                    run_task();
+                }
+            }
+        }
+
+        public void last_dispatch(Action action)
+        {
+            if (running_in_this_thread())
+            {
+                _readyQueue.AddLast(action);
+            }
+            else
+            {
+                MsgQueueNode<Action> newNode = new MsgQueueNode<Action>(action);
+                _mutex.enter();
+                if (_locked)
+                {
+                    _waitQueue.AddLast(newNode);
+                    _mutex.exit();
+                }
+                else
+                {
+                    _locked = true;
+                    _readyQueue.AddLast(newNode);
                     _mutex.exit();
                     run_task();
                 }
