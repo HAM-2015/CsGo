@@ -341,13 +341,13 @@ namespace Go
                 _readyQueue.RemoveFirst();
                 functional.catch_invoke(stepHandler);
             }
+            MsgQueue<Action> waitQueue = _waitQueue;
             _mutex.enter();
             if (0 != _waitQueue.Count)
             {
-                MsgQueue<Action> t = _readyQueue;
-                _readyQueue = _waitQueue;
-                _waitQueue = t;
+                _waitQueue = _readyQueue;
                 _mutex.exit();
+                _readyQueue = waitQueue;
                 currStrand.strand = null;
                 run_task();
             }
