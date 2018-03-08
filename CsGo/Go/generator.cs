@@ -602,7 +602,7 @@ namespace Go
         LinkedList<LinkedList<select_chan_base>> _topSelectChans;
         LinkedList<children> _children;
         LinkedList<Action> _callbacks;
-        Action<bool> _suspendCb;
+        Action<bool> _suspendHandler;
         chan_notify_sign _ioSign;
         System.Exception _excep;
         pull_task _pullTask;
@@ -628,24 +628,24 @@ namespace Go
 
         generator() { }
 
-        static public generator make(shared_strand strand, action handler, Action callback = null, Action<bool> suspendCb = null)
+        static public generator make(shared_strand strand, action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
         {
-            return (new generator()).init(strand, handler, callback, suspendCb);
+            return (new generator()).init(strand, generatorAction, completedHandler, suspendHandler);
         }
 
-        static public void go(shared_strand strand, action handler, Action callback = null, Action<bool> suspendCb = null)
+        static public void go(shared_strand strand, action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
         {
-            (new generator()).init(strand, handler, callback, suspendCb).run();
+            (new generator()).init(strand, generatorAction, completedHandler, suspendHandler).run();
         }
 
-        static public generator tgo(shared_strand strand, action handler, Action callback = null, Action<bool> suspendCb = null)
+        static public generator tgo(shared_strand strand, action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
         {
-            return (new generator()).init(strand, handler, callback, suspendCb).trun();
+            return (new generator()).init(strand, generatorAction, completedHandler, suspendHandler).trun();
         }
 
-        static public generator make(string name, shared_strand strand, action handler, Action callback = null, Action<bool> suspendCb = null)
+        static public generator make(string name, shared_strand strand, action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
         {
-            generator newGen = (new generator()).init(strand, handler, callback, suspendCb);
+            generator newGen = (new generator()).init(strand, generatorAction, completedHandler, suspendHandler);
             newGen._name = name;
             try
             {
@@ -663,14 +663,14 @@ namespace Go
             return newGen;
         }
 
-        static public void go(string name, shared_strand strand, action handler, Action callback = null, Action<bool> suspendCb = null)
+        static public void go(string name, shared_strand strand, action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
         {
-            make(name, strand, handler, callback, suspendCb).run();
+            make(name, strand, generatorAction, completedHandler, suspendHandler).run();
         }
 
-        static public generator tgo(string name, shared_strand strand, action handler, Action callback = null, Action<bool> suspendCb = null)
+        static public generator tgo(string name, shared_strand strand, action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
         {
-            return make(name, strand, handler, callback, suspendCb).trun();
+            return make(name, strand, generatorAction, completedHandler, suspendHandler).trun();
         }
 
         static public generator find(string name)
@@ -712,7 +712,7 @@ namespace Go
 #endif
 
 #if DEBUG
-        generator init(shared_strand strand, action handler, Action callback, Action<bool> suspendCb, LinkedList<call_stack_info[]> makeStack = null)
+        generator init(shared_strand strand, action generatorAction, Action completedHandler, Action<bool> suspendHandler, LinkedList<call_stack_info[]> makeStack = null)
         {
             if (null != makeStack)
             {
@@ -725,7 +725,7 @@ namespace Go
             }
             _beginStepTick = system_tick.get_tick_ms();
 #else
-        generator init(shared_strand strand, action handler, Action callback, Action<bool> suspendCb)
+        generator init(shared_strand strand, action generatorAction, Action completedHandler, Action<bool> suspendHandler)
         {
 #endif
             _id = Interlocked.Increment(ref _idCount);
@@ -742,7 +742,7 @@ namespace Go
             _lastTm = 0;
             _yieldCount = 0;
             _lastYieldCount = 0;
-            _suspendCb = suspendCb;
+            _suspendHandler = suspendHandler;
             _pullTask = new pull_task();
             _ioSign = new chan_notify_sign();
             _timer = new async_timer(strand);
@@ -755,7 +755,7 @@ namespace Go
                     {
                         _lockCount = 0;
                         await async_wait();
-                        await handler();
+                        await generatorAction();
                     }
                     finally
                     {
@@ -808,9 +808,9 @@ namespace Go
                     _nameMutex.ExitWriteLock();
                 }
                 _isStop = true;
-                _suspendCb = null;
+                _suspendHandler = null;
                 strand.currSelf = null;
-                functional.catch_invoke(callback);
+                functional.catch_invoke(completedHandler);
                 if (null != _callbacks)
                 {
                     while (0 != _callbacks.Count)
@@ -914,11 +914,11 @@ namespace Go
             if (null != _children && 0 != _children.Count)
             {
                 int count = _children.Count;
-                Action suspendCb = delegate ()
+                Action suspendHandler = delegate ()
                 {
                     if (0 == --count)
                     {
-                        functional.catch_invoke(canSuspendCb ? _suspendCb : null, isSuspend);
+                        functional.catch_invoke(canSuspendCb ? _suspendHandler : null, isSuspend);
                         functional.catch_invoke(cb);
                     }
                 };
@@ -926,12 +926,12 @@ namespace Go
                 _children.CopyTo(tempChildren, 0);
                 for (int i = 0; i < tempChildren.Length; i++)
                 {
-                    tempChildren[i].suspend(isSuspend, suspendCb);
+                    tempChildren[i].suspend(isSuspend, suspendHandler);
                 }
             }
             else
             {
-                functional.catch_invoke(canSuspendCb ? _suspendCb : null, isSuspend);
+                functional.catch_invoke(canSuspendCb ? _suspendHandler : null, isSuspend);
                 functional.catch_invoke(cb);
             }
         }
@@ -1051,7 +1051,7 @@ namespace Go
                     _lockSuspendCount = 0;
                     _holdSuspend = false;
                     _beginQuit = true;
-                    _suspendCb = null;
+                    _suspendHandler = null;
                     _timer.cancel();
                     throw stop_exception.val;
                 }
@@ -1356,7 +1356,7 @@ namespace Go
                 this_._lockSuspendCount = 0;
                 this_._holdSuspend = false;
                 this_._beginQuit = true;
-                this_._suspendCb = null;
+                this_._suspendHandler = null;
                 this_._timer.cancel();
                 throw stop_exception.val;
             }
@@ -1614,7 +1614,7 @@ namespace Go
                 this_._lockSuspendCount = 0;
                 this_._holdSuspend = false;
                 this_._beginQuit = true;
-                this_._suspendCb = null;
+                this_._suspendHandler = null;
                 this_._timer.cancel();
                 throw stop_exception.val;
             }
@@ -1776,7 +1776,7 @@ namespace Go
                 _lockSuspendCount = 0;
                 _holdSuspend = false;
                 _beginQuit = true;
-                _suspendCb = null;
+                _suspendHandler = null;
                 _timer.cancel();
                 throw stop_exception.val;
             }
@@ -8998,14 +8998,14 @@ namespace Go
                 _childrenMgr = childrenMgr;
             }
 
-            static internal child make(children childrenMgr, shared_strand strand, action handler, Action callback = null, Action<bool> suspendCb = null)
+            static internal child make(children childrenMgr, shared_strand strand, action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
             {
-                return (child)(new child(childrenMgr)).init(strand, handler, callback, suspendCb);
+                return (child)(new child(childrenMgr)).init(strand, generatorAction, completedHandler, suspendHandler);
             }
 
-            static internal child free_make(children childrenMgr, shared_strand strand, action handler, Action callback = null, Action<bool> suspendCb = null)
+            static internal child free_make(children childrenMgr, shared_strand strand, action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
             {
-                return (child)(new child(childrenMgr, true)).init(strand, handler, callback, suspendCb);
+                return (child)(new child(childrenMgr, true)).init(strand, generatorAction, completedHandler, suspendHandler);
             }
 
             public override generator parent()
@@ -9062,22 +9062,22 @@ namespace Go
                 }
             }
 
-            public child make(shared_strand strand, action handler, Action callback = null, Action<bool> suspendCb = null)
+            public child make(shared_strand strand, action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
             {
                 Debug.Assert(self == _parent, "此 children 不属于当前 generator!");
                 check_append_node();
-                child newGen = child.make(this, strand, handler, callback, suspendCb);
+                child newGen = child.make(this, strand, generatorAction, completedHandler, suspendHandler);
                 newGen._childNode = _children.AddLast(newGen);
                 return newGen;
             }
 
-            public child free_make(shared_strand strand, action handler, Action callback = null, Action<bool> suspendCb = null)
+            public child free_make(shared_strand strand, action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
             {
                 Debug.Assert(self == _parent, "此 children 不属于当前 generator!");
                 check_append_node();
                 _freeCount++;
                 child newGen = null;
-                newGen = child.free_make(this, strand, handler, delegate ()
+                newGen = child.free_make(this, strand, generatorAction, delegate ()
                 {
                     _freeCount--;
                     _parent.strand.dispatch(delegate ()
@@ -9090,60 +9090,60 @@ namespace Go
                             check_remove_node();
                         }
                     });
-                    callback?.Invoke();
-                }, suspendCb);
+                    completedHandler?.Invoke();
+                }, suspendHandler);
                 newGen._childNode = _children.AddLast(newGen);
                 return newGen;
             }
 
-            public void go(shared_strand strand, action handler, Action callback = null, Action<bool> suspendCb = null)
+            public void go(shared_strand strand, action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
             {
-                make(strand, handler, callback, suspendCb).run();
+                make(strand, generatorAction, completedHandler, suspendHandler).run();
             }
 
-            public void free_go(shared_strand strand, action handler, Action callback = null, Action<bool> suspendCb = null)
+            public void free_go(shared_strand strand, action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
             {
-                free_make(strand, handler, callback, suspendCb).run();
+                free_make(strand, generatorAction, completedHandler, suspendHandler).run();
             }
 
-            public child tgo(shared_strand strand, action handler, Action callback = null, Action<bool> suspendCb = null)
+            public child tgo(shared_strand strand, action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
             {
-                return make(strand, handler, callback, suspendCb).trun();
+                return make(strand, generatorAction, completedHandler, suspendHandler).trun();
             }
 
-            public child free_tgo(shared_strand strand, action handler, Action callback = null, Action<bool> suspendCb = null)
+            public child free_tgo(shared_strand strand, action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
             {
-                return free_make(strand, handler, callback, suspendCb).trun();
+                return free_make(strand, generatorAction, completedHandler, suspendHandler).trun();
             }
 
-            public child make(action handler, Action callback = null, Action<bool> suspendCb = null)
+            public child make(action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
             {
-                return make(_parent.strand, handler, callback, suspendCb);
+                return make(_parent.strand, generatorAction, completedHandler, suspendHandler);
             }
 
-            public child free_make(action handler, Action callback = null, Action<bool> suspendCb = null)
+            public child free_make(action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
             {
-                return free_make(_parent.strand, handler, callback, suspendCb);
+                return free_make(_parent.strand, generatorAction, completedHandler, suspendHandler);
             }
 
-            public void go(action handler, Action callback = null, Action<bool> suspendCb = null)
+            public void go(action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
             {
-                go(_parent.strand, handler, callback, suspendCb);
+                go(_parent.strand, generatorAction, completedHandler, suspendHandler);
             }
 
-            public void free_go(action handler, Action callback = null, Action<bool> suspendCb = null)
+            public void free_go(action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
             {
-                free_go(_parent.strand, handler, callback, suspendCb);
+                free_go(_parent.strand, generatorAction, completedHandler, suspendHandler);
             }
 
-            public child tgo(action handler, Action callback = null, Action<bool> suspendCb = null)
+            public child tgo(action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
             {
-                return tgo(_parent.strand, handler, callback, suspendCb);
+                return tgo(_parent.strand, generatorAction, completedHandler, suspendHandler);
             }
 
-            public child free_tgo(action handler, Action callback = null, Action<bool> suspendCb = null)
+            public child free_tgo(action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
             {
-                return free_tgo(_parent.strand, handler, callback, suspendCb);
+                return free_tgo(_parent.strand, generatorAction, completedHandler, suspendHandler);
             }
 
             public void ignore_suspend(bool igonre = true)
@@ -9157,7 +9157,7 @@ namespace Go
                 if (!_ignoreSuspend && 0 != _children.Count)
                 {
                     int count = _children.Count;
-                    Action suspendCb = _parent.strand.wrap(delegate ()
+                    Action suspendHandler = _parent.strand.wrap(delegate ()
                     {
                         if (0 == --count)
                         {
@@ -9170,14 +9170,14 @@ namespace Go
                     {
                         for (int i = 0; i < tempChildren.Length; i++)
                         {
-                            tempChildren[i].suspend(suspendCb);
+                            tempChildren[i].suspend(suspendHandler);
                         }
                     }
                     else
                     {
                         for (int i = 0; i < tempChildren.Length; i++)
                         {
-                            tempChildren[i].resume(suspendCb);
+                            tempChildren[i].resume(suspendHandler);
                         }
                     }
                 }
