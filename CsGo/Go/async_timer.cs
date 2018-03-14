@@ -772,7 +772,7 @@ namespace Go
             begin_timer(_beginTick + us1, us2);
             if (immed)
             {
-                handler();
+                functional.catch_invoke(_handler);
             }
             return _beginTick;
         }
@@ -820,14 +820,25 @@ namespace Go
             {
                 if (!_isInterval)
                 {
+                    _timerCount++;
+                    if (_utcMode)
+                    {
+                        _strand._utcTimer.cancel(this);
+                    }
+                    else
+                    {
+                        _strand._sysTimer.cancel(this);
+                    }
+                    _beginTick = 0;
                     Action handler = _handler;
-                    cancel();
-                    handler();
+                    _handler = null;
+                    functional.catch_invoke(handler);
+                    _strand.release_work();
                     return true;
                 }
                 else if (!_onTopCall)
                 {
-                    _handler();
+                    functional.catch_invoke(_handler);
                     return true;
                 }
             }
