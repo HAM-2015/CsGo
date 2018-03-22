@@ -468,20 +468,16 @@ namespace Go
                 get
                 {
                     generator host = self;
-                    if (null == host)
+                    if (null == host || null == host._genLocal)
                     {
                         throw gen_local_value_exception.val;
                     }
-                    if (null == host._genLocal)
+                    local_wrap localWrap;
+                    if (!host._genLocal.TryGetValue(_id, out localWrap))
                     {
-                        return default(T);
+                        throw gen_local_value_exception.val;
                     }
-                    local_wrap result;
-                    if (!host._genLocal.TryGetValue(_id, out result))
-                    {
-                        return default(T);
-                    }
-                    return ((local_wrap<T>)result).value;
+                    return ((local_wrap<T>)localWrap).value;
                 }
                 set
                 {
@@ -494,7 +490,15 @@ namespace Go
                     {
                         host._genLocal = new Dictionary<long, local_wrap>();
                     }
-                    host._genLocal[_id] = new local_wrap<T> { value = value };
+                    local_wrap localWrap;
+                    if (!host._genLocal.TryGetValue(_id, out localWrap))
+                    {
+                        host._genLocal.Add(_id, new local_wrap<T> { value = value });
+                    }
+                    else
+                    {
+                        ((local_wrap<T>)localWrap).value = value;
+                    }
                 }
             }
         }
