@@ -36,7 +36,7 @@ namespace FormTest
             while (true)
             {
                 await generator.sleep((int)numericUpDown_SleepMs1.Value);
-                textBox_Action1.Text = string.Format("{0}.{1}", DateTime.Now.ToLocalTime(), DateTime.Now.Millisecond);
+                textBox_Action1.Text = DateTime.Now.ToString("yy-MM-dd HH:mm:ss.fff");
             }
         }
 
@@ -45,7 +45,7 @@ namespace FormTest
             while (true)
             {
                 await generator.sleep(await generator.send_control(this, () => (int)numericUpDown_SleepMs2.Value));
-                await generator.send_control(this, () => textBox_Action2.Text = string.Format("{0}.{1}", DateTime.Now.ToLocalTime(), DateTime.Now.Millisecond));
+                await generator.send_control(this, () => textBox_Action2.Text = DateTime.Now.ToString("yy-MM-dd HH:mm:ss.fff"));
             }
         }
 

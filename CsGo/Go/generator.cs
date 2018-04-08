@@ -696,9 +696,7 @@ namespace Go
         {
             offset += 2;
             StackFrame[] sts = (new StackTrace(true)).GetFrames();
-            string time = string.Format("{0:D2}-{1:D2}-{2:D2} {3:D2}:{4:D2}:{5:D2}.{6:D3}",
-                DateTime.Now.Year % 100, DateTime.Now.Month, DateTime.Now.Day,
-                DateTime.Now.Hour, DateTime.Now.Minute, DateTime.Now.Second, DateTime.Now.Millisecond);
+            string time = DateTime.Now.ToString("yy-MM-dd HH:mm:ss.fff");
             call_stack_info[] snap = new call_stack_info[count];
             callStack.AddFirst(snap);
             for (int i = 0; i < count; ++i, ++offset)
@@ -5763,17 +5761,7 @@ namespace Go
         {
             try
             {
-                ctrl.BeginInvoke((System.Windows.Forms.MethodInvoker)delegate ()
-                {
-                    try
-                    {
-                        handler();
-                    }
-                    catch (System.Exception ec)
-                    {
-                        Trace.Fail(ec.Message, ec.StackTrace);
-                    }
-                });
+                ctrl.BeginInvoke(handler);
             }
             catch (System.InvalidOperationException ec)
             {
@@ -5783,11 +5771,6 @@ namespace Go
 
         static public Task unsafe_send_control(System.Windows.Forms.Control ctrl, Action handler)
         {
-            if (!ctrl.InvokeRequired)
-            {
-                handler();
-                return non_async();
-            }
             generator this_ = self;
             post_control(ctrl, this_.unsafe_async_callback(handler));
             return this_.async_wait();
@@ -5795,11 +5778,6 @@ namespace Go
 
         static public async Task send_control(System.Windows.Forms.Control ctrl, Action handler)
         {
-            if (!ctrl.InvokeRequired)
-            {
-                handler();
-                return;
-            }
             generator this_ = self;
             System.Exception hasExcep = null;
             post_control(ctrl, this_.unsafe_async_callback(delegate ()
@@ -5822,26 +5800,14 @@ namespace Go
 
         static public Task unsafe_send_control<R>(async_result_wrap<R> res, System.Windows.Forms.Control ctrl, Func<R> handler)
         {
-            if (!ctrl.InvokeRequired)
-            {
-                res.value1 = handler();
-                return non_async();
-            }
             res.clear();
             generator this_ = self;
-            post_control(ctrl, this_.unsafe_async_callback(delegate ()
-            {
-                res.value1 = handler();
-            }));
+            post_control(ctrl, this_.unsafe_async_callback(() => res.value1 = handler()));
             return this_.async_wait();
         }
 
         static public async Task<R> send_control<R>(System.Windows.Forms.Control ctrl, Func<R> handler)
         {
-            if (!ctrl.InvokeRequired)
-            {
-                return handler();
-            }
             generator this_ = self;
             R res = default(R);
             System.Exception hasExcep = null;
