@@ -295,9 +295,6 @@ namespace Go
             }
             return strands;
         });
-#if LIMIT_PERFOR
-        static internal int _limited_perfor = 10;
-#endif
 
         internal readonly async_timer.steady_timer _sysTimer;
         internal readonly async_timer.steady_timer _utcTimer;
@@ -323,12 +320,6 @@ namespace Go
 
         protected bool running_a_round(curr_strand currStrand)
         {
-#if LIMIT_PERFOR
-            if (0 != _limited_perfor)
-            {
-                Thread.Sleep(_limited_perfor);
-            }
-#endif
             currStrand.strand = this;
             while (0 != _readyQueue.Count)
             {
@@ -510,12 +501,12 @@ namespace Go
             {
                 return currStrand.strand;
             }
-            return _defaultStrand[mt19937.global().Next(0, _defaultStrand.Length)];
+            return _defaultStrand[mt19937.global.Next(0, _defaultStrand.Length)];
         }
 
         static public shared_strand global_strand()
         {
-            return _defaultStrand[mt19937.global().Next(0, _defaultStrand.Length)];
+            return _defaultStrand[mt19937.global.Next(0, _defaultStrand.Length)];
         }
 
         static public void next_tick(Action action)

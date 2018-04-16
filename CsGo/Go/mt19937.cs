@@ -37,15 +37,18 @@ namespace Go
             init(initKey);
         }
 
-        public static mt19937 global()
+        public static mt19937 global
         {
-            mt19937 randGen = _globalRandGen.Value;
-            if (null == randGen)
+            get
             {
-                randGen = new mt19937((int)system_tick.get_tick() * Thread.CurrentThread.ManagedThreadId);
-                _globalRandGen.Value = randGen;
+                mt19937 randGen = _globalRandGen.Value;
+                if (null == randGen)
+                {
+                    randGen = new mt19937((int)system_tick.get_tick() * Thread.CurrentThread.ManagedThreadId);
+                    _globalRandGen.Value = randGen;
+                }
+                return randGen;
             }
-            return randGen;
         }
 
         public virtual uint NextUInt32()
@@ -141,7 +144,7 @@ namespace Go
             return (float)NextDoublePositive();
         }
 
-        protected uint GenerateUInt32()
+        private uint GenerateUInt32()
         {
             uint y;
             if (_mti >= N)

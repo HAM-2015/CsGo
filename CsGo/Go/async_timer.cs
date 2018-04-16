@@ -20,10 +20,6 @@ namespace Go
         private double _sCycle;
         private double _msCycle;
         private double _usCycle;
-#if LIMIT_PERFOR
-        static internal int _limitMin = int.MaxValue;
-        static internal int _limitMax = int.MaxValue;
-#endif
 
         private system_tick()
         {
@@ -55,94 +51,38 @@ namespace Go
             checkStepDebug.Name = "单步调试检测";
             checkStepDebug.Start();
 #endif
-
-#if LIMIT_PERFOR
-            try
+#if CHECK_LICENSE
+            if (!license.check())
             {
-                string rsaPublicKey = @"<RSAKeyValue><Modulus>ljGyVPIqiyiwZj8U4CiySD6u85dauJSQ++u7GnEEM/WiS0j/Ww71Q46YCBst0dnYUF/Y3GEBnIwhODdhJcADe9WIIZNy+MvHLxXqQFOTBzqO+UcCKCVWZZhkku7wVdN9cHgLdrt38Rl6jfFl9j27SHI18IFNxByQbb+vBU1sStM=</Modulus><Exponent>AQAB</Exponent></RSAKeyValue>";
-                MD5 md5Calc = new MD5CryptoServiceProvider();
-                RSACryptoServiceProvider rsaCheck = new RSACryptoServiceProvider();
-                string[] limitPerfor = File.ReadAllLines("limit_perfor");
-                byte[] smartEnc = Convert.FromBase64String(limitPerfor[1]);
-                md5Calc.TransformBlock(smartEnc, 0, smartEnc.Length, null, 0);
-                byte[] devEnc = Convert.FromBase64String(limitPerfor[2]);
-                md5Calc.TransformBlock(devEnc, 0, devEnc.Length, null, 0);
-                byte[] serialEnc = Convert.FromBase64String(limitPerfor[3]);
-                md5Calc.TransformBlock(serialEnc, 0, serialEnc.Length, null, 0);
-                byte[] hourEnc = Convert.FromBase64String(limitPerfor[4]);
-                md5Calc.TransformBlock(hourEnc, 0, hourEnc.Length, null, 0);
-                byte[] perforEnc = Convert.FromBase64String(limitPerfor[5]);
-                md5Calc.TransformBlock(perforEnc, 0, perforEnc.Length, null, 0);
-                byte[] minEnc = Convert.FromBase64String(limitPerfor[6]);
-                md5Calc.TransformBlock(minEnc, 0, minEnc.Length, null, 0);
-                byte[] maxEnc = Convert.FromBase64String(limitPerfor[7]);
-                md5Calc.TransformBlock(maxEnc, 0, maxEnc.Length, null, 0);
-                md5Calc.TransformFinalBlock(new byte[0], 0, 0);
-                rsaCheck.FromXmlString(rsaPublicKey);
-                if (!rsaCheck.VerifyData(md5Calc.Hash, SHA1.Create(), Convert.FromBase64String(limitPerfor[0])))
+                System.Threading.Tasks.Task.Run(delegate ()
                 {
-                    return;
-                }
-                md5Calc = new MD5CryptoServiceProvider();
-                RijndaelManaged aes = new RijndaelManaged();
-                aes.Mode = CipherMode.CBC;
-                aes.Padding = PaddingMode.PKCS7;
-                aes.IV = new byte[16];
-                aes.Key = Encoding.Default.GetBytes("Hello CsGo Hello CsGo Hello CsGo");
-                ICryptoTransform decryptor = aes.CreateDecryptor();
-                int checkHour = int.Parse(Encoding.Default.GetString(decryptor.TransformFinalBlock(hourEnc, 0, hourEnc.Length)).Substring(8));
-                string checkSerialNumber = Encoding.Default.GetString(decryptor.TransformFinalBlock(serialEnc, 0, serialEnc.Length)).Substring(8);
-                string smartctl = "smartctl.exe";
-                using (FileStream smartStream = new FileStream(smartctl, FileMode.Open, FileAccess.Read))
-                {
-                    byte[] md5 = md5Calc.ComputeHash(smartStream);
-                    string md5Str = string.Format("{0:X2}{1:X2}{2:X2}{3:X2}{4:X2}{5:X2}{6:X2}{7:X2}{8:X2}{9:X2}{10:X2}{11:X2}{12:X2}{13:X2}{14:X2}{15:X2}",
-                        md5[0], md5[1], md5[2], md5[3], md5[4], md5[5], md5[6], md5[7], md5[8], md5[9], md5[10], md5[11], md5[12], md5[13], md5[14], md5[15]);
-                    if (Encoding.Default.GetString(decryptor.TransformFinalBlock(smartEnc, 0, smartEnc.Length)).Substring(8) == md5Str)
+                    for (int i = Environment.ProcessorCount; i > 0; i--)
                     {
-                        Process smartctlProcess = new Process();
-                        smartctlProcess.StartInfo.FileName = smartctl;
-                        smartctlProcess.StartInfo.Arguments = string.Format("-a /dev/{0}", Encoding.Default.GetString(decryptor.TransformFinalBlock(devEnc, 0, devEnc.Length)).Substring(8));
-                        smartctlProcess.StartInfo.UseShellExecute = false;
-                        smartctlProcess.StartInfo.RedirectStandardOutput = true;
-                        smartctlProcess.StartInfo.CreateNoWindow = true;
-                        smartctlProcess.Start();
-                        string smartInfo = smartctlProcess.StandardOutput.ReadToEnd();
-                        smartctlProcess.Close();
-                        GroupCollection serialMat = Regex.Match(smartInfo, @"Serial Number: +(.+)\r").Groups;
-                        if (2 == serialMat.Count && serialMat[1].Value != checkSerialNumber)
+                        generator.go(new shared_strand(), async delegate ()
                         {
-                            return;
-                        }
-                        GroupCollection hourMat = Regex.Match(smartInfo, @"Power_On_Hours.+?(\d+)\r").Groups;
-                        if (2 == hourMat.Count && int.Parse(hourMat[1].Value) > checkHour)
-                        {
-                            shared_strand._limited_perfor = int.Parse(Encoding.Default.GetString(decryptor.TransformFinalBlock(perforEnc, 0, perforEnc.Length)).Substring(8));
-                            _limitMin = int.Parse(Encoding.Default.GetString(decryptor.TransformFinalBlock(minEnc, 0, minEnc.Length)).Substring(8));
-                            _limitMax = int.Parse(Encoding.Default.GetString(decryptor.TransformFinalBlock(maxEnc, 0, maxEnc.Length)).Substring(8));
-                            if (_limitMin > _limitMax)
+                            while (true)
                             {
-                                int t = _limitMin;
-                                _limitMin = _limitMax;
-                                _limitMax = t;
+                                await generator.yield();
                             }
-                        }
-                        else
-                        {
-                            shared_strand._limited_perfor = 0;
-                            _limitMin = _limitMax = 0;
-                        }
+                        });
                     }
-                    else
-                    {
-                        return;
-                    }
-                }
+                });
             }
-            catch (System.Exception)
+#elif TRIAL_LICENSE
+            System.Threading.Tasks.Task.Run(delegate ()
             {
-                return;
-            }
+                for (int i = Environment.ProcessorCount; i > 0; i--)
+                {
+                    generator.go(new shared_strand(), async delegate ()
+                    {
+                        await generator.sleep(1812345);
+                        while (true)
+                        {
+                            await generator.yield();
+                        }
+                    });
+                }
+            });
 #endif
         }
 
@@ -392,26 +332,37 @@ namespace Go
                 private void timerThread()
                 {
                     Action timerComplete = this.timerComplete;
-#if LIMIT_PERFOR
-                    while (int.MaxValue == system_tick._limitMin || int.MaxValue == system_tick._limitMax)
+#if CHECK_LICENSE
+                    if (!license.check())
                     {
-                        Thread.Sleep(1);
-                    }
-                    mt19937 rand = new mt19937();
-                    while (0 == WaitForSingleObject(_timerHandle, -1) && !_exited)
-                    {
-                        _workStrand.post(timerComplete);
-                        if (system_tick._limitMin >= 0 && system_tick._limitMax > 0)
+                        while (0 == WaitForSingleObject(_timerHandle, -1) && !_exited)
                         {
-                            Thread.Sleep(rand.Next(system_tick._limitMin, system_tick._limitMax));
+                            long sleepEnd = system_tick.get_tick_ms() + mt19937.global.Next(0, 3000);
+                            while (system_tick.get_tick_ms() < sleepEnd) { }
+                            _workStrand.post(timerComplete);
                         }
                     }
-#else
-                    while (0 == WaitForSingleObject(_timerHandle, -1) && !_exited)
-                    {
-                        _workStrand.post(timerComplete);
-                    }
+                    else
 #endif
+                    {
+#if TRIAL_LICENSE
+                        long trialBegin = system_tick.get_tick_ms();
+                        while (0 == WaitForSingleObject(_timerHandle, -1) && !_exited)
+                        {
+                            if (system_tick.get_tick_ms() - trialBegin > 1854321)
+                            {
+                                long sleepEnd = system_tick.get_tick_ms() + mt19937.global.Next(0, 3000);
+                                while (system_tick.get_tick_ms() < sleepEnd) { }
+                            }
+                            _workStrand.post(timerComplete);
+                        }
+#else
+                        while (0 == WaitForSingleObject(_timerHandle, -1) && !_exited)
+                        {
+                            _workStrand.post(timerComplete);
+                        }
+#endif
+                    }
                 }
 
                 private void timerComplete()

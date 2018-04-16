@@ -48,6 +48,7 @@
     <Compile Include="Go\channel.cs" />
     <Compile Include="Go\functional.cs" />
     <Compile Include="Go\generator.cs" />
+    <Compile Include="Go\license.cs" />
     <Compile Include="Go\mt19937.cs" />
     <Compile Include="Go\time_heap.cs" />
     <Compile Include="Go\mutex.cs" />
