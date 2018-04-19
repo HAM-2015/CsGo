@@ -325,7 +325,16 @@ namespace Go
 
         public T GetResult()
         {
-            return null == task ? value : task.Result;
+            if (null == task)
+            {
+                return value;
+            }
+            AggregateException aggExp = task.Exception;
+            if (null == aggExp)
+            {
+                return task.Result;
+            }
+            throw aggExp.InnerException;
         }
 
         public Task<T> AsTask()
