@@ -1175,13 +1175,13 @@ namespace Go
             });
         }
 
-        public void remove_stop_callback(LinkedListNode<Action> node, Action cb = null)
+        public void remove_stop_callback(LinkedListNode<Action> cancelId, Action cb = null)
         {
             strand.dispatch(delegate ()
             {
-                if (null != node.List)
+                if (null != cancelId.List)
                 {
-                    _callbacks.Remove(node);
+                    _callbacks.Remove(cancelId);
                 }
                 functional.catch_invoke(cb);
             });
@@ -1236,20 +1236,45 @@ namespace Go
             return this_._holdSuspend;
         }
 
-        public void sync_wait()
+        public void sync_stop()
         {
-            Debug.Assert(strand.wait_safe(), "不正确的 sync_wait 调用!");
+            Debug.Assert(strand.wait_safe(), "不正确的 sync_stop 调用!");
             wait_group wg = new wait_group(1);
             stop(wg.wrap_done());
             wg.sync_wait();
         }
 
-        public bool sync_timed_wait(int ms)
+        public void sync_wait_stop()
         {
-            Debug.Assert(strand.wait_safe(), "不正确的 sync_timed_wait 调用!");
+            Debug.Assert(strand.wait_safe(), "不正确的 sync_wait_stop 调用!");
             wait_group wg = new wait_group(1);
-            stop(wg.wrap_done());
-            return wg.sync_timed_wait(ms);
+            append_stop_callback(wg.wrap_done());
+            wg.sync_wait();
+        }
+
+        public bool sync_timed_wait_stop(int ms)
+        {
+            Debug.Assert(strand.wait_safe(), "不正确的 sync_timed_wait_stop 调用!");
+            wait_group wg = new wait_group(1);
+            wait_group wgCancelId = new wait_group(1);
+            LinkedListNode<Action> cancelId = null;
+            append_stop_callback(wg.wrap_done(), delegate (LinkedListNode<Action> cid)
+            {
+                cancelId = cid;
+                wgCancelId.done();
+            });
+            if (!wg.sync_timed_wait(ms))
+            {
+                wgCancelId.sync_wait();
+                if (null != cancelId)
+                {
+                    wgCancelId.reset(1);
+                    remove_stop_callback(cancelId, wgCancelId.wrap_done());
+                    wgCancelId.sync_wait();
+                    return false;
+                }
+            }
+            return true;
         }
 
         static public R sync_go<R>(shared_strand strand, Func<Task<R>> handler)
@@ -6249,10 +6274,10 @@ namespace Go
             await async_wait();
             if (_overtime)
             {
-                LinkedListNode<Action> node = await chan_receive(waitRemove);
-                if (null != node)
+                LinkedListNode<Action> cancelId = await chan_receive(waitRemove);
+                if (null != cancelId)
                 {
-                    otherGen.remove_stop_callback(node);
+                    otherGen.remove_stop_callback(cancelId);
                 }
             }
             return !_overtime;
@@ -6283,7 +6308,7 @@ namespace Go
                 for (int i = 0; i < count; i++)
                 {
                     generator ele = otherGens[i];
-                    ele.append_stop_callback(() => ntf(ele), (LinkedListNode<Action> node) => removeNtf(tuple.make(ele, node)));
+                    ele.append_stop_callback(() => ntf(ele), (LinkedListNode<Action> cancelId) => removeNtf(tuple.make(ele, cancelId)));
                 }
                 await this_.async_wait();
                 while (0 != count--)
@@ -6312,7 +6337,7 @@ namespace Go
                 for (int i = 0; i < count; i++)
                 {
                     generator ele = otherGens[i];
-                    ele.append_stop_callback(() => ntf(ele), (LinkedListNode<Action> node) => removeNtf(tuple.make(ele, node)));
+                    ele.append_stop_callback(() => ntf(ele), (LinkedListNode<Action> cancelId) => removeNtf(tuple.make(ele, cancelId)));
                 }
                 await this_.async_wait();
                 while (0 != count--)
@@ -9508,7 +9533,7 @@ namespace Go
                             continue;
                         }
                         count++;
-                        ele.append_stop_callback(() => ntf(ele), (LinkedListNode<Action> node) => removeNtf(tuple.make(ele, node)));
+                        ele.append_stop_callback(() => ntf(ele), (LinkedListNode<Action> cancelId) => removeNtf(tuple.make(ele, cancelId)));
                     }
                     if (0 != count)
                     {
@@ -9552,7 +9577,7 @@ namespace Go
                             continue;
                         }
                         count++;
-                        ele.append_stop_callback(() => ntf(ele), (LinkedListNode<Action> node) => removeNtf(tuple.make(ele, node)));
+                        ele.append_stop_callback(() => ntf(ele), (LinkedListNode<Action> cancelId) => removeNtf(tuple.make(ele, cancelId)));
                     }
                     if (0 != count)
                     {
@@ -9734,16 +9759,10 @@ namespace Go
             };
         }
 
-        public void reset()
+        public void reset(int tasks)
         {
-            Debug.Assert(0 == _tasks, "不正确的 reset 调用!");
-            Monitor.Enter(this);
-            if (null != _waitList)
-            {
-                _waitList.AddLast(_pulse);
-                Monitor.Wait(this);
-            }
-            Monitor.Exit(this);
+            Debug.Assert(is_done(), "不正确的 reset 调用!");
+            _tasks = tasks;
             _waitList = new LinkedList<Action>();
         }
 
@@ -9764,6 +9783,30 @@ namespace Go
             return tasks;
         }
 
+        public void cancel()
+        {
+            if (is_done())
+            {
+                return;
+            }
+            LinkedList<Action> newList = new LinkedList<Action>();
+            Monitor.Enter(this);
+            if (null != _waitList)
+            {
+                LinkedList<Action> snapList = _waitList;
+                _waitList = newList;
+                Monitor.Exit(this);
+                for (LinkedListNode<Action> it = snapList.First; null != it; it = it.Next)
+                {
+                    functional.catch_invoke(it.Value);
+                }
+            }
+            else
+            {
+                Monitor.Exit(this);
+            }
+        }
+
         public void done()
         {
             add(-1);
@@ -9776,7 +9819,7 @@ namespace Go
 
         public bool is_done()
         {
-            return 0 == _tasks;
+            return 0 == _tasks && null == _waitList;
         }
 
         public void async_wait(Action continuation)
