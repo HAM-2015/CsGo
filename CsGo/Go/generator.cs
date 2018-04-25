@@ -73,10 +73,10 @@ namespace Go
 
     public class chan_lost_msg<T>
     {
-        bool _has = false;
         T _msg;
+        bool _has = false;
 
-        internal void set(T m)
+        virtual internal void set(T m)
         {
             _has = true;
             _msg = m;
@@ -107,6 +107,49 @@ namespace Go
 
     public class chan_lost_msg<T1, T2> : chan_lost_msg<tuple<T1, T2>> { }
     public class chan_lost_msg<T1, T2, T3> : chan_lost_msg<tuple<T1, T2, T3>> { }
+
+    public class chan_lost_docker<T> : chan_lost_msg<T>
+    {
+        readonly chan<T> _docker;
+        readonly bool _tryDocker;
+
+        public chan_lost_docker(chan<T> docker, bool tryDocker = true)
+        {
+            _docker = docker;
+            _tryDocker = tryDocker;
+        }
+
+        override internal void set(T m)
+        {
+            base.set(m);
+            if (_tryDocker)
+            {
+                _docker.try_post(m);
+            }
+            else
+            {
+                _docker.post(m);
+            }
+        }
+
+        public chan<T> docker
+        {
+            get
+            {
+                return _docker;
+            }
+        }
+    }
+
+    public class chan_lost_docker<T1, T2> : chan_lost_docker<tuple<T1, T2>>
+    {
+        public chan_lost_docker(chan<tuple<T1, T2>> docker, bool tryDocker = true) : base(docker, tryDocker) { }
+    }
+
+    public class chan_lost_docker<T1, T2, T3> : chan_lost_docker<tuple<T1, T2, T3>>
+    {
+        public chan_lost_docker(chan<tuple<T1, T2, T3>> docker, bool tryDocker = true) : base(docker, tryDocker) { }
+    }
 
     public class chan_exception : System.Exception
     {
@@ -329,12 +372,14 @@ namespace Go
             {
                 return value;
             }
-            AggregateException aggExp = task.Exception;
-            if (null == aggExp)
+            try
             {
                 return task.Result;
             }
-            throw aggExp.InnerException;
+            catch (AggregateException aggEc)
+            {
+                throw aggEc.InnerException;
+            }
         }
 
         public Task<T> AsTask()
