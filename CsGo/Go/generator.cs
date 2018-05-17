@@ -1351,6 +1351,35 @@ namespace Go
             return res;
         }
 
+        static public R sync_go<R>(shared_strand strand, Func<ValueTask<R>> handler)
+        {
+            Debug.Assert(strand.wait_safe(), "不正确的 sync_go 调用!");
+            R res = default(R);
+            System.Exception hasExcep = null;
+            wait_group wg = new wait_group(1);
+            go(strand, async delegate ()
+            {
+                try
+                {
+                    res = await handler();
+                }
+                catch (stop_exception)
+                {
+                    throw;
+                }
+                catch (System.Exception ec)
+                {
+                    hasExcep = ec;
+                }
+            }, wg.wrap_done());
+            wg.sync_wait();
+            if (null != hasExcep)
+            {
+                throw hasExcep;
+            }
+            return res;
+        }
+
         static public void sync_go(shared_strand strand, action handler)
         {
             Debug.Assert(strand.wait_safe(), "不正确的 sync_go 调用!");
@@ -5728,6 +5757,13 @@ namespace Go
             return this_.async_wait();
         }
 
+        static public Task unsafe_force_send_strand(shared_strand strand, Action handler)
+        {
+            generator this_ = self;
+            strand.post(this_.unsafe_async_callback(handler));
+            return this_.async_wait();
+        }
+
         private async Task send_strand_(shared_strand strand, Action handler)
         {
             System.Exception hasExcep = null;
@@ -5760,6 +5796,12 @@ namespace Go
             return this_.send_strand_(strand, handler);
         }
 
+        static public Task force_send_strand(shared_strand strand, Action handler)
+        {
+            generator this_ = self;
+            return this_.send_strand_(strand, handler);
+        }
+
         static public Task unsafe_send_strand<R>(async_result_wrap<R> res, shared_strand strand, Func<R> handler)
         {
             generator this_ = self;
@@ -5768,6 +5810,17 @@ namespace Go
                 res.value1 = handler();
                 return non_async();
             }
+            res.clear();
+            strand.post(this_.unsafe_async_callback(delegate ()
+            {
+                res.value1 = handler();
+            }));
+            return this_.async_wait();
+        }
+
+        static public Task unsafe_force_send_strand<R>(async_result_wrap<R> res, shared_strand strand, Func<R> handler)
+        {
+            generator this_ = self;
             res.clear();
             strand.post(this_.unsafe_async_callback(delegate ()
             {
@@ -5809,14 +5862,30 @@ namespace Go
             return to_vtask(this_.send_strand_(strand, handler));
         }
 
+        static public Task<R> force_send_strand<R>(shared_strand strand, Func<R> handler)
+        {
+            generator this_ = self;
+            return this_.send_strand_(strand, handler);
+        }
+
         static public Func<Task> wrap_send_strand(shared_strand strand, Action handler)
         {
             return () => send_strand(strand, handler);
         }
 
+        static public Func<Task> wrap_force_send_strand(shared_strand strand, Action handler)
+        {
+            return () => force_send_strand(strand, handler);
+        }
+
         static public Func<T, Task> wrap_send_strand<T>(shared_strand strand, Action<T> handler)
         {
             return (T p) => send_strand(strand, () => handler(p));
+        }
+
+        static public Func<T, Task> wrap_force_send_strand<T>(shared_strand strand, Action<T> handler)
+        {
+            return (T p) => force_send_strand(strand, () => handler(p));
         }
 
         static public Func<ValueTask<R>> wrap_send_strand<R>(shared_strand strand, Func<R> handler)
@@ -5827,11 +5896,27 @@ namespace Go
             };
         }
 
+        static public Func<Task<R>> wrap_force_send_strand<R>(shared_strand strand, Func<R> handler)
+        {
+            return delegate ()
+            {
+                return force_send_strand(strand, handler);
+            };
+        }
+
         static public Func<T, ValueTask<R>> wrap_send_strand<R, T>(shared_strand strand, Func<T, R> handler)
         {
             return delegate (T p)
             {
                 return send_strand(strand, () => handler(p));
+            };
+        }
+
+        static public Func<T, Task<R>> wrap_force_send_strand<R, T>(shared_strand strand, Func<T, R> handler)
+        {
+            return delegate (T p)
+            {
+                return force_send_strand(strand, () => handler(p));
             };
         }
 #if NETCORE

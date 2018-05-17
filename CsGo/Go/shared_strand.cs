@@ -676,13 +676,38 @@ namespace Go
 #else
     public class control_strand : shared_strand
     {
+        public class repeat_exception : System.Exception
+        {
+            private control_strand _strand;
+
+            internal repeat_exception(control_strand strand)
+            {
+                _strand = strand;
+            }
+
+            public control_strand strand
+            {
+                get
+                {
+                    return _strand;
+                }
+            }
+        }
+
+        static readonly ThreadLocal<control_strand> _UIThreadOnlyOneStrand = new ThreadLocal<control_strand>();
         System.Windows.Forms.Control _ctrl;
         bool _checkRequired;
 
         public control_strand(System.Windows.Forms.Control ctrl, bool checkRequired = true) : base()
         {
-            _ctrl = ctrl;
+            control_strand checkUIStrand = _UIThreadOnlyOneStrand.Value;
+            if (null != checkUIStrand)
+            {
+                throw new repeat_exception(checkUIStrand);
+            }
+            _UIThreadOnlyOneStrand.Value = this;
             _checkRequired = checkRequired;
+            _ctrl = ctrl;
         }
 
         public override bool dispatch(Action action)
