@@ -83,6 +83,31 @@ namespace Go
         }
     }
 
+    struct socket_same_handler
+    {
+        public object pinnedObj;
+        public Action<socket_result> cb;
+        public AsyncCallback handler;
+    }
+
+    struct socket_handler
+    {
+        public int currTotal;
+        public IntPtr ptr;
+        public int offset;
+        public int size;
+        public object pinnedObj;
+        public Action<socket_result> handler;
+        public Action<socket_result> cb;
+    }
+
+    struct accept_handler
+    {
+        public socket_tcp sck;
+        public AsyncCallback handler;
+        public Action<socket_result> cb;
+    }
+
     public abstract class socket
     {
         [DllImport("kernel32.dll")]
@@ -693,9 +718,107 @@ namespace Go
         }
 
         Socket _socket;
+        socket_same_handler _readSameHandler;
+        socket_same_handler _writeSameHandler;
+        socket_handler _readHandler;
+        socket_handler _writeHandler;
 
         public socket_tcp()
         {
+            _readSameHandler.pinnedObj = null;
+            _readSameHandler.cb = null;
+            _readSameHandler.handler = delegate (IAsyncResult ar)
+            {
+                object pinnedObj = _readSameHandler.pinnedObj;
+                Action<socket_result> cb = _readSameHandler.cb;
+                _readSameHandler.pinnedObj = null;
+                _readSameHandler.cb = null;
+                try
+                {
+                    int s = _socket.EndReceive(ar);
+                    functional.catch_invoke(cb, new socket_result(0 != s, s));
+                }
+                catch (System.Exception ec)
+                {
+                    functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
+                }
+            };
+            _writeSameHandler.pinnedObj = null;
+            _writeSameHandler.cb = null;
+            _writeSameHandler.handler = delegate (IAsyncResult ar)
+            {
+                object pinnedObj = _writeSameHandler.pinnedObj;
+                Action<socket_result> cb = _writeSameHandler.cb;
+                _writeSameHandler.pinnedObj = null;
+                _writeSameHandler.cb = null;
+                try
+                {
+                    int s = _socket.EndSend(ar);
+                    functional.catch_invoke(cb, new socket_result(0 != s, s));
+                }
+                catch (System.Exception ec)
+                {
+                    functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
+                }
+            };
+            _readHandler.pinnedObj = null;
+            _readHandler.cb = null;
+            _readHandler.handler = delegate (socket_result tempRes)
+            {
+                if (tempRes.ok)
+                {
+                    _readHandler.currTotal += tempRes.s;
+                    if (_readHandler.size == tempRes.s)
+                    {
+                        object pinnedObj = _readHandler.pinnedObj;
+                        Action<socket_result> cb = _readHandler.cb;
+                        _readHandler.pinnedObj = null;
+                        _readHandler.cb = null;
+                        functional.catch_invoke(cb, new socket_result(true, _readHandler.currTotal));
+                    }
+                    else
+                    {
+                        _async_read(_readHandler.currTotal, _readHandler.ptr, _readHandler.offset + tempRes.s, _readHandler.size - tempRes.s, _readHandler.cb, _readHandler.pinnedObj);
+                    }
+                }
+                else
+                {
+                    object pinnedObj = _readHandler.pinnedObj;
+                    Action<socket_result> cb = _readHandler.cb;
+                    _readHandler.pinnedObj = null;
+                    _readHandler.cb = null;
+                    functional.catch_invoke(cb, new socket_result(false, _readHandler.currTotal, tempRes.message));
+                }
+            };
+            _writeHandler.pinnedObj = null;
+            _writeHandler.cb = null;
+            _writeHandler.handler = delegate (socket_result tempRes)
+            {
+                if (tempRes.ok)
+                {
+                    _writeHandler.currTotal += tempRes.s;
+                    if (_writeHandler.size == tempRes.s)
+                    {
+                        object pinnedObj = _writeHandler.pinnedObj;
+                        Action<socket_result> cb = _writeHandler.cb;
+                        _writeHandler.pinnedObj = null;
+                        _writeHandler.cb = null;
+                        functional.catch_invoke(cb, new socket_result(true, _writeHandler.currTotal));
+                    }
+                    else
+                    {
+                        _async_write(_writeHandler.currTotal, _writeHandler.ptr, _writeHandler.offset + tempRes.s, _writeHandler.size - tempRes.s, _writeHandler.cb, _writeHandler.pinnedObj);
+                    }
+                }
+                else
+                {
+                    object pinnedObj = _writeHandler.pinnedObj;
+                    Action<socket_result> cb = _writeHandler.cb;
+                    _writeHandler.pinnedObj = null;
+                    _writeHandler.cb = null;
+                    functional.catch_invoke(cb, new socket_result(false, _writeHandler.currTotal, tempRes.message));
+                }
+            };
         }
 
         public Socket socket
@@ -769,18 +892,8 @@ namespace Go
         {
             try
             {
-                _socket.BeginReceive(buff.Array, buff.Offset, buff.Count, 0, delegate (IAsyncResult ar)
-                {
-                    try
-                    {
-                        int s = _socket.EndReceive(ar);
-                        functional.catch_invoke(cb, new socket_result(0 != s, s));
-                    }
-                    catch (System.Exception ec)
-                    {
-                        functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
-                    }
-                }, null);
+                _readSameHandler.cb = cb;
+                _socket.BeginReceive(buff.Array, buff.Offset, buff.Count, 0, _readSameHandler.handler, null);
             }
             catch (System.Exception ec)
             {
@@ -793,18 +906,8 @@ namespace Go
         {
             try
             {
-                _socket.BeginSend(buff.Array, buff.Offset, buff.Count, 0, delegate (IAsyncResult ar)
-                {
-                    try
-                    {
-                        int s = _socket.EndSend(ar);
-                        functional.catch_invoke(cb, new socket_result(0 != s, s));
-                    }
-                    catch (System.Exception ec)
-                    {
-                        functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
-                    }
-                }, null);
+                _writeSameHandler.cb = cb;
+                _socket.BeginSend(buff.Array, buff.Offset, buff.Count, 0, _writeSameHandler.handler, null);
             }
             catch (System.Exception ec)
             {
@@ -817,19 +920,9 @@ namespace Go
         {
             try
             {
-                SocketError lastWin32Error = SocketAsyncIo.SendFile(_socket, fileHandle, offset, size, delegate (IAsyncResult ar)
-                {
-                    try
-                    {
-                        object holdPin = pinnedObj;
-                        int s = _socket.EndSend(ar);
-                        functional.catch_invoke(cb, new socket_result(0 != s, s));
-                    }
-                    catch (System.Exception ec)
-                    {
-                        functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
-                    }
-                });
+                _writeSameHandler.pinnedObj = pinnedObj;
+                _writeSameHandler.cb = cb;
+                SocketError lastWin32Error = SocketAsyncIo.SendFile(_socket, fileHandle, offset, size, _writeSameHandler.handler);
                 if (SocketError.Success != lastWin32Error)
                 {
                     close();
@@ -847,19 +940,9 @@ namespace Go
         {
             try
             {
-                SocketError lastWin32Error = SocketAsyncIo.Recv(_socket, ptr, offset, size, 0, delegate (IAsyncResult ar)
-                {
-                    try
-                    {
-                        object holdPin = pinnedObj;
-                        int s = _socket.EndReceive(ar);
-                        functional.catch_invoke(cb, new socket_result(0 != s, s));
-                    }
-                    catch (System.Exception ec)
-                    {
-                        functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
-                    }
-                });
+                _readSameHandler.pinnedObj = pinnedObj;
+                _readSameHandler.cb = cb;
+                SocketError lastWin32Error = SocketAsyncIo.Recv(_socket, ptr, offset, size, 0, _readSameHandler.handler);
                 if (SocketError.Success != lastWin32Error)
                 {
                     close();
@@ -877,19 +960,9 @@ namespace Go
         {
             try
             {
-                SocketError lastWin32Error = SocketAsyncIo.Send(_socket, ptr, offset, size, 0, delegate (IAsyncResult ar)
-                {
-                    try
-                    {
-                        object holdPin = pinnedObj;
-                        int s = _socket.EndSend(ar);
-                        functional.catch_invoke(cb, new socket_result(0 != s, s));
-                    }
-                    catch (System.Exception ec)
-                    {
-                        functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
-                    }
-                });
+                _writeSameHandler.pinnedObj = pinnedObj;
+                _writeSameHandler.cb = cb;
+                SocketError lastWin32Error = SocketAsyncIo.Send(_socket, ptr, offset, size, 0, _writeSameHandler.handler);
                 if (SocketError.Success != lastWin32Error)
                 {
                     close();
@@ -905,48 +978,22 @@ namespace Go
 
         void _async_read(int currTotal, IntPtr ptr, int offset, int size, Action<socket_result> cb, object pinnedObj)
         {
-            async_read_same(ptr, offset, size, delegate (socket_result tempRes)
-            {
-                if (tempRes.ok)
-                {
-                    currTotal += tempRes.s;
-                    if (size == tempRes.s)
-                    {
-                        functional.catch_invoke(cb, new socket_result(true, currTotal));
-                    }
-                    else
-                    {
-                        _async_read(currTotal, ptr, offset + tempRes.s, size - tempRes.s, cb, pinnedObj);
-                    }
-                }
-                else
-                {
-                    functional.catch_invoke(cb, new socket_result(false, currTotal, tempRes.message));
-                }
-            });
+            _readHandler.currTotal = currTotal;
+            _readHandler.ptr = ptr;
+            _readHandler.offset = offset;
+            _readHandler.size = size;
+            _readHandler.pinnedObj = pinnedObj;
+            async_read_same(ptr, offset, size, _readHandler.handler);
         }
 
         void _async_write(int currTotal, IntPtr ptr, int offset, int size, Action<socket_result> cb, object pinnedObj)
         {
-            async_write_same(ptr, offset, size, delegate (socket_result tempRes)
-            {
-                if (tempRes.ok)
-                {
-                    currTotal += tempRes.s;
-                    if (size == tempRes.s)
-                    {
-                        functional.catch_invoke(cb, new socket_result(true, currTotal));
-                    }
-                    else
-                    {
-                        _async_write(currTotal, ptr, offset + tempRes.s, size - tempRes.s, cb, pinnedObj);
-                    }
-                }
-                else
-                {
-                    functional.catch_invoke(cb, new socket_result(false, currTotal, tempRes.message));
-                }
-            });
+            _writeHandler.currTotal = currTotal;
+            _writeHandler.ptr = ptr;
+            _writeHandler.offset = offset;
+            _writeHandler.size = size;
+            _writeHandler.pinnedObj = pinnedObj;
+            async_write_same(ptr, offset, size, _writeHandler.handler);
         }
 
         public void async_read(IntPtr ptr, int offset, int size, Action<socket_result> cb, object pinnedObj = null)
@@ -1042,10 +1089,30 @@ namespace Go
         public class acceptor
         {
             Socket _socket;
+            accept_handler _acceptHandler;
 
             public acceptor()
             {
                 _socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                _acceptHandler.sck = null;
+                _acceptHandler.cb = null;
+                _acceptHandler.handler = delegate (IAsyncResult ar)
+                {
+                    socket_tcp sck = _acceptHandler.sck;
+                    Action<socket_result> cb = _acceptHandler.cb;
+                    _acceptHandler.sck = null;
+                    _acceptHandler.cb = null;
+                    try
+                    {
+                        sck._socket = _socket.EndAccept(ar);
+                        sck._socket.NoDelay = true;
+                        functional.catch_invoke(cb, new socket_result(true));
+                    }
+                    catch (System.Exception ec)
+                    {
+                        functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
+                    }
+                };
             }
 
             public Socket socket
@@ -1095,19 +1162,9 @@ namespace Go
                 try
                 {
                     sck.close();
-                    _socket.BeginAccept(delegate (IAsyncResult ar)
-                    {
-                        try
-                        {
-                            sck._socket = _socket.EndAccept(ar);
-                            sck._socket.NoDelay = true;
-                            functional.catch_invoke(cb, new socket_result(true));
-                        }
-                        catch (System.Exception ec)
-                        {
-                            functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
-                        }
-                    }, null);
+                    _acceptHandler.sck = sck;
+                    _acceptHandler.cb = cb;
+                    _socket.BeginAccept(_acceptHandler.handler, null);
                 }
                 catch (System.Exception ec)
                 {
@@ -1128,15 +1185,59 @@ namespace Go
         }
     }
 
+    struct pipe_same_handler
+    {
+        public ArraySegment<byte> buff;
+        public object pinnedObj;
+        public Action<socket_result> cb;
+        public AsyncCallback handler;
+    }
+
 #if NETCORE
 #else
     public class socket_serial : socket
     {
         SerialPort _socket;
+        pipe_same_handler _readSameHandler;
+        pipe_same_handler _writeSameHandler;
 
         public socket_serial(string portName, int baudRate = 9600, Parity parity = Parity.None, int dataBits = 8, StopBits stopBits = StopBits.One)
         {
             _socket = new SerialPort(portName, baudRate, parity, dataBits, stopBits);
+            _readSameHandler.pinnedObj = null;
+            _readSameHandler.cb = null;
+            _readSameHandler.handler = delegate (IAsyncResult ar)
+            {
+                Action<socket_result> cb = _readSameHandler.cb;
+                _readSameHandler.cb = null;
+                try
+                {
+                    int s = _socket.BaseStream.EndRead(ar);
+                    functional.catch_invoke(cb, new socket_result(0 != s, s));
+                }
+                catch (System.Exception ec)
+                {
+                    functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
+                }
+            };
+            _writeSameHandler.pinnedObj = null;
+            _writeSameHandler.cb = null;
+            _writeSameHandler.handler = delegate (IAsyncResult ar)
+            {
+                ArraySegment<byte> buff = _writeSameHandler.buff;
+                Action<socket_result> cb = _writeSameHandler.cb;
+                _writeSameHandler.buff = default(ArraySegment<byte>);
+                _writeSameHandler.cb = null;
+                try
+                {
+                    _socket.BaseStream.EndWrite(ar);
+                    functional.catch_invoke(cb, new socket_result(true, buff.Count));
+                }
+                catch (System.Exception ec)
+                {
+                    functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
+                }
+            };
         }
 
         public SerialPort socket
@@ -1171,18 +1272,8 @@ namespace Go
         {
             try
             {
-                _socket.BaseStream.BeginRead(buff.Array, buff.Offset, buff.Count, delegate (IAsyncResult ar)
-                {
-                    try
-                    {
-                        int s = _socket.BaseStream.EndRead(ar);
-                        functional.catch_invoke(cb, new socket_result(0 != s, s));
-                    }
-                    catch (System.Exception ec)
-                    {
-                        functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
-                    }
-                }, null);
+                _readSameHandler.cb = cb;
+                _socket.BaseStream.BeginRead(buff.Array, buff.Offset, buff.Count, _readSameHandler.handler, null);
             }
             catch (System.Exception ec)
             {
@@ -1195,18 +1286,9 @@ namespace Go
         {
             try
             {
-                _socket.BaseStream.BeginWrite(buff.Array, buff.Offset, buff.Count, delegate (IAsyncResult ar)
-                {
-                    try
-                    {
-                        _socket.BaseStream.EndWrite(ar);
-                        functional.catch_invoke(cb, new socket_result(true, buff.Count));
-                    }
-                    catch (System.Exception ec)
-                    {
-                        functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
-                    }
-                }, null);
+                _writeSameHandler.buff = buff;
+                _writeSameHandler.cb = cb;
+                _socket.BaseStream.BeginWrite(buff.Array, buff.Offset, buff.Count, _writeSameHandler.handler, null);
             }
             catch (System.Exception ec)
             {
@@ -1238,23 +1320,113 @@ namespace Go
     public abstract class socket_pipe : socket
     {
         protected PipeStream _socket;
+        pipe_same_handler _readSameHandler;
+        pipe_same_handler _writeSameHandler;
+        socket_handler _readHandler;
+        socket_handler _writeHandler;
+
+        protected socket_pipe()
+        {
+            _readSameHandler.pinnedObj = null;
+            _readSameHandler.cb = null;
+            _readSameHandler.handler = delegate (IAsyncResult ar)
+            {
+                Action<socket_result> cb = _readSameHandler.cb;
+                _readSameHandler.cb = null;
+                try
+                {
+                    int s = _socket.EndRead(ar);
+                    functional.catch_invoke(cb, new socket_result(0 != s, s));
+                }
+                catch (System.Exception ec)
+                {
+                    functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
+                }
+            };
+            _writeSameHandler.pinnedObj = null;
+            _writeSameHandler.cb = null;
+            _writeSameHandler.handler = delegate (IAsyncResult ar)
+            {
+                ArraySegment<byte> buff = _writeSameHandler.buff;
+                Action<socket_result> cb = _writeSameHandler.cb;
+                _writeSameHandler.buff = default(ArraySegment<byte>);
+                _writeSameHandler.cb = null;
+                try
+                {
+                    _socket.EndWrite(ar);
+                    functional.catch_invoke(cb, new socket_result(true, buff.Count));
+                }
+                catch (System.Exception ec)
+                {
+                    functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
+                }
+            };
+            _readHandler.pinnedObj = null;
+            _readHandler.cb = null;
+            _readHandler.handler = delegate (socket_result tempRes)
+            {
+                if (tempRes.ok)
+                {
+                    _readHandler.currTotal += tempRes.s;
+                    if (_readHandler.size == tempRes.s)
+                    {
+                        object pinnedObj = _readHandler.pinnedObj;
+                        Action<socket_result> cb = _readHandler.cb;
+                        _readHandler.pinnedObj = null;
+                        _readHandler.cb = null;
+                        functional.catch_invoke(cb, new socket_result(true, _readHandler.currTotal));
+                    }
+                    else
+                    {
+                        _async_read(_readHandler.currTotal, _readHandler.ptr, _readHandler.offset + tempRes.s, _readHandler.size - tempRes.s, _readHandler.cb, _readHandler.pinnedObj);
+                    }
+                }
+                else
+                {
+                    object pinnedObj = _readHandler.pinnedObj;
+                    Action<socket_result> cb = _readHandler.cb;
+                    _readHandler.pinnedObj = null;
+                    _readHandler.cb = null;
+                    functional.catch_invoke(cb, new socket_result(false, _readHandler.currTotal, tempRes.message));
+                }
+            };
+            _writeHandler.pinnedObj = null;
+            _writeHandler.cb = null;
+            _writeHandler.handler = delegate (socket_result tempRes)
+            {
+                if (tempRes.ok)
+                {
+                    _writeHandler.currTotal += tempRes.s;
+                    if (_writeHandler.size == tempRes.s)
+                    {
+                        object pinnedObj = _writeHandler.pinnedObj;
+                        Action<socket_result> cb = _writeHandler.cb;
+                        _writeHandler.pinnedObj = null;
+                        _writeHandler.cb = null;
+                        functional.catch_invoke(cb, new socket_result(true, _writeHandler.currTotal));
+                    }
+                    else
+                    {
+                        _async_write(_writeHandler.currTotal, _writeHandler.ptr, _writeHandler.offset + tempRes.s, _writeHandler.size - tempRes.s, _writeHandler.cb, _writeHandler.pinnedObj);
+                    }
+                }
+                else
+                {
+                    object pinnedObj = _writeHandler.pinnedObj;
+                    Action<socket_result> cb = _writeHandler.cb;
+                    _writeHandler.pinnedObj = null;
+                    _writeHandler.cb = null;
+                    functional.catch_invoke(cb, new socket_result(false, _writeHandler.currTotal, tempRes.message));
+                }
+            };
+        }
 
         public override void async_read_same(ArraySegment<byte> buff, Action<socket_result> cb)
         {
             try
             {
-                _socket.BeginRead(buff.Array, buff.Offset, buff.Count, delegate (IAsyncResult ar)
-                {
-                    try
-                    {
-                        int s = _socket.EndRead(ar);
-                        functional.catch_invoke(cb, new socket_result(0 != s, s));
-                    }
-                    catch (System.Exception ec)
-                    {
-                        functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
-                    }
-                }, null);
+                _readSameHandler.cb = cb;
+                _socket.BeginRead(buff.Array, buff.Offset, buff.Count, _readSameHandler.handler, null);
             }
             catch (System.Exception ec)
             {
@@ -1267,18 +1439,9 @@ namespace Go
         {
             try
             {
-                _socket.BeginWrite(buff.Array, buff.Offset, buff.Count, delegate (IAsyncResult ar)
-                {
-                    try
-                    {
-                        _socket.EndWrite(ar);
-                        functional.catch_invoke(cb, new socket_result(true, buff.Count));
-                    }
-                    catch (System.Exception ec)
-                    {
-                        functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
-                    }
-                }, null);
+                _writeSameHandler.buff = buff;
+                _writeSameHandler.cb = cb;
+                _socket.BeginWrite(buff.Array, buff.Offset, buff.Count, _writeSameHandler.handler, null);
             }
             catch (System.Exception ec)
             {
@@ -1327,48 +1490,24 @@ namespace Go
 
         void _async_read(int currTotal, IntPtr ptr, int offset, int size, Action<socket_result> cb, object pinnedObj)
         {
-            async_read_same(ptr, offset, size, delegate (socket_result tempRes)
-            {
-                if (tempRes.ok)
-                {
-                    currTotal += tempRes.s;
-                    if (size == tempRes.s)
-                    {
-                        functional.catch_invoke(cb, new socket_result(true, currTotal));
-                    }
-                    else
-                    {
-                        _async_read(currTotal, ptr, offset + tempRes.s, size - tempRes.s, cb, pinnedObj);
-                    }
-                }
-                else
-                {
-                    functional.catch_invoke(cb, new socket_result(false, currTotal, tempRes.message));
-                }
-            });
+            _readHandler.currTotal = currTotal;
+            _readHandler.ptr = ptr;
+            _readHandler.offset = offset;
+            _readHandler.size = size;
+            _readHandler.pinnedObj = pinnedObj;
+            _readHandler.cb = cb;
+            async_read_same(ptr, offset, size, _readHandler.handler);
         }
 
         void _async_write(int currTotal, IntPtr ptr, int offset, int size, Action<socket_result> cb, object pinnedObj)
         {
-            async_write_same(ptr, offset, size, delegate (socket_result tempRes)
-            {
-                if (tempRes.ok)
-                {
-                    currTotal += tempRes.s;
-                    if (size == tempRes.s)
-                    {
-                        functional.catch_invoke(cb, new socket_result(true, currTotal));
-                    }
-                    else
-                    {
-                        _async_write(currTotal, ptr, offset + tempRes.s, size - tempRes.s, cb, pinnedObj);
-                    }
-                }
-                else
-                {
-                    functional.catch_invoke(cb, new socket_result(false, currTotal, tempRes.message));
-                }
-            });
+            _writeHandler.currTotal = currTotal;
+            _writeHandler.ptr = ptr;
+            _writeHandler.offset = offset;
+            _writeHandler.size = size;
+            _writeHandler.pinnedObj = pinnedObj;
+            _writeHandler.cb = cb;
+            async_write_same(ptr, offset, size, _writeHandler.handler);
         }
 
         public void async_read(IntPtr ptr, int offset, int size, Action<socket_result> cb, object pinnedObj = null)
