@@ -93,6 +93,14 @@ namespace Go
     struct socket_handler
     {
         public int currTotal;
+        public ArraySegment<byte> buff;
+        public Action<socket_result> cb;
+        public Action<socket_result> handler;
+    }
+
+    struct socket_ptr_handler
+    {
+        public int currTotal;
         public IntPtr ptr;
         public int offset;
         public int size;
@@ -171,6 +179,65 @@ namespace Go
             return (IntPtr)_safeBufferHandle.GetValue(_memoryStreamSafeBuffer.GetValue(mmv));
         }
 
+        socket_handler _readHandler;
+        socket_handler _writeHandler;
+
+        protected socket()
+        {
+            _readHandler.cb = null;
+            _readHandler.handler = delegate (socket_result tempRes)
+            {
+                if (tempRes.ok)
+                {
+                    _readHandler.currTotal += tempRes.s;
+                    if (_readHandler.buff.Count == tempRes.s)
+                    {
+                        Action<socket_result> cb = _readHandler.cb;
+                        _readHandler.buff = default(ArraySegment<byte>);
+                        _readHandler.cb = null;
+                        functional.catch_invoke(cb, new socket_result(true, _readHandler.currTotal));
+                    }
+                    else
+                    {
+                        _async_read(_readHandler.currTotal, new ArraySegment<byte>(_readHandler.buff.Array, _readHandler.buff.Offset + tempRes.s, _readHandler.buff.Count - tempRes.s), _readHandler.cb);
+                    }
+                }
+                else
+                {
+                    Action<socket_result> cb = _readHandler.cb;
+                    _readHandler.buff = default(ArraySegment<byte>);
+                    _readHandler.cb = null;
+                    functional.catch_invoke(cb, new socket_result(false, _readHandler.currTotal, tempRes.message));
+                }
+            };
+            _writeHandler.cb = null;
+            _writeHandler.handler = delegate (socket_result tempRes)
+            {
+                if (tempRes.ok)
+                {
+                    _writeHandler.currTotal += tempRes.s;
+                    if (_writeHandler.buff.Count == tempRes.s)
+                    {
+                        Action<socket_result> cb = _writeHandler.cb;
+                        _writeHandler.buff = default(ArraySegment<byte>);
+                        _writeHandler.cb = null;
+                        functional.catch_invoke(cb, new socket_result(true, _writeHandler.currTotal));
+                    }
+                    else
+                    {
+                        _async_write(_writeHandler.currTotal, new ArraySegment<byte>(_writeHandler.buff.Array, _writeHandler.buff.Offset + tempRes.s, _writeHandler.buff.Count - tempRes.s), _writeHandler.cb);
+                    }
+                }
+                else
+                {
+                    Action<socket_result> cb = _writeHandler.cb;
+                    _writeHandler.buff = default(ArraySegment<byte>);
+                    _writeHandler.cb = null;
+                    functional.catch_invoke(cb, new socket_result(false, _writeHandler.currTotal, tempRes.message));
+                }
+            };
+        }
+
         public abstract void async_read_same(ArraySegment<byte> buff, Action<socket_result> cb);
         public abstract void async_write_same(ArraySegment<byte> buff, Action<socket_result> cb);
         public abstract void close();
@@ -231,25 +298,10 @@ namespace Go
 
         void _async_read(int currTotal, ArraySegment<byte> buff, Action<socket_result> cb)
         {
-            async_read_same(buff, delegate (socket_result tempRes)
-            {
-                if (tempRes.ok)
-                {
-                    currTotal += tempRes.s;
-                    if (buff.Count == tempRes.s)
-                    {
-                        functional.catch_invoke(cb, new socket_result(true, currTotal));
-                    }
-                    else
-                    {
-                        _async_read(currTotal, new ArraySegment<byte>(buff.Array, buff.Offset + tempRes.s, buff.Count - tempRes.s), cb);
-                    }
-                }
-                else
-                {
-                    functional.catch_invoke(cb, new socket_result(false, currTotal, tempRes.message));
-                }
-            });
+            _readHandler.currTotal = currTotal;
+            _readHandler.buff = buff;
+            _readHandler.cb = cb;
+            async_read_same(buff, _readHandler.handler);
         }
 
         public void async_read(ArraySegment<byte> buff, Action<socket_result> cb)
@@ -308,25 +360,10 @@ namespace Go
 
         void _async_write(int currTotal, ArraySegment<byte> buff, Action<socket_result> cb)
         {
-            async_write_same(buff, delegate (socket_result tempRes)
-            {
-                if (tempRes.ok)
-                {
-                    currTotal += tempRes.s;
-                    if (buff.Count == tempRes.s)
-                    {
-                        functional.catch_invoke(cb, new socket_result(true, currTotal));
-                    }
-                    else
-                    {
-                        _async_write(currTotal, new ArraySegment<byte>(buff.Array, buff.Offset + tempRes.s, buff.Count - tempRes.s), cb);
-                    }
-                }
-                else
-                {
-                    functional.catch_invoke(cb, new socket_result(false, currTotal, tempRes.message));
-                }
-            });
+            _writeHandler.currTotal = currTotal;
+            _writeHandler.buff = buff;
+            _writeHandler.cb = cb;
+            async_write_same(buff, _writeHandler.handler);
         }
 
         public void async_write(ArraySegment<byte> buff, Action<socket_result> cb)
@@ -720,8 +757,8 @@ namespace Go
         Socket _socket;
         socket_same_handler _readSameHandler;
         socket_same_handler _writeSameHandler;
-        socket_handler _readHandler;
-        socket_handler _writeHandler;
+        socket_ptr_handler _readPtrHandler;
+        socket_ptr_handler _writePtrHandler;
 
         public socket_tcp()
         {
@@ -761,62 +798,62 @@ namespace Go
                     functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
                 }
             };
-            _readHandler.pinnedObj = null;
-            _readHandler.cb = null;
-            _readHandler.handler = delegate (socket_result tempRes)
+            _readPtrHandler.pinnedObj = null;
+            _readPtrHandler.cb = null;
+            _readPtrHandler.handler = delegate (socket_result tempRes)
             {
                 if (tempRes.ok)
                 {
-                    _readHandler.currTotal += tempRes.s;
-                    if (_readHandler.size == tempRes.s)
+                    _readPtrHandler.currTotal += tempRes.s;
+                    if (_readPtrHandler.size == tempRes.s)
                     {
-                        object pinnedObj = _readHandler.pinnedObj;
-                        Action<socket_result> cb = _readHandler.cb;
-                        _readHandler.pinnedObj = null;
-                        _readHandler.cb = null;
-                        functional.catch_invoke(cb, new socket_result(true, _readHandler.currTotal));
+                        object pinnedObj = _readPtrHandler.pinnedObj;
+                        Action<socket_result> cb = _readPtrHandler.cb;
+                        _readPtrHandler.pinnedObj = null;
+                        _readPtrHandler.cb = null;
+                        functional.catch_invoke(cb, new socket_result(true, _readPtrHandler.currTotal));
                     }
                     else
                     {
-                        _async_read(_readHandler.currTotal, _readHandler.ptr, _readHandler.offset + tempRes.s, _readHandler.size - tempRes.s, _readHandler.cb, _readHandler.pinnedObj);
+                        _async_read(_readPtrHandler.currTotal, _readPtrHandler.ptr, _readPtrHandler.offset + tempRes.s, _readPtrHandler.size - tempRes.s, _readPtrHandler.cb, _readPtrHandler.pinnedObj);
                     }
                 }
                 else
                 {
-                    object pinnedObj = _readHandler.pinnedObj;
-                    Action<socket_result> cb = _readHandler.cb;
-                    _readHandler.pinnedObj = null;
-                    _readHandler.cb = null;
-                    functional.catch_invoke(cb, new socket_result(false, _readHandler.currTotal, tempRes.message));
+                    object pinnedObj = _readPtrHandler.pinnedObj;
+                    Action<socket_result> cb = _readPtrHandler.cb;
+                    _readPtrHandler.pinnedObj = null;
+                    _readPtrHandler.cb = null;
+                    functional.catch_invoke(cb, new socket_result(false, _readPtrHandler.currTotal, tempRes.message));
                 }
             };
-            _writeHandler.pinnedObj = null;
-            _writeHandler.cb = null;
-            _writeHandler.handler = delegate (socket_result tempRes)
+            _writePtrHandler.pinnedObj = null;
+            _writePtrHandler.cb = null;
+            _writePtrHandler.handler = delegate (socket_result tempRes)
             {
                 if (tempRes.ok)
                 {
-                    _writeHandler.currTotal += tempRes.s;
-                    if (_writeHandler.size == tempRes.s)
+                    _writePtrHandler.currTotal += tempRes.s;
+                    if (_writePtrHandler.size == tempRes.s)
                     {
-                        object pinnedObj = _writeHandler.pinnedObj;
-                        Action<socket_result> cb = _writeHandler.cb;
-                        _writeHandler.pinnedObj = null;
-                        _writeHandler.cb = null;
-                        functional.catch_invoke(cb, new socket_result(true, _writeHandler.currTotal));
+                        object pinnedObj = _writePtrHandler.pinnedObj;
+                        Action<socket_result> cb = _writePtrHandler.cb;
+                        _writePtrHandler.pinnedObj = null;
+                        _writePtrHandler.cb = null;
+                        functional.catch_invoke(cb, new socket_result(true, _writePtrHandler.currTotal));
                     }
                     else
                     {
-                        _async_write(_writeHandler.currTotal, _writeHandler.ptr, _writeHandler.offset + tempRes.s, _writeHandler.size - tempRes.s, _writeHandler.cb, _writeHandler.pinnedObj);
+                        _async_write(_writePtrHandler.currTotal, _writePtrHandler.ptr, _writePtrHandler.offset + tempRes.s, _writePtrHandler.size - tempRes.s, _writePtrHandler.cb, _writePtrHandler.pinnedObj);
                     }
                 }
                 else
                 {
-                    object pinnedObj = _writeHandler.pinnedObj;
-                    Action<socket_result> cb = _writeHandler.cb;
-                    _writeHandler.pinnedObj = null;
-                    _writeHandler.cb = null;
-                    functional.catch_invoke(cb, new socket_result(false, _writeHandler.currTotal, tempRes.message));
+                    object pinnedObj = _writePtrHandler.pinnedObj;
+                    Action<socket_result> cb = _writePtrHandler.cb;
+                    _writePtrHandler.pinnedObj = null;
+                    _writePtrHandler.cb = null;
+                    functional.catch_invoke(cb, new socket_result(false, _writePtrHandler.currTotal, tempRes.message));
                 }
             };
         }
@@ -978,22 +1015,22 @@ namespace Go
 
         void _async_read(int currTotal, IntPtr ptr, int offset, int size, Action<socket_result> cb, object pinnedObj)
         {
-            _readHandler.currTotal = currTotal;
-            _readHandler.ptr = ptr;
-            _readHandler.offset = offset;
-            _readHandler.size = size;
-            _readHandler.pinnedObj = pinnedObj;
-            async_read_same(ptr, offset, size, _readHandler.handler);
+            _readPtrHandler.currTotal = currTotal;
+            _readPtrHandler.ptr = ptr;
+            _readPtrHandler.offset = offset;
+            _readPtrHandler.size = size;
+            _readPtrHandler.pinnedObj = pinnedObj;
+            async_read_same(ptr, offset, size, _readPtrHandler.handler);
         }
 
         void _async_write(int currTotal, IntPtr ptr, int offset, int size, Action<socket_result> cb, object pinnedObj)
         {
-            _writeHandler.currTotal = currTotal;
-            _writeHandler.ptr = ptr;
-            _writeHandler.offset = offset;
-            _writeHandler.size = size;
-            _writeHandler.pinnedObj = pinnedObj;
-            async_write_same(ptr, offset, size, _writeHandler.handler);
+            _writePtrHandler.currTotal = currTotal;
+            _writePtrHandler.ptr = ptr;
+            _writePtrHandler.offset = offset;
+            _writePtrHandler.size = size;
+            _writePtrHandler.pinnedObj = pinnedObj;
+            async_write_same(ptr, offset, size, _writePtrHandler.handler);
         }
 
         public void async_read(IntPtr ptr, int offset, int size, Action<socket_result> cb, object pinnedObj = null)
@@ -1322,8 +1359,8 @@ namespace Go
         protected PipeStream _socket;
         pipe_same_handler _readSameHandler;
         pipe_same_handler _writeSameHandler;
-        socket_handler _readHandler;
-        socket_handler _writeHandler;
+        socket_ptr_handler _readPtrHandler;
+        socket_ptr_handler _writePtrHandler;
 
         protected socket_pipe()
         {
@@ -1361,62 +1398,62 @@ namespace Go
                     functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
                 }
             };
-            _readHandler.pinnedObj = null;
-            _readHandler.cb = null;
-            _readHandler.handler = delegate (socket_result tempRes)
+            _readPtrHandler.pinnedObj = null;
+            _readPtrHandler.cb = null;
+            _readPtrHandler.handler = delegate (socket_result tempRes)
             {
                 if (tempRes.ok)
                 {
-                    _readHandler.currTotal += tempRes.s;
-                    if (_readHandler.size == tempRes.s)
+                    _readPtrHandler.currTotal += tempRes.s;
+                    if (_readPtrHandler.size == tempRes.s)
                     {
-                        object pinnedObj = _readHandler.pinnedObj;
-                        Action<socket_result> cb = _readHandler.cb;
-                        _readHandler.pinnedObj = null;
-                        _readHandler.cb = null;
-                        functional.catch_invoke(cb, new socket_result(true, _readHandler.currTotal));
+                        object pinnedObj = _readPtrHandler.pinnedObj;
+                        Action<socket_result> cb = _readPtrHandler.cb;
+                        _readPtrHandler.pinnedObj = null;
+                        _readPtrHandler.cb = null;
+                        functional.catch_invoke(cb, new socket_result(true, _readPtrHandler.currTotal));
                     }
                     else
                     {
-                        _async_read(_readHandler.currTotal, _readHandler.ptr, _readHandler.offset + tempRes.s, _readHandler.size - tempRes.s, _readHandler.cb, _readHandler.pinnedObj);
+                        _async_read(_readPtrHandler.currTotal, _readPtrHandler.ptr, _readPtrHandler.offset + tempRes.s, _readPtrHandler.size - tempRes.s, _readPtrHandler.cb, _readPtrHandler.pinnedObj);
                     }
                 }
                 else
                 {
-                    object pinnedObj = _readHandler.pinnedObj;
-                    Action<socket_result> cb = _readHandler.cb;
-                    _readHandler.pinnedObj = null;
-                    _readHandler.cb = null;
-                    functional.catch_invoke(cb, new socket_result(false, _readHandler.currTotal, tempRes.message));
+                    object pinnedObj = _readPtrHandler.pinnedObj;
+                    Action<socket_result> cb = _readPtrHandler.cb;
+                    _readPtrHandler.pinnedObj = null;
+                    _readPtrHandler.cb = null;
+                    functional.catch_invoke(cb, new socket_result(false, _readPtrHandler.currTotal, tempRes.message));
                 }
             };
-            _writeHandler.pinnedObj = null;
-            _writeHandler.cb = null;
-            _writeHandler.handler = delegate (socket_result tempRes)
+            _writePtrHandler.pinnedObj = null;
+            _writePtrHandler.cb = null;
+            _writePtrHandler.handler = delegate (socket_result tempRes)
             {
                 if (tempRes.ok)
                 {
-                    _writeHandler.currTotal += tempRes.s;
-                    if (_writeHandler.size == tempRes.s)
+                    _writePtrHandler.currTotal += tempRes.s;
+                    if (_writePtrHandler.size == tempRes.s)
                     {
-                        object pinnedObj = _writeHandler.pinnedObj;
-                        Action<socket_result> cb = _writeHandler.cb;
-                        _writeHandler.pinnedObj = null;
-                        _writeHandler.cb = null;
-                        functional.catch_invoke(cb, new socket_result(true, _writeHandler.currTotal));
+                        object pinnedObj = _writePtrHandler.pinnedObj;
+                        Action<socket_result> cb = _writePtrHandler.cb;
+                        _writePtrHandler.pinnedObj = null;
+                        _writePtrHandler.cb = null;
+                        functional.catch_invoke(cb, new socket_result(true, _writePtrHandler.currTotal));
                     }
                     else
                     {
-                        _async_write(_writeHandler.currTotal, _writeHandler.ptr, _writeHandler.offset + tempRes.s, _writeHandler.size - tempRes.s, _writeHandler.cb, _writeHandler.pinnedObj);
+                        _async_write(_writePtrHandler.currTotal, _writePtrHandler.ptr, _writePtrHandler.offset + tempRes.s, _writePtrHandler.size - tempRes.s, _writePtrHandler.cb, _writePtrHandler.pinnedObj);
                     }
                 }
                 else
                 {
-                    object pinnedObj = _writeHandler.pinnedObj;
-                    Action<socket_result> cb = _writeHandler.cb;
-                    _writeHandler.pinnedObj = null;
-                    _writeHandler.cb = null;
-                    functional.catch_invoke(cb, new socket_result(false, _writeHandler.currTotal, tempRes.message));
+                    object pinnedObj = _writePtrHandler.pinnedObj;
+                    Action<socket_result> cb = _writePtrHandler.cb;
+                    _writePtrHandler.pinnedObj = null;
+                    _writePtrHandler.cb = null;
+                    functional.catch_invoke(cb, new socket_result(false, _writePtrHandler.currTotal, tempRes.message));
                 }
             };
         }
@@ -1490,24 +1527,24 @@ namespace Go
 
         void _async_read(int currTotal, IntPtr ptr, int offset, int size, Action<socket_result> cb, object pinnedObj)
         {
-            _readHandler.currTotal = currTotal;
-            _readHandler.ptr = ptr;
-            _readHandler.offset = offset;
-            _readHandler.size = size;
-            _readHandler.pinnedObj = pinnedObj;
-            _readHandler.cb = cb;
-            async_read_same(ptr, offset, size, _readHandler.handler);
+            _readPtrHandler.currTotal = currTotal;
+            _readPtrHandler.ptr = ptr;
+            _readPtrHandler.offset = offset;
+            _readPtrHandler.size = size;
+            _readPtrHandler.pinnedObj = pinnedObj;
+            _readPtrHandler.cb = cb;
+            async_read_same(ptr, offset, size, _readPtrHandler.handler);
         }
 
         void _async_write(int currTotal, IntPtr ptr, int offset, int size, Action<socket_result> cb, object pinnedObj)
         {
-            _writeHandler.currTotal = currTotal;
-            _writeHandler.ptr = ptr;
-            _writeHandler.offset = offset;
-            _writeHandler.size = size;
-            _writeHandler.pinnedObj = pinnedObj;
-            _writeHandler.cb = cb;
-            async_write_same(ptr, offset, size, _writeHandler.handler);
+            _writePtrHandler.currTotal = currTotal;
+            _writePtrHandler.ptr = ptr;
+            _writePtrHandler.offset = offset;
+            _writePtrHandler.size = size;
+            _writePtrHandler.pinnedObj = pinnedObj;
+            _writePtrHandler.cb = cb;
+            async_write_same(ptr, offset, size, _writePtrHandler.handler);
         }
 
         public void async_read(IntPtr ptr, int offset, int size, Action<socket_result> cb, object pinnedObj = null)

@@ -625,6 +625,18 @@ namespace Go
             }
         }
 
+        public class lock_stop_guard : IDisposable
+        {
+            static internal lock_stop_guard guard = new lock_stop_guard();
+
+            private lock_stop_guard() { }
+
+            public void Dispose()
+            {
+                unlock_stop();
+            }
+        }
+
 #if DEBUG
         public class call_stack_info
         {
@@ -1469,6 +1481,15 @@ namespace Go
                 this_._suspendHandler = null;
                 this_._timer.cancel();
                 throw stop_exception.val;
+            }
+        }
+
+        static public lock_stop_guard using_lock
+        {
+            get
+            {
+                lock_stop();
+                return lock_stop_guard.guard;
             }
         }
 
