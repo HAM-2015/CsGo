@@ -5354,9 +5354,17 @@ namespace Go
                     wg.done();
                 }, msg, null);
             }
-            wg.async_wait(this_.unsafe_async_result());
-            await this_.async_wait();
-            return count;
+            LinkedListNode<Action> cancelKey;
+            wg.async_wait(this_.unsafe_async_result(), out cancelKey);
+            try
+            {
+                await this_.async_wait();
+                return count;
+            }
+            finally
+            {
+                wg.cancel_wait(cancelKey);
+            }
         }
 
         static public async Task<int> chans_try_broadcast<T>(T msg, params chan<T>[] chans)
@@ -5375,9 +5383,17 @@ namespace Go
                     wg.done();
                 }, msg, null);
             }
-            wg.async_wait(this_.unsafe_async_result());
-            await this_.async_wait();
-            return count;
+            LinkedListNode<Action> cancelKey;
+            wg.async_wait(this_.unsafe_async_result(), out cancelKey);
+            try
+            {
+                await this_.async_wait();
+                return count;
+            }
+            finally
+            {
+                wg.cancel_wait(cancelKey);
+            }
         }
 
         static public async Task<int> chans_timed_broadcast<T>(int ms, T msg, params chan<T>[] chans)
@@ -5396,9 +5412,17 @@ namespace Go
                     wg.done();
                 }, msg, null);
             }
-            wg.async_wait(this_.unsafe_async_result());
-            await this_.async_wait();
-            return count;
+            LinkedListNode<Action> cancelKey;
+            wg.async_wait(this_.unsafe_async_result(), out cancelKey);
+            try
+            {
+                await this_.async_wait();
+                return count;
+            }
+            finally
+            {
+                wg.cancel_wait(cancelKey);
+            }
         }
 
         static public Task non_async()
@@ -6375,23 +6399,28 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public async Task stop_others(params generator[] otherGens)
+        static public async Task stop_others(IList<generator> otherGens)
         {
-            if (0 != otherGens.Length)
+            if (0 != otherGens.Count)
             {
                 generator this_ = self;
                 unlimit_chan<void_type> waitStop = new unlimit_chan<void_type>(this_.strand);
                 Action ntf = waitStop.wrap_default();
-                int count = otherGens.Length;
+                int count = otherGens.Count;
                 for (int i = 0; i < count; i++)
                 {
                     otherGens[i].stop(ntf);
                 }
-                while (0 != count--)
+                for (int i = 0; i < count; i++)
                 {
                     await chan_receive(waitStop);
                 }
             }
+        }
+
+        static public Task stop_others(params generator[] otherGens)
+        {
+            return stop_others((IList<generator>)otherGens);
         }
 
         static public Task wait_other(generator otherGen)
@@ -6401,35 +6430,48 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public async Task wait_others(params generator[] otherGens)
+        static public async Task wait_others(IList<generator> otherGens)
         {
-            if (0 != otherGens.Length)
+            if (0 != otherGens.Count)
             {
                 generator this_ = self;
                 unlimit_chan<void_type> waitStop = new unlimit_chan<void_type>(this_.strand);
                 Action ntf = waitStop.wrap_default();
-                int count = otherGens.Length;
+                int count = otherGens.Count;
                 for (int i = 0; i < count; i++)
                 {
                     otherGens[i].append_stop_callback(ntf);
                 }
-                while (0 != count--)
+                for (int i = 0; i < count; i++)
                 {
                     await chan_receive(waitStop);
                 }
             }
         }
 
+        static public Task wait_others(params generator[] otherGens)
+        {
+            return wait_others((IList<generator>)otherGens);
+        }
+
         private async Task<bool> timed_wait_other_(nil_chan<LinkedListNode<Action>> waitRemove, generator otherGen)
         {
-            await async_wait();
-            if (_overtime)
+            try
             {
-                LinkedListNode<Action> cancelId = await chan_receive(waitRemove);
-                if (null != cancelId)
+                await async_wait();
+            }
+            finally
+            {
+                lock_suspend_and_stop();
+                if (_overtime)
                 {
-                    otherGen.remove_stop_callback(cancelId);
+                    LinkedListNode<Action> cancelId = await chan_receive(waitRemove);
+                    if (null != cancelId)
+                    {
+                        otherGen.remove_stop_callback(cancelId);
+                    }
                 }
+                await unlock_suspend_and_stop();
             }
             return !_overtime;
         }
@@ -6446,84 +6488,208 @@ namespace Go
             return to_vtask(!this_._overtime);
         }
 
-        static public async Task<generator> wait_others_one(params generator[] otherGens)
+        static public async Task<generator> wait_others_any(IList<generator> otherGens)
         {
-            if (0 != otherGens.Length)
+            if (0 != otherGens.Count)
             {
                 generator this_ = self;
                 unlimit_chan<tuple<generator, LinkedListNode<Action>>> waitRemove = new unlimit_chan<tuple<generator, LinkedListNode<Action>>>(this_.strand);
                 async_result_wrap<generator> res = new async_result_wrap<generator>();
                 Action<generator> ntf = this_.async_result(res);
                 Action<tuple<generator, LinkedListNode<Action>>> removeNtf = waitRemove.wrap();
-                int count = otherGens.Length;
+                int count = otherGens.Count;
                 for (int i = 0; i < count; i++)
                 {
                     generator ele = otherGens[i];
                     ele.append_stop_callback(() => ntf(ele), (LinkedListNode<Action> cancelId) => removeNtf(tuple.make(ele, cancelId)));
                 }
-                await this_.async_wait();
-                while (0 != count--)
+                try
                 {
-                    tuple<generator, LinkedListNode<Action>> node = (await chan_receive(waitRemove)).msg;
-                    if (null != node.value2)
+                    await this_.async_wait();
+                }
+                finally
+                {
+                    lock_suspend_and_stop();
+                    for (int i = 0; i < count; i++)
                     {
-                        node.value1.remove_stop_callback(node.value2);
+                        tuple<generator, LinkedListNode<Action>> node = (await chan_receive(waitRemove)).msg;
+                        if (null != node.value2)
+                        {
+                            node.value1.remove_stop_callback(node.value2);
+                        }
                     }
+                    await unlock_suspend_and_stop();
                 }
                 return res.value1;
             }
             return null;
         }
 
-        static public async Task<generator> timed_wait_others_one(int ms, params generator[] otherGens)
+        static public Task<generator> wait_others_any(params generator[] otherGens)
         {
-            if (0 != otherGens.Length)
+            return wait_others_any((IList<generator>)otherGens);
+        }
+
+        static public async Task<generator> timed_wait_others_any(int ms, IList<generator> otherGens)
+        {
+            if (0 != otherGens.Count)
             {
                 generator this_ = self;
                 unlimit_chan<tuple<generator, LinkedListNode<Action>>> waitRemove = new unlimit_chan<tuple<generator, LinkedListNode<Action>>>(this_.strand);
                 async_result_wrap<generator> res = new async_result_wrap<generator>();
                 Action<generator> ntf = this_.timed_async_result(ms, res);
                 Action<tuple<generator, LinkedListNode<Action>>> removeNtf = waitRemove.wrap();
-                int count = otherGens.Length;
+                int count = otherGens.Count;
                 for (int i = 0; i < count; i++)
                 {
                     generator ele = otherGens[i];
                     ele.append_stop_callback(() => ntf(ele), (LinkedListNode<Action> cancelId) => removeNtf(tuple.make(ele, cancelId)));
                 }
-                await this_.async_wait();
-                while (0 != count--)
+                try
                 {
-                    tuple<generator, LinkedListNode<Action>> node = (await chan_receive(waitRemove)).msg;
-                    if (null != node.value2)
+                    await this_.async_wait();
+                }
+                finally
+                {
+                    lock_suspend_and_stop();
+                    for (int i = 0; i < count; i++)
                     {
-                        node.value1.remove_stop_callback(node.value2);
+                        tuple<generator, LinkedListNode<Action>> node = (await chan_receive(waitRemove)).msg;
+                        if (null != node.value2)
+                        {
+                            node.value1.remove_stop_callback(node.value2);
+                        }
                     }
+                    await unlock_suspend_and_stop();
                 }
                 return res.value1;
             }
             return null;
         }
 
+        static public Task<generator> timed_wait_others_any(int ms, params generator[] otherGens)
+        {
+            return timed_wait_others_any(ms, (IList<generator>)otherGens);
+        }
+
+        static public async Task<List<generator>> timed_wait_others(int ms, IList<generator> otherGens)
+        {
+            if (0 != otherGens.Count)
+            {
+                generator this_ = self;
+                long endTick = system_tick.get_tick_ms() + ms;
+                unlimit_chan<tuple<generator, LinkedListNode<Action>>> waitRemove = new unlimit_chan<tuple<generator, LinkedListNode<Action>>>(this_.strand);
+                unlimit_chan<generator> waitStop = new unlimit_chan<generator>(this_.strand);
+                Action<tuple<generator, LinkedListNode<Action>>> removeNtf = waitRemove.wrap();
+                int count = otherGens.Count;
+                for (int i = 0; i < count; i++)
+                {
+                    generator ele = otherGens[i];
+                    ele.append_stop_callback(() => waitStop.post(ele), (LinkedListNode<Action> cancelId) => removeNtf(tuple.make(ele, cancelId)));
+                }
+                List<generator> res = new List<generator>(count);
+                try
+                {
+                    if (ms < 0)
+                    {
+                        for (int i = 0; i < count; i++)
+                        {
+                            res.Add(await chan_receive(waitStop));
+                        }
+                    }
+                    else
+                    {
+                        for (int i = 0; i < count; i++)
+                        {
+                            long nowTick = system_tick.get_tick_ms();
+                            if (nowTick > endTick)
+                            {
+                                break;
+                            }
+                            chan_recv_wrap<generator> gen = await chan_timed_receive(waitStop, (int)(endTick - nowTick));
+                            if (chan_async_state.async_ok != gen.state)
+                            {
+                                break;
+                            }
+                            res.Add(gen.msg);
+                        }
+                    }
+                    return res;
+                }
+                finally
+                {
+                    lock_suspend_and_stop();
+                    for (int i = 0; i < count; i++)
+                    {
+                        tuple<generator, LinkedListNode<Action>> node = (await chan_receive(waitRemove)).msg;
+                        if (null != node.value2)
+                        {
+                            node.value1.remove_stop_callback(node.value2);
+                        }
+                    }
+                    await unlock_suspend_and_stop();
+                }
+            }
+            return null;
+        }
+
+        static public Task<List<generator>> timed_wait_others(int ms, params generator[] otherGens)
+        {
+            return timed_wait_others(ms, (IList<generator>)otherGens);
+        }
+
+        private async Task wait_group_(wait_group wg, LinkedListNode<Action> cancelKey)
+        {
+            try
+            {
+                await async_wait();
+            }
+            finally
+            {
+                wg.cancel_wait(cancelKey);
+            }
+        }
+
         static public Task wait_group(wait_group wg)
+        {
+            generator this_ = self;
+            LinkedListNode<Action> cancelKey;
+            wg.async_wait(this_.unsafe_async_result(), out cancelKey);
+            if (!this_.new_task_completed())
+            {
+                return this_.wait_group_(wg, cancelKey);
+            }
+            return non_async();
+        }
+
+        static public Task unsafe_wait_group(wait_group wg)
         {
             generator this_ = self;
             wg.async_wait(this_.unsafe_async_result());
             return this_.async_wait();
         }
 
-        private async Task<bool> timed_wait_group_()
+        private async Task<bool> timed_wait_group_(wait_group wg, LinkedListNode<Action> cancelKey)
         {
-            await async_wait();
-            return !_overtime;
+            try
+            {
+                await async_wait();
+                return !_overtime;
+            }
+            finally
+            {
+                wg.cancel_wait(cancelKey);
+            }
         }
 
         static public ValueTask<bool> timed_wait_group(int ms, wait_group wg)
         {
             generator this_ = self;
-            wg.async_wait(this_.timed_async_result(ms));
+            LinkedListNode<Action> cancelKey;
+            wg.async_wait(this_.timed_async_result(ms), out cancelKey);
             if (!this_.new_task_completed())
             {
-                return to_vtask(this_.timed_wait_group_());
+                return to_vtask(this_.timed_wait_group_(wg, cancelKey));
             }
             return to_vtask(!this_._overtime);
         }
@@ -8171,7 +8337,7 @@ namespace Go
             {
                 while (0 != _children.count)
                 {
-                    await _children.wait_one();
+                    await _children.wait_any();
                     if (!_run)
                     {
                         if (null != _mutex)
@@ -9356,13 +9522,13 @@ namespace Go
                 return _parent;
             }
 
-            public int discard(params child[] gens)
+            public int discard(IList<child> gens)
             {
                 Debug.Assert(self == _parent, "此 children 不属于当前 generator!");
                 int count = 0;
-                if (0 != gens.Length)
+                if (0 != gens.Count)
                 {
-                    for (int i = 0; i < gens.Length; i++)
+                    for (int i = 0; i < gens.Count; i++)
                     {
                         child ele = gens[i];
                         if (null != ele._childNode)
@@ -9379,12 +9545,17 @@ namespace Go
                 return count;
             }
 
-            static public int discard(params children[] childrens)
+            public int discard(params child[] gens)
+            {
+                return discard((IList<child>)gens);
+            }
+
+            static public int discard(IList<children> childrens)
             {
                 int count = 0;
-                if (0 != childrens.Length)
+                if (0 != childrens.Count)
                 {
-                    for (int i = 0; i < childrens.Length; i++)
+                    for (int i = 0; i < childrens.Count; i++)
                     {
                         children childs = childrens[i];
                         Debug.Assert(self == childs._parent, "此 children 不属于当前 generator!");
@@ -9399,6 +9570,11 @@ namespace Go
                     }
                 }
                 return count;
+            }
+
+            static public int discard(params children[] childrens)
+            {
+                return discard((IList<children>)childrens);
             }
 
             private async Task<bool> stop_(child gen)
@@ -9437,14 +9613,14 @@ namespace Go
                 return to_vtask(false);
             }
 
-            public async Task<int> stop(params child[] gens)
+            public async Task<int> stop(IList<child> gens)
             {
                 Debug.Assert(self == _parent, "此 children 不属于当前 generator!");
                 int count = 0;
-                if (0 != gens.Length)
+                if (0 != gens.Count)
                 {
                     unlimit_chan<child> waitStop = new unlimit_chan<child>(_parent.strand);
-                    for (int i = 0; i < gens.Length; i++)
+                    for (int i = 0; i < gens.Count; i++)
                     {
                         child ele = gens[i];
                         if (null != ele._childNode)
@@ -9467,6 +9643,11 @@ namespace Go
                     check_remove_node();
                 }
                 return count;
+            }
+
+            public Task<int> stop(params child[] gens)
+            {
+                return stop((IList<child>)gens);
             }
 
             private async Task<bool> wait_(child gen)
@@ -9505,14 +9686,14 @@ namespace Go
                 return to_vtask(false);
             }
 
-            public async Task<int> wait(params child[] gens)
+            public async Task<int> wait(IList<child> gens)
             {
                 Debug.Assert(self == _parent, "此 children 不属于当前 generator!");
                 int count = 0;
-                if (0 != gens.Length)
+                if (0 != gens.Count)
                 {
                     unlimit_chan<child> waitStop = new unlimit_chan<child>(_parent.strand);
-                    for (int i = 0; i < gens.Length; i++)
+                    for (int i = 0; i < gens.Count; i++)
                     {
                         child ele = gens[i];
                         if (null != ele._childNode)
@@ -9535,6 +9716,11 @@ namespace Go
                     check_remove_node();
                 }
                 return count;
+            }
+
+            public Task<int> wait(params child[] gens)
+            {
+                return wait((IList<child>)gens);
             }
 
             private async Task<bool> timed_wait_(ValueTask<bool> task, child gen)
@@ -9574,6 +9760,153 @@ namespace Go
                 return to_vtask(!overtime);
             }
 
+            public async Task<child> timed_wait_any(int ms, IList<child> gens)
+            {
+                Debug.Assert(self == _parent, "此 children 不属于当前 generator!");
+                if (0 != gens.Count)
+                {
+                    unlimit_chan<tuple<child, LinkedListNode<Action>>> waitRemove = new unlimit_chan<tuple<child, LinkedListNode<Action>>>(_parent.strand);
+                    async_result_wrap<child> res = new async_result_wrap<child>();
+                    Action<child> ntf = _parent.timed_async_result(ms, res);
+                    Action<tuple<child, LinkedListNode<Action>>> removeNtf = waitRemove.wrap();
+                    int count = 0;
+                    for (int i = 0; i < gens.Count; i++)
+                    {
+                        child ele = gens[i];
+                        if (null != ele._childNode)
+                        {
+                            Debug.Assert(ele._childNode.List == _children, "此 child 不属于当前 children!");
+                            count++;
+                            ele.append_stop_callback(() => ntf(ele), (LinkedListNode<Action> cancelId) => removeNtf(tuple.make(ele, cancelId)));
+                        }
+                    }
+                    if (0 != count)
+                    {
+                        try
+                        {
+                            await _parent.async_wait();
+                            if (null != res.value1 && null != res.value1._childNode)
+                            {
+                                _children.Remove(res.value1._childNode);
+                                res.value1._childNode = null;
+                                res.value1._childrenMgr = null;
+                                check_remove_node();
+                            }
+                        }
+                        finally
+                        {
+                            lock_suspend_and_stop();
+                            for (int i = 0; i < count; i++)
+                            {
+                                tuple<child, LinkedListNode<Action>> node = (await chan_receive(waitRemove)).msg;
+                                if (null != node.value2)
+                                {
+                                    node.value1.remove_stop_callback(node.value2);
+                                }
+                            }
+                            await unlock_suspend_and_stop();
+                        }
+                        return res.value1;
+                    }
+                }
+                return null;
+            }
+
+            public Task<child> timed_wait_any(int ms, params child[] gens)
+            {
+                return timed_wait_any(ms, (IList<child>)gens);
+            }
+
+            public async Task<List<child>> timed_wait(int ms, IList<child> gens)
+            {
+                Debug.Assert(self == _parent, "此 children 不属于当前 generator!");
+                if (0 != gens.Count)
+                {
+                    int count = 0;
+                    long endTick = system_tick.get_tick_ms() + ms;
+                    unlimit_chan<tuple<child, LinkedListNode<Action>>> waitRemove = new unlimit_chan<tuple<child, LinkedListNode<Action>>>(_parent.strand);
+                    unlimit_chan<child> waitStop = new unlimit_chan<child>(_parent.strand);
+                    Action<tuple<child, LinkedListNode<Action>>> removeNtf = waitRemove.wrap();
+                    List<child> res = new List<child>(gens.Count);
+                    for (int i = 0; i < gens.Count; i++)
+                    {
+                        child ele = gens[i];
+                        if (null != ele._childNode)
+                        {
+                            Debug.Assert(ele._childNode.List == _children, "此 child 不属于当前 children!");
+                            count++;
+                            ele.append_stop_callback(() => waitStop.post(ele), (LinkedListNode<Action> cancelId) => removeNtf(tuple.make(ele, cancelId)));
+                        }
+                        else
+                        {
+                            res.Add(ele);
+                        }
+                    }
+                    try
+                    {
+                        if (ms < 0)
+                        {
+                            for (int i = 0; i < count; i++)
+                            {
+                                child gen = (await chan_receive(waitStop)).msg;
+                                if (null != gen._childNode)
+                                {
+                                    _children.Remove(gen._childNode);
+                                    gen._childNode = null;
+                                    gen._childrenMgr = null;
+                                }
+                                res.Add(gen);
+                            }
+                            check_remove_node();
+                        }
+                        else
+                        {
+                            for (int i = 0; i < count; i++)
+                            {
+                                long nowTick = system_tick.get_tick_ms();
+                                if (nowTick > endTick)
+                                {
+                                    break;
+                                }
+                                chan_recv_wrap<child> gen = await chan_timed_receive(waitStop, (int)(endTick - nowTick));
+                                if (chan_async_state.async_ok != gen.state)
+                                {
+                                    break;
+                                }
+                                if (null != gen.msg._childNode)
+                                {
+                                    _children.Remove(gen.msg._childNode);
+                                    gen.msg._childNode = null;
+                                    gen.msg._childrenMgr = null;
+                                }
+                                res.Add(gen.msg);
+                            }
+                            check_remove_node();
+                        }
+                        return res;
+                    }
+                    finally
+                    {
+                        lock_suspend_and_stop();
+                        for (int i = 0; i < count; i++)
+                        {
+                            tuple<child, LinkedListNode<Action>> node = (await chan_receive(waitRemove)).msg;
+                            if (null != node.value2)
+                            {
+                                node.value1.remove_stop_callback(node.value2);
+                            }
+                        }
+                        await unlock_suspend_and_stop();
+                    }
+                }
+                return null;
+            }
+
+            public Task<List<child>> timed_wait(int ms, params child[] gens)
+            {
+                return timed_wait(ms, (IList<child>)gens);
+            }
+
             public async Task stop(bool containFree = true)
             {
                 Debug.Assert(self == _parent, "此 children 不属于当前 generator!");
@@ -9604,7 +9937,7 @@ namespace Go
                             ele.stop(() => waitStop.post(ele));
                         }
                     }
-                    while (0 != count--)
+                    for (int i = 0; i < count; i++)
                     {
                         child gen = (await chan_receive(waitStop)).msg;
                         if (null != gen._childNode)
@@ -9618,14 +9951,14 @@ namespace Go
                 }
             }
 
-            static public async Task stop(params children[] childrens)
+            static public async Task stop(IList<children> childrens)
             {
-                if (0 != childrens.Length)
+                if (0 != childrens.Count)
                 {
                     generator self = generator.self;
                     unlimit_chan<Tuple<children, child>> waitStop = new unlimit_chan<Tuple<children, child>>(self.strand);
                     int count = 0;
-                    for (int i = 0; i < childrens.Length; i++)
+                    for (int i = 0; i < childrens.Count; i++)
                     {
                         children childs = childrens[i];
                         Debug.Assert(self == childs._parent, "此 children 不属于当前 generator!");
@@ -9666,7 +9999,12 @@ namespace Go
                 }
             }
 
-            public async Task<child> wait_one(bool containFree = false)
+            static public Task stop(params children[] childrens)
+            {
+                return stop((IList<children>)childrens);
+            }
+
+            public async Task<child> wait_any(bool containFree = false)
             {
                 Debug.Assert(self == _parent, "此 children 不属于当前 generator!");
                 if (0 != _children.Count)
@@ -9688,21 +10026,29 @@ namespace Go
                     }
                     if (0 != count)
                     {
-                        await _parent.async_wait();
-                        if (null != res.value1._childNode)
+                        try
                         {
-                            _children.Remove(res.value1._childNode);
-                            res.value1._childNode = null;
-                            res.value1._childrenMgr = null;
-                            check_remove_node();
-                        }
-                        while (0 != count--)
-                        {
-                            tuple<child, LinkedListNode<Action>> node = (await chan_receive(waitRemove)).msg;
-                            if (null != node.value2)
+                            await _parent.async_wait();
+                            if (null != res.value1._childNode)
                             {
-                                node.value1.remove_stop_callback(node.value2);
+                                _children.Remove(res.value1._childNode);
+                                res.value1._childNode = null;
+                                res.value1._childrenMgr = null;
+                                check_remove_node();
                             }
+                        }
+                        finally
+                        {
+                            lock_suspend_and_stop();
+                            for (int i = 0; i < count; i++)
+                            {
+                                tuple<child, LinkedListNode<Action>> node = (await chan_receive(waitRemove)).msg;
+                                if (null != node.value2)
+                                {
+                                    node.value1.remove_stop_callback(node.value2);
+                                }
+                            }
+                            await unlock_suspend_and_stop();
                         }
                         return res.value1;
                     }
@@ -9710,7 +10056,7 @@ namespace Go
                 return null;
             }
 
-            public async Task<child> timed_wait_one(int ms, bool containFree = false)
+            public async Task<child> timed_wait_any(int ms, bool containFree = false)
             {
                 Debug.Assert(self == _parent, "此 children 不属于当前 generator!");
                 if (0 != _children.Count)
@@ -9732,21 +10078,29 @@ namespace Go
                     }
                     if (0 != count)
                     {
-                        await _parent.async_wait();
-                        if (null != res.value1 && null != res.value1._childNode)
+                        try
                         {
-                            _children.Remove(res.value1._childNode);
-                            res.value1._childNode = null;
-                            res.value1._childrenMgr = null;
-                            check_remove_node();
-                        }
-                        while (0 != count--)
-                        {
-                            tuple<child, LinkedListNode<Action>> node = (await chan_receive(waitRemove)).msg;
-                            if (null != node.value2)
+                            await _parent.async_wait();
+                            if (null != res.value1 && null != res.value1._childNode)
                             {
-                                node.value1.remove_stop_callback(node.value2);
+                                _children.Remove(res.value1._childNode);
+                                res.value1._childNode = null;
+                                res.value1._childrenMgr = null;
+                                check_remove_node();
                             }
+                        }
+                        finally
+                        {
+                            lock_suspend_and_stop();
+                            for (int i = 0; i < count; i++)
+                            {
+                                tuple<child, LinkedListNode<Action>> node = (await chan_receive(waitRemove)).msg;
+                                if (null != node.value2)
+                                {
+                                    node.value1.remove_stop_callback(node.value2);
+                                }
+                            }
+                            await unlock_suspend_and_stop();
                         }
                         return res.value1;
                     }
@@ -9771,7 +10125,7 @@ namespace Go
                         count++;
                         ele.append_stop_callback(() => waitStop.post(ele));
                     }
-                    while (0 != count--)
+                    for (int i = 0; i < count; i++)
                     {
                         child gen = (await chan_receive(waitStop)).msg;
                         if (null != gen._childNode)
@@ -9783,6 +10137,86 @@ namespace Go
                     }
                     check_remove_node();
                 }
+            }
+
+            public async Task<List<child>> timed_wait_all(int ms, bool containFree = true)
+            {
+                Debug.Assert(self == _parent, "此 children 不属于当前 generator!");
+                if (0 != _children.Count)
+                {
+                    int count = 0;
+                    long endTick = system_tick.get_tick_ms() + ms;
+                    unlimit_chan<tuple<child, LinkedListNode<Action>>> waitRemove = new unlimit_chan<tuple<child, LinkedListNode<Action>>>(_parent.strand);
+                    unlimit_chan<child> waitStop = new unlimit_chan<child>(_parent.strand);
+                    Action<tuple<child, LinkedListNode<Action>>> removeNtf = waitRemove.wrap();
+                    List<child> res = new List<child>(_children.Count);
+                    for (LinkedListNode<child> it = _children.First; null != it; it = it.Next)
+                    {
+                        child ele = it.Value;
+                        if (!containFree && ele.is_free())
+                        {
+                            continue;
+                        }
+                        count++;
+                        ele.append_stop_callback(() => waitStop.post(ele), (LinkedListNode<Action> cancelId) => removeNtf(tuple.make(ele, cancelId)));
+                    }
+                    try
+                    {
+                        if (ms < 0)
+                        {
+                            for (int i = 0; i < count; i++)
+                            {
+                                child gen = (await chan_receive(waitStop)).msg;
+                                if (null != gen._childNode)
+                                {
+                                    _children.Remove(gen._childNode);
+                                    gen._childNode = null;
+                                    gen._childrenMgr = null;
+                                }
+                                res.Add(gen);
+                            }
+                        }
+                        else
+                        {
+                            for (int i = 0; i < count; i++)
+                            {
+                                long nowTick = system_tick.get_tick_ms();
+                                if (nowTick > endTick)
+                                {
+                                    break;
+                                }
+                                chan_recv_wrap<child> gen = await chan_timed_receive(waitStop, (int)(endTick - nowTick));
+                                if (chan_async_state.async_ok != gen.state)
+                                {
+                                    break;
+                                }
+                                if (null != gen.msg._childNode)
+                                {
+                                    _children.Remove(gen.msg._childNode);
+                                    gen.msg._childNode = null;
+                                    gen.msg._childrenMgr = null;
+                                }
+                                res.Add(gen.msg);
+                            }
+                        }
+                        check_remove_node();
+                        return res;
+                    }
+                    finally
+                    {
+                        lock_suspend_and_stop();
+                        for (int i = 0; i < count; i++)
+                        {
+                            tuple<child, LinkedListNode<Action>> node = (await chan_receive(waitRemove)).msg;
+                            if (null != node.value2)
+                            {
+                                node.value1.remove_stop_callback(node.value2);
+                            }
+                        }
+                        await unlock_suspend_and_stop();
+                    }
+                }
+                return null;
             }
         }
     }
@@ -9993,6 +10427,45 @@ namespace Go
                     Monitor.Exit(this);
                     functional.catch_invoke(continuation);
                 }
+            }
+        }
+
+        public void async_wait(Action continuation, out LinkedListNode<Action> cancelKey)
+        {
+            if (0 == _tasks)
+            {
+                cancelKey = null;
+                functional.catch_invoke(continuation);
+            }
+            else
+            {
+                LinkedListNode<Action> newNode = new LinkedListNode<Action>(continuation);
+                cancelKey = newNode;
+                Monitor.Enter(this);
+                if (null != _waitList)
+                {
+                    _waitList.AddLast(newNode);
+                    Monitor.Exit(this);
+                }
+                else
+                {
+                    Monitor.Exit(this);
+                    cancelKey = null;
+                    functional.catch_invoke(continuation);
+                }
+            }
+        }
+
+        public void cancel_wait(LinkedListNode<Action> cancelKey)
+        {
+            if (null != cancelKey.List)
+            {
+                Monitor.Enter(this);
+                if (null != _waitList && cancelKey.List == _waitList)
+                {
+                    _waitList.Remove(cancelKey);
+                }
+                Monitor.Exit(this);
             }
         }
 

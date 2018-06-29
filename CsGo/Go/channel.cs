@@ -2951,6 +2951,16 @@ namespace Go
                     {
                         _tryRecvRes.value1.fail();
                     }
+                    catch (generator.stop_select_exception)
+                    {
+                        _tryRecvRes.value1.fail();
+                        throw;
+                    }
+                    catch (generator.stop_this_case_exception)
+                    {
+                        _tryRecvRes.value1.fail();
+                        throw;
+                    }
                     catch (generator.stop_exception)
                     {
                         _tryRecvRes.value1.fail();
