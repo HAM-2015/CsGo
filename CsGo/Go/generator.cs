@@ -6574,6 +6574,7 @@ namespace Go
 
         static public async Task<List<generator>> timed_wait_others(int ms, IList<generator> otherGens)
         {
+            List<generator> completedGens = new List<generator>(otherGens.Count);
             if (0 != otherGens.Count)
             {
                 generator this_ = self;
@@ -6587,14 +6588,13 @@ namespace Go
                     generator ele = otherGens[i];
                     ele.append_stop_callback(() => waitStop.post(ele), (LinkedListNode<Action> cancelId) => removeNtf(tuple.make(ele, cancelId)));
                 }
-                List<generator> res = new List<generator>(count);
                 try
                 {
                     if (ms < 0)
                     {
                         for (int i = 0; i < count; i++)
                         {
-                            res.Add(await chan_receive(waitStop));
+                            completedGens.Add(await chan_receive(waitStop));
                         }
                     }
                     else
@@ -6611,10 +6611,9 @@ namespace Go
                             {
                                 break;
                             }
-                            res.Add(gen.msg);
+                            completedGens.Add(gen.msg);
                         }
                     }
-                    return res;
                 }
                 finally
                 {
@@ -6630,7 +6629,7 @@ namespace Go
                     await unlock_suspend_and_stop();
                 }
             }
-            return null;
+            return completedGens;
         }
 
         static public Task<List<generator>> timed_wait_others(int ms, params generator[] otherGens)
@@ -9820,6 +9819,7 @@ namespace Go
             public async Task<List<child>> timed_wait(int ms, IList<child> gens)
             {
                 Debug.Assert(self == _parent, "此 children 不属于当前 generator!");
+                List<child> completedGens = new List<child>(gens.Count);
                 if (0 != gens.Count)
                 {
                     int count = 0;
@@ -9827,7 +9827,6 @@ namespace Go
                     unlimit_chan<tuple<child, LinkedListNode<Action>>> waitRemove = new unlimit_chan<tuple<child, LinkedListNode<Action>>>(_parent.strand);
                     unlimit_chan<child> waitStop = new unlimit_chan<child>(_parent.strand);
                     Action<tuple<child, LinkedListNode<Action>>> removeNtf = waitRemove.wrap();
-                    List<child> res = new List<child>(gens.Count);
                     for (int i = 0; i < gens.Count; i++)
                     {
                         child ele = gens[i];
@@ -9839,7 +9838,7 @@ namespace Go
                         }
                         else
                         {
-                            res.Add(ele);
+                            completedGens.Add(ele);
                         }
                     }
                     try
@@ -9855,7 +9854,7 @@ namespace Go
                                     gen._childNode = null;
                                     gen._childrenMgr = null;
                                 }
-                                res.Add(gen);
+                                completedGens.Add(gen);
                             }
                             check_remove_node();
                         }
@@ -9879,11 +9878,10 @@ namespace Go
                                     gen.msg._childNode = null;
                                     gen.msg._childrenMgr = null;
                                 }
-                                res.Add(gen.msg);
+                                completedGens.Add(gen.msg);
                             }
                             check_remove_node();
                         }
-                        return res;
                     }
                     finally
                     {
@@ -9899,7 +9897,7 @@ namespace Go
                         await unlock_suspend_and_stop();
                     }
                 }
-                return null;
+                return completedGens;
             }
 
             public Task<List<child>> timed_wait(int ms, params child[] gens)
@@ -10142,6 +10140,7 @@ namespace Go
             public async Task<List<child>> timed_wait_all(int ms, bool containFree = true)
             {
                 Debug.Assert(self == _parent, "此 children 不属于当前 generator!");
+                List<child> completedGens = new List<child>(_children.Count);
                 if (0 != _children.Count)
                 {
                     int count = 0;
@@ -10149,7 +10148,6 @@ namespace Go
                     unlimit_chan<tuple<child, LinkedListNode<Action>>> waitRemove = new unlimit_chan<tuple<child, LinkedListNode<Action>>>(_parent.strand);
                     unlimit_chan<child> waitStop = new unlimit_chan<child>(_parent.strand);
                     Action<tuple<child, LinkedListNode<Action>>> removeNtf = waitRemove.wrap();
-                    List<child> res = new List<child>(_children.Count);
                     for (LinkedListNode<child> it = _children.First; null != it; it = it.Next)
                     {
                         child ele = it.Value;
@@ -10173,7 +10171,7 @@ namespace Go
                                     gen._childNode = null;
                                     gen._childrenMgr = null;
                                 }
-                                res.Add(gen);
+                                completedGens.Add(gen);
                             }
                         }
                         else
@@ -10196,11 +10194,10 @@ namespace Go
                                     gen.msg._childNode = null;
                                     gen.msg._childrenMgr = null;
                                 }
-                                res.Add(gen.msg);
+                                completedGens.Add(gen.msg);
                             }
                         }
                         check_remove_node();
-                        return res;
                     }
                     finally
                     {
@@ -10216,7 +10213,7 @@ namespace Go
                         await unlock_suspend_and_stop();
                     }
                 }
-                return null;
+                return completedGens;
             }
         }
     }
