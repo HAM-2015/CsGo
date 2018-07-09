@@ -6286,21 +6286,90 @@ namespace Go
             };
         }
 
-        static public Task wait_task(Task task)
+        static private void_type check_task(Task task)
+        {
+            try
+            {
+                task.GetAwaiter().GetResult();
+            }
+            catch (Exception innerEc)
+            {
+                throw innerEc;
+            }
+            return default(void_type);
+        }
+
+        static private R check_task<R>(Task<R> task)
+        {
+            try
+            {
+                return task.Result;
+            }
+            catch (AggregateException aggEc)
+            {
+                throw aggEc.InnerException;
+            }
+        }
+
+        static private void check_task(async_result_wrap<bool, Exception> res, Task task)
+        {
+            try
+            {
+                res.value1 = true;
+                task.GetAwaiter().GetResult();
+            }
+            catch (Exception innerEc)
+            {
+                res.value2 = innerEc;
+            }
+        }
+
+        static private void check_task<R>(async_result_wrap<R, Exception> res, Task<R> task)
+        {
+            try
+            {
+                res.value1 = task.Result;
+            }
+            catch (AggregateException aggEc)
+            {
+                res.value2 = aggEc.InnerException;
+            }
+        }
+
+        static private void check_task<R>(async_result_wrap<bool, R, Exception> res, Task<R> task)
+        {
+            try
+            {
+                res.value1 = true;
+                res.value2 = task.Result;
+            }
+            catch (AggregateException aggEc)
+            {
+                res.value3 = aggEc.InnerException;
+            }
+        }
+
+        private async Task<void_type> wait_task_(Task task)
+        {
+            await async_wait();
+            return check_task(task);
+        }
+
+        static public ValueTask<void_type> wait_task(Task task)
         {
             if (!task.IsCompleted)
             {
                 generator this_ = self;
                 task.GetAwaiter().UnsafeOnCompleted(this_.unsafe_async_result());
-                return this_.async_wait();
+                return to_vtask(this_.wait_task_(task));
             }
-            return non_async();
+            return to_vtask(check_task(task));
         }
 
         private async Task<R> wait_task_<R>(Task<R> task)
         {
             await async_wait();
-            return task.Result;
+            return check_task(task);
         }
 
         static public ValueTask<R> wait_task<R>(Task<R> task)
@@ -6311,25 +6380,16 @@ namespace Go
                 task.GetAwaiter().UnsafeOnCompleted(this_.unsafe_async_result());
                 return to_vtask(this_.wait_task_(task));
             }
-            return to_vtask(task.Result);
+            return to_vtask(check_task(task));
         }
 
-        static public Task unsafe_wait_task<R>(async_result_wrap<R> res, Task<R> task)
-        {
-            if (!task.IsCompleted)
-            {
-                generator this_ = self;
-                res.clear();
-                task.GetAwaiter().UnsafeOnCompleted(this_.async_callback(() => res.value1 = task.Result));
-                return this_.async_wait();
-            }
-            res.value1 = task.Result;
-            return non_async();
-        }
-
-        private async Task<bool> timed_wait_task_()
+        private async Task<bool> timed_wait_task_(Task task)
         {
             await async_wait();
+            if (!_overtime)
+            {
+                check_task(task);
+            }
             return !_overtime;
         }
 
@@ -6339,28 +6399,16 @@ namespace Go
             {
                 generator this_ = self;
                 task.GetAwaiter().UnsafeOnCompleted(this_.timed_async_result(ms));
-                return to_vtask(this_.timed_wait_task_());
+                return to_vtask(this_.timed_wait_task_(task));
             }
+            check_task(task);
             return to_vtask(true);
-        }
-
-        static public Task unsafe_timed_wait_task(async_result_wrap<bool> res, int ms, Task task)
-        {
-            if (!task.IsCompleted)
-            {
-                generator this_ = self;
-                res.value1 = false;
-                task.GetAwaiter().UnsafeOnCompleted(this_.timed_async_callback2(ms, () => res.value1 = true));
-                return this_.async_wait();
-            }
-            res.value1 = true;
-            return non_async();
         }
 
         private async Task<tuple<bool, R>> timed_wait_task_<R>(Task<R> task)
         {
             await async_wait();
-            return tuple.make(!_overtime, _overtime ? default(R) : task.Result);
+            return tuple.make(!_overtime, _overtime ? default(R) : check_task(task));
         }
 
         static public ValueTask<tuple<bool, R>> timed_wait_task<R>(int ms, Task<R> task)
@@ -6371,24 +6419,45 @@ namespace Go
                 task.GetAwaiter().UnsafeOnCompleted(this_.timed_async_result(ms));
                 return to_vtask(this_.timed_wait_task_(task));
             }
-            return to_vtask(tuple.make(true, task.Result));
+            return to_vtask(tuple.make(true, check_task(task)));
         }
 
-        static public Task unsafe_timed_wait_task<R>(async_result_wrap<bool, R> res, int ms, Task<R> task)
+        static public Task unsafe_wait_task<R>(async_result_wrap<R, Exception> res, Task<R> task)
+        {
+            if (!task.IsCompleted)
+            {
+                generator this_ = self;
+                res.clear();
+                task.GetAwaiter().UnsafeOnCompleted(this_.async_callback(() => check_task(res, task)));
+                return this_.async_wait();
+            }
+            check_task(res, task);
+            return non_async();
+        }
+
+        static public Task unsafe_timed_wait_task(async_result_wrap<bool, Exception> res, int ms, Task task)
         {
             if (!task.IsCompleted)
             {
                 generator this_ = self;
                 res.value1 = false;
-                task.GetAwaiter().UnsafeOnCompleted(this_.timed_async_callback2(ms, delegate ()
-                {
-                    res.value1 = true;
-                    res.value2 = task.Result;
-                }));
+                task.GetAwaiter().UnsafeOnCompleted(this_.timed_async_callback2(ms, () => check_task(res, task)));
                 return this_.async_wait();
             }
-            res.value1 = true;
-            res.value2 = task.Result;
+            check_task(res, task);
+            return non_async();
+        }
+
+        static public Task unsafe_timed_wait_task<R>(async_result_wrap<bool, R, Exception> res, int ms, Task<R> task)
+        {
+            if (!task.IsCompleted)
+            {
+                generator this_ = self;
+                res.value1 = false;
+                task.GetAwaiter().UnsafeOnCompleted(this_.timed_async_callback2(ms, () => check_task(res, task)));
+                return this_.async_wait();
+            }
+            check_task(res, task);
             return non_async();
         }
 
