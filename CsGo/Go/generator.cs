@@ -847,12 +847,10 @@ namespace Go
                 catch (stop_exception) { }
                 catch (System.Exception ec)
                 {
-#if DEBUG
 #if NETCORE
-                    Debug.WriteLine(string.Format("{0}\nMessage:\n{1}\n{2}", "generator 内部未捕获的异常!", ec.Message, ec.StackTrace));
+                    Debug.WriteLine(string.Format("{0}\n{1}\n{2}\n{3}", "generator 内部未捕获的异常!", ec.Message, ec.Source, ec.StackTrace));
 #else
-                    System.Windows.Forms.MessageBox.Show(string.Format("Message:\n{0}\n{1}", ec.Message, ec.StackTrace), "generator 内部未捕获的异常!", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Error);
-#endif
+                    System.Windows.Forms.MessageBox.Show(string.Format("{0}\n{1}\n{2}", ec.Message, ec.Source, ec.StackTrace), "generator 内部未捕获的异常!", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Error);
 #endif
                     _excep = ec;
                 }
@@ -1352,6 +1350,7 @@ namespace Go
                 }
                 catch (System.Exception ec)
                 {
+                    ec.Source = string.Format("{0}\n{1}", ec.Source, ec.StackTrace);
                     hasExcep = ec;
                 }
             }, wg.wrap_done());
@@ -1381,6 +1380,7 @@ namespace Go
                 }
                 catch (System.Exception ec)
                 {
+                    ec.Source = string.Format("{0}\n{1}", ec.Source, ec.StackTrace);
                     hasExcep = ec;
                 }
             }, wg.wrap_done());
@@ -1409,6 +1409,7 @@ namespace Go
                 }
                 catch (System.Exception ec)
                 {
+                    ec.Source = string.Format("{0}\n{1}", ec.Source, ec.StackTrace);
                     hasExcep = ec;
                 }
             }, wg.wrap_done());
@@ -5820,6 +5821,7 @@ namespace Go
                 }
                 catch (System.Exception ec)
                 {
+                    ec.Source = string.Format("{0}\n{1}", ec.Source, ec.StackTrace);
                     hasExcep = ec;
                 }
             }));
@@ -5886,6 +5888,7 @@ namespace Go
                 }
                 catch (System.Exception ec)
                 {
+                    ec.Source = string.Format("{0}\n{1}", ec.Source, ec.StackTrace);
                     hasExcep = ec;
                 }
             }));
@@ -5997,6 +6000,7 @@ namespace Go
                 }
                 catch (System.Exception ec)
                 {
+                    ec.Source = string.Format("{0}\n{1}", ec.Source, ec.StackTrace);
                     hasExcep = ec;
                 }
             }));
@@ -6028,6 +6032,7 @@ namespace Go
                 }
                 catch (System.Exception ec)
                 {
+                    ec.Source = string.Format("{0}\n{1}", ec.Source, ec.StackTrace);
                     hasExcep = ec;
                 }
             }));
@@ -6101,6 +6106,7 @@ namespace Go
                 }
                 catch (System.Exception ec)
                 {
+                    ec.Source = string.Format("{0}\n{1}", ec.Source, ec.StackTrace);
                     hasExcep = ec;
                 }
                 this_.strand.post(beginQuit ? (Action)this_.quit_next : this_.no_quit_next);
@@ -6140,6 +6146,7 @@ namespace Go
                 }
                 catch (System.Exception ec)
                 {
+                    ec.Source = string.Format("{0}\n{1}", ec.Source, ec.StackTrace);
                     hasExcep = ec;
                 }
                 this_.strand.post(beginQuit ? (Action)this_.quit_next : this_.no_quit_next);
@@ -6194,6 +6201,7 @@ namespace Go
                 }
                 catch (System.Exception ec)
                 {
+                    ec.Source = string.Format("{0}\n{1}", ec.Source, ec.StackTrace);
                     hasExcep = ec;
                 }
             }, this_.unsafe_async_result());
@@ -6246,6 +6254,7 @@ namespace Go
                 }
                 catch (System.Exception ec)
                 {
+                    ec.Source = string.Format("{0}\n{1}", ec.Source, ec.StackTrace);
                     hasExcep = ec;
                 }
             }, this_.unsafe_async_result());
@@ -6288,14 +6297,7 @@ namespace Go
 
         static private void_type check_task(Task task)
         {
-            try
-            {
-                task.GetAwaiter().GetResult();
-            }
-            catch (Exception innerEc)
-            {
-                throw innerEc;
-            }
+            task.GetAwaiter().GetResult();
             return default(void_type);
         }
 
