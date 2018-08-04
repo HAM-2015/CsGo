@@ -19,7 +19,7 @@ namespace GoTest
         {
             while (true)
             {
-                await generator.chan_send(_chan1, system_tick.get_tick_us());
+                await _chan1.send(system_tick.get_tick_us());
                 await generator.sleep(300);
             }
         }
@@ -28,7 +28,7 @@ namespace GoTest
         {
             while (true)
             {
-                await generator.chan_receive(_chan2);
+                await _chan2.receive();
                 await generator.sleep(500);
             }
         }
@@ -37,7 +37,7 @@ namespace GoTest
         {
             while (true)
             {
-                await generator.chan_send(_chan3, system_tick.get_tick_us());
+                await _chan3.send(system_tick.get_tick_us());
                 await generator.sleep(1000);
             }
         }
@@ -46,7 +46,7 @@ namespace GoTest
         {
             while (true)
             {
-                long res = await generator.csp_invoke(_csp, system_tick.get_tick_us());
+                long res = await _csp.invoke(system_tick.get_tick_us());
                 Console.WriteLine("csp return {0}", res);
                 await generator.sleep(1000);
             }
@@ -54,9 +54,9 @@ namespace GoTest
 
         static async Task Consumer()
         {
-            Console.WriteLine("receive chan1 {0}", await generator.chan_receive(_chan1));
-            Console.WriteLine("send chan2 {0}", await generator.chan_send(_chan2, system_tick.get_tick_us()));
-            Console.WriteLine("receive chan3 {0}", await generator.chan_receive(_chan3));
+            Console.WriteLine("receive chan1 {0}", await _chan1.receive());
+            Console.WriteLine("send chan2 {0}", await _chan2.send(system_tick.get_tick_us()));
+            Console.WriteLine("receive chan3 {0}", await _chan3.receive());
             while (true)
             {
                 await generator.select().case_receive(_chan1, async delegate (long msg)
@@ -71,28 +71,24 @@ namespace GoTest
                 {
                     Console.WriteLine("select receive chan3 {0}", msg);
                     await generator.sleep(100);
-                }).case_receive(_csp, functional.acry(async delegate (long msg)
+                }).case_receive(_csp, async delegate (long msg)
                 {
                     Console.WriteLine("select csp delay {0}", system_tick.get_tick_us() - msg);
                     await generator.sleep(100);
                     return system_tick.get_tick_us();
-                })).end();
+                }).end();
             }
         }
 
         static async Task Producer5(generator cons)
         {
-            chan<int> intMb = await cons.get_mailbox<int>();
-            chan<long> longMb = await cons.get_mailbox<long>();
             for (int i = 0; i < 10; i++)
             {
-                await generator.chan_send(intMb, i);
+                await cons.send_msg(i);
                 await generator.sleep(1000);
-                await generator.chan_send(longMb, i);
+                await cons.send_msg((long)i);
                 await generator.sleep(1000);
             }
-            await generator.chan_close(intMb);
-            await generator.chan_close(longMb);
         }
 
         static async Task Consumer2()
@@ -106,7 +102,6 @@ namespace GoTest
                 Console.WriteLine("                                   receive long {0}", msg);
                 await generator.sleep(1);
             }).end();
-            Console.WriteLine("                                   receive end");
         }
 
         static void Main(string[] args)

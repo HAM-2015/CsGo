@@ -28,110 +28,82 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.textBox_Action1 = new System.Windows.Forms.TextBox();
-            this.numericUpDown_SleepMs1 = new System.Windows.Forms.NumericUpDown();
-            this.btn_Pause1 = new System.Windows.Forms.Button();
-            this.textBox_Action2 = new System.Windows.Forms.TextBox();
-            this.numericUpDown_SleepMs2 = new System.Windows.Forms.NumericUpDown();
-            this.btn_Pause2 = new System.Windows.Forms.Button();
-            ((System.ComponentModel.ISupportInitialize)(this.numericUpDown_SleepMs1)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.numericUpDown_SleepMs2)).BeginInit();
+            this.textBox_Action = new System.Windows.Forms.TextBox();
+            this.btn_Pause = new System.Windows.Forms.Button();
+            this.btn_Task1 = new System.Windows.Forms.Button();
+            this.numericUpDown_Time = new System.Windows.Forms.NumericUpDown();
+            ((System.ComponentModel.ISupportInitialize)(this.numericUpDown_Time)).BeginInit();
             this.SuspendLayout();
             // 
-            // textBox_Action1
+            // textBox_Action
             // 
-            this.textBox_Action1.Location = new System.Drawing.Point(12, 12);
-            this.textBox_Action1.Name = "textBox_Action1";
-            this.textBox_Action1.Size = new System.Drawing.Size(139, 21);
-            this.textBox_Action1.TabIndex = 0;
+            this.textBox_Action.Location = new System.Drawing.Point(12, 12);
+            this.textBox_Action.Name = "textBox_Action";
+            this.textBox_Action.Size = new System.Drawing.Size(139, 21);
+            this.textBox_Action.TabIndex = 0;
             // 
-            // numericUpDown_SleepMs1
+            // btn_Pause
             // 
-            this.numericUpDown_SleepMs1.Location = new System.Drawing.Point(13, 40);
-            this.numericUpDown_SleepMs1.Maximum = new decimal(new int[] {
-            1000,
+            this.btn_Pause.Location = new System.Drawing.Point(175, 12);
+            this.btn_Pause.Name = "btn_Pause";
+            this.btn_Pause.Size = new System.Drawing.Size(75, 23);
+            this.btn_Pause.TabIndex = 2;
+            this.btn_Pause.Text = "暂停";
+            this.btn_Pause.UseVisualStyleBackColor = true;
+            this.btn_Pause.Click += new System.EventHandler(this.btn_Pause_Click);
+            // 
+            // btn_Task1
+            // 
+            this.btn_Task1.Location = new System.Drawing.Point(175, 43);
+            this.btn_Task1.Name = "btn_Task1";
+            this.btn_Task1.Size = new System.Drawing.Size(75, 23);
+            this.btn_Task1.TabIndex = 3;
+            this.btn_Task1.Text = "耗时任务";
+            this.btn_Task1.UseVisualStyleBackColor = true;
+            this.btn_Task1.Click += new System.EventHandler(this.btn_Task1_Click);
+            // 
+            // numericUpDown_Time
+            // 
+            this.numericUpDown_Time.Increment = new decimal(new int[] {
+            100,
             0,
             0,
             0});
-            this.numericUpDown_SleepMs1.Minimum = new decimal(new int[] {
-            1,
+            this.numericUpDown_Time.Location = new System.Drawing.Point(12, 44);
+            this.numericUpDown_Time.Maximum = new decimal(new int[] {
+            5000,
             0,
             0,
             0});
-            this.numericUpDown_SleepMs1.Name = "numericUpDown_SleepMs1";
-            this.numericUpDown_SleepMs1.Size = new System.Drawing.Size(138, 21);
-            this.numericUpDown_SleepMs1.TabIndex = 1;
-            this.numericUpDown_SleepMs1.Value = new decimal(new int[] {
-            1,
+            this.numericUpDown_Time.Minimum = new decimal(new int[] {
+            100,
             0,
             0,
             0});
-            // 
-            // btn_Pause1
-            // 
-            this.btn_Pause1.Location = new System.Drawing.Point(175, 12);
-            this.btn_Pause1.Name = "btn_Pause1";
-            this.btn_Pause1.Size = new System.Drawing.Size(75, 23);
-            this.btn_Pause1.TabIndex = 2;
-            this.btn_Pause1.Text = "pause";
-            this.btn_Pause1.UseVisualStyleBackColor = true;
-            this.btn_Pause1.Click += new System.EventHandler(this.btn_Pause1_Click);
-            // 
-            // textBox_Action2
-            // 
-            this.textBox_Action2.Location = new System.Drawing.Point(13, 92);
-            this.textBox_Action2.Name = "textBox_Action2";
-            this.textBox_Action2.Size = new System.Drawing.Size(139, 21);
-            this.textBox_Action2.TabIndex = 0;
-            // 
-            // numericUpDown_SleepMs2
-            // 
-            this.numericUpDown_SleepMs2.Location = new System.Drawing.Point(14, 120);
-            this.numericUpDown_SleepMs2.Maximum = new decimal(new int[] {
-            1000,
+            this.numericUpDown_Time.Name = "numericUpDown_Time";
+            this.numericUpDown_Time.Size = new System.Drawing.Size(139, 21);
+            this.numericUpDown_Time.TabIndex = 4;
+            this.numericUpDown_Time.Value = new decimal(new int[] {
+            3000,
             0,
             0,
             0});
-            this.numericUpDown_SleepMs2.Minimum = new decimal(new int[] {
-            1,
-            0,
-            0,
-            0});
-            this.numericUpDown_SleepMs2.Name = "numericUpDown_SleepMs2";
-            this.numericUpDown_SleepMs2.Size = new System.Drawing.Size(138, 21);
-            this.numericUpDown_SleepMs2.TabIndex = 1;
-            this.numericUpDown_SleepMs2.Value = new decimal(new int[] {
-            1,
-            0,
-            0,
-            0});
-            // 
-            // btn_Pause2
-            // 
-            this.btn_Pause2.Location = new System.Drawing.Point(176, 92);
-            this.btn_Pause2.Name = "btn_Pause2";
-            this.btn_Pause2.Size = new System.Drawing.Size(75, 23);
-            this.btn_Pause2.TabIndex = 2;
-            this.btn_Pause2.Text = "pause";
-            this.btn_Pause2.UseVisualStyleBackColor = true;
-            this.btn_Pause2.Click += new System.EventHandler(this.btn_Pause2_Click);
             // 
             // FormTest
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(284, 157);
-            this.Controls.Add(this.btn_Pause2);
-            this.Controls.Add(this.btn_Pause1);
-            this.Controls.Add(this.numericUpDown_SleepMs2);
-            this.Controls.Add(this.numericUpDown_SleepMs1);
-            this.Controls.Add(this.textBox_Action2);
-            this.Controls.Add(this.textBox_Action1);
+            this.ClientSize = new System.Drawing.Size(264, 78);
+            this.Controls.Add(this.numericUpDown_Time);
+            this.Controls.Add(this.btn_Task1);
+            this.Controls.Add(this.btn_Pause);
+            this.Controls.Add(this.textBox_Action);
+            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
+            this.MaximizeBox = false;
             this.Name = "FormTest";
             this.Text = "FormTest";
             this.Load += new System.EventHandler(this.FormTest_Load);
-            ((System.ComponentModel.ISupportInitialize)(this.numericUpDown_SleepMs1)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.numericUpDown_SleepMs2)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.numericUpDown_Time)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -139,12 +111,10 @@
 
         #endregion
 
-        private System.Windows.Forms.TextBox textBox_Action1;
-        private System.Windows.Forms.NumericUpDown numericUpDown_SleepMs1;
-        private System.Windows.Forms.Button btn_Pause1;
-        private System.Windows.Forms.TextBox textBox_Action2;
-        private System.Windows.Forms.NumericUpDown numericUpDown_SleepMs2;
-        private System.Windows.Forms.Button btn_Pause2;
+        private System.Windows.Forms.TextBox textBox_Action;
+        private System.Windows.Forms.Button btn_Pause;
+        private System.Windows.Forms.Button btn_Task1;
+        private System.Windows.Forms.NumericUpDown numericUpDown_Time;
     }
 }
 

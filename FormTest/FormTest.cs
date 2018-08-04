@@ -13,10 +13,8 @@ namespace FormTest
 {
     public partial class FormTest : Form
     {
-        control_strand _strand1;
-        shared_strand _strand2;
-        generator _action1;
-        generator _action2;
+        static public control_strand _mainStrand;
+        generator _timeAction;
 
         public FormTest()
         {
@@ -25,56 +23,80 @@ namespace FormTest
 
         private void FormTest_Load(object sender, EventArgs e)
         {
-            _strand1 = new control_strand(this);
-            _strand2 = new shared_strand();
-            _action1 = generator.tgo(_strand1, Action1);
-            _action2 = generator.tgo(_strand2, Action2);
+            _mainStrand = new control_strand(this);
+            _timeAction = generator.tgo(_mainStrand, TimeAction);
         }
 
-        private async Task Action1()
+        private async Task TimeAction()
         {
             while (true)
             {
-                await generator.sleep((int)numericUpDown_SleepMs1.Value);
-                textBox_Action1.Text = DateTime.Now.ToString("yy-MM-dd HH:mm:ss.fff");
+                await generator.sleep(1);
+                textBox_Action.Text = DateTime.Now.ToString("yy-MM-dd HH:mm:ss.fff");
             }
         }
 
-        private async Task Action2()
+        private async Task Task1Action(int time)
         {
-            while (true)
+            WaitForm waitAction = new WaitForm();
+            generator.children children = new generator.children();
+            generator.child taskChild = children.tgo(async delegate ()
             {
-                await generator.sleep(await generator.send_control(this, () => (int)numericUpDown_SleepMs2.Value));
-                await generator.send_control(this, () => textBox_Action2.Text = DateTime.Now.ToString("yy-MM-dd HH:mm:ss.fff"));
-            }
+                bool cancelTask = false;
+                Task task = Task.Run(delegate ()
+                {
+                    int ct = time / 100;
+                    for (int i = 0; i < ct && !cancelTask; i++)
+                    {
+                        System.Threading.Thread.Sleep(100);
+                    }
+                });
+                try
+                {
+                    await generator.wait_task(task);
+                }
+                catch (generator.stop_exception)
+                {
+                    cancelTask = true;
+                    await generator.wait_task(task);
+                }
+            });
+            children.go(async delegate ()
+            {
+                await generator.sleep(500);
+                await generator.send_control(this, delegate ()
+                {
+                    waitAction.StartPosition = FormStartPosition.CenterParent;
+                    waitAction.ShowDialog();
+                });
+                if (waitAction.isCancel)
+                {
+                    taskChild.stop();
+                }
+            });
+            await children.wait(taskChild);
+            waitAction.Close();
+            await children.stop();
         }
 
-        private void btn_Pause1_Click(object sender, EventArgs e)
+        private void btn_Pause_Click(object sender, EventArgs e)
         {
-            if ("pause" == btn_Pause1.Text)
+            if ("暂停" == btn_Pause.Text)
             {
-                btn_Pause1.Text = "resume";
-                _action1.suspend();
+                btn_Pause.Text = "恢复";
+                _timeAction.suspend();
             }
             else
             {
-                btn_Pause1.Text = "pause";
-                _action1.resume();
+                btn_Pause.Text = "暂停";
+                _timeAction.resume();
             }
         }
 
-        private void btn_Pause2_Click(object sender, EventArgs e)
+        private void btn_Task1_Click(object sender, EventArgs e)
         {
-            if ("pause" == btn_Pause2.Text)
-            {
-                btn_Pause2.Text = "resume";
-                _action2.suspend();
-            }
-            else
-            {
-                btn_Pause2.Text = "pause";
-                _action2.resume();
-            }
+            btn_Task1.Enabled = false;
+            generator.go(_mainStrand, functional.bind(Task1Action, (int)numericUpDown_Time.Value), () => btn_Task1.Enabled = true);
         }
     }
 }
