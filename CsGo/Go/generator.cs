@@ -850,7 +850,7 @@ namespace Go
 #if NETCORE
                     Debug.WriteLine(string.Format("{0}\n{1}\n{2}\n{3}", "generator 内部未捕获的异常!", ec.Message, ec.Source, ec.StackTrace));
 #else
-                    System.Windows.Forms.MessageBox.Show(string.Format("{0}\n{1}\n{2}", ec.Message, ec.Source, ec.StackTrace), "generator 内部未捕获的异常!", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Error);
+                    Task.Run(() => System.Windows.Forms.MessageBox.Show(string.Format("{0}\n{1}\n{2}", ec.Message, ec.Source, ec.StackTrace), "generator 内部未捕获的异常!", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Error)).Wait();
 #endif
                     _excep = ec;
                 }
