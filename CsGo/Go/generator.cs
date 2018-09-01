@@ -8449,8 +8449,8 @@ namespace Go
 
         public struct select_chans
         {
-            internal bool _when;
             internal bool _random;
+            internal bool _whenEnable;
             internal LinkedList<select_chan_base> _chans;
             internal LinkedListNode<select_chan_base> _lastChansNode;
             internal unlimit_chan<tuple<chan_async_state, select_chan_base>> _selectChans;
@@ -8487,176 +8487,176 @@ namespace Go
 
             public select_chans case_receive<T>(chan<T> chan, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<T> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader(handler, errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader(handler, errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_receive<T1, T2>(chan<tuple<T1, T2>> chan, Func<T1, T2, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2>> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader((tuple<T1, T2> msg) => handler(msg.value1, msg.value2), null, errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader((tuple<T1, T2> msg) => handler(msg.value1, msg.value2), null, errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_receive<T1, T2, T3>(chan<tuple<T1, T2, T3>> chan, Func<T1, T2, T3, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2, T3>> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader((tuple<T1, T2, T3> msg) => handler(msg.value1, msg.value2, msg.value3), null, errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader((tuple<T1, T2, T3> msg) => handler(msg.value1, msg.value2, msg.value3), null, errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_receive(chan<void_type> chan, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<void_type> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader((void_type _) => handler(), errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader((void_type _) => handler(), errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_send<T>(chan<T> chan, async_result_wrap<T> msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<T> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_writer(msg, handler, errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_writer(msg, handler, errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_send<T>(chan<T> chan, T msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<T> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_writer(msg, handler, errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_writer(msg, handler, errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_send(chan<void_type> chan, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<void_type> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_writer(default(void_type), handler, errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_writer(default(void_type), handler, errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_receive<T1, T2>(broadcast_chan<tuple<T1, T2>> chan, Func<T1, T2, Task> handler, broadcast_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2>> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader((tuple<T1, T2> msg) => handler(msg.value1, msg.value2), token, errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader((tuple<T1, T2> msg) => handler(msg.value1, msg.value2), token, errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_receive<T1, T2, T3>(broadcast_chan<tuple<T1, T2, T3>> chan, Func<T1, T2, T3, Task> handler, broadcast_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2, T3>> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader((tuple<T1, T2, T3> msg) => handler(msg.value1, msg.value2, msg.value3), token, errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader((tuple<T1, T2, T3> msg) => handler(msg.value1, msg.value2, msg.value3), token, errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_receive<T>(broadcast_chan<T> chan, Func<T, Task> handler, broadcast_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<T> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader(handler, token, errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader(handler, token, errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_receive(broadcast_chan<void_type> chan, Func<Task> handler, broadcast_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<void_type> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader((void_type _) => handler(), token, errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader((void_type _) => handler(), token, errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_receive<R, T>(csp_chan<R, T> chan, Func<T, Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<T> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader(handler, errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader(handler, errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_receive<R, T1, T2>(csp_chan<R, tuple<T1, T2>> chan, Func<T1, T2, Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2>> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader((tuple<T1, T2> msg) => handler(msg.value1, msg.value2), errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader((tuple<T1, T2> msg) => handler(msg.value1, msg.value2), errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_receive<R, T1, T2, T3>(csp_chan<R, tuple<T1, T2, T3>> chan, Func<T1, T2, T3, Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2, T3>> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader((tuple<T1, T2, T3> msg) => handler(msg.value1, msg.value2, msg.value3), errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader((tuple<T1, T2, T3> msg) => handler(msg.value1, msg.value2, msg.value3), errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_receive<R>(csp_chan<R, void_type> chan, Func<Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<void_type> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader((void_type _) => handler(), errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader((void_type _) => handler(), errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_receive<R, T>(csp_chan<R, T> chan, Func<T, ValueTask<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<T> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader(handler, errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader(handler, errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_receive<R, T1, T2>(csp_chan<R, tuple<T1, T2>> chan, Func<T1, T2, ValueTask<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2>> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader((tuple<T1, T2> msg) => handler(msg.value1, msg.value2), errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader((tuple<T1, T2> msg) => handler(msg.value1, msg.value2), errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_receive<R, T1, T2, T3>(csp_chan<R, tuple<T1, T2, T3>> chan, Func<T1, T2, T3, ValueTask<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2, T3>> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader((tuple<T1, T2, T3> msg) => handler(msg.value1, msg.value2, msg.value3), errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader((tuple<T1, T2, T3> msg) => handler(msg.value1, msg.value2, msg.value3), errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_receive<R>(csp_chan<R, void_type> chan, Func<ValueTask<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<void_type> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader((void_type _) => handler(), errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader((void_type _) => handler(), errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_receive<T>(csp_chan<void_type, T> chan, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<T> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader((T msg) => check_void_task(handler(msg)), errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader((T msg) => check_void_task(handler(msg)), errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_receive<T1, T2>(csp_chan<void_type, tuple<T1, T2>> chan, Func<T1, T2, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2>> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader((tuple<T1, T2> msg) => check_void_task(handler(msg.value1, msg.value2)), errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader((tuple<T1, T2> msg) => check_void_task(handler(msg.value1, msg.value2)), errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_receive<T1, T2, T3>(csp_chan<void_type, tuple<T1, T2, T3>> chan, Func<T1, T2, T3, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2, T3>> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader((tuple<T1, T2, T3> msg) => check_void_task(handler(msg.value1, msg.value2, msg.value3)), errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader((tuple<T1, T2, T3> msg) => check_void_task(handler(msg.value1, msg.value2, msg.value3)), errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_receive(csp_chan<void_type, void_type> chan, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<void_type> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader((void_type _) => check_void_task(handler()), errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader((void_type _) => check_void_task(handler()), errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_send<R, T>(csp_chan<R, T> chan, async_result_wrap<T> msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_writer(msg, handler, errHandler, lostHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_writer(msg, handler, errHandler, lostHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_send<R, T>(csp_chan<R, T> chan, T msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_writer(msg, handler, errHandler, lostHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_writer(msg, handler, errHandler, lostHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_send<R>(csp_chan<R, void_type> chan, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Action<R> lostHandler = null, chan_lost_msg<void_type> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_writer(default(void_type), handler, errHandler, lostHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_writer(default(void_type), handler, errHandler, lostHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_send<T>(csp_chan<void_type, T> chan, async_result_wrap<T> msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Action<void_type> lostHandler = null, chan_lost_msg<T> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_writer(msg, (void_type _) => handler(), errHandler, lostHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_writer(msg, (void_type _) => handler(), errHandler, lostHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_send<T>(csp_chan<void_type, T> chan, T msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Action<void_type> lostHandler = null, chan_lost_msg<T> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_writer(msg, (void_type _) => handler(), errHandler, lostHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_writer(msg, (void_type _) => handler(), errHandler, lostHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_send(csp_chan<void_type, void_type> chan, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Action<void_type> lostHandler = null, chan_lost_msg<void_type> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_writer(default(void_type), (void_type _) => handler(), errHandler, lostHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_writer(default(void_type), (void_type _) => handler(), errHandler, lostHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_timed_recv_mail<T>(int ms, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<T> lostMsg = null)
@@ -8691,181 +8691,186 @@ namespace Go
 
             public select_chans case_timed_receive<T>(chan<T> chan, int ms, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<T> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader(ms, handler, errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader(ms, handler, errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_timed_receive<T1, T2>(chan<tuple<T1, T2>> chan, int ms, Func<T1, T2, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2>> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader(ms, (tuple<T1, T2> msg) => handler(msg.value1, msg.value2), null, errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader(ms, (tuple<T1, T2> msg) => handler(msg.value1, msg.value2), null, errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_timed_receive<T1, T2, T3>(chan<tuple<T1, T2, T3>> chan, int ms, Func<T1, T2, T3, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2, T3>> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader(ms, (tuple<T1, T2, T3> msg) => handler(msg.value1, msg.value2, msg.value3), null, errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader(ms, (tuple<T1, T2, T3> msg) => handler(msg.value1, msg.value2, msg.value3), null, errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_timed_receive(chan<void_type> chan, int ms, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<void_type> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader(ms, (void_type _) => handler(), errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader(ms, (void_type _) => handler(), errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_timed_send<T>(chan<T> chan, int ms, async_result_wrap<T> msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<T> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_writer(ms, msg, handler, errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_writer(ms, msg, handler, errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_timed_send<T>(chan<T> chan, int ms, T msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<T> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_writer(ms, msg, handler, errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_writer(ms, msg, handler, errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_timed_send(chan<void_type> chan, int ms, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<void_type> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_writer(ms, default(void_type), handler, errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_writer(ms, default(void_type), handler, errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_timed_receive<T1, T2>(broadcast_chan<tuple<T1, T2>> chan, int ms, Func<T1, T2, Task> handler, broadcast_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2>> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader(ms, (tuple<T1, T2> msg) => handler(msg.value1, msg.value2), token, errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader(ms, (tuple<T1, T2> msg) => handler(msg.value1, msg.value2), token, errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_timed_receive<T1, T2, T3>(broadcast_chan<tuple<T1, T2, T3>> chan, int ms, Func<T1, T2, T3, Task> handler, broadcast_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2, T3>> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader(ms, (tuple<T1, T2, T3> msg) => handler(msg.value1, msg.value2, msg.value3), token, errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader(ms, (tuple<T1, T2, T3> msg) => handler(msg.value1, msg.value2, msg.value3), token, errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_timed_receive<T>(broadcast_chan<T> chan, int ms, Func<T, Task> handler, broadcast_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<T> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader(ms, handler, token, errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader(ms, handler, token, errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_timed_receive(broadcast_chan<void_type> chan, int ms, Func<Task> handler, broadcast_token token = null, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<void_type> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader(ms, (void_type _) => handler(), token, errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader(ms, (void_type _) => handler(), token, errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_timed_receive<R, T>(csp_chan<R, T> chan, int ms, Func<T, Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<T> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader(ms, handler, errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader(ms, handler, errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_timed_receive<R, T1, T2>(csp_chan<R, tuple<T1, T2>> chan, int ms, Func<T1, T2, Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2>> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader(ms, (tuple<T1, T2> msg) => handler(msg.value1, msg.value2), errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader(ms, (tuple<T1, T2> msg) => handler(msg.value1, msg.value2), errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_timed_receive<R, T1, T2, T3>(csp_chan<R, tuple<T1, T2, T3>> chan, int ms, Func<T1, T2, T3, Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2, T3>> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader(ms, (tuple<T1, T2, T3> msg) => handler(msg.value1, msg.value2, msg.value3), errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader(ms, (tuple<T1, T2, T3> msg) => handler(msg.value1, msg.value2, msg.value3), errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_timed_receive<R>(csp_chan<R, void_type> chan, int ms, Func<Task<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<void_type> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader(ms, (void_type _) => handler(), errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader(ms, (void_type _) => handler(), errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_timed_receive<R, T>(csp_chan<R, T> chan, int ms, Func<T, ValueTask<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<T> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader(ms, handler, errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader(ms, handler, errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_timed_receive<R, T1, T2>(csp_chan<R, tuple<T1, T2>> chan, int ms, Func<T1, T2, ValueTask<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2>> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader(ms, (tuple<T1, T2> msg) => handler(msg.value1, msg.value2), errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader(ms, (tuple<T1, T2> msg) => handler(msg.value1, msg.value2), errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_timed_receive<R, T1, T2, T3>(csp_chan<R, tuple<T1, T2, T3>> chan, int ms, Func<T1, T2, T3, ValueTask<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2, T3>> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader(ms, (tuple<T1, T2, T3> msg) => handler(msg.value1, msg.value2, msg.value3), errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader(ms, (tuple<T1, T2, T3> msg) => handler(msg.value1, msg.value2, msg.value3), errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_timed_receive<R>(csp_chan<R, void_type> chan, int ms, Func<ValueTask<R>> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<void_type> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader(ms, (void_type _) => handler(), errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader(ms, (void_type _) => handler(), errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_timed_receive<T>(csp_chan<void_type, T> chan, int ms, Func<T, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<T> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader(ms, (T msg) => check_void_task(handler(msg)), errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader(ms, (T msg) => check_void_task(handler(msg)), errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_timed_receive<T1, T2>(csp_chan<void_type, tuple<T1, T2>> chan, int ms, Func<T1, T2, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2>> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader(ms, (tuple<T1, T2> msg) => check_void_task(handler(msg.value1, msg.value2)), errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader(ms, (tuple<T1, T2> msg) => check_void_task(handler(msg.value1, msg.value2)), errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_timed_receive<T1, T2, T3>(csp_chan<void_type, tuple<T1, T2, T3>> chan, int ms, Func<T1, T2, T3, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<tuple<T1, T2, T3>> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader(ms, (tuple<T1, T2, T3> msg) => check_void_task(handler(msg.value1, msg.value2, msg.value3)), errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader(ms, (tuple<T1, T2, T3> msg) => check_void_task(handler(msg.value1, msg.value2, msg.value3)), errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_timed_receive(csp_chan<void_type, void_type> chan, int ms, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<void_type> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_reader(ms, (void_type _) => check_void_task(handler()), errHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_reader(ms, (void_type _) => check_void_task(handler()), errHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_timed_send<R, T>(csp_chan<R, T> chan, int ms, async_result_wrap<T> msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_writer(ms, msg, handler, errHandler, lostHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_writer(ms, msg, handler, errHandler, lostHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_timed_send<R, T>(csp_chan<R, T> chan, int ms, T msg, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_writer(ms, msg, handler, errHandler, lostHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_writer(ms, msg, handler, errHandler, lostHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_timed_send<R>(csp_chan<R, void_type> chan, int ms, Func<R, Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Action<R> lostHandler = null, chan_lost_msg<void_type> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_writer(ms, default(void_type), handler, errHandler, lostHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_writer(ms, default(void_type), handler, errHandler, lostHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_timed_send<T>(csp_chan<void_type, T> chan, int ms, async_result_wrap<T> msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Action<void_type> lostHandler = null, chan_lost_msg<T> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_writer(ms, msg, (void_type _) => handler(), errHandler, lostHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_writer(ms, msg, (void_type _) => handler(), errHandler, lostHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_timed_send<T>(csp_chan<void_type, T> chan, int ms, T msg, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Action<void_type> lostHandler = null, chan_lost_msg<T> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_writer(ms, msg, (void_type _) => handler(), errHandler, lostHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_writer(ms, msg, (void_type _) => handler(), errHandler, lostHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public select_chans case_timed_send(csp_chan<void_type, void_type> chan, int ms, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, Action<void_type> lostHandler = null, chan_lost_msg<void_type> lostMsg = null)
             {
-                LinkedListNode<select_chan_base> chansNode = !_when ? null : _chans.AddLast(chan.make_select_writer(ms, default(void_type), (void_type _) => handler(), errHandler, lostHandler, lostMsg));
-                return new select_chans { _when = true, _random = _random, _chans = _chans, _lastChansNode = chansNode, _selectChans = _selectChans };
+                select_chan_base selectChan = chan.make_select_writer(ms, default(void_type), (void_type _) => handler(), errHandler, lostHandler, lostMsg); selectChan.enable = _whenEnable;
+                return new select_chans { _random = _random, _whenEnable = true, _chans = _chans, _lastChansNode = _chans.AddLast(selectChan), _selectChans = _selectChans };
             }
 
             public bool effective()
             {
                 return null != _lastChansNode;
+            }
+
+            public void enable(bool enable)
+            {
+                _lastChansNode.Value.enable = enable;
             }
 
             public void remove()
@@ -8880,7 +8885,7 @@ namespace Go
 
             public select_chans when(bool when)
             {
-                return new select_chans { _when = when, _random = _random, _chans = _chans, _selectChans = _selectChans };
+                return new select_chans { _random = _random, _whenEnable = when, _chans = _chans, _selectChans = _selectChans };
             }
 
             static private select_chan_base[] shuffle(LinkedList<select_chan_base> chans)
@@ -8914,18 +8919,15 @@ namespace Go
                     this_._topSelectChans.AddFirst(chans);
                     if (_random)
                     {
-                        await send_task(delegate ()
+                        select_chan_base[] shuffChans = await send_task(() => shuffle(chans));
+                        int len = shuffChans.Length;
+                        for (int i = 0; i < len; i++)
                         {
-                            select_chan_base[] shuffChans = shuffle(chans);
-                            int len = shuffChans.Length;
-                            for (int i = 0; i < len; i++)
-                            {
-                                select_chan_base chan = shuffChans[i];
-                                chan.ntfSign._selectOnce = false;
-                                chan.nextSelect = (chan_async_state state) => selectChans.post(tuple.make(state, chan));
-                                chan.begin(this_);
-                            }
-                        });
+                            select_chan_base chan = shuffChans[i];
+                            chan.ntfSign._selectOnce = false;
+                            chan.nextSelect = (chan_async_state state) => selectChans.post(tuple.make(state, chan));
+                            chan.begin(this_);
+                        }
                     }
                     else
                     {
@@ -9022,18 +9024,15 @@ namespace Go
                     this_._topSelectChans.AddFirst(chans);
                     if (_random)
                     {
-                        await send_task(delegate ()
+                        select_chan_base[] shuffChans = await send_task(() => shuffle(chans));
+                        int len = shuffChans.Length;
+                        for (int i = 0; i < len; i++)
                         {
-                            select_chan_base[] shuffChans = shuffle(chans);
-                            int len = shuffChans.Length;
-                            for (int i = 0; i < len; i++)
-                            {
-                                select_chan_base chan = shuffChans[i];
-                                chan.ntfSign._selectOnce = true;
-                                chan.nextSelect = (chan_async_state state) => selectChans.post(tuple.make(state, chan));
-                                chan.begin(this_);
-                            }
-                        });
+                            select_chan_base chan = shuffChans[i];
+                            chan.ntfSign._selectOnce = false;
+                            chan.nextSelect = (chan_async_state state) => selectChans.post(tuple.make(state, chan));
+                            chan.begin(this_);
+                        }
                     }
                     else
                     {
@@ -9136,18 +9135,15 @@ namespace Go
                     }
                     if (_random)
                     {
-                        await send_task(delegate ()
+                        select_chan_base[] shuffChans = await send_task(() => shuffle(chans));
+                        int len = shuffChans.Length;
+                        for (int i = 0; i < len; i++)
                         {
-                            select_chan_base[] shuffChans = shuffle(chans);
-                            int len = shuffChans.Length;
-                            for (int i = 0; i < len; i++)
-                            {
-                                select_chan_base chan = shuffChans[i];
-                                chan.ntfSign._selectOnce = true;
-                                chan.nextSelect = (chan_async_state state) => selectChans.post(tuple.make(state, chan));
-                                chan.begin(this_);
-                            }
-                        });
+                            select_chan_base chan = shuffChans[i];
+                            chan.ntfSign._selectOnce = false;
+                            chan.nextSelect = (chan_async_state state) => selectChans.post(tuple.make(state, chan));
+                            chan.begin(this_);
+                        }
                     }
                     else
                     {
@@ -9239,6 +9235,16 @@ namespace Go
                 return true;
             }
 
+            public Task<bool> again()
+            {
+                return end();
+            }
+
+            public Task<bool> timed_again(int ms)
+            {
+                return timed(ms);
+            }
+
             public Func<action, Task<bool>> wrap_loop()
             {
                 return loop;
@@ -9267,7 +9273,7 @@ namespace Go
 
         static public select_chans select(bool random = false)
         {
-            return new select_chans { _when = true, _random = random, _chans = new LinkedList<select_chan_base>(), _selectChans = new unlimit_chan<tuple<chan_async_state, select_chan_base>>(self_strand()) };
+            return new select_chans { _random = random, _whenEnable = true, _chans = new LinkedList<select_chan_base>(), _selectChans = new unlimit_chan<tuple<chan_async_state, select_chan_base>>(self_strand()) };
         }
 
         static public void stop_select()

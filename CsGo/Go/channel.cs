@@ -276,6 +276,7 @@ namespace Go
 
     internal abstract class select_chan_base
     {
+        public bool enable;
         public chan_notify_sign ntfSign = new chan_notify_sign();
         public Action<chan_async_state> nextSelect;
         public bool disabled() { return ntfSign._disable; }
@@ -426,7 +427,10 @@ namespace Go
                 ntfSign._disable = false;
                 _host = host;
                 _tryRecvRes = new async_result_wrap<chan_recv_wrap<T>>();
-                _chan.async_append_recv_notify(nextSelect, ntfSign, _chanTimeout);
+                if (enable)
+                {
+                    _chan.async_append_recv_notify(nextSelect, ntfSign, _chanTimeout);
+                }
             }
 
             public override async Task<select_chan_state> invoke(Func<Task> stepOne)
@@ -534,7 +538,10 @@ namespace Go
                 ntfSign._disable = false;
                 _host = host;
                 _trySendRes = new async_result_wrap<chan_send_wrap>();
-                _chan.async_append_send_notify(nextSelect, ntfSign, _chanTimeout);
+                if (enable)
+                {
+                    _chan.async_append_send_notify(nextSelect, ntfSign, _chanTimeout);
+                }
             }
 
             public override async Task<select_chan_state> invoke(Func<Task> stepOne)
@@ -2910,7 +2917,10 @@ namespace Go
                 ntfSign._disable = false;
                 _host = host;
                 _tryRecvRes = new async_result_wrap<csp_wait_wrap<R, T>>();
-                _chan.async_append_recv_notify(nextSelect, ntfSign, _chanTimeout);
+                if (enable)
+                {
+                    _chan.async_append_recv_notify(nextSelect, ntfSign, _chanTimeout);
+                }
             }
 
             public override async Task<select_chan_state> invoke(Func<Task> stepOne)
@@ -3040,7 +3050,10 @@ namespace Go
                 ntfSign._disable = false;
                 _host = host;
                 _trySendRes = new async_result_wrap<csp_invoke_wrap<R>>();
-                _chan.async_append_send_notify(nextSelect, ntfSign, _chanTimeout);
+                if (enable)
+                {
+                    _chan.async_append_send_notify(nextSelect, ntfSign, _chanTimeout);
+                }
             }
 
             public override async Task<select_chan_state> invoke(Func<Task> stepOne)
