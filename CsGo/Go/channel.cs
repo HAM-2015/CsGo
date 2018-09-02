@@ -2961,12 +2961,12 @@ namespace Go
                     {
                         _tryRecvRes.value1.fail();
                     }
-                    catch (generator.stop_select_exception)
+                    catch (generator.select_stop_all_exception)
                     {
                         _tryRecvRes.value1.fail();
                         throw;
                     }
-                    catch (generator.stop_this_case_exception)
+                    catch (generator.select_stop_current_exception)
                     {
                         _tryRecvRes.value1.fail();
                         throw;

@@ -446,29 +446,29 @@ namespace Go
             public static readonly stop_exception val = new stop_exception();
         }
 
-        public class stop_this_case_exception : System.Exception
+        public class local_value_exception : System.Exception
         {
-            public static readonly stop_this_case_exception val = new stop_this_case_exception();
+            public static readonly local_value_exception val = new local_value_exception();
         }
 
-        public class stop_select_exception : System.Exception
+        public class select_stop_current_exception : System.Exception
         {
-            public static readonly stop_select_exception val = new stop_select_exception();
+            public static readonly select_stop_current_exception val = new select_stop_current_exception();
         }
 
-        public class stop_this_receive_exception : System.Exception
+        public class select_stop_all_exception : System.Exception
         {
-            public static readonly stop_this_receive_exception val = new stop_this_receive_exception();
+            public static readonly select_stop_all_exception val = new select_stop_all_exception();
         }
 
-        public class stop_all_receive_exception : System.Exception
+        public class message_stop_current_exception : System.Exception
         {
-            public static readonly stop_all_receive_exception val = new stop_all_receive_exception();
+            public static readonly message_stop_current_exception val = new message_stop_current_exception();
         }
 
-        public class gen_local_value_exception : System.Exception
+        public class message_stop_all_exception : System.Exception
         {
-            public static readonly gen_local_value_exception val = new gen_local_value_exception();
+            public static readonly message_stop_all_exception val = new message_stop_all_exception();
         }
 
         class nil_task<R>
@@ -524,12 +524,12 @@ namespace Go
                     generator host = self;
                     if (null == host || null == host._genLocal)
                     {
-                        throw gen_local_value_exception.val;
+                        throw local_value_exception.val;
                     }
                     local_wrap localWrap;
                     if (!host._genLocal.TryGetValue(_id, out localWrap))
                     {
-                        throw gen_local_value_exception.val;
+                        throw local_value_exception.val;
                     }
                     return ((local_wrap<T>)localWrap).value;
                 }
@@ -538,7 +538,7 @@ namespace Go
                     generator host = self;
                     if (null == host)
                     {
-                        throw gen_local_value_exception.val;
+                        throw local_value_exception.val;
                     }
                     if (null == host._genLocal)
                     {
@@ -7229,8 +7229,8 @@ namespace Go
                                 }
                             }
                         }
-                        catch (stop_this_receive_exception) { }
-                        catch (stop_all_receive_exception)
+                        catch (message_stop_current_exception) { }
+                        catch (message_stop_all_exception)
                         {
                             _run = false;
                         }
@@ -7299,8 +7299,8 @@ namespace Go
                                 }
                             }
                         }
-                        catch (stop_this_receive_exception) { }
-                        catch (stop_all_receive_exception)
+                        catch (message_stop_current_exception) { }
+                        catch (message_stop_all_exception)
                         {
                             _run = false;
                         }
@@ -7349,8 +7349,8 @@ namespace Go
                             }
                             else if (null != errHandler && await errHandler(recvRes.state)) { }
                         }
-                        catch (stop_this_receive_exception) { }
-                        catch (stop_all_receive_exception)
+                        catch (message_stop_current_exception) { }
+                        catch (message_stop_all_exception)
                         {
                             _run = false;
                         }
@@ -7415,8 +7415,8 @@ namespace Go
                                 }
                             }
                         }
-                        catch (stop_this_receive_exception) { }
-                        catch (stop_all_receive_exception)
+                        catch (message_stop_current_exception) { }
+                        catch (message_stop_all_exception)
                         {
                             _run = false;
                         }
@@ -7467,8 +7467,8 @@ namespace Go
                         }
                         else if (null != errHandler && await errHandler(recvRes.state)) { }
                     }
-                    catch (stop_this_receive_exception) { }
-                    catch (stop_all_receive_exception)
+                    catch (message_stop_current_exception) { }
+                    catch (message_stop_all_exception)
                     {
                         _run = false;
                     }
@@ -7533,8 +7533,8 @@ namespace Go
                                 }
                             }
                         }
-                        catch (stop_this_receive_exception) { }
-                        catch (stop_all_receive_exception)
+                        catch (message_stop_current_exception) { }
+                        catch (message_stop_all_exception)
                         {
                             _run = false;
                         }
@@ -7603,8 +7603,8 @@ namespace Go
                                 }
                             }
                         }
-                        catch (stop_this_receive_exception) { }
-                        catch (stop_all_receive_exception)
+                        catch (message_stop_current_exception) { }
+                        catch (message_stop_all_exception)
                         {
                             _run = false;
                         }
@@ -7654,8 +7654,8 @@ namespace Go
                             }
                             else if (null != errHandler && await errHandler(recvRes.state)) { }
                         }
-                        catch (stop_this_receive_exception) { }
-                        catch (stop_all_receive_exception)
+                        catch (message_stop_current_exception) { }
+                        catch (message_stop_all_exception)
                         {
                             _run = false;
                         }
@@ -7720,8 +7720,8 @@ namespace Go
                                 }
                             }
                         }
-                        catch (stop_this_receive_exception) { }
-                        catch (stop_all_receive_exception)
+                        catch (message_stop_current_exception) { }
+                        catch (message_stop_all_exception)
                         {
                             _run = false;
                         }
@@ -7772,8 +7772,8 @@ namespace Go
                         }
                         else if (null != errHandler && await errHandler(recvRes.state)) { }
                     }
-                    catch (stop_this_receive_exception) { }
-                    catch (stop_all_receive_exception)
+                    catch (message_stop_current_exception) { }
+                    catch (message_stop_all_exception)
                     {
                         _run = false;
                     }
@@ -7888,8 +7888,8 @@ namespace Go
                                 }
                             }
                         }
-                        catch (stop_this_receive_exception) { }
-                        catch (stop_all_receive_exception)
+                        catch (message_stop_current_exception) { }
+                        catch (message_stop_all_exception)
                         {
                             _run = false;
                         }
@@ -7972,8 +7972,8 @@ namespace Go
                                 }
                             }
                         }
-                        catch (stop_this_receive_exception) { }
-                        catch (stop_all_receive_exception)
+                        catch (message_stop_current_exception) { }
+                        catch (message_stop_all_exception)
                         {
                             _run = false;
                         }
@@ -8079,8 +8079,8 @@ namespace Go
                             }
                             else if (null != errHandler && await errHandler(recvRes.state)) { }
                         }
-                        catch (stop_this_receive_exception) { }
-                        catch (stop_all_receive_exception)
+                        catch (message_stop_current_exception) { }
+                        catch (message_stop_all_exception)
                         {
                             _run = false;
                         }
@@ -8157,8 +8157,8 @@ namespace Go
                                 }
                             }
                         }
-                        catch (stop_this_receive_exception) { }
-                        catch (stop_all_receive_exception)
+                        catch (message_stop_current_exception) { }
+                        catch (message_stop_all_exception)
                         {
                             _run = false;
                         }
@@ -8266,8 +8266,8 @@ namespace Go
                         }
                         else if (null != errHandler && await errHandler(recvRes.state)) { }
                     }
-                    catch (stop_this_receive_exception) { }
-                    catch (stop_all_receive_exception)
+                    catch (message_stop_current_exception) { }
+                    catch (message_stop_all_exception)
                     {
                         _run = false;
                     }
@@ -8428,23 +8428,23 @@ namespace Go
             {
                 return end;
             }
+
+            static public void stop_current()
+            {
+                Debug.Assert(null != self && null != self.parent() && self.parent()._mailboxMap == self._mailboxMap, "不正确的 stop_current 调用!");
+                throw message_stop_current_exception.val;
+            }
+
+            static public void stop_all()
+            {
+                Debug.Assert(null != self && null != self.parent() && self.parent()._mailboxMap == self._mailboxMap, "不正确的 stop_all 调用!");
+                throw message_stop_all_exception.val;
+            }
         }
 
         static public receive_mail receive(bool forceStopAll = true)
         {
             return new receive_mail(forceStopAll);
-        }
-
-        static public void stop_this_receive()
-        {
-            Debug.Assert(null != self && null != self.parent() && self.parent()._mailboxMap == self._mailboxMap, "不正确的 stop_this_receive 调用!");
-            throw stop_this_receive_exception.val;
-        }
-
-        static public void stop_all_receive()
-        {
-            Debug.Assert(null != self && null != self.parent() && self.parent()._mailboxMap == self._mailboxMap, "不正确的 stop_all_receive 调用!");
-            throw stop_all_receive_exception.val;
         }
 
         public struct select_chans
@@ -8970,7 +8970,7 @@ namespace Go
                                 count--;
                             }
                         }
-                        catch (stop_this_case_exception)
+                        catch (select_stop_current_exception)
                         {
                             count--;
                             await selectedChan.value2.end();
@@ -8991,7 +8991,7 @@ namespace Go
                     }
                     return true;
                 }
-                catch (stop_select_exception)
+                catch (select_stop_all_exception)
                 {
                     return false;
                 }
@@ -9083,7 +9083,7 @@ namespace Go
                                 count--;
                             }
                         }
-                        catch (stop_this_case_exception)
+                        catch (select_stop_current_exception)
                         {
                             if (selected)
                             {
@@ -9097,7 +9097,7 @@ namespace Go
                         }
                     }
                 }
-                catch (stop_select_exception) { }
+                catch (select_stop_all_exception) { }
                 finally
                 {
                     lock_stop();
@@ -9197,7 +9197,7 @@ namespace Go
                                     count--;
                                 }
                             }
-                            catch (stop_this_case_exception)
+                            catch (select_stop_current_exception)
                             {
                                 if (selected)
                                 {
@@ -9216,7 +9216,7 @@ namespace Go
                         }
                     }
                 }
-                catch (stop_select_exception) { }
+                catch (select_stop_all_exception) { }
                 finally
                 {
                     lock_stop();
@@ -9269,110 +9269,113 @@ namespace Go
             {
                 return functional.bind(timed, ms);
             }
+
+            static public void stop_all()
+            {
+                Debug.Assert(null != self && null != self._topSelectChans && 0 != self._topSelectChans.Count, "不正确的 stop_all 调用!");
+                throw select_stop_all_exception.val;
+            }
+
+            static public void stop_current()
+            {
+                Debug.Assert(null != self && null != self._topSelectChans && 0 != self._topSelectChans.Count, "不正确的 stop_current 调用!");
+                throw select_stop_current_exception.val;
+            }
+
+            static public Task disable_other(chan_base otherChan, bool disable = true)
+            {
+                generator this_ = self;
+                if (null != this_._topSelectChans && 0 != this_._topSelectChans.Count)
+                {
+                    LinkedList<select_chan_base> currSelect = this_._topSelectChans.First.Value;
+                    for (LinkedListNode<select_chan_base> it = currSelect.First; null != it; it = it.Next)
+                    {
+                        select_chan_base chan = it.Value;
+                        if (chan.channel() == otherChan && chan.disabled() != disable)
+                        {
+                            if (disable)
+                            {
+                                return chan.end();
+                            }
+                            else
+                            {
+                                chan.begin(this_);
+                            }
+                        }
+                    }
+                }
+                return non_async();
+            }
+
+            static public Task disable_other_receive(chan_base otherChan, bool disable = true)
+            {
+                generator this_ = self;
+                if (null != this_._topSelectChans && 0 != this_._topSelectChans.Count)
+                {
+                    LinkedList<select_chan_base> currSelect = this_._topSelectChans.First.Value;
+                    for (LinkedListNode<select_chan_base> it = currSelect.First; null != it; it = it.Next)
+                    {
+                        select_chan_base chan = it.Value;
+                        if (chan.channel() == otherChan && chan.is_read() && chan.disabled() != disable)
+                        {
+                            if (disable)
+                            {
+                                return chan.end();
+                            }
+                            else
+                            {
+                                chan.begin(this_);
+                            }
+                        }
+                    }
+                }
+                return non_async();
+            }
+
+            static public Task disable_other_send(chan_base otherChan, bool disable = true)
+            {
+                generator this_ = self;
+                if (null != this_._topSelectChans && 0 != this_._topSelectChans.Count)
+                {
+                    LinkedList<select_chan_base> currSelect = this_._topSelectChans.First.Value;
+                    for (LinkedListNode<select_chan_base> it = currSelect.First; null != it; it = it.Next)
+                    {
+                        select_chan_base chan = it.Value;
+                        if (chan.channel() == otherChan && !chan.is_read() && chan.disabled() != disable)
+                        {
+                            if (disable)
+                            {
+                                return chan.end();
+                            }
+                            else
+                            {
+                                chan.begin(this_);
+                            }
+                        }
+                    }
+                }
+                return non_async();
+            }
+
+            static public Task enable_other(chan_base otherChan)
+            {
+                return disable_other(otherChan, false);
+            }
+
+            static public Task enable_other_receive(chan_base otherChan)
+            {
+                return disable_other_receive(otherChan, false);
+            }
+
+            static public Task enable_other_send(chan_base otherChan)
+            {
+                return disable_other_send(otherChan, false);
+            }
         }
 
         static public select_chans select(bool random = false)
         {
             return new select_chans { _random = random, _whenEnable = true, _chans = new LinkedList<select_chan_base>(), _selectChans = new unlimit_chan<tuple<chan_async_state, select_chan_base>>(self_strand()) };
-        }
-
-        static public void stop_select()
-        {
-            Debug.Assert(null != self && null != self._topSelectChans && 0 != self._topSelectChans.Count, "不正确的 stop_select 调用!");
-            throw stop_select_exception.val;
-        }
-
-        static public void stop_this_case()
-        {
-            Debug.Assert(null != self && null != self._topSelectChans && 0 != self._topSelectChans.Count, "不正确的 stop_this_case 调用!");
-            throw stop_this_case_exception.val;
-        }
-
-        static public async Task disable_other_case(chan_base otherChan, bool disable = true)
-        {
-            generator this_ = self;
-            if (null != this_._topSelectChans && 0 != this_._topSelectChans.Count)
-            {
-                LinkedList<select_chan_base> currSelect = this_._topSelectChans.First.Value;
-                for (LinkedListNode<select_chan_base> it = currSelect.First; null != it; it = it.Next)
-                {
-                    select_chan_base chan = it.Value;
-                    if (chan.channel() == otherChan && chan.disabled() != disable)
-                    {
-                        if (disable)
-                        {
-                            await chan.end();
-                        }
-                        else
-                        {
-                            chan.begin(this_);
-                        }
-                    }
-                }
-            }
-        }
-
-        static public async Task disable_other_case_receive(chan_base otherChan, bool disable = true)
-        {
-            generator this_ = self;
-            if (null != this_._topSelectChans && 0 != this_._topSelectChans.Count)
-            {
-                LinkedList<select_chan_base> currSelect = this_._topSelectChans.First.Value;
-                for (LinkedListNode<select_chan_base> it = currSelect.First; null != it; it = it.Next)
-                {
-                    select_chan_base chan = it.Value;
-                    if (chan.channel() == otherChan && chan.is_read() && chan.disabled() != disable)
-                    {
-                        if (disable)
-                        {
-                            await chan.end();
-                        }
-                        else
-                        {
-                            chan.begin(this_);
-                        }
-                    }
-                }
-            }
-        }
-
-        static public async Task disable_other_case_send(chan_base otherChan, bool disable = true)
-        {
-            generator this_ = self;
-            if (null != this_._topSelectChans && 0 != this_._topSelectChans.Count)
-            {
-                LinkedList<select_chan_base> currSelect = this_._topSelectChans.First.Value;
-                for (LinkedListNode<select_chan_base> it = currSelect.First; null != it; it = it.Next)
-                {
-                    select_chan_base chan = it.Value;
-                    if (chan.channel() == otherChan && !chan.is_read() && chan.disabled() != disable)
-                    {
-                        if (disable)
-                        {
-                            await chan.end();
-                        }
-                        else
-                        {
-                            chan.begin(this_);
-                        }
-                    }
-                }
-            }
-        }
-
-        static public Task enable_other_case(chan_base otherChan)
-        {
-            return disable_other_case(otherChan, false);
-        }
-
-        static public Task enable_other_case_receive(chan_base otherChan)
-        {
-            return disable_other_case_receive(otherChan, false);
-        }
-
-        static public Task enable_other_case_send(chan_base otherChan)
-        {
-            return disable_other_case_send(otherChan, false);
         }
 
         static public System.Version version
