@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace Go
 {
-    public class mutex
+    public class go_mutex
     {
         struct wait_node
         {
@@ -18,7 +18,7 @@ namespace Go
         protected long _lockID;
         protected int _recCount;
 
-        public mutex(shared_strand strand)
+        public go_mutex(shared_strand strand)
         {
             _strand = strand;
             _waitQueue = new LinkedList<wait_node>();
@@ -26,7 +26,7 @@ namespace Go
             _recCount = 0;
         }
 
-        public mutex() : this(shared_strand.default_strand()) { }
+        public go_mutex() : this(shared_strand.default_strand()) { }
 
         protected virtual void async_lock_(long id, Action ntf)
         {
@@ -216,7 +216,7 @@ namespace Go
         }
     }
 
-    public class shared_mutex : mutex
+    public class go_shared_mutex : go_mutex
     {
         enum lock_status
         {
@@ -240,13 +240,13 @@ namespace Go
         LinkedList<wait_node> _waitQueue;
         Dictionary<long, shared_count> _sharedMap;
 
-        public shared_mutex(shared_strand strand) : base(strand)
+        public go_shared_mutex(shared_strand strand) : base(strand)
         {
             _waitQueue = new LinkedList<wait_node>();
             _sharedMap = new Dictionary<long, shared_count>();
         }
 
-        public shared_mutex() : base()
+        public go_shared_mutex() : base()
         {
             _waitQueue = new LinkedList<wait_node>();
             _sharedMap = new Dictionary<long, shared_count>();
@@ -641,12 +641,12 @@ namespace Go
             return generator.mutex_lock_upgrade(this);
         }
 
-        public Task lock_upgrade(shared_mutex mtx, Func<Task> handler)
+        public Task lock_upgrade(go_shared_mutex mtx, Func<Task> handler)
         {
             return generator.mutex_lock_upgrade(this, handler);
         }
 
-        public Task<R> lock_upgrade<R>(shared_mutex mtx, Func<Task<R>> handler)
+        public Task<R> lock_upgrade<R>(go_shared_mutex mtx, Func<Task<R>> handler)
         {
             return generator.mutex_lock_upgrade(this, handler);
         }
@@ -707,26 +707,26 @@ namespace Go
         }
     }
 
-    public class condition_variable
+    public class go_condition_variable
     {
         shared_strand _strand;
-        LinkedList<tuple<long, mutex, Action>> _waitQueue;
+        LinkedList<tuple<long, go_mutex, Action>> _waitQueue;
 
-        public condition_variable(shared_strand strand)
+        public go_condition_variable(shared_strand strand)
         {
             _strand = strand;
-            _waitQueue = new LinkedList<tuple<long, mutex, Action>>();
+            _waitQueue = new LinkedList<tuple<long, go_mutex, Action>>();
         }
 
-        public condition_variable() : this(shared_strand.default_strand()) { }
+        public go_condition_variable() : this(shared_strand.default_strand()) { }
 
-        internal void async_wait(long id, mutex mutex, Action ntf)
+        internal void async_wait(long id, go_mutex mutex, Action ntf)
         {
             mutex.async_unlock(id, delegate ()
             {
                 _strand.dispatch(delegate ()
                 {
-                    _waitQueue.AddLast(new tuple<long, mutex, Action>(id, mutex, delegate ()
+                    _waitQueue.AddLast(new tuple<long, go_mutex, Action>(id, mutex, delegate ()
                     {
                         mutex.async_lock(id, ntf);
                     }));
@@ -734,7 +734,7 @@ namespace Go
             });
         }
 
-        internal void async_timed_wait(long id, int ms, mutex mutex, Action<bool> ntf)
+        internal void async_timed_wait(long id, int ms, go_mutex mutex, Action<bool> ntf)
         {
             mutex.async_unlock(id, delegate ()
             {
@@ -743,7 +743,7 @@ namespace Go
                     if (ms >= 0)
                     {
                         async_timer timer = new async_timer(_strand);
-                        LinkedListNode<tuple<long, mutex, Action>> node = _waitQueue.AddLast(new tuple<long, mutex, Action>(id, mutex, delegate ()
+                        LinkedListNode<tuple<long, go_mutex, Action>> node = _waitQueue.AddLast(new tuple<long, go_mutex, Action>(id, mutex, delegate ()
                         {
                             timer.cancel();
                             mutex.async_lock(id, delegate ()
@@ -762,7 +762,7 @@ namespace Go
                     }
                     else
                     {
-                        _waitQueue.AddLast(new tuple<long, mutex, Action>(id, mutex, delegate ()
+                        _waitQueue.AddLast(new tuple<long, go_mutex, Action>(id, mutex, delegate ()
                         {
                             mutex.async_lock(id, () => ntf(true));
                         }));
@@ -790,9 +790,9 @@ namespace Go
             {
                 if (_waitQueue.Count > 0)
                 {
-                    LinkedList<tuple<long, mutex, Action>> waitQueue = _waitQueue;
-                    _waitQueue = new LinkedList<tuple<long, mutex, Action>>();
-                    for (LinkedListNode<tuple<long, mutex, Action>> it = waitQueue.First; null != it; it = it.Next)
+                    LinkedList<tuple<long, go_mutex, Action>> waitQueue = _waitQueue;
+                    _waitQueue = new LinkedList<tuple<long, go_mutex, Action>>();
+                    for (LinkedListNode<tuple<long, go_mutex, Action>> it = waitQueue.First; null != it; it = it.Next)
                     {
                         it.Value.value3.Invoke();
                     }
@@ -804,7 +804,7 @@ namespace Go
         {
             _strand.dispatch(delegate ()
             {
-                for (LinkedListNode<tuple<long, mutex, Action>> it = _waitQueue.First; null != it; it = it.Next)
+                for (LinkedListNode<tuple<long, go_mutex, Action>> it = _waitQueue.First; null != it; it = it.Next)
                 {
                     if (id == it.Value.value1)
                     {
@@ -816,17 +816,17 @@ namespace Go
             });
         }
 
-        public Task wait(mutex mutex)
+        public Task wait(go_mutex mutex)
         {
             return generator.condition_wait(this, mutex);
         }
 
-        public Task timed_wait(async_result_wrap<bool> res, mutex mutex, int ms)
+        public Task timed_wait(async_result_wrap<bool> res, go_mutex mutex, int ms)
         {
             return generator.condition_timed_wait(res, this, mutex, ms);
         }
 
-        public ValueTask<bool> timed_wait(mutex mutex, int ms)
+        public ValueTask<bool> timed_wait(go_mutex mutex, int ms)
         {
             return generator.condition_timed_wait(this, mutex, ms);
         }

@@ -5436,21 +5436,21 @@ namespace Go
             return nil_task<R>.task(value);
         }
 
-        static public Task mutex_cancel(mutex mtx)
+        static public Task mutex_cancel(go_mutex mtx)
         {
             generator this_ = self;
             mtx.async_cancel(this_._id, this_.unsafe_async_result());
             return this_.async_wait();
         }
 
-        static public Task mutex_lock(mutex mtx)
+        static public Task mutex_lock(go_mutex mtx)
         {
             generator this_ = self;
             mtx.async_lock(this_._id, this_.unsafe_async_result());
             return this_.async_wait();
         }
 
-        static public async Task mutex_lock(mutex mtx, Func<Task> handler)
+        static public async Task mutex_lock(go_mutex mtx, Func<Task> handler)
         {
             await mutex_lock(mtx);
             try
@@ -5463,7 +5463,7 @@ namespace Go
             }
         }
 
-        static public async Task<R> mutex_lock<R>(mutex mtx, Func<Task<R>> handler)
+        static public async Task<R> mutex_lock<R>(go_mutex mtx, Func<Task<R>> handler)
         {
             await mutex_lock(mtx);
             try
@@ -5476,7 +5476,7 @@ namespace Go
             }
         }
 
-        static public Task mutex_try_lock(async_result_wrap<bool> res, mutex mtx)
+        static public Task mutex_try_lock(async_result_wrap<bool> res, go_mutex mtx)
         {
             generator this_ = self;
             res.value1 = false;
@@ -5484,7 +5484,7 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public ValueTask<bool> mutex_try_lock(mutex mtx)
+        static public ValueTask<bool> mutex_try_lock(go_mutex mtx)
         {
             generator this_ = self;
             async_result_wrap<bool> res = new async_result_wrap<bool>();
@@ -5492,7 +5492,7 @@ namespace Go
             return this_.async_wait(res);
         }
 
-        static public async Task<bool> mutex_try_lock(mutex mtx, Func<Task> handler)
+        static public async Task<bool> mutex_try_lock(go_mutex mtx, Func<Task> handler)
         {
             if (await mutex_try_lock(mtx))
             {
@@ -5509,7 +5509,7 @@ namespace Go
             return false;
         }
 
-        static public Task mutex_timed_lock(async_result_wrap<bool> res, mutex mtx, int ms)
+        static public Task mutex_timed_lock(async_result_wrap<bool> res, go_mutex mtx, int ms)
         {
             generator this_ = self;
             res.value1 = false;
@@ -5517,7 +5517,7 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public ValueTask<bool> mutex_timed_lock(mutex mtx, int ms)
+        static public ValueTask<bool> mutex_timed_lock(go_mutex mtx, int ms)
         {
             generator this_ = self;
             async_result_wrap<bool> res = new async_result_wrap<bool>();
@@ -5525,7 +5525,7 @@ namespace Go
             return this_.async_wait(res);
         }
 
-        static public async Task<bool> mutex_timed_lock(mutex mtx, int ms, Func<Task> handler)
+        static public async Task<bool> mutex_timed_lock(go_mutex mtx, int ms, Func<Task> handler)
         {
             if (await mutex_timed_lock(mtx, ms))
             {
@@ -5542,21 +5542,21 @@ namespace Go
             return false;
         }
 
-        static public Task mutex_unlock(mutex mtx)
+        static public Task mutex_unlock(go_mutex mtx)
         {
             generator this_ = self;
             mtx.async_unlock(this_._id, this_.unsafe_async_result());
             return this_.async_wait();
         }
 
-        static public Task mutex_lock_shared(shared_mutex mtx)
+        static public Task mutex_lock_shared(go_shared_mutex mtx)
         {
             generator this_ = self;
             mtx.async_lock_shared(this_._id, this_.unsafe_async_result());
             return this_.async_wait();
         }
 
-        static public async Task mutex_lock_shared(shared_mutex mtx, Func<Task> handler)
+        static public async Task mutex_lock_shared(go_shared_mutex mtx, Func<Task> handler)
         {
             await mutex_lock_shared(mtx);
             try
@@ -5569,7 +5569,7 @@ namespace Go
             }
         }
 
-        static public async Task<R> mutex_lock_shared<R>(shared_mutex mtx, Func<Task<R>> handler)
+        static public async Task<R> mutex_lock_shared<R>(go_shared_mutex mtx, Func<Task<R>> handler)
         {
             await mutex_lock_shared(mtx);
             try
@@ -5582,14 +5582,14 @@ namespace Go
             }
         }
 
-        static public Task mutex_lock_pess_shared(shared_mutex mtx)
+        static public Task mutex_lock_pess_shared(go_shared_mutex mtx)
         {
             generator this_ = self;
             mtx.async_lock_pess_shared(this_._id, this_.unsafe_async_result());
             return this_.async_wait();
         }
 
-        static public async Task mutex_lock_pess_shared(shared_mutex mtx, Func<Task> handler)
+        static public async Task mutex_lock_pess_shared(go_shared_mutex mtx, Func<Task> handler)
         {
             await mutex_lock_pess_shared(mtx);
             try
@@ -5602,7 +5602,7 @@ namespace Go
             }
         }
 
-        static public async Task<R> mutex_lock_pess_shared<R>(shared_mutex mtx, Func<Task<R>> handler)
+        static public async Task<R> mutex_lock_pess_shared<R>(go_shared_mutex mtx, Func<Task<R>> handler)
         {
             await mutex_lock_pess_shared(mtx);
             try
@@ -5615,14 +5615,14 @@ namespace Go
             }
         }
 
-        static public Task mutex_lock_upgrade(shared_mutex mtx)
+        static public Task mutex_lock_upgrade(go_shared_mutex mtx)
         {
             generator this_ = self;
             mtx.async_lock_upgrade(this_._id, this_.unsafe_async_result());
             return this_.async_wait();
         }
 
-        static public async Task mutex_lock_upgrade(shared_mutex mtx, Func<Task> handler)
+        static public async Task mutex_lock_upgrade(go_shared_mutex mtx, Func<Task> handler)
         {
             await mutex_lock_upgrade(mtx);
             try
@@ -5635,7 +5635,7 @@ namespace Go
             }
         }
 
-        static public async Task<R> mutex_lock_upgrade<R>(shared_mutex mtx, Func<Task<R>> handler)
+        static public async Task<R> mutex_lock_upgrade<R>(go_shared_mutex mtx, Func<Task<R>> handler)
         {
             await mutex_lock_upgrade(mtx);
             try
@@ -5648,7 +5648,7 @@ namespace Go
             }
         }
 
-        static public Task mutex_try_lock_shared(async_result_wrap<bool> res, shared_mutex mtx)
+        static public Task mutex_try_lock_shared(async_result_wrap<bool> res, go_shared_mutex mtx)
         {
             generator this_ = self;
             res.value1 = false;
@@ -5656,7 +5656,7 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public ValueTask<bool> mutex_try_lock_shared(shared_mutex mtx)
+        static public ValueTask<bool> mutex_try_lock_shared(go_shared_mutex mtx)
         {
             generator this_ = self;
             async_result_wrap<bool> res = new async_result_wrap<bool>();
@@ -5664,7 +5664,7 @@ namespace Go
             return this_.async_wait(res);
         }
 
-        static public async Task<bool> mutex_try_lock_shared(shared_mutex mtx, Func<Task> handler)
+        static public async Task<bool> mutex_try_lock_shared(go_shared_mutex mtx, Func<Task> handler)
         {
             if (await mutex_try_lock_shared(mtx))
             {
@@ -5681,7 +5681,7 @@ namespace Go
             return false;
         }
 
-        static public Task mutex_try_lock_upgrade(async_result_wrap<bool> res, shared_mutex mtx)
+        static public Task mutex_try_lock_upgrade(async_result_wrap<bool> res, go_shared_mutex mtx)
         {
             generator this_ = self;
             res.value1 = false;
@@ -5689,7 +5689,7 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public ValueTask<bool> mutex_try_lock_upgrade(shared_mutex mtx)
+        static public ValueTask<bool> mutex_try_lock_upgrade(go_shared_mutex mtx)
         {
             generator this_ = self;
             async_result_wrap<bool> res = new async_result_wrap<bool>();
@@ -5697,7 +5697,7 @@ namespace Go
             return this_.async_wait(res);
         }
 
-        static public async Task<bool> mutex_try_lock_upgrade(shared_mutex mtx, Func<Task> handler)
+        static public async Task<bool> mutex_try_lock_upgrade(go_shared_mutex mtx, Func<Task> handler)
         {
             if (await mutex_try_lock_upgrade(mtx))
             {
@@ -5714,7 +5714,7 @@ namespace Go
             return false;
         }
 
-        static public Task mutex_timed_lock_shared(async_result_wrap<bool> res, shared_mutex mtx, int ms)
+        static public Task mutex_timed_lock_shared(async_result_wrap<bool> res, go_shared_mutex mtx, int ms)
         {
             generator this_ = self;
             res.value1 = false;
@@ -5722,7 +5722,7 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public ValueTask<bool> mutex_timed_lock_shared(shared_mutex mtx, int ms)
+        static public ValueTask<bool> mutex_timed_lock_shared(go_shared_mutex mtx, int ms)
         {
             generator this_ = self;
             async_result_wrap<bool> res = new async_result_wrap<bool>();
@@ -5730,7 +5730,7 @@ namespace Go
             return this_.async_wait(res);
         }
 
-        static public async Task<bool> mutex_timed_lock_shared(shared_mutex mtx, int ms, Func<Task> handler)
+        static public async Task<bool> mutex_timed_lock_shared(go_shared_mutex mtx, int ms, Func<Task> handler)
         {
             if (await mutex_timed_lock_shared(mtx, ms))
             {
@@ -5747,28 +5747,28 @@ namespace Go
             return false;
         }
 
-        static public Task mutex_unlock_shared(shared_mutex mtx)
+        static public Task mutex_unlock_shared(go_shared_mutex mtx)
         {
             generator this_ = self;
             mtx.async_unlock_shared(this_._id, this_.unsafe_async_result());
             return this_.async_wait();
         }
 
-        static public Task mutex_unlock_upgrade(shared_mutex mtx)
+        static public Task mutex_unlock_upgrade(go_shared_mutex mtx)
         {
             generator this_ = self;
             mtx.async_unlock_upgrade(this_._id, this_.unsafe_async_result());
             return this_.async_wait();
         }
 
-        static public Task condition_wait(condition_variable conVar, mutex mutex)
+        static public Task condition_wait(go_condition_variable conVar, go_mutex mutex)
         {
             generator this_ = self;
             conVar.async_wait(this_._id, mutex, this_.unsafe_async_result());
             return this_.async_wait();
         }
 
-        static public Task condition_timed_wait(async_result_wrap<bool> res, condition_variable conVar, mutex mutex, int ms)
+        static public Task condition_timed_wait(async_result_wrap<bool> res, go_condition_variable conVar, go_mutex mutex, int ms)
         {
             generator this_ = self;
             res.value1 = false;
@@ -5776,7 +5776,7 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public ValueTask<bool> condition_timed_wait(condition_variable conVar, mutex mutex, int ms)
+        static public ValueTask<bool> condition_timed_wait(go_condition_variable conVar, go_mutex mutex, int ms)
         {
             generator this_ = self;
             async_result_wrap<bool> res = new async_result_wrap<bool>();
@@ -5784,7 +5784,7 @@ namespace Go
             return this_.async_wait(res);
         }
 
-        static public Task condition_cancel(condition_variable conVar)
+        static public Task condition_cancel(go_condition_variable conVar)
         {
             generator this_ = self;
             conVar.async_cancel(this_.id, this_.unsafe_async_result());
@@ -7184,7 +7184,7 @@ namespace Go
         public class receive_mail
         {
             bool _run = true;
-            shared_mutex _mutex;
+            go_shared_mutex _mutex;
             children _children = new children();
 
             internal receive_mail(bool forceStopAll)
@@ -7194,7 +7194,7 @@ namespace Go
                 {
                     self._mailboxMap = new Dictionary<long, mail_pck>();
                 }
-                _mutex = forceStopAll ? null : new shared_mutex(self.strand);
+                _mutex = forceStopAll ? null : new go_shared_mutex(self.strand);
             }
 
             public receive_mail case_of(chan<void_type> chan, Func<Task> handler, Func<chan_async_state, Task<bool>> errHandler = null, chan_lost_msg<void_type> lostMsg = null)

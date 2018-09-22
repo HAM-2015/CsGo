@@ -107,6 +107,14 @@ namespace Go
                 Monitor.Exit(_opQueue);
             }
         }
+
+        public int count
+        {
+            get
+            {
+                return _opQueue.Count;
+            }
+        }
     }
 
     public class work_engine
@@ -155,14 +163,20 @@ namespace Go
             stop();
         }
 
-        public int threads()
+        public int threads
         {
-            return _runThreads.Length;
+            get
+            {
+                return _runThreads.Length;
+            }
         }
 
-        public work_service service()
+        public work_service service
         {
-            return _service;
+            get
+            {
+                return _service;
+            }
         }
     }
 
@@ -368,6 +382,14 @@ namespace Go
         protected virtual void run_task()
         {
             Task.Run(_runTask);
+        }
+
+        public int count
+        {
+            get
+            {
+                return _readyQueue.Count + _waitQueue.Count;
+            }
         }
 
         public void post(Action action)
@@ -605,7 +627,7 @@ namespace Go
 
         public work_strand(work_engine eng) : base()
         {
-            _service = eng.service();
+            _service = eng.service;
         }
 
         public override bool dispatch(Action action)

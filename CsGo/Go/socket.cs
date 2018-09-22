@@ -8,6 +8,7 @@ using System.IO.Pipes;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.IO.MemoryMappedFiles;
+using System.Diagnostics;
 
 namespace Go
 {
@@ -929,6 +930,7 @@ namespace Go
         {
             try
             {
+                Debug.Assert(null == _readSameHandler.cb, "重入的 read 操作!");
                 _readSameHandler.cb = cb;
                 _socket.BeginReceive(buff.Array, buff.Offset, buff.Count, 0, _readSameHandler.handler, null);
             }
@@ -943,6 +945,7 @@ namespace Go
         {
             try
             {
+                Debug.Assert(null == _writeSameHandler.cb, "重入的 write 操作!");
                 _writeSameHandler.cb = cb;
                 _socket.BeginSend(buff.Array, buff.Offset, buff.Count, 0, _writeSameHandler.handler, null);
             }
@@ -957,6 +960,7 @@ namespace Go
         {
             try
             {
+                Debug.Assert(null == _writeSameHandler.cb, "重入的 write 操作!");
                 _writeSameHandler.pinnedObj = pinnedObj;
                 _writeSameHandler.cb = cb;
                 SocketError lastWin32Error = SocketAsyncIo.SendFile(_socket, fileHandle, offset, size, _writeSameHandler.handler);
@@ -977,6 +981,7 @@ namespace Go
         {
             try
             {
+                Debug.Assert(null == _readSameHandler.cb, "重入的 read 操作!");
                 _readSameHandler.pinnedObj = pinnedObj;
                 _readSameHandler.cb = cb;
                 SocketError lastWin32Error = SocketAsyncIo.Recv(_socket, ptr, offset, size, 0, _readSameHandler.handler);
@@ -997,6 +1002,7 @@ namespace Go
         {
             try
             {
+                Debug.Assert(null == _writeSameHandler.cb, "重入的 write 操作!");
                 _writeSameHandler.pinnedObj = pinnedObj;
                 _writeSameHandler.cb = cb;
                 SocketError lastWin32Error = SocketAsyncIo.Send(_socket, ptr, offset, size, 0, _writeSameHandler.handler);
@@ -1309,6 +1315,7 @@ namespace Go
         {
             try
             {
+                Debug.Assert(null == _readSameHandler.cb, "重入的 read 操作!");
                 _readSameHandler.cb = cb;
                 _socket.BaseStream.BeginRead(buff.Array, buff.Offset, buff.Count, _readSameHandler.handler, null);
             }
@@ -1323,6 +1330,7 @@ namespace Go
         {
             try
             {
+                Debug.Assert(null == _writeSameHandler.cb, "重入的 write 操作!");
                 _writeSameHandler.buff = buff;
                 _writeSameHandler.cb = cb;
                 _socket.BaseStream.BeginWrite(buff.Array, buff.Offset, buff.Count, _writeSameHandler.handler, null);
@@ -1462,6 +1470,7 @@ namespace Go
         {
             try
             {
+                Debug.Assert(null == _readSameHandler.cb, "重入的 read 操作!");
                 _readSameHandler.cb = cb;
                 _socket.BeginRead(buff.Array, buff.Offset, buff.Count, _readSameHandler.handler, null);
             }
@@ -1476,6 +1485,7 @@ namespace Go
         {
             try
             {
+                Debug.Assert(null == _writeSameHandler.cb, "重入的 write 操作!");
                 _writeSameHandler.buff = buff;
                 _writeSameHandler.cb = cb;
                 _socket.BeginWrite(buff.Array, buff.Offset, buff.Count, _writeSameHandler.handler, null);
