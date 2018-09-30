@@ -388,7 +388,16 @@ namespace Go
         {
             get
             {
-                return _readyQueue.Count + _waitQueue.Count;
+                while (true)
+                {
+                    MsgQueue<Action> readyQueue = _readyQueue;
+                    MsgQueue<Action> waitQueue = _waitQueue;
+                    if (readyQueue != waitQueue)
+                    {
+                        return readyQueue.Count + waitQueue.Count;
+                    }
+                    Thread.Yield();
+                }
             }
         }
 
