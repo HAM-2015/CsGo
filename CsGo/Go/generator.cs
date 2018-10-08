@@ -56,17 +56,17 @@ namespace Go
         }
     }
 
-    public abstract class async_result_ignore_wrap<T1>
+    public static class async_result_ignore_wrap<T1>
     {
         static readonly public async_result_wrap<T1> value = new async_result_wrap<T1>();
     }
 
-    public abstract class async_result_ignore_wrap<T1, T2>
+    public static class async_result_ignore_wrap<T1, T2>
     {
         static readonly public async_result_wrap<T1, T2> value = new async_result_wrap<T1, T2>();
     }
 
-    public abstract class async_result_ignore_wrap<T1, T2, T3>
+    public static class async_result_ignore_wrap<T1, T2, T3>
     {
         static readonly public async_result_wrap<T1, T2, T3> value = new async_result_wrap<T1, T2, T3>();
     }

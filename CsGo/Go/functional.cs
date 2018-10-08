@@ -4,7 +4,6 @@ using System.Diagnostics;
 
 namespace Go
 {
-    public class placeholder { }
     public struct void_type { }
 
     [Serializable]
@@ -122,7 +121,7 @@ namespace Go
 #endif
     }
 
-    public abstract class tuple
+    public static class tuple
     {
         static public tuple<T1> make<T1>(T1 p1) { return new tuple<T1>(p1); }
         static public tuple<T1, T2> make<T1, T2>(T1 p1, T2 p2) { return new tuple<T1, T2>(p1, p2); }
@@ -134,20 +133,21 @@ namespace Go
     public delegate void SameAction(params object[] args);
     public delegate R SameFunc<R>(params object[] args);
 
-    public abstract class nil_action { static public readonly Action action = () => { }; }
-    public abstract class nil_action<T1> { static public readonly Action<T1> action = (T1 p1) => { }; }
-    public abstract class nil_action<T1, T2> { static public readonly Action<T1, T2> action = (T1 p1, T2 p2) => { }; }
-    public abstract class nil_action<T1, T2, T3> { static public readonly Action<T1, T2, T3> action = (T1 p1, T2 p2, T3 p3) => { }; }
-    public abstract class any_action { static public readonly SameAction action = (object[] args) => { }; }
+    public static class nil_action { static public readonly Action action = () => { }; }
+    public static class nil_action<T1> { static public readonly Action<T1> action = (T1 p1) => { }; }
+    public static class nil_action<T1, T2> { static public readonly Action<T1, T2> action = (T1 p1, T2 p2) => { }; }
+    public static class nil_action<T1, T2, T3> { static public readonly Action<T1, T2, T3> action = (T1 p1, T2 p2, T3 p3) => { }; }
+    public static class any_action { static public readonly SameAction action = (object[] args) => { }; }
 
-    public abstract class nil_func { static public readonly Func<Task> func = () => generator.non_async(); }
-    public abstract class nil_func<T1> { static public readonly Func<T1, Task> func = (T1 p1) => generator.non_async(); }
-    public abstract class nil_func<T1, T2> { static public readonly Func<T1, T2, Task> func = (T1 p1, T2 p2) => generator.non_async(); }
-    public abstract class nil_func<T1, T2, T3> { static public readonly Func<T1, T2, T3, Task> func = (T1 p1, T2 p2, T3 p3) => generator.non_async(); }
-    public abstract class any_func { static public readonly SameFunc<Task> func = (object[] args) => generator.non_async(); }
+    public static class nil_func { static public readonly Func<Task> func = () => generator.non_async(); }
+    public static class nil_func<T1> { static public readonly Func<T1, Task> func = (T1 p1) => generator.non_async(); }
+    public static class nil_func<T1, T2> { static public readonly Func<T1, T2, Task> func = (T1 p1, T2 p2) => generator.non_async(); }
+    public static class nil_func<T1, T2, T3> { static public readonly Func<T1, T2, T3, Task> func = (T1 p1, T2 p2, T3 p3) => generator.non_async(); }
+    public static class any_func { static public readonly SameFunc<Task> func = (object[] args) => generator.non_async(); }
 
-    public class functional
+    public static class functional
     {
+        public class placeholder { internal placeholder() { } }
         public static readonly placeholder _ = new placeholder();
 
         public static Action cast(SameAction handler)

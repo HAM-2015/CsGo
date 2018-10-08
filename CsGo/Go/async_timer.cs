@@ -122,7 +122,7 @@ namespace Go
 #endif
     }
 
-    public abstract class utc_tick
+    public static class utc_tick
     {
         [DllImport("kernel32.dll")]
         private static extern void GetSystemTimeAsFileTime(out long time);

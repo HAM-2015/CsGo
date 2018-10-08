@@ -8,7 +8,7 @@ using System.IO;
 namespace Go
 {
 #if CHECK_LICENSE
-    abstract class license
+    static class license
     {
         static readonly object _lockCheck = new object();
 
