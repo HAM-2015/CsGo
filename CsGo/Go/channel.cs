@@ -5,8 +5,6 @@ using System.Diagnostics;
 
 namespace Go
 {
-    using option_node = priority_queue_node<notify_pck>;
-
     public enum chan_async_state
     {
         async_undefined,
@@ -52,14 +50,14 @@ namespace Go
     public class chan_notify_sign
     {
 #if DEBUG
-        internal generator _runGen;
+        private generator _runGen;
 #endif
-        internal option_node _ntfNode;
+        internal priority_queue_node<notify_pck> _ntfNode;
         internal bool _selectOnce = false;
         internal bool _disable = false;
         internal bool _success = false;
 
-        internal void set_node(option_node node)
+        internal void set_node(priority_queue_node<notify_pck> node)
         {
             _ntfNode = node;
         }
@@ -69,7 +67,7 @@ namespace Go
 #if DEBUG
             _runGen = null;
 #endif
-            _ntfNode = default(option_node);
+            _ntfNode = default(priority_queue_node<notify_pck>);
         }
 
         internal bool reset_success()
@@ -82,6 +80,7 @@ namespace Go
         internal void run_generator()
         {
 #if DEBUG
+            Trace.Assert(null == _ntfNode._node, "未对称的 generator 调用!");
             _runGen = generator.self;
 #endif
         }
@@ -93,7 +92,7 @@ namespace Go
 #endif
         }
 
-        static internal void set_node(chan_notify_sign sign, option_node node)
+        static internal void set_node(chan_notify_sign sign, priority_queue_node<notify_pck> node)
         {
             if (null != sign)
             {
@@ -402,18 +401,24 @@ namespace Go
 
         static private void queue_callback(ref priority_queue<notify_pck> queue, chan_async_state state)
         {
-            if (null != queue._queue0)
+            LinkedList<notify_pck> queue0 = queue._queue0;
+            LinkedList<notify_pck> queue1 = queue._queue1;
+            if (null != queue0)
             {
-                for (LinkedListNode<notify_pck> it = queue._queue0.First; null != it; it = it.Next)
+                while (0 != queue0.Count)
                 {
-                    it.Value.Invoke(state);
+                    notify_pck ntf = queue0.First.Value;
+                    queue0.RemoveFirst();
+                    ntf.Invoke(state);
                 }
             }
-            if (null != queue._queue1)
+            if (null != queue1)
             {
-                for (LinkedListNode<notify_pck> it = queue._queue1.First; null != it; it = it.Next)
+                while (0 != queue1.Count)
                 {
-                    it.Value.Invoke(state);
+                    notify_pck ntf = queue1.First.Value;
+                    queue1.RemoveFirst();
+                    ntf.Invoke(state);
                 }
             }
         }
@@ -1253,7 +1258,7 @@ namespace Go
             else if (ms >= 0)
             {
                 async_timer timer = new async_timer(self_strand());
-                option_node node = _recvQueue.AddLast(0, new notify_pck()
+                priority_queue_node<notify_pck> node = _recvQueue.AddLast(0, new notify_pck()
                 {
                     timer = timer,
                     ntf = delegate (chan_async_state state)
@@ -1310,7 +1315,7 @@ namespace Go
             else if (ms >= 0)
             {
                 async_timer timer = new async_timer(self_strand());
-                ntfSign._ntfNode = _recvQueue.AddLast(1, new notify_pck()
+                ntfSign.set_node(_recvQueue.AddLast(1, new notify_pck()
                 {
                     timer = timer,
                     ntf = delegate (chan_async_state state)
@@ -1320,7 +1325,7 @@ namespace Go
                         ntfSign._success = chan_async_state.async_ok == state;
                         ntf(state);
                     }
-                });
+                }));
                 timer.timeout(ms, delegate ()
                 {
                     _recvQueue.Remove(ntfSign._ntfNode).Invoke(chan_async_state.async_overtime);
@@ -1328,7 +1333,7 @@ namespace Go
             }
             else
             {
-                ntfSign._ntfNode = _recvQueue.AddLast(1, new notify_pck()
+                ntfSign.set_node(_recvQueue.AddLast(1, new notify_pck()
                 {
                     ntf = delegate (chan_async_state state)
                     {
@@ -1336,7 +1341,7 @@ namespace Go
                         ntfSign._success = chan_async_state.async_ok == state;
                         ntf(state);
                     }
-                });
+                }));
             }
         }
 
@@ -1623,7 +1628,7 @@ namespace Go
                 if (ms >= 0)
                 {
                     async_timer timer = new async_timer(self_strand());
-                    option_node node = _sendQueue.AddLast(0, new notify_pck()
+                    priority_queue_node<notify_pck> node = _sendQueue.AddLast(0, new notify_pck()
                     {
                         timer = timer,
                         ntf = delegate (chan_async_state state)
@@ -1689,7 +1694,7 @@ namespace Go
             else if (ms >= 0)
             {
                 async_timer timer = new async_timer(self_strand());
-                option_node node = _recvQueue.AddLast(0, new notify_pck()
+                priority_queue_node<notify_pck> node = _recvQueue.AddLast(0, new notify_pck()
                 {
                     timer = timer,
                     ntf = delegate (chan_async_state state)
@@ -1746,7 +1751,7 @@ namespace Go
             else if (ms >= 0)
             {
                 async_timer timer = new async_timer(self_strand());
-                ntfSign._ntfNode = _recvQueue.AddLast(1, new notify_pck()
+                ntfSign.set_node(_recvQueue.AddLast(1, new notify_pck()
                 {
                     timer = timer,
                     ntf = delegate (chan_async_state state)
@@ -1756,7 +1761,7 @@ namespace Go
                         ntfSign._success = chan_async_state.async_ok == state;
                         ntf(state);
                     }
-                });
+                }));
                 timer.timeout(ms, delegate ()
                 {
                     _recvQueue.Remove(ntfSign._ntfNode).Invoke(chan_async_state.async_overtime);
@@ -1764,7 +1769,7 @@ namespace Go
             }
             else
             {
-                ntfSign._ntfNode = _recvQueue.AddLast(1, new notify_pck()
+                ntfSign.set_node(_recvQueue.AddLast(1, new notify_pck()
                 {
                     ntf = delegate (chan_async_state state)
                     {
@@ -1772,7 +1777,7 @@ namespace Go
                         ntfSign._success = chan_async_state.async_ok == state;
                         ntf(state);
                     }
-                });
+                }));
             }
         }
 
@@ -1832,7 +1837,7 @@ namespace Go
             else if (ms >= 0)
             {
                 async_timer timer = new async_timer(self_strand());
-                ntfSign._ntfNode = _sendQueue.AddLast(1, new notify_pck()
+                ntfSign.set_node(_sendQueue.AddLast(1, new notify_pck()
                 {
                     timer = timer,
                     ntf = delegate (chan_async_state state)
@@ -1842,7 +1847,7 @@ namespace Go
                         ntfSign._success = chan_async_state.async_ok == state;
                         ntf(state);
                     }
-                });
+                }));
                 timer.timeout(ms, delegate ()
                 {
                     _sendQueue.Remove(ntfSign._ntfNode).Invoke(chan_async_state.async_overtime);
@@ -1850,7 +1855,7 @@ namespace Go
             }
             else
             {
-                ntfSign._ntfNode = _sendQueue.AddLast(1, new notify_pck()
+                ntfSign.set_node(_sendQueue.AddLast(1, new notify_pck()
                 {
                     ntf = delegate (chan_async_state state)
                     {
@@ -1858,7 +1863,7 @@ namespace Go
                         ntfSign._success = chan_async_state.async_ok == state;
                         ntf(state);
                     }
-                });
+                }));
             }
         }
 
@@ -2119,7 +2124,7 @@ namespace Go
                 if (ms >= 0)
                 {
                     async_timer timer = new async_timer(self_strand());
-                    option_node node = _sendQueue.AddLast(0, new notify_pck()
+                    priority_queue_node<notify_pck> node = _sendQueue.AddLast(0, new notify_pck()
                     {
                         timer = timer,
                         ntf = delegate (chan_async_state state)
@@ -2166,7 +2171,7 @@ namespace Go
                 _tempMsg = msg;
                 _has = true;
                 async_timer timer = new async_timer(self_strand());
-                option_node node = _sendQueue.AddFirst(0, new notify_pck()
+                priority_queue_node<notify_pck> node = _sendQueue.AddFirst(0, new notify_pck()
                 {
                     timer = timer,
                     ntf = delegate (chan_async_state state)
@@ -2217,7 +2222,7 @@ namespace Go
             else if (ms >= 0)
             {
                 async_timer timer = new async_timer(self_strand());
-                option_node node = _recvQueue.AddLast(0, new notify_pck()
+                priority_queue_node<notify_pck> node = _recvQueue.AddLast(0, new notify_pck()
                 {
                     timer = timer,
                     ntf = delegate (chan_async_state state)
@@ -2276,7 +2281,7 @@ namespace Go
             else if (ms >= 0)
             {
                 async_timer timer = new async_timer(self_strand());
-                ntfSign._ntfNode = _recvQueue.AddLast(1, new notify_pck()
+                ntfSign.set_node(_recvQueue.AddLast(1, new notify_pck()
                 {
                     timer = timer,
                     ntf = delegate (chan_async_state state)
@@ -2286,7 +2291,7 @@ namespace Go
                         ntfSign._success = chan_async_state.async_ok == state;
                         ntf(state);
                     }
-                });
+                }));
                 timer.timeout(ms, delegate ()
                 {
                     _recvQueue.Remove(ntfSign._ntfNode).Invoke(chan_async_state.async_overtime);
@@ -2295,7 +2300,7 @@ namespace Go
             }
             else
             {
-                ntfSign._ntfNode = _recvQueue.AddLast(1, new notify_pck()
+                ntfSign.set_node(_recvQueue.AddLast(1, new notify_pck()
                 {
                     ntf = delegate (chan_async_state state)
                     {
@@ -2303,7 +2308,7 @@ namespace Go
                         ntfSign._success = chan_async_state.async_ok == state;
                         ntf(state);
                     }
-                });
+                }));
                 _sendQueue.RemoveFirst().Invoke(chan_async_state.async_ok);
             }
         }
@@ -2390,7 +2395,7 @@ namespace Go
             else if (ms >= 0)
             {
                 async_timer timer = new async_timer(self_strand());
-                ntfSign._ntfNode = _sendQueue.AddLast(1, new notify_pck()
+                ntfSign.set_node(_sendQueue.AddLast(1, new notify_pck()
                 {
                     timer = timer,
                     ntf = delegate (chan_async_state state)
@@ -2400,7 +2405,7 @@ namespace Go
                         ntfSign._success = chan_async_state.async_ok == state;
                         ntf(state);
                     }
-                });
+                }));
                 timer.timeout(ms, delegate ()
                 {
                     _sendQueue.Remove(ntfSign._ntfNode).Invoke(chan_async_state.async_overtime);
@@ -2408,7 +2413,7 @@ namespace Go
             }
             else
             {
-                ntfSign._ntfNode = _sendQueue.AddLast(1, new notify_pck()
+                ntfSign.set_node(_sendQueue.AddLast(1, new notify_pck()
                 {
                     ntf = delegate (chan_async_state state)
                     {
@@ -2416,7 +2421,7 @@ namespace Go
                         ntfSign._success = chan_async_state.async_ok == state;
                         ntf(state);
                     }
-                });
+                }));
             }
         }
 
@@ -2434,7 +2439,7 @@ namespace Go
                 _has = true;
                 _tempMsg = msg;
                 _isTrySend = true;
-                ntfSign._ntfNode = _sendQueue.AddFirst(0, new notify_pck()
+                ntfSign.set_node(_sendQueue.AddFirst(0, new notify_pck()
                 {
                     ntf = delegate (chan_async_state state)
                     {
@@ -2446,7 +2451,7 @@ namespace Go
                         }
                         cb(new chan_send_wrap { state = state });
                     }
-                });
+                }));
                 _recvQueue.RemoveFirst().Invoke(chan_async_state.async_ok);
             }
             else
@@ -2678,7 +2683,7 @@ namespace Go
             else
             {
                 async_timer timer = new async_timer(self_strand());
-                option_node node = _recvQueue.AddLast(0, new notify_pck()
+                priority_queue_node<notify_pck> node = _recvQueue.AddLast(0, new notify_pck()
                 {
                     timer = timer,
                     ntf = delegate (chan_async_state state)
@@ -2732,7 +2737,7 @@ namespace Go
             else if (ms >= 0)
             {
                 async_timer timer = new async_timer(self_strand());
-                ntfSign._ntfNode = _recvQueue.AddLast(1, new notify_pck()
+                ntfSign.set_node(_recvQueue.AddLast(1, new notify_pck()
                 {
                     timer = timer,
                     ntf = delegate (chan_async_state state)
@@ -2742,7 +2747,7 @@ namespace Go
                         ntfSign._success = chan_async_state.async_ok == state;
                         ntf(state);
                     }
-                });
+                }));
                 timer.timeout(ms, delegate ()
                 {
                     _recvQueue.Remove(ntfSign._ntfNode).Invoke(chan_async_state.async_overtime);
@@ -2751,7 +2756,7 @@ namespace Go
             }
             else
             {
-                ntfSign._ntfNode = _recvQueue.AddLast(1, new notify_pck()
+                ntfSign.set_node(_recvQueue.AddLast(1, new notify_pck()
                 {
                     ntf = delegate (chan_async_state state)
                     {
@@ -2759,7 +2764,7 @@ namespace Go
                         ntfSign._success = chan_async_state.async_ok == state;
                         ntf(state);
                     }
-                });
+                }));
                 return false;
             }
         }
@@ -3627,7 +3632,7 @@ namespace Go
                 if (ms >= 0)
                 {
                     async_timer timer = new async_timer(self_strand());
-                    option_node node = _sendQueue.AddLast(0, new notify_pck()
+                    priority_queue_node<notify_pck> node = _sendQueue.AddLast(0, new notify_pck()
                     {
                         timer = timer,
                         ntf = delegate (chan_async_state state)
@@ -3704,7 +3709,7 @@ namespace Go
             else if (ms >= 0)
             {
                 async_timer timer = new async_timer(self_strand());
-                option_node node = _recvQueue.AddLast(0, new notify_pck()
+                priority_queue_node<notify_pck> node = _recvQueue.AddLast(0, new notify_pck()
                 {
                     timer = timer,
                     ntf = delegate (chan_async_state state)
@@ -3763,7 +3768,7 @@ namespace Go
             else if (ms >= 0)
             {
                 async_timer timer = new async_timer(self_strand());
-                ntfSign._ntfNode = _recvQueue.AddLast(1, new notify_pck()
+                ntfSign.set_node(_recvQueue.AddLast(1, new notify_pck()
                 {
                     timer = timer,
                     ntf = delegate (chan_async_state state)
@@ -3773,7 +3778,7 @@ namespace Go
                         ntfSign._success = chan_async_state.async_ok == state;
                         ntf(state);
                     }
-                });
+                }));
                 timer.timeout(ms, delegate ()
                 {
                     _recvQueue.Remove(ntfSign._ntfNode).Invoke(chan_async_state.async_overtime);
@@ -3782,7 +3787,7 @@ namespace Go
             }
             else
             {
-                ntfSign._ntfNode = _recvQueue.AddLast(1, new notify_pck()
+                ntfSign.set_node(_recvQueue.AddLast(1, new notify_pck()
                 {
                     ntf = delegate (chan_async_state state)
                     {
@@ -3790,7 +3795,7 @@ namespace Go
                         ntfSign._success = chan_async_state.async_ok == state;
                         ntf(state);
                     }
-                });
+                }));
                 _sendQueue.RemoveFirst().Invoke(chan_async_state.async_ok);
             }
         }
@@ -3877,7 +3882,7 @@ namespace Go
             else if (ms >= 0)
             {
                 async_timer timer = new async_timer(self_strand());
-                ntfSign._ntfNode = _sendQueue.AddLast(1, new notify_pck()
+                ntfSign.set_node(_sendQueue.AddLast(1, new notify_pck()
                 {
                     timer = timer,
                     ntf = delegate (chan_async_state state)
@@ -3887,7 +3892,7 @@ namespace Go
                         ntfSign._success = chan_async_state.async_ok == state;
                         ntf(state);
                     }
-                });
+                }));
                 timer.timeout(ms, delegate ()
                 {
                     _sendQueue.Remove(ntfSign._ntfNode).Invoke(chan_async_state.async_overtime);
@@ -3895,7 +3900,7 @@ namespace Go
             }
             else
             {
-                ntfSign._ntfNode = _sendQueue.AddLast(1, new notify_pck()
+                ntfSign.set_node(_sendQueue.AddLast(1, new notify_pck()
                 {
                     ntf = delegate (chan_async_state state)
                     {
@@ -3903,7 +3908,7 @@ namespace Go
                         ntfSign._success = chan_async_state.async_ok == state;
                         ntf(state);
                     }
-                });
+                }));
             }
         }
 
