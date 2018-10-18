@@ -437,8 +437,12 @@ namespace Go
                     base._lockID = queueFront._waitHostID;
                     base._recCount++;
                 }
+                self_strand().add_last(ntf);
             }
-            ntf();
+            else
+            {
+                ntf();
+            }
         }
 
         private void async_unlock_shared_(long id, Action ntf)
@@ -476,9 +480,17 @@ namespace Go
                         base._lockID = queueFront._waitHostID;
                         base._recCount++;
                     }
+                    self_strand().add_last(ntf);
+                }
+                else
+                {
+                    ntf();
                 }
             }
-            ntf();
+            else
+            {
+                ntf();
+            }
         }
 
         private void async_unlock_upgrade_(long id, Action ntf)
@@ -724,96 +736,91 @@ namespace Go
         {
             mutex.async_unlock(id, delegate ()
             {
-                _strand.dispatch(delegate ()
-                {
-                    _waitQueue.AddLast(new tuple<long, go_mutex, Action>(id, mutex, delegate ()
-                    {
-                        mutex.async_lock(id, ntf);
-                    }));
-                });
+                if (_strand.running_in_this_thread()) _waitQueue.AddLast(new tuple<long, go_mutex, Action>(id, mutex, () => mutex.async_lock(id, ntf)));
+                else _strand.post(() => _waitQueue.AddLast(new tuple<long, go_mutex, Action>(id, mutex, () => mutex.async_lock(id, ntf))));
             });
+        }
+
+        private void async_timed_wait_(long id, int ms, go_mutex mutex, Action<bool> ntf)
+        {
+            if (ms >= 0)
+            {
+                async_timer timer = new async_timer(_strand);
+                LinkedListNode<tuple<long, go_mutex, Action>> node = _waitQueue.AddLast(new tuple<long, go_mutex, Action>(id, mutex, delegate ()
+                {
+                    timer.cancel();
+                    mutex.async_lock(id, () => ntf(true));
+                }));
+                timer.timeout(ms, delegate ()
+                {
+                    _waitQueue.Remove(node);
+                    mutex.async_lock(id, () => ntf(false));
+                });
+            }
+            else
+            {
+                _waitQueue.AddLast(new tuple<long, go_mutex, Action>(id, mutex, () => mutex.async_lock(id, () => ntf(true))));
+            }
         }
 
         internal void async_timed_wait(long id, int ms, go_mutex mutex, Action<bool> ntf)
         {
             mutex.async_unlock(id, delegate ()
             {
-                _strand.dispatch(delegate ()
-                {
-                    if (ms >= 0)
-                    {
-                        async_timer timer = new async_timer(_strand);
-                        LinkedListNode<tuple<long, go_mutex, Action>> node = _waitQueue.AddLast(new tuple<long, go_mutex, Action>(id, mutex, delegate ()
-                        {
-                            timer.cancel();
-                            mutex.async_lock(id, delegate ()
-                            {
-                                ntf(true);
-                            });
-                        }));
-                        timer.timeout(ms, delegate ()
-                        {
-                            _waitQueue.Remove(node);
-                            mutex.async_lock(id, delegate ()
-                            {
-                                ntf(false);
-                            });
-                        });
-                    }
-                    else
-                    {
-                        _waitQueue.AddLast(new tuple<long, go_mutex, Action>(id, mutex, delegate ()
-                        {
-                            mutex.async_lock(id, () => ntf(true));
-                        }));
-                    }
-                });
+                if (_strand.running_in_this_thread()) async_timed_wait_(id, ms, mutex, ntf);
+                else _strand.post(() => async_timed_wait_(id, ms, mutex, ntf));
             });
+        }
+
+        private void notify_one_()
+        {
+            if (0 != _waitQueue.Count)
+            {
+                Action ntf = _waitQueue.First.Value.value3;
+                _waitQueue.RemoveFirst();
+                ntf();
+            }
         }
 
         public void notify_one()
         {
-            _strand.dispatch(delegate ()
+            if (_strand.running_in_this_thread()) notify_one_();
+            else _strand.post(() => notify_one_());
+        }
+
+        private void notify_all_()
+        {
+            while (0 != _waitQueue.Count)
             {
-                if (_waitQueue.Count > 0)
-                {
-                    Action ntf = _waitQueue.First.Value.value3;
-                    _waitQueue.RemoveFirst();
-                    ntf();
-                }
-            });
+                _strand.add_last(_waitQueue.First.Value.value3);
+                _waitQueue.RemoveFirst();
+            }
         }
 
         public void notify_all()
         {
-            _strand.dispatch(delegate ()
+            if (_strand.running_in_this_thread()) notify_all_();
+            else _strand.post(() => notify_all_());
+        }
+
+        private void async_cancel_(long id, Action ntf)
+        {
+            for (LinkedListNode<tuple<long, go_mutex, Action>> it = _waitQueue.First; null != it; it = it.Next)
             {
-                if (_waitQueue.Count > 0)
+                if (id == it.Value.value1)
                 {
-                    LinkedList<tuple<long, go_mutex, Action>> waitQueue = _waitQueue;
-                    _waitQueue = new LinkedList<tuple<long, go_mutex, Action>>();
-                    for (LinkedListNode<tuple<long, go_mutex, Action>> it = waitQueue.First; null != it; it = it.Next)
-                    {
-                        it.Value.value3.Invoke();
-                    }
+                    go_mutex mtx = it.Value.value2;
+                    mtx.async_cancel(id, ntf);
+                    return;
                 }
-            });
+            }
+            ntf();
         }
 
         internal void async_cancel(long id, Action ntf)
         {
-            _strand.dispatch(delegate ()
-            {
-                for (LinkedListNode<tuple<long, go_mutex, Action>> it = _waitQueue.First; null != it; it = it.Next)
-                {
-                    if (id == it.Value.value1)
-                    {
-                        it.Value.value2.async_cancel(id, ntf);
-                        return;
-                    }
-                }
-                ntf();
-            });
+            if (_strand.running_in_this_thread()) async_cancel_(id, ntf);
+            else _strand.post(() => async_cancel_(id, ntf));
         }
 
         public Task wait(go_mutex mutex)
