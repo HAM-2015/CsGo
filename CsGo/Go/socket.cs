@@ -191,7 +191,8 @@ namespace Go
                 if (tempRes.ok)
                 {
                     _readHandler.currTotal += tempRes.s;
-                    if (_readHandler.buff.Count == tempRes.s)
+                    _readHandler.buff = new ArraySegment<byte>(_readHandler.buff.Array, _readHandler.buff.Offset + tempRes.s, _readHandler.buff.Count - tempRes.s);
+                    if (0 == _readHandler.buff.Count)
                     {
                         Action<socket_result> cb = _readHandler.cb;
                         _readHandler.buff = default(ArraySegment<byte>);
@@ -200,7 +201,7 @@ namespace Go
                     }
                     else
                     {
-                        _async_read(_readHandler.currTotal, new ArraySegment<byte>(_readHandler.buff.Array, _readHandler.buff.Offset + tempRes.s, _readHandler.buff.Count - tempRes.s), _readHandler.cb);
+                        async_read_same(_readHandler.buff, _readHandler.handler);
                     }
                 }
                 else
@@ -217,7 +218,8 @@ namespace Go
                 if (tempRes.ok)
                 {
                     _writeHandler.currTotal += tempRes.s;
-                    if (_writeHandler.buff.Count == tempRes.s)
+                    _writeHandler.buff = new ArraySegment<byte>(_writeHandler.buff.Array, _writeHandler.buff.Offset + tempRes.s, _writeHandler.buff.Count - tempRes.s);
+                    if (0 == _writeHandler.buff.Count)
                     {
                         Action<socket_result> cb = _writeHandler.cb;
                         _writeHandler.buff = default(ArraySegment<byte>);
@@ -226,7 +228,7 @@ namespace Go
                     }
                     else
                     {
-                        _async_write(_writeHandler.currTotal, new ArraySegment<byte>(_writeHandler.buff.Array, _writeHandler.buff.Offset + tempRes.s, _writeHandler.buff.Count - tempRes.s), _writeHandler.cb);
+                        async_write_same(_writeHandler.buff, _writeHandler.handler);
                     }
                 }
                 else
@@ -297,22 +299,17 @@ namespace Go
             }
         }
 
-        void _async_read(int currTotal, ArraySegment<byte> buff, Action<socket_result> cb)
-        {
-            _readHandler.currTotal = currTotal;
-            _readHandler.buff = buff;
-            _readHandler.cb = cb;
-            async_read_same(buff, _readHandler.handler);
-        }
-
         public void async_read(ArraySegment<byte> buff, Action<socket_result> cb)
         {
-            _async_read(0, buff, cb);
+            _readHandler.currTotal = 0;
+            _readHandler.buff = buff;
+            _readHandler.cb = cb;
+            async_read_same(_readHandler.buff, _readHandler.handler);
         }
 
         public void async_read(byte[] buff, Action<socket_result> cb)
         {
-            _async_read(0, new ArraySegment<byte>(buff), cb);
+            async_read(new ArraySegment<byte>(buff), cb);
         }
 
         void _async_writes(int currTotal, int currIndex, IList<ArraySegment<byte>> buff, Action<socket_result> cb)
@@ -359,22 +356,17 @@ namespace Go
             }
         }
 
-        void _async_write(int currTotal, ArraySegment<byte> buff, Action<socket_result> cb)
-        {
-            _writeHandler.currTotal = currTotal;
-            _writeHandler.buff = buff;
-            _writeHandler.cb = cb;
-            async_write_same(buff, _writeHandler.handler);
-        }
-
         public void async_write(ArraySegment<byte> buff, Action<socket_result> cb)
         {
-            _async_write(0, buff, cb);
+            _writeHandler.currTotal = 0;
+            _writeHandler.buff = buff;
+            _writeHandler.cb = cb;
+            async_write_same(_writeHandler.buff, _writeHandler.handler);
         }
 
         public void async_write(byte[] buff, Action<socket_result> cb)
         {
-            _async_write(0, new ArraySegment<byte>(buff), cb);
+            async_write(new ArraySegment<byte>(buff), cb);
         }
 
         public ValueTask<socket_result> read_same(ArraySegment<byte> buff)
@@ -806,7 +798,9 @@ namespace Go
                 if (tempRes.ok)
                 {
                     _readPtrHandler.currTotal += tempRes.s;
-                    if (_readPtrHandler.size == tempRes.s)
+                    _readPtrHandler.offset += tempRes.s;
+                    _readPtrHandler.size -= tempRes.s;
+                    if (0 == _readPtrHandler.size)
                     {
                         object pinnedObj = _readPtrHandler.pinnedObj;
                         Action<socket_result> cb = _readPtrHandler.cb;
@@ -816,7 +810,7 @@ namespace Go
                     }
                     else
                     {
-                        _async_read(_readPtrHandler.currTotal, _readPtrHandler.ptr, _readPtrHandler.offset + tempRes.s, _readPtrHandler.size - tempRes.s, _readPtrHandler.cb, _readPtrHandler.pinnedObj);
+                        async_read_same(_readPtrHandler.ptr, _readPtrHandler.offset, _readPtrHandler.size, _readPtrHandler.handler);
                     }
                 }
                 else
@@ -835,7 +829,9 @@ namespace Go
                 if (tempRes.ok)
                 {
                     _writePtrHandler.currTotal += tempRes.s;
-                    if (_writePtrHandler.size == tempRes.s)
+                    _writePtrHandler.offset += tempRes.s;
+                    _writePtrHandler.size -= tempRes.s;
+                    if (0 == _writePtrHandler.size)
                     {
                         object pinnedObj = _writePtrHandler.pinnedObj;
                         Action<socket_result> cb = _writePtrHandler.cb;
@@ -845,7 +841,7 @@ namespace Go
                     }
                     else
                     {
-                        _async_write(_writePtrHandler.currTotal, _writePtrHandler.ptr, _writePtrHandler.offset + tempRes.s, _writePtrHandler.size - tempRes.s, _writePtrHandler.cb, _writePtrHandler.pinnedObj);
+                        async_write_same(_writePtrHandler.ptr, _writePtrHandler.offset, _writePtrHandler.size, _writePtrHandler.handler);
                     }
                 }
                 else
@@ -937,6 +933,7 @@ namespace Go
             catch (System.Exception ec)
             {
                 close();
+                _readSameHandler.cb = null;
                 functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
             }
         }
@@ -952,6 +949,7 @@ namespace Go
             catch (System.Exception ec)
             {
                 close();
+                _writeSameHandler.cb = null;
                 functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
             }
         }
@@ -967,12 +965,16 @@ namespace Go
                 if (SocketError.Success != lastWin32Error)
                 {
                     close();
+                    _writeSameHandler.pinnedObj = null;
+                    _writeSameHandler.cb = null;
                     functional.catch_invoke(cb, new socket_result(false, (int)lastWin32Error));
                 }
             }
             catch (System.Exception ec)
             {
                 close();
+                _writeSameHandler.pinnedObj = null;
+                _writeSameHandler.cb = null;
                 functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
             }
         }
@@ -988,12 +990,16 @@ namespace Go
                 if (SocketError.Success != lastWin32Error)
                 {
                     close();
+                    _readSameHandler.pinnedObj = null;
+                    _readSameHandler.cb = null;
                     functional.catch_invoke(cb, new socket_result(false, (int)lastWin32Error));
                 }
             }
             catch (System.Exception ec)
             {
                 close();
+                _readSameHandler.pinnedObj = null;
+                _readSameHandler.cb = null;
                 functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
             }
         }
@@ -1009,44 +1015,38 @@ namespace Go
                 if (SocketError.Success != lastWin32Error)
                 {
                     close();
+                    _writeSameHandler.pinnedObj = null;
+                    _writeSameHandler.cb = null;
                     functional.catch_invoke(cb, new socket_result(false, (int)lastWin32Error));
                 }
             }
             catch (System.Exception ec)
             {
                 close();
+                _writeSameHandler.pinnedObj = null;
+                _writeSameHandler.cb = null;
                 functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
             }
         }
 
-        void _async_read(int currTotal, IntPtr ptr, int offset, int size, Action<socket_result> cb, object pinnedObj)
+        public void async_read(IntPtr ptr, int offset, int size, Action<socket_result> cb, object pinnedObj = null)
         {
-            _readPtrHandler.currTotal = currTotal;
+            _readPtrHandler.currTotal = 0;
             _readPtrHandler.ptr = ptr;
             _readPtrHandler.offset = offset;
             _readPtrHandler.size = size;
             _readPtrHandler.pinnedObj = pinnedObj;
-            async_read_same(ptr, offset, size, _readPtrHandler.handler);
-        }
-
-        void _async_write(int currTotal, IntPtr ptr, int offset, int size, Action<socket_result> cb, object pinnedObj)
-        {
-            _writePtrHandler.currTotal = currTotal;
-            _writePtrHandler.ptr = ptr;
-            _writePtrHandler.offset = offset;
-            _writePtrHandler.size = size;
-            _writePtrHandler.pinnedObj = pinnedObj;
-            async_write_same(ptr, offset, size, _writePtrHandler.handler);
-        }
-
-        public void async_read(IntPtr ptr, int offset, int size, Action<socket_result> cb, object pinnedObj = null)
-        {
-            _async_read(0, ptr, offset, size, cb, pinnedObj);
+            async_read_same(_readPtrHandler.ptr, _readPtrHandler.offset, _readPtrHandler.size, _readPtrHandler.handler);
         }
 
         public void async_write(IntPtr ptr, int offset, int size, Action<socket_result> cb, object pinnedObj = null)
         {
-            _async_write(0, ptr, offset, size, cb, pinnedObj);
+            _writePtrHandler.currTotal = 0;
+            _writePtrHandler.ptr = ptr;
+            _writePtrHandler.offset = offset;
+            _writePtrHandler.size = size;
+            _writePtrHandler.pinnedObj = pinnedObj;
+            async_write_same(_writePtrHandler.ptr, _writePtrHandler.offset, _writePtrHandler.size, _writePtrHandler.handler);
         }
 
         public ValueTask<socket_result> read_same(IntPtr ptr, int offset, int size, object pinnedObj = null)
@@ -1322,6 +1322,7 @@ namespace Go
             catch (System.Exception ec)
             {
                 close();
+                _readSameHandler.cb = null;
                 functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
             }
         }
@@ -1338,6 +1339,8 @@ namespace Go
             catch (System.Exception ec)
             {
                 close();
+                _writeSameHandler.buff = default(ArraySegment<byte>);
+                _writeSameHandler.cb = null;
                 functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
             }
         }
@@ -1413,7 +1416,9 @@ namespace Go
                 if (tempRes.ok)
                 {
                     _readPtrHandler.currTotal += tempRes.s;
-                    if (_readPtrHandler.size == tempRes.s)
+                    _readPtrHandler.offset += tempRes.s;
+                    _readPtrHandler.size -= tempRes.s;
+                    if (0 == _readPtrHandler.size)
                     {
                         object pinnedObj = _readPtrHandler.pinnedObj;
                         Action<socket_result> cb = _readPtrHandler.cb;
@@ -1423,7 +1428,7 @@ namespace Go
                     }
                     else
                     {
-                        _async_read(_readPtrHandler.currTotal, _readPtrHandler.ptr, _readPtrHandler.offset + tempRes.s, _readPtrHandler.size - tempRes.s, _readPtrHandler.cb, _readPtrHandler.pinnedObj);
+                        async_read_same(_readPtrHandler.ptr, _readPtrHandler.offset, _readPtrHandler.size, _readPtrHandler.handler);
                     }
                 }
                 else
@@ -1442,7 +1447,9 @@ namespace Go
                 if (tempRes.ok)
                 {
                     _writePtrHandler.currTotal += tempRes.s;
-                    if (_writePtrHandler.size == tempRes.s)
+                    _writePtrHandler.offset += tempRes.s;
+                    _writePtrHandler.size -= tempRes.s;
+                    if (0 == _writePtrHandler.size)
                     {
                         object pinnedObj = _writePtrHandler.pinnedObj;
                         Action<socket_result> cb = _writePtrHandler.cb;
@@ -1452,7 +1459,7 @@ namespace Go
                     }
                     else
                     {
-                        _async_write(_writePtrHandler.currTotal, _writePtrHandler.ptr, _writePtrHandler.offset + tempRes.s, _writePtrHandler.size - tempRes.s, _writePtrHandler.cb, _writePtrHandler.pinnedObj);
+                        async_write_same(_writePtrHandler.ptr, _writePtrHandler.offset, _writePtrHandler.size, _writePtrHandler.handler);
                     }
                 }
                 else
@@ -1477,6 +1484,7 @@ namespace Go
             catch (System.Exception ec)
             {
                 close();
+                _readSameHandler.cb = null;
                 functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
             }
         }
@@ -1493,6 +1501,8 @@ namespace Go
             catch (System.Exception ec)
             {
                 close();
+                _writeSameHandler.buff = default(ArraySegment<byte>);
+                _writeSameHandler.cb = null;
                 functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
             }
         }
@@ -1535,36 +1545,26 @@ namespace Go
             });
         }
 
-        void _async_read(int currTotal, IntPtr ptr, int offset, int size, Action<socket_result> cb, object pinnedObj)
+        public void async_read(IntPtr ptr, int offset, int size, Action<socket_result> cb, object pinnedObj = null)
         {
-            _readPtrHandler.currTotal = currTotal;
+            _readPtrHandler.currTotal = 0;
             _readPtrHandler.ptr = ptr;
             _readPtrHandler.offset = offset;
             _readPtrHandler.size = size;
             _readPtrHandler.pinnedObj = pinnedObj;
             _readPtrHandler.cb = cb;
-            async_read_same(ptr, offset, size, _readPtrHandler.handler);
+            async_read_same(_readPtrHandler.ptr, _readPtrHandler.offset, _readPtrHandler.size, _readPtrHandler.handler);
         }
 
-        void _async_write(int currTotal, IntPtr ptr, int offset, int size, Action<socket_result> cb, object pinnedObj)
+        public void async_write(IntPtr ptr, int offset, int size, Action<socket_result> cb, object pinnedObj = null)
         {
-            _writePtrHandler.currTotal = currTotal;
+            _writePtrHandler.currTotal = 0;
             _writePtrHandler.ptr = ptr;
             _writePtrHandler.offset = offset;
             _writePtrHandler.size = size;
             _writePtrHandler.pinnedObj = pinnedObj;
             _writePtrHandler.cb = cb;
-            async_write_same(ptr, offset, size, _writePtrHandler.handler);
-        }
-
-        public void async_read(IntPtr ptr, int offset, int size, Action<socket_result> cb, object pinnedObj = null)
-        {
-            _async_read(0, ptr, offset, size, cb, pinnedObj);
-        }
-
-        public void async_write(IntPtr ptr, int offset, int size, Action<socket_result> cb, object pinnedObj = null)
-        {
-            _async_write(0, ptr, offset, size, cb, pinnedObj);
+            async_write_same(_writePtrHandler.ptr, _writePtrHandler.offset, _writePtrHandler.size, _writePtrHandler.handler);
         }
 
         public ValueTask<socket_result> read_same(IntPtr ptr, int offset, int size, object pinnedObj = null)

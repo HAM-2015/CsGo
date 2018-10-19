@@ -7178,7 +7178,7 @@ namespace Go
             {
                 return to_vtask(wait_void_task(task));
             }
-            return to_vtask(default(void_type));
+            return to_vtask(check_task(task));
         }
 
         public class receive_mail
