@@ -342,8 +342,7 @@ namespace Go
         }
     }
 
-#if NETCORE
-#else
+#if !NETCORE
     public struct ValueTask<T> : ICriticalNotifyCompletion
     {
         T value;
@@ -368,23 +367,7 @@ namespace Go
 
         public T GetResult()
         {
-            if (null == task)
-            {
-                return value;
-            }
-            try
-            {
-                return task.Result;
-            }
-            catch (AggregateException aggEc)
-            {
-                throw aggEc.InnerException;
-            }
-        }
-
-        public Task<T> AsTask()
-        {
-            return task;
+            return null == task ? value : task.GetAwaiter().GetResult();
         }
 
         public void OnCompleted(Action continuation)
@@ -397,43 +380,11 @@ namespace Go
             task.GetAwaiter().UnsafeOnCompleted(continuation);
         }
 
-        public bool IsCanceled
-        {
-            get
-            {
-                return null == task ? false : task.IsCanceled;
-            }
-        }
-
         public bool IsCompleted
         {
             get
             {
                 return null == task ? true : task.IsCompleted;
-            }
-        }
-
-        public bool IsCompletedSuccessfully
-        {
-            get
-            {
-                return null == task ? true : TaskStatus.RanToCompletion == task.Status;
-            }
-        }
-
-        public bool IsFaulted
-        {
-            get
-            {
-                return null == task ? true : task.IsFaulted;
-            }
-        }
-
-        public T Result
-        {
-            get
-            {
-                return null == task ? value : task.Result;
             }
         }
     }
@@ -557,7 +508,7 @@ namespace Go
             }
         }
 
-        class pull_task : INotifyCompletion
+        class pull_task : ICriticalNotifyCompletion
         {
             bool _completed = false;
             bool _activated = false;
@@ -573,6 +524,11 @@ namespace Go
             }
 
             public void OnCompleted(Action continuation)
+            {
+                _continuation = continuation;
+            }
+
+            public void UnsafeOnCompleted(Action continuation)
             {
                 _continuation = continuation;
             }
@@ -1566,7 +1522,7 @@ namespace Go
                 {
                     return to_vtask(lock_stop_(task));
                 }
-                return to_vtask(task.Result);
+                return to_vtask(task.GetAwaiter().GetResult());
             }
             finally
             {
@@ -1715,7 +1671,7 @@ namespace Go
                 {
                     return to_vtask(lock_suspend_(task));
                 }
-                return unlock_suspend_(task.Result);
+                return unlock_suspend_(task.GetAwaiter().GetResult());
             }
             catch (System.Exception ec)
             {
@@ -1875,7 +1831,7 @@ namespace Go
                 {
                     return to_vtask(lock_suspend_and_stop_(task));
                 }
-                return unlock_suspend_and_stop_(task.Result);
+                return unlock_suspend_and_stop_(task.GetAwaiter().GetResult());
             }
             catch (System.Exception ec)
             {
@@ -4570,7 +4526,7 @@ namespace Go
             {
                 return to_vtask(csp_wait1_(cspTask, handler, gohandler));
             }
-            csp_wait_wrap<R, T> result = cspTask.Result;
+            csp_wait_wrap<R, T> result = cspTask.GetAwaiter().GetResult();
             if (chan_async_state.async_ok == result.state)
             {
                 try
@@ -4580,7 +4536,7 @@ namespace Go
                     {
                         return to_vtask(csp_wait2_(result, callTask));
                     }
-                    result.complete(callTask.Result);
+                    result.complete(callTask.GetAwaiter().GetResult());
                 }
                 catch (csp_fail_exception)
                 {
@@ -4638,7 +4594,7 @@ namespace Go
             {
                 return to_vtask(csp_wait1_(cspTask, handler, gohandler));
             }
-            csp_wait_wrap<R, tuple<T1, T2>> result = cspTask.Result;
+            csp_wait_wrap<R, tuple<T1, T2>> result = cspTask.GetAwaiter().GetResult();
             if (chan_async_state.async_ok == result.state)
             {
                 try
@@ -4648,7 +4604,7 @@ namespace Go
                     {
                         return to_vtask(csp_wait2_(result, callTask));
                     }
-                    result.complete(callTask.Result);
+                    result.complete(callTask.GetAwaiter().GetResult());
                 }
                 catch (csp_fail_exception)
                 {
@@ -4706,7 +4662,7 @@ namespace Go
             {
                 return to_vtask(csp_wait1_(cspTask, handler, gohandler));
             }
-            csp_wait_wrap<R, tuple<T1, T2, T3>> result = cspTask.Result;
+            csp_wait_wrap<R, tuple<T1, T2, T3>> result = cspTask.GetAwaiter().GetResult();
             if (chan_async_state.async_ok == result.state)
             {
                 try
@@ -4716,7 +4672,7 @@ namespace Go
                     {
                         return to_vtask(csp_wait2_(result, callTask));
                     }
-                    result.complete(callTask.Result);
+                    result.complete(callTask.GetAwaiter().GetResult());
                 }
                 catch (csp_fail_exception)
                 {
@@ -4774,7 +4730,7 @@ namespace Go
             {
                 return to_vtask(csp_wait1_(cspTask, handler, gohandler));
             }
-            csp_wait_wrap<R, void_type> result = cspTask.Result;
+            csp_wait_wrap<R, void_type> result = cspTask.GetAwaiter().GetResult();
             if (chan_async_state.async_ok == result.state)
             {
                 try
@@ -4784,7 +4740,7 @@ namespace Go
                     {
                         return to_vtask(csp_wait2_(result, callTask));
                     }
-                    result.complete(callTask.Result);
+                    result.complete(callTask.GetAwaiter().GetResult());
                 }
                 catch (csp_fail_exception)
                 {
@@ -4852,7 +4808,7 @@ namespace Go
             {
                 return to_vtask(csp_wait1_(cspTask, handler));
             }
-            csp_wait_wrap<void_type, T> result = cspTask.Result;
+            csp_wait_wrap<void_type, T> result = cspTask.GetAwaiter().GetResult();
             if (chan_async_state.async_ok == result.state)
             {
                 try
@@ -4911,7 +4867,7 @@ namespace Go
             {
                 return to_vtask(csp_wait1_(cspTask, handler));
             }
-            csp_wait_wrap<void_type, tuple<T1, T2>> result = cspTask.Result;
+            csp_wait_wrap<void_type, tuple<T1, T2>> result = cspTask.GetAwaiter().GetResult();
             if (chan_async_state.async_ok == result.state)
             {
                 try
@@ -4970,7 +4926,7 @@ namespace Go
             {
                 return to_vtask(csp_wait1_(cspTask, handler));
             }
-            csp_wait_wrap<void_type, tuple<T1, T2, T3>> result = cspTask.Result;
+            csp_wait_wrap<void_type, tuple<T1, T2, T3>> result = cspTask.GetAwaiter().GetResult();
             if (chan_async_state.async_ok == result.state)
             {
                 try
@@ -5029,7 +4985,7 @@ namespace Go
             {
                 return to_vtask(csp_wait1_(cspTask, handler));
             }
-            csp_wait_wrap<void_type, void_type> result = cspTask.Result;
+            csp_wait_wrap<void_type, void_type> result = cspTask.GetAwaiter().GetResult();
             if (chan_async_state.async_ok == result.state)
             {
                 try
@@ -6303,14 +6259,7 @@ namespace Go
 
         static private R check_task<R>(Task<R> task)
         {
-            try
-            {
-                return task.Result;
-            }
-            catch (AggregateException aggEc)
-            {
-                throw aggEc.InnerException;
-            }
+            return task.GetAwaiter().GetResult();
         }
 
         static private void check_task(async_result_wrap<bool, Exception> res, Task task)
@@ -6318,7 +6267,7 @@ namespace Go
             try
             {
                 res.value1 = true;
-                task.GetAwaiter().GetResult();
+                check_task(task);
             }
             catch (Exception innerEc)
             {
@@ -6330,11 +6279,11 @@ namespace Go
         {
             try
             {
-                res.value1 = task.Result;
+                res.value1 = check_task(task);
             }
-            catch (AggregateException aggEc)
+            catch (Exception innerEc)
             {
-                res.value2 = aggEc.InnerException;
+                res.value2 = innerEc;
             }
         }
 
@@ -6343,11 +6292,11 @@ namespace Go
             try
             {
                 res.value1 = true;
-                res.value2 = task.Result;
+                res.value2 = check_task(task);
             }
-            catch (AggregateException aggEc)
+            catch (Exception innerEc)
             {
-                res.value3 = aggEc.InnerException;
+                res.value3 = innerEc;
             }
         }
 
@@ -7147,7 +7096,7 @@ namespace Go
             {
                 return to_vtask(send_msg_(mbTask, msg));
             }
-            chan<T> mb = mbTask.Result;
+            chan<T> mb = mbTask.GetAwaiter().GetResult();
             return null != mb ? chan_send(mb, msg) : to_vtask(new chan_send_wrap { state = chan_async_state.async_fail });
         }
 
@@ -9827,7 +9776,7 @@ namespace Go
                     {
                         return to_vtask(timed_wait_(task, gen));
                     }
-                    overtime = !task.Result;
+                    overtime = !task.GetAwaiter().GetResult();
                     if (!overtime && null != gen._childNode)
                     {
                         _children.Remove(gen._childNode);
