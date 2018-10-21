@@ -17,6 +17,7 @@ namespace Go
         LinkedList<wait_node> _waitQueue;
         protected long _lockID;
         protected int _recCount;
+        protected bool _mustTick;
 
         public go_mutex(shared_strand strand)
         {
@@ -24,6 +25,7 @@ namespace Go
             _waitQueue = new LinkedList<wait_node>();
             _lockID = 0;
             _recCount = 0;
+            _mustTick = false;
         }
 
         public go_mutex() : this(shared_strand.default_strand()) { }
@@ -132,31 +134,41 @@ namespace Go
 
         internal void async_lock(long id, Action ntf)
         {
-            if (_strand.running_in_this_thread()) async_lock_(id, ntf);
+            if (_strand.running_in_this_thread())
+                if (!_mustTick) async_lock_(id, ntf);
+                else _strand.add_next(() => async_lock_(id, ntf));
             else _strand.post(() => async_lock_(id, ntf));
         }
 
         internal void async_try_lock(long id, Action<bool> ntf)
         {
-            if (_strand.running_in_this_thread()) async_try_lock_(id, ntf);
+            if (_strand.running_in_this_thread())
+                if (!_mustTick) async_try_lock_(id, ntf);
+                else _strand.add_next(() => async_try_lock_(id, ntf));
             else _strand.post(() => async_try_lock_(id, ntf));
         }
 
         internal virtual void async_timed_lock(long id, int ms, Action<bool> ntf)
         {
-            if (_strand.running_in_this_thread()) async_timed_lock_(id, ms, ntf);
+            if (_strand.running_in_this_thread())
+                if (!_mustTick) async_timed_lock_(id, ms, ntf);
+                else _strand.add_next(() => async_timed_lock_(id, ms, ntf));
             else _strand.post(() => async_timed_lock_(id, ms, ntf));
         }
 
         internal virtual void async_unlock(long id, Action ntf)
         {
-            if (_strand.running_in_this_thread()) async_unlock_(id, ntf);
+            if (_strand.running_in_this_thread())
+                if (!_mustTick) async_unlock_(id, ntf);
+                else _strand.add_next(() => async_unlock_(id, ntf));
             else _strand.post(() => async_unlock_(id, ntf));
         }
 
         internal virtual void async_cancel(long id, Action ntf)
         {
-            if (_strand.running_in_this_thread()) async_cancel_(id, ntf);
+            if (_strand.running_in_this_thread())
+                if (!_mustTick) async_cancel_(id, ntf);
+                else _strand.add_next(() => async_cancel_(id, ntf));
             else _strand.post(() => async_cancel_(id, ntf));
         }
 
@@ -409,9 +421,10 @@ namespace Go
         {
             if (0 == --base._recCount && 0 != _waitQueue.Count)
             {
+                _mustTick = true;
                 wait_node queueFront = _waitQueue.First.Value;
                 _waitQueue.RemoveFirst();
-                self_strand().add_last(queueFront._ntf);
+                queueFront._ntf();
                 if (lock_status.st_shared == queueFront._status)
                 {
                     base._lockID = 0;
@@ -421,7 +434,7 @@ namespace Go
                         if (lock_status.st_shared == it.Value._status)
                         {
                             find_map(it.Value._waitHostID)._count++;
-                            self_strand().add_last(it.Value._ntf);
+                            it.Value._ntf();
                             LinkedListNode<wait_node> oit = it;
                             it = it.Next;
                             _waitQueue.Remove(oit);
@@ -437,12 +450,9 @@ namespace Go
                     base._lockID = queueFront._waitHostID;
                     base._recCount++;
                 }
-                self_strand().add_last(ntf);
+                _mustTick = false;
             }
-            else
-            {
-                ntf();
-            }
+            ntf();
         }
 
         private void async_unlock_shared_(long id, Action ntf)
@@ -452,9 +462,10 @@ namespace Go
                 _sharedMap.Remove(id);
                 if (0 == _sharedMap.Count && 0 != _waitQueue.Count)
                 {
+                    _mustTick = true;
                     wait_node queueFront = _waitQueue.First.Value;
                     _waitQueue.RemoveFirst();
-                    self_strand().add_last(queueFront._ntf);
+                    queueFront._ntf();
                     if (lock_status.st_shared == queueFront._status)
                     {
                         base._lockID = 0;
@@ -464,7 +475,7 @@ namespace Go
                             if (lock_status.st_shared == it.Value._status)
                             {
                                 find_map(it.Value._waitHostID)._count++;
-                                self_strand().add_last(it.Value._ntf);
+                                it.Value._ntf();
                                 LinkedListNode<wait_node> oit = it;
                                 it = it.Next;
                                 _waitQueue.Remove(oit);
@@ -480,17 +491,10 @@ namespace Go
                         base._lockID = queueFront._waitHostID;
                         base._recCount++;
                     }
-                    self_strand().add_last(ntf);
-                }
-                else
-                {
-                    ntf();
+                    _mustTick = false;
                 }
             }
-            else
-            {
-                ntf();
-            }
+            ntf();
         }
 
         private void async_unlock_upgrade_(long id, Action ntf)
@@ -548,73 +552,97 @@ namespace Go
 
         internal void async_lock_shared(long id, Action ntf)
         {
-            if (self_strand().running_in_this_thread()) async_lock_shared_(id, ntf);
+            if (self_strand().running_in_this_thread())
+                if (!_mustTick) async_lock_shared_(id, ntf);
+                else self_strand().add_next(() => async_lock_shared_(id, ntf));
             else self_strand().post(() => async_lock_shared_(id, ntf));
         }
 
         internal void async_lock_pess_shared(long id, Action ntf)
         {
-            if (self_strand().running_in_this_thread()) async_lock_pess_shared_(id, ntf);
+            if (self_strand().running_in_this_thread())
+                if (!_mustTick) async_lock_pess_shared_(id, ntf);
+                else self_strand().add_next(() => async_lock_pess_shared_(id, ntf));
             else self_strand().post(() => async_lock_pess_shared_(id, ntf));
         }
 
         internal void async_try_lock_shared(long id, Action<bool> ntf)
         {
-            if (self_strand().running_in_this_thread()) async_try_lock_shared_(id, ntf);
+            if (self_strand().running_in_this_thread())
+                if (!_mustTick) async_try_lock_shared_(id, ntf);
+                else self_strand().add_next(() => async_try_lock_shared_(id, ntf));
             else self_strand().post(() => async_try_lock_shared_(id, ntf));
         }
 
         internal void async_timed_lock_shared(long id, int ms, Action<bool> ntf)
         {
-            if (self_strand().running_in_this_thread()) async_timed_lock_shared_(id, ms, ntf);
+            if (self_strand().running_in_this_thread())
+                if (!_mustTick) async_timed_lock_shared_(id, ms, ntf);
+                else self_strand().add_next(() => async_timed_lock_shared_(id, ms, ntf));
             else self_strand().post(() => async_timed_lock_shared_(id, ms, ntf));
         }
 
         internal void async_lock_upgrade(long id, Action ntf)
         {
-            if (self_strand().running_in_this_thread()) async_lock_upgrade_(id, ntf);
+            if (self_strand().running_in_this_thread())
+                if (!_mustTick) async_lock_upgrade_(id, ntf);
+                else self_strand().add_next(() => async_lock_upgrade_(id, ntf));
             else self_strand().post(() => async_lock_upgrade_(id, ntf));
         }
 
         internal void async_try_lock_upgrade(long id, Action<bool> ntf)
         {
-            if (self_strand().running_in_this_thread()) async_try_lock_upgrade_(id, ntf);
+            if (self_strand().running_in_this_thread())
+                if (!_mustTick) async_try_lock_upgrade_(id, ntf);
+                else self_strand().add_next(() => async_try_lock_upgrade_(id, ntf));
             else self_strand().post(() => async_try_lock_upgrade_(id, ntf));
         }
 
         internal void async_unlock_shared(long id, Action ntf)
         {
-            if (self_strand().running_in_this_thread()) async_unlock_shared_(id, ntf);
+            if (self_strand().running_in_this_thread())
+                if (!_mustTick) async_unlock_shared_(id, ntf);
+                else self_strand().add_next(() => async_unlock_shared_(id, ntf));
             else self_strand().post(() => async_unlock_shared_(id, ntf));
         }
 
         internal void async_unlock_upgrade(long id, Action ntf)
         {
-            if (self_strand().running_in_this_thread()) async_unlock_upgrade_(id, ntf);
+            if (self_strand().running_in_this_thread())
+                if (!_mustTick) async_unlock_upgrade_(id, ntf);
+                else self_strand().add_next(() => async_unlock_upgrade_(id, ntf));
             else self_strand().post(() => async_unlock_upgrade_(id, ntf));
         }
 
         internal void unlock_and_lock_shared(long id, Action ntf)
         {
-            if (self_strand().running_in_this_thread()) async_unlock_and_lock_shared_(id, ntf);
+            if (self_strand().running_in_this_thread())
+                if (!_mustTick) async_unlock_and_lock_shared_(id, ntf);
+                else self_strand().add_next(() => async_unlock_and_lock_shared_(id, ntf));
             else self_strand().post(() => async_unlock_and_lock_shared_(id, ntf));
         }
 
         internal void unlock_and_lock_upgrade(long id, Action ntf)
         {
-            if (self_strand().running_in_this_thread()) async_unlock_and_lock_upgrade_(id, ntf);
+            if (self_strand().running_in_this_thread())
+                if (!_mustTick) async_unlock_and_lock_upgrade_(id, ntf);
+                else self_strand().add_next(() => async_unlock_and_lock_upgrade_(id, ntf));
             else self_strand().post(() => async_unlock_and_lock_upgrade_(id, ntf));
         }
 
         internal void unlock_upgrade_and_lock(long id, Action ntf)
         {
-            if (self_strand().running_in_this_thread()) async_unlock_upgrade_and_lock_(id, ntf);
+            if (self_strand().running_in_this_thread())
+                if (!_mustTick) async_unlock_upgrade_and_lock_(id, ntf);
+                else self_strand().add_next(() => async_unlock_upgrade_and_lock_(id, ntf));
             else self_strand().post(() => async_unlock_upgrade_and_lock_(id, ntf));
         }
 
         internal void unlock_shared_and_lock(long id, Action ntf)
         {
-            if (self_strand().running_in_this_thread()) async_unlock_shared_and_lock_(id, ntf);
+            if (self_strand().running_in_this_thread())
+                if (!_mustTick) async_unlock_shared_and_lock_(id, ntf);
+                else self_strand().add_next(() => async_unlock_shared_and_lock_(id, ntf));
             else self_strand().post(() => async_unlock_shared_and_lock_(id, ntf));
         }
 
@@ -723,11 +751,13 @@ namespace Go
     {
         shared_strand _strand;
         LinkedList<tuple<long, go_mutex, Action>> _waitQueue;
+        bool _mustTick;
 
         public go_condition_variable(shared_strand strand)
         {
             _strand = strand;
             _waitQueue = new LinkedList<tuple<long, go_mutex, Action>>();
+            _mustTick = false;
         }
 
         public go_condition_variable() : this(shared_strand.default_strand()) { }
@@ -736,7 +766,9 @@ namespace Go
         {
             mutex.async_unlock(id, delegate ()
             {
-                if (_strand.running_in_this_thread()) _waitQueue.AddLast(new tuple<long, go_mutex, Action>(id, mutex, () => mutex.async_lock(id, ntf)));
+                if (_strand.running_in_this_thread())
+                    if (!_mustTick) _waitQueue.AddLast(new tuple<long, go_mutex, Action>(id, mutex, () => mutex.async_lock(id, ntf)));
+                    else _strand.add_next(() => _waitQueue.AddLast(new tuple<long, go_mutex, Action>(id, mutex, () => mutex.async_lock(id, ntf))));
                 else _strand.post(() => _waitQueue.AddLast(new tuple<long, go_mutex, Action>(id, mutex, () => mutex.async_lock(id, ntf))));
             });
         }
@@ -767,7 +799,9 @@ namespace Go
         {
             mutex.async_unlock(id, delegate ()
             {
-                if (_strand.running_in_this_thread()) async_timed_wait_(id, ms, mutex, ntf);
+                if (_strand.running_in_this_thread())
+                    if (!_mustTick) async_timed_wait_(id, ms, mutex, ntf);
+                    else _strand.add_next(() => async_timed_wait_(id, ms, mutex, ntf));
                 else _strand.post(() => async_timed_wait_(id, ms, mutex, ntf));
             });
         }
@@ -784,22 +818,29 @@ namespace Go
 
         public void notify_one()
         {
-            if (_strand.running_in_this_thread()) notify_one_();
+            if (_strand.running_in_this_thread())
+                if (!_mustTick) notify_one_();
+                else _strand.add_next(() => notify_one_());
             else _strand.post(() => notify_one_());
         }
 
         private void notify_all_()
         {
+            _mustTick = true;
             while (0 != _waitQueue.Count)
             {
-                _strand.add_last(_waitQueue.First.Value.value3);
+                Action ntf = _waitQueue.First.Value.value3;
                 _waitQueue.RemoveFirst();
+                ntf();
             }
+            _mustTick = false;
         }
 
         public void notify_all()
         {
-            if (_strand.running_in_this_thread()) notify_all_();
+            if (_strand.running_in_this_thread())
+                if (!_mustTick) notify_all_();
+                else _strand.add_next(() => notify_all_());
             else _strand.post(() => notify_all_());
         }
 
@@ -819,7 +860,9 @@ namespace Go
 
         internal void async_cancel(long id, Action ntf)
         {
-            if (_strand.running_in_this_thread()) async_cancel_(id, ntf);
+            if (_strand.running_in_this_thread())
+                if (!_mustTick) async_cancel_(id, ntf);
+                else _strand.add_next(() => async_cancel_(id, ntf));
             else _strand.post(() => async_cancel_(id, ntf));
         }
 
