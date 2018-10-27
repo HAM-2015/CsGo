@@ -114,6 +114,29 @@ namespace Go
             return (long)((double)quadPart * _pcCycle._sCycle);
         }
 
+        public static long us
+        {
+            get
+            {
+                return get_tick_us();
+            }
+        }
+
+        public static long ms
+        {
+            get
+            {
+                return get_tick_ms();
+            }
+        }
+
+        public static long s
+        {
+            get
+            {
+                return get_tick_s();
+            }
+        }
 #if DEBUG
         public static bool check_step_debugging()
         {
@@ -155,6 +178,30 @@ namespace Go
             long tm;
             GetSystemTimeAsFileTime(out tm);
             return tm / 10000000;
+        }
+
+        public static long us
+        {
+            get
+            {
+                return get_tick_us();
+            }
+        }
+
+        public static long ms
+        {
+            get
+            {
+                return get_tick_ms();
+            }
+        }
+
+        public static long s
+        {
+            get
+            {
+                return get_tick_s();
+            }
         }
     }
 

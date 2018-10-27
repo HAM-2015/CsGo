@@ -661,17 +661,23 @@ namespace Go
 
         static public void go(shared_strand strand, action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
         {
-            (new generator()).init(strand, generatorAction, completedHandler, suspendHandler).run();
+            make(strand, generatorAction, completedHandler, suspendHandler).run();
+        }
+
+        static public void go(out generator newGen, shared_strand strand, action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
+        {
+            newGen = make(strand, generatorAction, completedHandler, suspendHandler);
+            newGen.run();
         }
 
         static public generator tgo(shared_strand strand, action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
         {
-            return (new generator()).init(strand, generatorAction, completedHandler, suspendHandler).trun();
+            return make(strand, generatorAction, completedHandler, suspendHandler).trun();
         }
 
         static public generator make(string name, shared_strand strand, action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
         {
-            generator newGen = (new generator()).init(strand, generatorAction, completedHandler, suspendHandler);
+            generator newGen = make(strand, generatorAction, completedHandler, suspendHandler);
             newGen._name = name;
             try
             {
@@ -692,6 +698,12 @@ namespace Go
         static public void go(string name, shared_strand strand, action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
         {
             make(name, strand, generatorAction, completedHandler, suspendHandler).run();
+        }
+
+        static public void go(out generator newGen, string name, shared_strand strand, action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
+        {
+            newGen = make(name, strand, generatorAction, completedHandler, suspendHandler);
+            newGen.run();
         }
 
         static public generator tgo(string name, shared_strand strand, action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
@@ -3788,14 +3800,6 @@ namespace Go
             return this_._timer;
         }
 
-        public shared_strand strand
-        {
-            get
-            {
-                return _timer.self_strand();
-            }
-        }
-
         static public long self_id()
         {
             generator this_ = self;
@@ -3805,12 +3809,29 @@ namespace Go
         static public generator self_parent()
         {
             generator this_ = self;
-            return this_.parent();
+            return this_.parent;
         }
 
-        public virtual generator parent()
+        static public long self_count()
         {
-            return null;
+            generator this_ = self;
+            return this_._yieldCount;
+        }
+
+        public shared_strand strand
+        {
+            get
+            {
+                return _timer.self_strand();
+            }
+        }
+
+        public virtual generator parent
+        {
+            get
+            {
+                return null;
+            }
         }
 
         public long id
@@ -3821,15 +3842,12 @@ namespace Go
             }
         }
 
-        public long yield_count()
+        public long count
         {
-            return _yieldCount;
-        }
-
-        static public long self_count()
-        {
-            generator this_ = self;
-            return this_._yieldCount;
+            get
+            {
+                return _yieldCount;
+            }
         }
 
         static public Task suspend_other(generator otherGen)
@@ -6884,9 +6902,22 @@ namespace Go
         {
             generator this_ = self;
             up_stack_frame(this_._makeStack, 2);
-            (new generator()).init(strand, handler, this_.unsafe_async_result(), null, this_._makeStack).run();
-            await lock_stop(() => this_.async_wait());
-            this_._makeStack.RemoveFirst();
+            generator depthGen = (new generator()).init(strand, handler, this_.unsafe_async_result(), null, this_._makeStack);
+            try
+            {
+                depthGen.run();
+                await this_.async_wait();
+            }
+            catch (stop_exception)
+            {
+                depthGen.stop(this_.unsafe_async_result());
+                await this_.async_wait();
+                throw;
+            }
+            finally
+            {
+                this_._makeStack.RemoveFirst();
+            }
         }
 
         static public async Task<R> depth_call<R>(shared_strand strand, Func<Task<R>> handler)
@@ -6894,9 +6925,22 @@ namespace Go
             generator this_ = self;
             R res = default(R);
             up_stack_frame(this_._makeStack, 2);
-            (new generator()).init(strand, async () => res = await handler(), this_.unsafe_async_result(), null, this_._makeStack).run();
-            await lock_stop(() => this_.async_wait());
-            this_._makeStack.RemoveFirst();
+            generator depthGen = (new generator()).init(strand, async () => res = await handler(), this_.unsafe_async_result(), null, this_._makeStack);
+            try
+            {
+                depthGen.run();
+                await this_.async_wait();
+            }
+            catch (stop_exception)
+            {
+                depthGen.stop(this_.unsafe_async_result());
+                await this_.async_wait();
+                throw;
+            }
+            finally
+            {
+                this_._makeStack.RemoveFirst();
+            }
             return res;
         }
 #else
@@ -6910,19 +6954,39 @@ namespace Go
             return handler();
         }
 
-        static public Task depth_call(shared_strand strand, action handler)
+        static public async Task depth_call(shared_strand strand, action handler)
         {
             generator this_ = self;
-            go(strand, handler, this_.unsafe_async_result());
-            return lock_stop(() => this_.async_wait());
+            generator depthGen = make(strand, handler, this_.unsafe_async_result());
+            try
+            {
+                depthGen.run();
+                await this_.async_wait();
+            }
+            catch (stop_exception)
+            {
+                depthGen.stop(this_.unsafe_async_result());
+                await this_.async_wait();
+                throw;
+            }
         }
 
         static public async Task<R> depth_call<R>(shared_strand strand, Func<Task<R>> handler)
         {
             generator this_ = self;
             R res = default(R);
-            go(strand, async () => res = await handler(), this_.unsafe_async_result(), null);
-            await lock_stop(() => this_.async_wait());
+            generator depthGen = make(strand, async () => res = await handler(), this_.unsafe_async_result());
+            try
+            {
+                depthGen.run();
+                await this_.async_wait();
+            }
+            catch (stop_exception)
+            {
+                depthGen.stop(this_.unsafe_async_result());
+                await this_.async_wait();
+                throw;
+            }
             return res;
         }
 #endif
@@ -7068,51 +7132,51 @@ namespace Go
             return false;
         }
 
-        static public ValueTask<chan_recv_wrap<T>> recv_msg<T>(int id = 0)
+        static public ValueTask<chan_recv_wrap<T>> recv_msg<T>(int id = 0, chan_lost_msg<T> lostMsg = null)
         {
-            return chan_receive(self_mailbox<T>(id));
+            return chan_receive(self_mailbox<T>(id), lostMsg);
         }
 
-        static public ValueTask<chan_recv_wrap<T>> try_recv_msg<T>(int id = 0)
+        static public ValueTask<chan_recv_wrap<T>> try_recv_msg<T>(int id = 0, chan_lost_msg<T> lostMsg = null)
         {
-            return chan_try_receive(self_mailbox<T>(id));
+            return chan_try_receive(self_mailbox<T>(id), lostMsg);
         }
 
-        static public ValueTask<chan_recv_wrap<T>> timed_recv_msg<T>(int ms, int id = 0)
+        static public ValueTask<chan_recv_wrap<T>> timed_recv_msg<T>(int ms, int id = 0, chan_lost_msg<T> lostMsg = null)
         {
-            return chan_timed_receive(self_mailbox<T>(id), ms);
+            return chan_timed_receive(self_mailbox<T>(id), ms, lostMsg);
         }
 
-        private async Task<chan_send_wrap> send_msg_<T>(ValueTask<chan<T>> mbTask, T msg)
+        private async Task<chan_send_wrap> send_msg_<T>(ValueTask<chan<T>> mbTask, T msg, chan_lost_msg<T> lostMsg)
         {
             chan<T> mb = await mbTask;
-            return null != mb ? await chan_send(mb, msg) : new chan_send_wrap { state = chan_async_state.async_fail };
+            return null != mb ? await chan_send(mb, msg, lostMsg) : new chan_send_wrap { state = chan_async_state.async_fail };
         }
 
-        public ValueTask<chan_send_wrap> send_msg<T>(int id, T msg)
+        public ValueTask<chan_send_wrap> send_msg<T>(int id, T msg, chan_lost_msg<T> lostMsg = null)
         {
             ValueTask<chan<T>> mbTask = get_mailbox<T>(id);
             if (!mbTask.IsCompleted)
             {
-                return to_vtask(send_msg_(mbTask, msg));
+                return to_vtask(send_msg_(mbTask, msg, lostMsg));
             }
             chan<T> mb = mbTask.GetAwaiter().GetResult();
-            return null != mb ? chan_send(mb, msg) : to_vtask(new chan_send_wrap { state = chan_async_state.async_fail });
+            return null != mb ? chan_send(mb, msg, lostMsg) : to_vtask(new chan_send_wrap { state = chan_async_state.async_fail });
         }
 
-        public ValueTask<chan_send_wrap> send_msg<T>(T msg)
+        public ValueTask<chan_send_wrap> send_msg<T>(T msg, chan_lost_msg<T> lostMsg = null)
         {
-            return send_msg(0, msg);
+            return send_msg(0, msg, lostMsg);
         }
 
-        public ValueTask<chan_send_wrap> send_void_msg(int id)
+        public ValueTask<chan_send_wrap> send_void_msg(int id, chan_lost_msg<void_type> lostMsg = null)
         {
-            return send_msg(id, default(void_type));
+            return send_msg(id, default(void_type), lostMsg);
         }
 
-        public ValueTask<chan_send_wrap> send_void_msg()
+        public ValueTask<chan_send_wrap> send_void_msg(chan_lost_msg<void_type> lostMsg = null)
         {
-            return send_msg(0, default(void_type));
+            return send_msg(0, default(void_type), lostMsg);
         }
 
         static private async Task<void_type> wait_void_task(Task task)
@@ -7160,7 +7224,7 @@ namespace Go
                     {
                         try
                         {
-                            self._mailboxMap = _children.parent()._mailboxMap;
+                            self._mailboxMap = _children.parent._mailboxMap;
                             while (_run)
                             {
                                 chan_recv_wrap<T> recvRes = await chan_receive(chan, lostMsg);
@@ -7194,7 +7258,7 @@ namespace Go
                         try
                         {
                             lock_suspend();
-                            self._mailboxMap = _children.parent()._mailboxMap;
+                            self._mailboxMap = _children.parent._mailboxMap;
                             nil_chan<chan_async_state> waitHasChan = new nil_chan<chan_async_state>();
                             Action<chan_async_state> waitHasNtf = waitHasChan.wrap();
                             async_result_wrap<chan_recv_wrap<T>> recvRes = new async_result_wrap<chan_recv_wrap<T>>();
@@ -7291,7 +7355,7 @@ namespace Go
                         chan_recv_wrap<T> recvRes = await chan_timed_receive(chan, ms, lostMsg);
                         try
                         {
-                            self._mailboxMap = _children.parent()._mailboxMap;
+                            self._mailboxMap = _children.parent._mailboxMap;
                             if (chan_async_state.async_ok == recvRes.state)
                             {
                                 await handler(recvRes.msg);
@@ -7314,7 +7378,7 @@ namespace Go
                         try
                         {
                             lock_suspend();
-                            self._mailboxMap = _children.parent()._mailboxMap;
+                            self._mailboxMap = _children.parent._mailboxMap;
                             long endTick = system_tick.get_tick_ms() + ms;
                             while (_run)
                             {
@@ -7408,7 +7472,7 @@ namespace Go
                     }
                     try
                     {
-                        self._mailboxMap = _children.parent()._mailboxMap;
+                        self._mailboxMap = _children.parent._mailboxMap;
                         chan_recv_wrap<T> recvRes = await chan_try_receive(chan, lostMsg);
                         if (chan_async_state.async_ok == recvRes.state)
                         {
@@ -7468,7 +7532,7 @@ namespace Go
                     {
                         try
                         {
-                            self._mailboxMap = _children.parent()._mailboxMap;
+                            self._mailboxMap = _children.parent._mailboxMap;
                             while (_run)
                             {
                                 chan_recv_wrap<T> recvRes = await chan_receive(chan, token, lostMsg);
@@ -7498,7 +7562,7 @@ namespace Go
                         try
                         {
                             lock_suspend();
-                            self._mailboxMap = _children.parent()._mailboxMap;
+                            self._mailboxMap = _children.parent._mailboxMap;
                             nil_chan<chan_async_state> waitHasChan = new nil_chan<chan_async_state>();
                             Action<chan_async_state> waitHasNtf = waitHasChan.wrap();
                             async_result_wrap<chan_recv_wrap<T>> recvRes = new async_result_wrap<chan_recv_wrap<T>>();
@@ -7596,7 +7660,7 @@ namespace Go
                         chan_recv_wrap<T> recvRes = await chan_timed_receive(chan, ms, token, lostMsg);
                         try
                         {
-                            self._mailboxMap = _children.parent()._mailboxMap;
+                            self._mailboxMap = _children.parent._mailboxMap;
                             if (chan_async_state.async_ok == recvRes.state)
                             {
                                 await handler(recvRes.msg);
@@ -7619,7 +7683,7 @@ namespace Go
                         try
                         {
                             lock_suspend();
-                            self._mailboxMap = _children.parent()._mailboxMap;
+                            self._mailboxMap = _children.parent._mailboxMap;
                             long endTick = system_tick.get_tick_ms() + ms;
                             while (_run)
                             {
@@ -7713,7 +7777,7 @@ namespace Go
                     }
                     try
                     {
-                        self._mailboxMap = _children.parent()._mailboxMap;
+                        self._mailboxMap = _children.parent._mailboxMap;
                         chan_recv_wrap<T> recvRes = await chan_try_receive(chan, null != token ? token : new broadcast_token(), lostMsg);
                         if (chan_async_state.async_ok == recvRes.state)
                         {
@@ -7807,7 +7871,7 @@ namespace Go
                     {
                         try
                         {
-                            self._mailboxMap = _children.parent()._mailboxMap;
+                            self._mailboxMap = _children.parent._mailboxMap;
                             while (_run)
                             {
                                 csp_wait_wrap<R, T> recvRes = await csp_wait(chan, lostMsg);
@@ -7853,7 +7917,7 @@ namespace Go
                         try
                         {
                             lock_suspend();
-                            self._mailboxMap = _children.parent()._mailboxMap;
+                            self._mailboxMap = _children.parent._mailboxMap;
                             nil_chan<chan_async_state> waitHasChan = new nil_chan<chan_async_state>();
                             Action<chan_async_state> waitHasNtf = waitHasChan.wrap();
                             async_result_wrap<csp_wait_wrap<R, T>> recvRes = new async_result_wrap<csp_wait_wrap<R, T>>();
@@ -8009,7 +8073,7 @@ namespace Go
                         csp_wait_wrap<R, T> recvRes = await csp_timed_wait(chan, ms, lostMsg);
                         try
                         {
-                            self._mailboxMap = _children.parent()._mailboxMap;
+                            self._mailboxMap = _children.parent._mailboxMap;
                             if (chan_async_state.async_ok == recvRes.state)
                             {
                                 try
@@ -8044,7 +8108,7 @@ namespace Go
                         try
                         {
                             lock_suspend();
-                            self._mailboxMap = _children.parent()._mailboxMap;
+                            self._mailboxMap = _children.parent._mailboxMap;
                             long endTick = system_tick.get_tick_ms() + ms;
                             while (_run)
                             {
@@ -8195,7 +8259,7 @@ namespace Go
                     }
                     try
                     {
-                        self._mailboxMap = _children.parent()._mailboxMap;
+                        self._mailboxMap = _children.parent._mailboxMap;
                         csp_wait_wrap<R, T> recvRes = await csp_try_wait(chan, lostMsg);
                         if (chan_async_state.async_ok == recvRes.state)
                         {
@@ -8380,13 +8444,13 @@ namespace Go
 
             static public void stop_current()
             {
-                Debug.Assert(null != self && null != self.parent() && self.parent()._mailboxMap == self._mailboxMap, "不正确的 stop_current 调用!");
+                Debug.Assert(null != self && null != self.parent && self.parent._mailboxMap == self._mailboxMap, "不正确的 stop_current 调用!");
                 throw message_stop_current_exception.val;
             }
 
             static public void stop_all()
             {
-                Debug.Assert(null != self && null != self.parent() && self.parent()._mailboxMap == self._mailboxMap, "不正确的 stop_all 调用!");
+                Debug.Assert(null != self && null != self.parent && self.parent._mailboxMap == self._mailboxMap, "不正确的 stop_all 调用!");
                 throw message_stop_all_exception.val;
             }
         }
@@ -8853,7 +8917,7 @@ namespace Go
                 return shuffChans;
             }
 
-            public async Task<bool> loop(action eachAferDo = null)
+            public async Task<bool> loop(action eachAfterDo = null)
             {
                 generator this_ = self;
                 LinkedList<select_chan_base> chans = _chans;
@@ -8891,7 +8955,7 @@ namespace Go
                     unlock_stop();
                     int count = chans.Count;
                     bool selected = false;
-                    Func<Task> stepOne = null == eachAferDo ? (Func<Task>)null : delegate ()
+                    Func<Task> stepOne = null == eachAfterDo ? (Func<Task>)null : delegate ()
                     {
                         selected = true;
                         return non_async();
@@ -8930,7 +8994,7 @@ namespace Go
                             {
                                 selected = false;
                                 await unlock_suspend();
-                                await eachAferDo();
+                                await eachAfterDo();
                             }
                             finally
                             {
@@ -9357,9 +9421,12 @@ namespace Go
                 return (child)(new child(childrenMgr, true)).init(strand, generatorAction, completedHandler, suspendHandler);
             }
 
-            public override generator parent()
+            public override generator parent
             {
-                return null != _childrenMgr ? _childrenMgr.parent() : null;
+                get
+                {
+                    return null != _childrenMgr ? _childrenMgr.parent : null;
+                }
             }
 
             public bool is_free()
@@ -9450,9 +9517,21 @@ namespace Go
                 make(strand, generatorAction, completedHandler, suspendHandler).run();
             }
 
+            public void go(out child newChild, shared_strand strand, action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
+            {
+                newChild = make(strand, generatorAction, completedHandler, suspendHandler);
+                newChild.run();
+            }
+
             public void free_go(shared_strand strand, action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
             {
                 free_make(strand, generatorAction, completedHandler, suspendHandler).run();
+            }
+
+            public void free_go(out child newChild, shared_strand strand, action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
+            {
+                newChild = free_make(strand, generatorAction, completedHandler, suspendHandler);
+                newChild.run();
             }
 
             public child tgo(shared_strand strand, action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
@@ -9480,9 +9559,19 @@ namespace Go
                 go(_parent.strand, generatorAction, completedHandler, suspendHandler);
             }
 
+            public void go(out child newChild, action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
+            {
+                go(out newChild, _parent.strand, generatorAction, completedHandler, suspendHandler);
+            }
+
             public void free_go(action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
             {
                 free_go(_parent.strand, generatorAction, completedHandler, suspendHandler);
+            }
+
+            public void free_go(out child newChild, action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
+            {
+                free_go(out newChild, _parent.strand, generatorAction, completedHandler, suspendHandler);
             }
 
             public child tgo(action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
@@ -9545,9 +9634,12 @@ namespace Go
                 }
             }
 
-            public generator parent()
+            public generator parent
             {
-                return _parent;
+                get
+                {
+                    return _parent;
+                }
             }
 
             public int discard(IList<child> gens)
