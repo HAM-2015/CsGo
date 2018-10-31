@@ -422,26 +422,6 @@ namespace Go
             public static readonly message_stop_all_exception val = new message_stop_all_exception();
         }
 
-        class nil_task<R>
-        {
-            static Func<R> _func = () => default(R);
-            static readonly ThreadLocal<Task<R>> _task = new ThreadLocal<Task<R>>();
-            static readonly System.Reflection.FieldInfo _resField = typeof(Task<R>).GetField("m_result", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-
-            public static Task<R> task(R value)
-            {
-                Task<R> currTask = _task.Value;
-                if (null == currTask)
-                {
-                    currTask = new Task<R>(_func);
-                    currTask.RunSynchronously();
-                    _task.Value = currTask;
-                }
-                _resField.SetValue(currTask, value);
-                return currTask;
-            }
-        }
-
         class type_hash<T>
         {
             public static readonly int code = Interlocked.Increment(ref _hashCount);
@@ -5405,9 +5385,9 @@ namespace Go
             return _nilTask;
         }
 
-        static public Task<R> non_async<R>(R value)
+        static public ValueTask<R> non_async<R>(R value)
         {
-            return nil_task<R>.task(value);
+            return to_vtask(value);
         }
 
         static public Task mutex_cancel(go_mutex mtx)
