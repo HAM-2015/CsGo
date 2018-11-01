@@ -303,7 +303,7 @@ namespace Go
         public bool disabled() { return ntfSign._disable; }
         public abstract void begin(generator host);
         public abstract Task<select_chan_state> invoke(Func<Task> stepOne = null);
-        public abstract Task<bool> errInvoke(chan_async_state state);
+        public abstract ValueTask<bool> errInvoke(chan_async_state state);
         public abstract Task end();
         public abstract bool is_read();
         public abstract chan_base channel();
@@ -513,25 +513,31 @@ namespace Go
                 return chanState;
             }
 
-            public override async Task<bool> errInvoke(chan_async_state state)
+            private async Task<bool> errInvoke_(chan_async_state state)
+            {
+                try
+                {
+                    await generator.unlock_suspend();
+                    if (!await _errHandler(state) && chan_async_state.async_closed != state)
+                    {
+                        _chan.async_append_recv_notify(nextSelect, ntfSign, _chanTimeout);
+                        return false;
+                    }
+                }
+                finally
+                {
+                    generator.lock_suspend();
+                }
+                return true;
+            }
+
+            public override ValueTask<bool> errInvoke(chan_async_state state)
             {
                 if (null != _errHandler)
                 {
-                    try
-                    {
-                        await generator.unlock_suspend();
-                        if (!await _errHandler(state) && chan_async_state.async_closed != state)
-                        {
-                            _chan.async_append_recv_notify(nextSelect, ntfSign, _chanTimeout);
-                            return false;
-                        }
-                    }
-                    finally
-                    {
-                        generator.lock_suspend();
-                    }
+                    return new ValueTask<bool>(errInvoke_(state));
                 }
-                return true;
+                return new ValueTask<bool>(true);
             }
 
             public override Task end()
@@ -622,25 +628,31 @@ namespace Go
                 return chanState;
             }
 
-            public override async Task<bool> errInvoke(chan_async_state state)
+            private async Task<bool> errInvoke_(chan_async_state state)
+            {
+                try
+                {
+                    await generator.unlock_suspend();
+                    if (!await _errHandler(state) && chan_async_state.async_closed != state)
+                    {
+                        _chan.async_append_send_notify(nextSelect, ntfSign, _chanTimeout);
+                        return false;
+                    }
+                }
+                finally
+                {
+                    generator.lock_suspend();
+                }
+                return true;
+            }
+
+            public override ValueTask<bool> errInvoke(chan_async_state state)
             {
                 if (null != _errHandler)
                 {
-                    try
-                    {
-                        await generator.unlock_suspend();
-                        if (!await _errHandler(state) && chan_async_state.async_closed != state)
-                        {
-                            _chan.async_append_send_notify(nextSelect, ntfSign, _chanTimeout);
-                            return false;
-                        }
-                    }
-                    finally
-                    {
-                        generator.lock_suspend();
-                    }
+                    return new ValueTask<bool>(errInvoke_(state));
                 }
-                return true;
+                return new ValueTask<bool>(true);
             }
 
             public override Task end()
@@ -3056,25 +3068,31 @@ namespace Go
                 return chanState;
             }
 
-            public override async Task<bool> errInvoke(chan_async_state state)
+            private async Task<bool> errInvoke_(chan_async_state state)
+            {
+                try
+                {
+                    await generator.unlock_suspend();
+                    if (!await _errHandler(state) && chan_async_state.async_closed != state)
+                    {
+                        _chan.async_append_recv_notify(nextSelect, ntfSign, _chanTimeout);
+                        return false;
+                    }
+                }
+                finally
+                {
+                    generator.lock_suspend();
+                }
+                return true;
+            }
+
+            public override ValueTask<bool> errInvoke(chan_async_state state)
             {
                 if (null != _errHandler)
                 {
-                    try
-                    {
-                        await generator.unlock_suspend();
-                        if (!await _errHandler(state) && chan_async_state.async_closed != state)
-                        {
-                            _chan.async_append_recv_notify(nextSelect, ntfSign, _chanTimeout);
-                            return false;
-                        }
-                    }
-                    finally
-                    {
-                        generator.lock_suspend();
-                    }
+                    return new ValueTask<bool>(errInvoke_(state));
                 }
-                return true;
+                return new ValueTask<bool>(true);
             }
 
             public override Task end()
@@ -3168,25 +3186,31 @@ namespace Go
                 return chanState;
             }
 
-            public override async Task<bool> errInvoke(chan_async_state state)
+            private async Task<bool> errInvoke_(chan_async_state state)
+            {
+                try
+                {
+                    await generator.unlock_suspend();
+                    if (!await _errHandler(state) && chan_async_state.async_closed != state)
+                    {
+                        _chan.async_append_send_notify(nextSelect, ntfSign, _chanTimeout);
+                        return false;
+                    }
+                }
+                finally
+                {
+                    generator.lock_suspend();
+                }
+                return true;
+            }
+
+            public override ValueTask<bool> errInvoke(chan_async_state state)
             {
                 if (null != _errHandler)
                 {
-                    try
-                    {
-                        await generator.unlock_suspend();
-                        if (!await _errHandler(state) && chan_async_state.async_closed != state)
-                        {
-                            _chan.async_append_send_notify(nextSelect, ntfSign, _chanTimeout);
-                            return false;
-                        }
-                    }
-                    finally
-                    {
-                        generator.lock_suspend();
-                    }
+                    return new ValueTask<bool>(errInvoke_(state));
                 }
-                return true;
+                return new ValueTask<bool>(true);
             }
 
             public override Task end()
