@@ -569,9 +569,10 @@ namespace Go
             static readonly FieldInfo _cacheReceiveClosureCache = TypeReflection.GetField(_cacheSetType, "ReceiveClosureCache");
             static readonly FieldInfo _cacheReceiveOverlappedCache = TypeReflection.GetField(_cacheSetType, "ReceiveOverlappedCache");
 
+            static readonly string _overlappedTypeName = _overlappedType.FullName;
             static private IAsyncResult MakeOverlappedAsyncResult(Socket sck, AsyncCallback callback)
             {
-                return (IAsyncResult)TypeReflection._systemAss.CreateInstance(_overlappedType.FullName, true,
+                return (IAsyncResult)TypeReflection._systemAss.CreateInstance(_overlappedTypeName, true,
                     BindingFlags.Instance | BindingFlags.NonPublic, null,
                     new object[] { sck, null, callback }, null, null);
             }
@@ -582,7 +583,7 @@ namespace Go
                 _overlappedStartPostingAsyncOp.Invoke(overlapped, startPostingAsyncOpParam);
             }
 
-            static private void FinishPostingAsyncSendOp(Socket sck, IAsyncResult overlapped, object cacheSet)
+            static private void FinishPostingAsyncSendOp(IAsyncResult overlapped, object cacheSet)
             {
                 object oldClosure = _cacheSendClosureCache.GetValue(cacheSet);
                 object[] closure = new object[] { oldClosure };
@@ -593,7 +594,7 @@ namespace Go
                 }
             }
 
-            static private void FinishPostingAsyncRecvOp(Socket sck, IAsyncResult overlapped, object cacheSet)
+            static private void FinishPostingAsyncRecvOp(IAsyncResult overlapped, object cacheSet)
             {
                 object oldClosure = _cacheReceiveClosureCache.GetValue(cacheSet);
                 object[] closure = new object[] { oldClosure };
@@ -610,7 +611,7 @@ namespace Go
                 _overlappedSetUnmanagedStructures.Invoke(overlapped, null == pinnedObj ? nullPinnedObj : new object[] { pinnedObj });
             }
 
-            static private IntPtr SetSendPointer(Socket sck, IAsyncResult overlapped, IntPtr ptr, int offset, int size, object cacheSet, object pinnedObj)
+            static private IntPtr SetSendPointer(IAsyncResult overlapped, IntPtr ptr, int offset, int size, object cacheSet, object pinnedObj)
             {
                 object oldCache = _cacheSendOverlappedCache.GetValue(cacheSet);
                 object[] overlappedCache = new object[] { oldCache };
@@ -627,7 +628,7 @@ namespace Go
                 return GCHandle.Alloc(WSABuffer, GCHandleType.Pinned).AddrOfPinnedObject();
             }
 
-            static private IntPtr SetRecvPointer(Socket sck, IAsyncResult overlapped, IntPtr ptr, int offset, int size, object cacheSet, object pinnedObj)
+            static private IntPtr SetRecvPointer(IAsyncResult overlapped, IntPtr ptr, int offset, int size, object cacheSet, object pinnedObj)
             {
                 object oldCache = _cacheReceiveOverlappedCache.GetValue(cacheSet);
                 object[] overlappedCache = new object[] { oldCache };
@@ -649,7 +650,7 @@ namespace Go
                 IAsyncResult overlapped = MakeOverlappedAsyncResult(sck, callback);
                 StartPostingAsyncOp(overlapped);
                 object cacheSet = _socketCaches.Invoke(sck, null);
-                IntPtr WSABuffer = SetSendPointer(sck, overlapped, ptr, offset, size, cacheSet, null);
+                IntPtr WSABuffer = SetSendPointer(overlapped, ptr, offset, size, cacheSet, null);
                 int num = 0;
                 SafeHandle overlappedHandle = (SafeHandle)_overlappedOverlappedHandle.Invoke(overlapped, null);
                 SocketError lastWin32Error = WSASend(sck.Handle, WSABuffer, 1, out num, socketFlags, overlappedHandle, IntPtr.Zero);
@@ -659,7 +660,7 @@ namespace Go
                 }
                 if (SocketError.Success == lastWin32Error || SocketError.IOPending == lastWin32Error)
                 {
-                    FinishPostingAsyncSendOp(sck, overlapped, cacheSet);
+                    FinishPostingAsyncSendOp(overlapped, cacheSet);
                     return SocketError.Success;
                 }
                 lastWin32Error = (SocketError)_overlappedCheckAsyncCallOverlappedResult.Invoke(overlapped, new object[] { lastWin32Error });
@@ -679,7 +680,7 @@ namespace Go
                 IAsyncResult overlapped = MakeOverlappedAsyncResult(sck, callback);
                 StartPostingAsyncOp(overlapped);
                 object cacheSet = _socketCaches.Invoke(sck, null);
-                IntPtr WSABuffer = SetRecvPointer(sck, overlapped, ptr, offset, size, cacheSet, null);
+                IntPtr WSABuffer = SetRecvPointer(overlapped, ptr, offset, size, cacheSet, null);
                 int num = 0;
                 SafeHandle overlappedHandle = (SafeHandle)_overlappedOverlappedHandle.Invoke(overlapped, null);
                 SocketError lastWin32Error = WSARecv(sck.Handle, WSABuffer, 1, out num, ref socketFlags, overlappedHandle, IntPtr.Zero);
@@ -689,7 +690,7 @@ namespace Go
                 }
                 if (SocketError.Success == lastWin32Error || SocketError.IOPending == lastWin32Error)
                 {
-                    FinishPostingAsyncRecvOp(sck, overlapped, cacheSet);
+                    FinishPostingAsyncRecvOp(overlapped, cacheSet);
                     return SocketError.Success;
                 }
                 lastWin32Error = (SocketError)_overlappedCheckAsyncCallOverlappedResult.Invoke(overlapped, new object[] { lastWin32Error });
@@ -722,7 +723,7 @@ namespace Go
                         }
                     }
                     lastWin32Error = SocketError.Success;
-                    SetSendPointer(sck, overlapped, IntPtr.Zero, 0, 0, cacheSet, null);
+                    SetSendPointer(overlapped, IntPtr.Zero, 0, 0, cacheSet, null);
                     SafeHandle overlappedHandle = (SafeHandle)_overlappedOverlappedHandle.Invoke(overlapped, null);
                     if (0 == TransmitFile(sck.Handle, fileHandle, size, 0, overlappedHandle, IntPtr.Zero, 0x20 | 0x04))
                     {
@@ -730,7 +731,7 @@ namespace Go
                     }
                     if (SocketError.Success == lastWin32Error || SocketError.IOPending == lastWin32Error)
                     {
-                        FinishPostingAsyncSendOp(sck, overlapped, cacheSet);
+                        FinishPostingAsyncSendOp(overlapped, cacheSet);
                         return SocketError.Success;
                     }
                 } while (false);
