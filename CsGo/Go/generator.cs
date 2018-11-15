@@ -394,32 +394,38 @@ namespace Go
     {
         public class stop_exception : System.Exception
         {
-            public static readonly stop_exception val = new stop_exception();
+            internal static readonly stop_exception val = new stop_exception();
+            private stop_exception() { }
         }
 
         public class local_value_exception : System.Exception
         {
-            public static readonly local_value_exception val = new local_value_exception();
+            internal static readonly local_value_exception val = new local_value_exception();
+            private local_value_exception() { }
         }
 
         public class select_stop_current_exception : System.Exception
         {
-            public static readonly select_stop_current_exception val = new select_stop_current_exception();
+            internal static readonly select_stop_current_exception val = new select_stop_current_exception();
+            private select_stop_current_exception() { }
         }
 
         public class select_stop_all_exception : System.Exception
         {
-            public static readonly select_stop_all_exception val = new select_stop_all_exception();
+            internal static readonly select_stop_all_exception val = new select_stop_all_exception();
+            private select_stop_all_exception() { }
         }
 
         public class message_stop_current_exception : System.Exception
         {
-            public static readonly message_stop_current_exception val = new message_stop_current_exception();
+            internal static readonly message_stop_current_exception val = new message_stop_current_exception();
+            private message_stop_current_exception() { }
         }
 
         public class message_stop_all_exception : System.Exception
         {
-            public static readonly message_stop_all_exception val = new message_stop_all_exception();
+            internal static readonly message_stop_all_exception val = new message_stop_all_exception();
+            private message_stop_all_exception() { }
         }
 
         class type_hash<T>
@@ -5309,8 +5315,8 @@ namespace Go
                     wg.done();
                 }, msg, null);
             }
-            LinkedListNode<Action> cancelKey;
-            wg.async_wait(this_.unsafe_async_result(), out cancelKey);
+            wait_group.cancel_token cancelToken;
+            wg.async_wait(this_.unsafe_async_result(), out cancelToken);
             try
             {
                 await this_.async_wait();
@@ -5318,7 +5324,7 @@ namespace Go
             }
             finally
             {
-                wg.cancel_wait(cancelKey);
+                wg.cancel_wait(cancelToken);
             }
         }
 
@@ -5338,8 +5344,8 @@ namespace Go
                     wg.done();
                 }, msg, null);
             }
-            LinkedListNode<Action> cancelKey;
-            wg.async_wait(this_.unsafe_async_result(), out cancelKey);
+            wait_group.cancel_token cancelToken;
+            wg.async_wait(this_.unsafe_async_result(), out cancelToken);
             try
             {
                 await this_.async_wait();
@@ -5347,7 +5353,7 @@ namespace Go
             }
             finally
             {
-                wg.cancel_wait(cancelKey);
+                wg.cancel_wait(cancelToken);
             }
         }
 
@@ -5367,8 +5373,8 @@ namespace Go
                     wg.done();
                 }, msg, null);
             }
-            LinkedListNode<Action> cancelKey;
-            wg.async_wait(this_.unsafe_async_result(), out cancelKey);
+            wait_group.cancel_token cancelToken;
+            wg.async_wait(this_.unsafe_async_result(), out cancelToken);
             try
             {
                 await this_.async_wait();
@@ -5376,7 +5382,7 @@ namespace Go
             }
             finally
             {
-                wg.cancel_wait(cancelKey);
+                wg.cancel_wait(cancelToken);
             }
         }
 
@@ -5921,8 +5927,109 @@ namespace Go
                 return force_send_strand(strand, () => handler(p));
             };
         }
-#if NETCORE
-#else
+
+        static public Task unsafe_send_service(work_service service, Action handler)
+        {
+            generator this_ = self;
+            service.push_option(this_.unsafe_async_callback(handler));
+            return this_.async_wait();
+        }
+
+        private async Task send_service_(work_service service, Action handler)
+        {
+            System.Exception hasExcep = null;
+            service.push_option(unsafe_async_callback(delegate ()
+            {
+                try
+                {
+                    handler();
+                }
+                catch (System.Exception ec)
+                {
+                    ec.Source = string.Format("{0}\n{1}", ec.Source, ec.StackTrace);
+                    hasExcep = ec;
+                }
+            }));
+            await async_wait();
+            if (null != hasExcep)
+            {
+                throw hasExcep;
+            }
+        }
+
+        static public Task send_service(work_service service, Action handler)
+        {
+            generator this_ = self;
+            return this_.send_service_(service, handler);
+        }
+
+        static public Task unsafe_send_service<R>(async_result_wrap<R> res, work_service service, Func<R> handler)
+        {
+            generator this_ = self;
+            res.clear();
+            service.push_option(this_.unsafe_async_callback(delegate ()
+            {
+                res.value1 = handler();
+            }));
+            return this_.async_wait();
+        }
+
+        private async Task<R> send_service_<R>(work_service service, Func<R> handler)
+        {
+            R res = default(R);
+            System.Exception hasExcep = null;
+            service.push_option(unsafe_async_callback(delegate ()
+            {
+                try
+                {
+                    res = handler();
+                }
+                catch (System.Exception ec)
+                {
+                    ec.Source = string.Format("{0}\n{1}", ec.Source, ec.StackTrace);
+                    hasExcep = ec;
+                }
+            }));
+            await async_wait();
+            if (null != hasExcep)
+            {
+                throw hasExcep;
+            }
+            return res;
+        }
+
+        static public Task<R> send_service<R>(work_service service, Func<R> handler)
+        {
+            generator this_ = self;
+            return this_.send_service_(service, handler);
+        }
+
+        static public Func<Task> wrap_send_service(work_service service, Action handler)
+        {
+            return () => send_service(service, handler);
+        }
+
+        static public Func<T, Task> wrap_send_service<T>(work_service service, Action<T> handler)
+        {
+            return (T p) => send_service(service, () => handler(p));
+        }
+
+        static public Func<Task<R>> wrap_send_service<R>(work_service service, Func<R> handler)
+        {
+            return delegate ()
+            {
+                return send_service(service, handler);
+            };
+        }
+
+        static public Func<T, Task<R>> wrap_send_service<R, T>(work_service service, Func<T, R> handler)
+        {
+            return delegate (T p)
+            {
+                return send_service(service, () => handler(p));
+            };
+        }
+#if !NETCORE
         static public void post_control(System.Windows.Forms.Control ctrl, Action handler)
         {
             try
@@ -6655,7 +6762,7 @@ namespace Go
             return timed_wait_others(ms, (IList<generator>)otherGens);
         }
 
-        private async Task wait_group_(wait_group wg, LinkedListNode<Action> cancelKey)
+        private async Task wait_group_(wait_group wg, wait_group.cancel_token cancelToken)
         {
             try
             {
@@ -6663,18 +6770,18 @@ namespace Go
             }
             finally
             {
-                wg.cancel_wait(cancelKey);
+                wg.cancel_wait(cancelToken);
             }
         }
 
         static public Task wait_group(wait_group wg)
         {
             generator this_ = self;
-            LinkedListNode<Action> cancelKey;
-            wg.async_wait(this_.unsafe_async_result(), out cancelKey);
+            wait_group.cancel_token cancelToken;
+            wg.async_wait(this_.unsafe_async_result(), out cancelToken);
             if (!this_.new_task_completed())
             {
-                return this_.wait_group_(wg, cancelKey);
+                return this_.wait_group_(wg, cancelToken);
             }
             return non_async();
         }
@@ -6686,7 +6793,7 @@ namespace Go
             return this_.async_wait();
         }
 
-        private async Task<bool> timed_wait_group_(wait_group wg, LinkedListNode<Action> cancelKey)
+        private async Task<bool> timed_wait_group_(wait_group wg, wait_group.cancel_token cancelToken)
         {
             try
             {
@@ -6695,18 +6802,18 @@ namespace Go
             }
             finally
             {
-                wg.cancel_wait(cancelKey);
+                wg.cancel_wait(cancelToken);
             }
         }
 
         static public ValueTask<bool> timed_wait_group(int ms, wait_group wg)
         {
             generator this_ = self;
-            LinkedListNode<Action> cancelKey;
-            wg.async_wait(this_.timed_async_result(ms), out cancelKey);
+            wait_group.cancel_token cancelToken;
+            wg.async_wait(this_.timed_async_result(ms), out cancelToken);
             if (!this_.new_task_completed())
             {
-                return to_vtask(this_.timed_wait_group_(wg, cancelKey));
+                return to_vtask(this_.timed_wait_group_(wg, cancelToken));
             }
             return to_vtask(!this_._overtime);
         }
@@ -10426,6 +10533,11 @@ namespace Go
 
     public class wait_group
     {
+        public struct cancel_token
+        {
+            internal LinkedListNode<Action> token;
+        }
+
         int _tasks;
         Action _pulse;
         LinkedList<Action> _waitList;
@@ -10528,17 +10640,17 @@ namespace Go
             }
         }
 
-        public void async_wait(Action continuation, out LinkedListNode<Action> cancelKey)
+        public void async_wait(Action continuation, out cancel_token cancelToken)
         {
             if (0 == _tasks)
             {
-                cancelKey = null;
+                cancelToken = new cancel_token { token = null };
                 functional.catch_invoke(continuation);
             }
             else
             {
                 LinkedListNode<Action> newNode = new LinkedListNode<Action>(continuation);
-                cancelKey = newNode;
+                cancelToken = new cancel_token { token = newNode };
                 Monitor.Enter(this);
                 if (null != _waitList)
                 {
@@ -10548,20 +10660,20 @@ namespace Go
                 else
                 {
                     Monitor.Exit(this);
-                    cancelKey = null;
+                    cancelToken = new cancel_token { token = null };
                     functional.catch_invoke(continuation);
                 }
             }
         }
 
-        public void cancel_wait(LinkedListNode<Action> cancelKey)
+        public void cancel_wait(cancel_token cancelToken)
         {
-            if (null != cancelKey.List)
+            if (null != cancelToken.token && null != cancelToken.token.List)
             {
                 Monitor.Enter(this);
-                if (null != _waitList && cancelKey.List == _waitList)
+                if (null != _waitList && cancelToken.token.List == _waitList)
                 {
-                    _waitList.Remove(cancelKey);
+                    _waitList.Remove(cancelToken.token);
                 }
                 Monitor.Exit(this);
             }

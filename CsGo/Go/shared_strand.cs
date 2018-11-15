@@ -43,7 +43,7 @@ namespace Go
                 MsgQueueNode<Action> firstNode = _opQueue.First;
                 _opQueue.RemoveFirst();
                 Monitor.Exit(_opQueue);
-                firstNode.Value.Invoke();
+                functional.catch_invoke(firstNode.Value);
                 return true;
             }
             Monitor.Exit(_opQueue);
@@ -62,7 +62,7 @@ namespace Go
                     _opQueue.RemoveFirst();
                     Monitor.Exit(_opQueue);
                     count++;
-                    firstNode.Value.Invoke();
+                    functional.catch_invoke(firstNode.Value);
                 }
                 else if (0 != _work)
                 {
