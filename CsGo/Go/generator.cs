@@ -10556,7 +10556,7 @@ namespace Go
 
         public void reset(int tasks)
         {
-            Debug.Assert(is_done(), "不正确的 reset 调用!");
+            Debug.Assert(is_done, "不正确的 reset 调用!");
             _tasks = tasks;
             _waitList = new LinkedList<Action>();
         }
@@ -10580,7 +10580,7 @@ namespace Go
 
         public void cancel()
         {
-            if (is_done())
+            if (is_done)
             {
                 return;
             }
@@ -10612,9 +10612,12 @@ namespace Go
             return done;
         }
 
-        public bool is_done()
+        public bool is_done
         {
-            return 0 == _tasks && null == _waitList;
+            get
+            {
+                return 0 == _tasks && null == _waitList;
+            }
         }
 
         public void async_wait(Action continuation)
@@ -10666,22 +10669,28 @@ namespace Go
             }
         }
 
-        public void cancel_wait(cancel_token cancelToken)
+        public bool cancel_wait(cancel_token cancelToken)
         {
+            bool completed = false;
             if (null != cancelToken.token && null != cancelToken.token.List)
             {
                 Monitor.Enter(this);
                 if (null != _waitList && cancelToken.token.List == _waitList)
                 {
                     _waitList.Remove(cancelToken.token);
+                    completed = true;
                 }
                 Monitor.Exit(this);
             }
+            return completed;
         }
 
-        public bool is_completed()
+        public bool is_completed
         {
-            return 0 == _tasks;
+            get
+            {
+                return 0 == _tasks;
+            }
         }
 
         public void sync_wait()
