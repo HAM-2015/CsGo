@@ -1237,8 +1237,7 @@ namespace Go
         public AsyncCallback handler;
     }
 
-#if NETCORE
-#else
+#if !NETCORE
     public class socket_serial : socket
     {
         SerialPort _socket;

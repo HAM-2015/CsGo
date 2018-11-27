@@ -703,8 +703,7 @@ namespace Go
         }
     }
 
-#if NETCORE
-#else
+#if !NETCORE
     public class control_strand : shared_strand
     {
         public class repeat_exception : System.Exception

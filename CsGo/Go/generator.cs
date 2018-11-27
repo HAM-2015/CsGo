@@ -380,11 +380,40 @@ namespace Go
             task.GetAwaiter().UnsafeOnCompleted(continuation);
         }
 
+        public Task<T> AsTask()
+        {
+            return task;
+        }
+
+        public T Result
+        {
+            get
+            {
+                return null == task ? value : task.Result;
+            }
+        }
+
+        public bool IsCanceled
+        {
+            get
+            {
+                return null == task ? false : task.IsCanceled;
+            }
+        }
+
         public bool IsCompleted
         {
             get
             {
                 return null == task ? true : task.IsCompleted;
+            }
+        }
+
+        public bool IsFaulted
+        {
+            get
+            {
+                return null == task ? false : task.IsFaulted;
             }
         }
     }
@@ -579,7 +608,7 @@ namespace Go
             }
         }
 
-#if DEBUG
+#if CHECK_STEP_TIMEOUT
         public class call_stack_info
         {
             public readonly string time;
@@ -627,6 +656,7 @@ namespace Go
         long _id;
         int _lockCount;
         int _lockSuspendCount;
+        bool _disableTopStop;
         bool _beginQuit;
         bool _isSuspend;
         bool _holdSuspend;
@@ -711,7 +741,7 @@ namespace Go
             return _name;
         }
 
-#if DEBUG
+#if CHECK_STEP_TIMEOUT
         static void up_stack_frame(LinkedList<call_stack_info[]> callStack, int offset = 0, int count = 1)
         {
             offset += 2;
@@ -733,7 +763,7 @@ namespace Go
         }
 #endif
 
-#if DEBUG
+#if CHECK_STEP_TIMEOUT
         generator init(shared_strand strand, action generatorAction, Action completedHandler, Action<bool> suspendHandler, LinkedList<call_stack_info[]> makeStack = null)
         {
             if (null != makeStack)
@@ -759,6 +789,7 @@ namespace Go
             _holdSuspend = false;
             _hasBlock = false;
             _beginQuit = false;
+            _disableTopStop = false;
             _lockCount = -1;
             _lockSuspendCount = 0;
             _lastTm = 0;
@@ -807,6 +838,7 @@ namespace Go
                     Task.Run(() => System.Windows.Forms.MessageBox.Show(string.Format("{0}\n{1}\n{2}", ec.Message, ec.Source, ec.StackTrace), "generator 内部未捕获的异常!", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Error)).Wait();
 #endif
                     _excep = ec;
+                    _lockCount++;
                 }
                 finally
                 {
@@ -1066,7 +1098,7 @@ namespace Go
             if (0 == _lockCount)
             {
                 _isSuspend = false;
-                if (_pullTask.activated)
+                if (!_disableTopStop && _pullTask.activated)
                 {
                     _lockSuspendCount = 0;
                     _holdSuspend = false;
@@ -1084,6 +1116,12 @@ namespace Go
                     delay_stop();
                 }
             }
+        }
+
+        static public void disable_top_stop(bool disable = true)
+        {
+            generator this_ = self;
+            this_._disableTopStop = disable;
         }
 
         public void delay_stop()
@@ -1839,7 +1877,7 @@ namespace Go
 
         private void enter_push()
         {
-#if DEBUG
+#if CHECK_STEP_TIMEOUT
             Debug.Assert(strand.running_in_this_thread(), "异常的 await 调用!");
             if (!system_tick.check_step_debugging() && system_tick.get_tick_ms() - _beginStepTick > _stepMaxCycle)
             {
@@ -1852,7 +1890,7 @@ namespace Go
 
         private void leave_push()
         {
-#if DEBUG
+#if CHECK_STEP_TIMEOUT
             _beginStepTick = system_tick.get_tick_ms();
 #endif
             _lastTm = 0;
@@ -6954,7 +6992,7 @@ namespace Go
             handler(this_.timed_async_result(ms, res, timedHandler));
             return this_.timed_async_wait(res);
         }
-#if DEBUG
+#if CHECK_STEP_TIMEOUT
         static public async Task call(action handler)
         {
             generator this_ = self;
@@ -7078,8 +7116,8 @@ namespace Go
         }
 #endif
 
-#if DEBUG
-        static public LinkedList<call_stack_info[]> call_stack
+#if CHECK_STEP_TIMEOUT
+        static private LinkedList<call_stack_info[]> debug_stack
         {
             get
             {
