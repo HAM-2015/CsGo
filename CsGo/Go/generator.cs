@@ -1462,10 +1462,7 @@ namespace Go
         static public void unlock_stop()
         {
             generator this_ = self;
-            if (!this_._beginQuit)
-            {
-                Debug.Assert(this_._lockCount > 0, "unlock_stop 不匹配!");
-            }
+            Debug.Assert(this_._beginQuit || this_._lockCount > 0, "unlock_stop 不匹配!");
             if (!this_._beginQuit && 0 == --this_._lockCount && this_._isForce)
             {
                 this_._lockSuspendCount = 0;
@@ -1578,10 +1575,7 @@ namespace Go
         static public Task unlock_suspend()
         {
             generator this_ = self;
-            if (!this_._beginQuit)
-            {
-                Debug.Assert(this_._lockSuspendCount > 0, "unlock_suspend 不匹配!");
-            }
+            Debug.Assert(this_._beginQuit || this_._lockSuspendCount > 0, "unlock_suspend 不匹配!");
             if (!this_._beginQuit && 0 == --this_._lockSuspendCount && this_._holdSuspend)
             {
                 this_._holdSuspend = false;
@@ -1728,11 +1722,8 @@ namespace Go
         static public Task unlock_suspend_and_stop()
         {
             generator this_ = self;
-            if (!this_._beginQuit)
-            {
-                Debug.Assert(this_._lockCount > 0, "unlock_stop 不匹配!");
-                Debug.Assert(this_._lockSuspendCount > 0, "unlock_suspend 不匹配!");
-            }
+            Debug.Assert(this_._beginQuit || this_._lockCount > 0, "unlock_stop 不匹配!");
+            Debug.Assert(this_._beginQuit || this_._lockSuspendCount > 0, "unlock_suspend 不匹配!");
             if (!this_._beginQuit && 0 == --this_._lockCount && this_._isForce)
             {
                 this_._lockSuspendCount = 0;
@@ -1875,6 +1866,31 @@ namespace Go
             }
         }
 
+        static public void lock_shield()
+        {
+            lock_suspend_and_stop();
+        }
+
+        static public Task lock_shield(Func<Task> handler)
+        {
+            return lock_suspend_and_stop(handler);
+        }
+
+        static public ValueTask<R> lock_shield<R>(Func<Task<R>> handler)
+        {
+            return lock_suspend_and_stop(handler);
+        }
+
+        static public ValueTask<R> lock_shield<R>(Func<ValueTask<R>> handler)
+        {
+            return lock_suspend_and_stop(handler);
+        }
+
+        static public Task unlock_shield()
+        {
+            return unlock_suspend_and_stop();
+        }
+
         private void enter_push()
         {
 #if CHECK_STEP_TIMEOUT
@@ -1895,7 +1911,7 @@ namespace Go
 #endif
             _lastTm = 0;
             _pullTask.activated = true;
-            if (!_beginQuit && 0 == _lockCount && _isForce)
+            if (_isForce && !_beginQuit && 0 == _lockCount)
             {
                 _lockSuspendCount = 0;
                 _holdSuspend = false;
