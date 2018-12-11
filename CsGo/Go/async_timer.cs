@@ -248,7 +248,6 @@ namespace Go
                 long _expireTime;
                 Thread _timerThread;
                 work_engine _workEngine;
-                work_strand _workStrand;
                 Map<long, waitable_event_handle> _eventsQueue;
 
                 waitable_timer(bool utcMode)
@@ -259,7 +258,6 @@ namespace Go
                     _eventsQueue = new Map<long, waitable_event_handle>(true);
                     _timerHandle = CreateWaitableTimer(0, 0, 0);
                     _workEngine = new work_engine();
-                    _workStrand = new work_strand(_workEngine);
                     _timerThread = new Thread(timerThread);
                     _timerThread.Priority = ThreadPriority.Highest;
                     _timerThread.IsBackground = true;
@@ -275,7 +273,7 @@ namespace Go
 
                 ~waitable_timer()
                 {
-                    /*_workStrand.post(delegate ()
+                    /*_workEngine.service.push_option(delegate ()
                     {
                         _exited = true;
                         long sleepTime = 0;
@@ -288,7 +286,7 @@ namespace Go
 
                 public void appendEvent(long absus, waitable_event_handle eventHandle)
                 {
-                    _workStrand.post(delegate ()
+                    _workEngine.service.push_option(delegate ()
                     {
                         eventHandle.steadyTimer._waitableNode = _eventsQueue.Insert(absus, eventHandle);
                         if (absus < _expireTime)
@@ -312,7 +310,7 @@ namespace Go
 
                 public void removeEvent(steady_timer steadyTime)
                 {
-                    _workStrand.post(delegate ()
+                    _workEngine.service.push_option(delegate ()
                     {
                         if (null != steadyTime._waitableNode)
                         {
@@ -346,7 +344,7 @@ namespace Go
 
                 public void updateEvent(long absus, waitable_event_handle eventHandle)
                 {
-                    _workStrand.post(delegate ()
+                    _workEngine.service.push_option(delegate ()
                     {
                         if (null != eventHandle.steadyTimer._waitableNode)
                         {
@@ -386,7 +384,7 @@ namespace Go
                         {
                             long sleepEnd = system_tick.get_tick_ms() + mt19937.global.Next(0, 3000);
                             while (system_tick.get_tick_ms() < sleepEnd) { }
-                            _workStrand.post(timerComplete);
+                            _workEngine.service.push_option(timerComplete);
                         }
                     }
                     else
@@ -401,12 +399,12 @@ namespace Go
                                 long sleepEnd = system_tick.get_tick_ms() + mt19937.global.Next(0, 3000);
                                 while (system_tick.get_tick_ms() < sleepEnd) { }
                             }
-                            _workStrand.post(timerComplete);
+                            _workEngine.service.push_option(timerComplete);
                         }
 #else
                         while (0 == WaitForSingleObject(_timerHandle, -1) && !_exited)
                         {
-                            _workStrand.post(timerComplete);
+                            _workEngine.service.push_option(timerComplete);
                         }
 #endif
                     }

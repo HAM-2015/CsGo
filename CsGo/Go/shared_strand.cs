@@ -1,9 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
 
 namespace Go
 {
@@ -182,111 +180,6 @@ namespace Go
 
     public class shared_strand
     {
-        protected class queue_mutex
-        {
-            [DllImport("kernel32.dll")]
-            private static extern int CreateEvent(IntPtr lpEventAttributes, int bManualReset, int bInitialState, IntPtr lpName);
-            [DllImport("kernel32.dll")]
-            private static extern int WaitForSingleObjectEx(int hHandle, int dwMilliseconds, int bAlertable);
-            [DllImport("kernel32.dll")]
-            private static extern int SetEvent(int hHandle);
-            [DllImport("kernel32.dll")]
-            private static extern int CloseHandle(int hHandle);
-
-            const int lockFlag = 1 << 31;
-            const int eventFlag = 1 << 30;
-
-            int _activeCount = 0;
-            int _event = CreateEvent(IntPtr.Zero, 0, 0, IntPtr.Zero);
-
-            ~queue_mutex()
-            {
-                CloseHandle(_event);
-            }
-
-            private bool interlockedBitTestAndSet(ref int x, int flag)
-            {
-                int old = x;
-                do
-                {
-                    int current = Interlocked.CompareExchange(ref x, old | flag, old);
-                    if (current == old)
-                    {
-                        break;
-                    }
-                    old = current;
-                } while (true);
-                return 0 != (old & flag);
-            }
-
-            void markWaitingAndTryLock(ref int oldCount)
-            {
-                while (true)
-                {
-                    bool wasLocked = 0 != (oldCount & lockFlag);
-                    int newCount = wasLocked ? (oldCount + 1) : (oldCount | lockFlag);
-                    int current = Interlocked.CompareExchange(ref _activeCount, newCount, oldCount);
-                    if (current == oldCount)
-                    {
-                        if (wasLocked)
-                        {
-                            oldCount = newCount;
-                        }
-                        break;
-                    }
-                    oldCount = current;
-                }
-            }
-
-            void clearWaitingAndTryLock(ref int oldCount)
-            {
-                oldCount &= ~lockFlag;
-                oldCount |= eventFlag;
-                while (true)
-                {
-                    int newCount = (0 != (oldCount & lockFlag) ? oldCount : ((oldCount - 1) | lockFlag)) & ~eventFlag;
-                    int current = Interlocked.CompareExchange(ref _activeCount, newCount, oldCount);
-                    if (current == oldCount)
-                    {
-                        break;
-                    }
-                    oldCount = current;
-                }
-            }
-
-            public void enter()
-            {
-                int count = 0;
-                while (interlockedBitTestAndSet(ref _activeCount, lockFlag))
-                {
-                    if (10 == ++count)
-                    {
-                        int oldCount = _activeCount;
-                        markWaitingAndTryLock(ref oldCount);
-                        while (0 != (oldCount & lockFlag))
-                        {
-                            WaitForSingleObjectEx(_event, -1, 0);
-                            clearWaitingAndTryLock(ref oldCount);
-                        }
-                        break;
-                    }
-                    Thread.Yield();
-                }
-            }
-
-            public void exit()
-            {
-                int oldCount = Interlocked.Add(ref _activeCount, lockFlag) - lockFlag;
-                if (0 == (oldCount & eventFlag) && (oldCount > lockFlag))
-                {
-                    if (!interlockedBitTestAndSet(ref _activeCount, eventFlag))
-                    {
-                        SetEvent(_event);
-                    }
-                }
-            }
-        }
-
         protected class curr_strand
         {
             public readonly bool work_back_thread;
@@ -315,7 +208,6 @@ namespace Go
         internal generator currSelf = null;
         protected volatile bool _locked;
         protected volatile int _pauseState;
-        protected queue_mutex _mutex;
         protected MsgQueue<Action> _readyQueue;
         protected MsgQueue<Action> _waitQueue;
         protected Action _runTask;
@@ -324,7 +216,6 @@ namespace Go
         {
             _locked = false;
             _pauseState = 0;
-            _mutex = new queue_mutex();
             _sysTimer = new async_timer.steady_timer(this, false);
             _utcTimer = new async_timer.steady_timer(this, true);
             _readyQueue = new MsgQueue<Action>();
@@ -347,11 +238,11 @@ namespace Go
                 functional.catch_invoke(stepHandler);
             }
             MsgQueue<Action> waitQueue = _waitQueue;
-            _mutex.enter();
+            Monitor.Enter(this);
             if (0 != _waitQueue.Count)
             {
                 _waitQueue = _readyQueue;
-                _mutex.exit();
+                Monitor.Exit(this);
                 _readyQueue = waitQueue;
                 currStrand.strand = null;
                 run_task();
@@ -359,7 +250,7 @@ namespace Go
             else
             {
                 _locked = false;
-                _mutex.exit();
+                Monitor.Exit(this);
                 currStrand.strand = null;
             }
             return true;
@@ -404,17 +295,17 @@ namespace Go
         public void post(Action action)
         {
             MsgQueueNode<Action> newNode = new MsgQueueNode<Action>(action);
-            _mutex.enter();
+            Monitor.Enter(this);
             if (_locked)
             {
                 _waitQueue.AddLast(newNode);
-                _mutex.exit();
+                Monitor.Exit(this);
             }
             else
             {
                 _locked = true;
                 _readyQueue.AddLast(newNode);
-                _mutex.exit();
+                Monitor.Exit(this);
                 run_task();
             }
         }
@@ -428,17 +319,17 @@ namespace Go
             else
             {
                 MsgQueueNode<Action> newNode = new MsgQueueNode<Action>(action);
-                _mutex.enter();
+                Monitor.Enter(this);
                 if (_locked)
                 {
                     _waitQueue.AddFirst(newNode);
-                    _mutex.exit();
+                    Monitor.Exit(this);
                 }
                 else
                 {
                     _locked = true;
                     _readyQueue.AddFirst(newNode);
-                    _mutex.exit();
+                    Monitor.Exit(this);
                     run_task();
                 }
             }
@@ -453,17 +344,17 @@ namespace Go
             else
             {
                 MsgQueueNode<Action> newNode = new MsgQueueNode<Action>(action);
-                _mutex.enter();
+                Monitor.Enter(this);
                 if (_locked)
                 {
                     _waitQueue.AddLast(newNode);
-                    _mutex.exit();
+                    Monitor.Exit(this);
                 }
                 else
                 {
                     _locked = true;
                     _readyQueue.AddLast(newNode);
-                    _mutex.exit();
+                    Monitor.Exit(this);
                     run_task();
                 }
             }
@@ -480,17 +371,17 @@ namespace Go
             else
             {
                 MsgQueueNode<Action> newNode = new MsgQueueNode<Action>(action);
-                _mutex.enter();
+                Monitor.Enter(this);
                 if (_locked)
                 {
                     _waitQueue.AddLast(newNode);
-                    _mutex.exit();
+                    Monitor.Exit(this);
                 }
                 else
                 {
                     _locked = true;
                     _readyQueue.AddLast(newNode);
-                    _mutex.exit();
+                    Monitor.Exit(this);
                     if (null != currStrand && currStrand.work_back_thread && null == currStrand.strand)
                     {
                         return running_a_round(currStrand);
@@ -650,17 +541,17 @@ namespace Go
             else
             {
                 MsgQueueNode<Action> newNode = new MsgQueueNode<Action>(action);
-                _mutex.enter();
+                Monitor.Enter(this);
                 if (_locked)
                 {
                     _waitQueue.AddLast(newNode);
-                    _mutex.exit();
+                    Monitor.Exit(this);
                 }
                 else
                 {
                     _locked = true;
                     _readyQueue.AddLast(newNode);
-                    _mutex.exit();
+                    Monitor.Exit(this);
                     if (null != currStrand && _service == currStrand.work_service && null == currStrand.strand)
                     {
                         return running_a_round(currStrand);
@@ -751,17 +642,17 @@ namespace Go
             else
             {
                 MsgQueueNode<Action> newNode = new MsgQueueNode<Action>(action);
-                _mutex.enter();
+                Monitor.Enter(this);
                 if (_locked)
                 {
                     _waitQueue.AddLast(newNode);
-                    _mutex.exit();
+                    Monitor.Exit(this);
                 }
                 else
                 {
                     _locked = true;
                     _readyQueue.AddLast(newNode);
-                    _mutex.exit();
+                    Monitor.Exit(this);
                     if (_checkRequired && null != currStrand && null == currStrand.strand && !_ctrl.InvokeRequired)
                     {
                         return running_a_round(currStrand);
