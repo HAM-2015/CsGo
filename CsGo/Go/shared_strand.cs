@@ -220,7 +220,7 @@ namespace Go
             _utcTimer = new async_timer.steady_timer(this, true);
             _readyQueue = new MsgQueue<Action>();
             _waitQueue = new MsgQueue<Action>();
-            make_run_task();
+            _runTask = () => run_task();
         }
 
         protected bool running_a_round(curr_strand currStrand)
@@ -245,7 +245,7 @@ namespace Go
                 Monitor.Exit(this);
                 _readyQueue = waitQueue;
                 currStrand.strand = null;
-                run_task();
+                next_a_round();
             }
             else
             {
@@ -256,21 +256,18 @@ namespace Go
             return true;
         }
 
-        protected virtual void make_run_task()
+        protected virtual void run_task()
         {
-            _runTask = delegate ()
+            curr_strand currStrand = _currStrand.Value;
+            if (null == currStrand)
             {
-                curr_strand currStrand = _currStrand.Value;
-                if (null == currStrand)
-                {
-                    currStrand = new curr_strand(true);
-                    _currStrand.Value = currStrand;
-                }
-                running_a_round(currStrand);
-            };
+                currStrand = new curr_strand(true);
+                _currStrand.Value = currStrand;
+            }
+            running_a_round(currStrand);
         }
 
-        protected virtual void run_task()
+        protected virtual void next_a_round()
         {
             Task.Run(_runTask);
         }
@@ -306,7 +303,7 @@ namespace Go
                 _locked = true;
                 _readyQueue.AddLast(newNode);
                 Monitor.Exit(this);
-                run_task();
+                next_a_round();
             }
         }
 
@@ -330,7 +327,7 @@ namespace Go
                     _locked = true;
                     _readyQueue.AddFirst(newNode);
                     Monitor.Exit(this);
-                    run_task();
+                    next_a_round();
                 }
             }
         }
@@ -355,7 +352,7 @@ namespace Go
                     _locked = true;
                     _readyQueue.AddLast(newNode);
                     Monitor.Exit(this);
-                    run_task();
+                    next_a_round();
                 }
             }
         }
@@ -386,7 +383,7 @@ namespace Go
                     {
                         return running_a_round(currStrand);
                     }
-                    run_task();
+                    next_a_round();
                 }
             }
             return false;
@@ -401,7 +398,7 @@ namespace Go
         {
             if (2 == Interlocked.Exchange(ref _pauseState, 0))
             {
-                run_task();
+                next_a_round();
             }
         }
 
@@ -556,28 +553,25 @@ namespace Go
                     {
                         return running_a_round(currStrand);
                     }
-                    run_task();
+                    next_a_round();
                 }
             }
             return false;
         }
 
-        protected override void make_run_task()
+        protected override void run_task()
         {
-            _runTask = delegate ()
+            curr_strand currStrand = _currStrand.Value;
+            if (null == currStrand)
             {
-                curr_strand currStrand = _currStrand.Value;
-                if (null == currStrand)
-                {
-                    currStrand = new curr_strand(false, _service);
-                    _currStrand.Value = currStrand;
-                }
-                running_a_round(currStrand);
-                _service.release_work();
-            };
+                currStrand = new curr_strand(false, _service);
+                _currStrand.Value = currStrand;
+            }
+            running_a_round(currStrand);
+            _service.release_work();
         }
 
-        protected override void run_task()
+        protected override void next_a_round()
         {
             _service.hold_work();
             _service.push_option(_runTask);
@@ -657,27 +651,24 @@ namespace Go
                     {
                         return running_a_round(currStrand);
                     }
-                    run_task();
+                    next_a_round();
                 }
             }
             return false;
         }
 
-        protected override void make_run_task()
+        protected override void run_task()
         {
-            _runTask = delegate ()
+            curr_strand currStrand = _currStrand.Value;
+            if (null == currStrand)
             {
-                curr_strand currStrand = _currStrand.Value;
-                if (null == currStrand)
-                {
-                    currStrand = new curr_strand();
-                    _currStrand.Value = currStrand;
-                }
-                running_a_round(currStrand);
-            };
+                currStrand = new curr_strand();
+                _currStrand.Value = currStrand;
+            }
+            running_a_round(currStrand);
         }
 
-        protected override void run_task()
+        protected override void next_a_round()
         {
             try
             {
