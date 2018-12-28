@@ -10064,14 +10064,14 @@ namespace Go
                 return to_vtask(!overtime);
             }
 
-            public Task<child> wait_any(int ms, IEnumerable<child> gens)
+            public Task<child> wait_any(IEnumerable<child> gens)
             {
                 return timed_wait_any(-1, gens);
             }
 
-            public Task<child> wait_any(int ms, params child[] gens)
+            public Task<child> wait_any(params child[] gens)
             {
-                return wait_any(-1, (IEnumerable<child>)gens);
+                return wait_any((IEnumerable<child>)gens);
             }
 
             public async Task<child> timed_wait_any(int ms, IEnumerable<child> gens)
