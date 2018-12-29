@@ -6737,7 +6737,6 @@ namespace Go
             generator this_ = self;
             unlimit_chan<tuple<generator, notify_token>> waitRemove = new unlimit_chan<tuple<generator, notify_token>>(this_.strand);
             unlimit_chan<generator> waitStop = new unlimit_chan<generator>(this_.strand);
-            Action<tuple<generator, notify_token>> removeNtf = waitRemove.wrap();
             int count = 0;
             foreach (generator ele in otherGens)
             {
@@ -6745,10 +6744,10 @@ namespace Go
                 if (ele.is_completed())
                 {
                     waitStop.post(ele);
-                    removeNtf(tuple.make(ele, default(notify_token)));
+                    waitRemove.post(tuple.make(ele, default(notify_token)));
                     break;
                 }
-                ele.append_stop_callback(() => waitStop.post(ele), (notify_token cancelToken) => removeNtf(tuple.make(ele, cancelToken)));
+                ele.append_stop_callback(() => waitStop.post(ele), (notify_token cancelToken) => waitRemove.post(tuple.make(ele, cancelToken)));
             }
             try
             {
@@ -6803,19 +6802,18 @@ namespace Go
             long endTick = system_tick.get_tick_ms() + ms;
             unlimit_chan<tuple<generator, notify_token>> waitRemove = new unlimit_chan<tuple<generator, notify_token>>(this_.strand);
             unlimit_chan<generator> waitStop = new unlimit_chan<generator>(this_.strand);
-            Action<tuple<generator, notify_token>> removeNtf = waitRemove.wrap();
             int count = 0;
             foreach (generator ele in otherGens)
             {
                 count++;
                 if (!ele.is_completed())
                 {
-                    ele.append_stop_callback(() => waitStop.post(ele), (notify_token cancelToken) => removeNtf(tuple.make(ele, cancelToken)));
+                    ele.append_stop_callback(() => waitStop.post(ele), (notify_token cancelToken) => waitRemove.post(tuple.make(ele, cancelToken)));
                 }
                 else
                 {
                     waitStop.post(ele);
-                    removeNtf(tuple.make(ele, default(notify_token)));
+                    waitRemove.post(tuple.make(ele, default(notify_token)));
                 }
             }
             try
@@ -10079,7 +10077,6 @@ namespace Go
                 Debug.Assert(self == _parent, "此 children 不属于当前 generator!");
                 unlimit_chan<tuple<child, notify_token>> waitRemove = new unlimit_chan<tuple<child, notify_token>>(_parent.strand);
                 unlimit_chan<child> waitStop = new unlimit_chan<child>(_parent.strand);
-                Action<tuple<child, notify_token>> removeNtf = waitRemove.wrap();
                 int count = 0;
                 foreach (child ele in gens)
                 {
@@ -10087,12 +10084,12 @@ namespace Go
                     Debug.Assert(null == ele._childNode || ele._childNode.List == _children, "此 child 不属于当前 children!");
                     if (null != ele._childNode && !ele.is_completed())
                     {
-                        ele.append_stop_callback(() => waitStop.post(ele), (notify_token cancelToken) => removeNtf(tuple.make(ele, cancelToken)));
+                        ele.append_stop_callback(() => waitStop.post(ele), (notify_token cancelToken) => waitRemove.post(tuple.make(ele, cancelToken)));
                     }
                     else
                     {
                         waitStop.post(ele);
-                        removeNtf(tuple.make(ele, default(notify_token)));
+                        waitRemove.post(tuple.make(ele, default(notify_token)));
                         break;
                     }
                 }
@@ -10172,19 +10169,18 @@ namespace Go
                 long endTick = system_tick.get_tick_ms() + ms;
                 unlimit_chan<tuple<child, notify_token>> waitRemove = new unlimit_chan<tuple<child, notify_token>>(_parent.strand);
                 unlimit_chan<child> waitStop = new unlimit_chan<child>(_parent.strand);
-                Action<tuple<child, notify_token>> removeNtf = waitRemove.wrap();
                 foreach (child ele in gens)
                 {
                     count++;
                     Debug.Assert(null == ele._childNode || ele._childNode.List == _children, "此 child 不属于当前 children!");
                     if (null != ele._childNode && !ele.is_completed())
                     {
-                        ele.append_stop_callback(() => waitStop.post(ele), (notify_token cancelToken) => removeNtf(tuple.make(ele, cancelToken)));
+                        ele.append_stop_callback(() => waitStop.post(ele), (notify_token cancelToken) => waitRemove.post(tuple.make(ele, cancelToken)));
                     }
                     else
                     {
                         waitStop.post(ele);
-                        removeNtf(tuple.make(ele, default(notify_token)));
+                        waitRemove.post(tuple.make(ele, default(notify_token)));
                     }
                 }
                 try
@@ -10363,7 +10359,6 @@ namespace Go
                 Debug.Assert(self == _parent, "此 children 不属于当前 generator!");
                 unlimit_chan<tuple<child, notify_token>> waitRemove = new unlimit_chan<tuple<child, notify_token>>(_parent.strand);
                 unlimit_chan<child> waitStop = new unlimit_chan<child>(_parent.strand);
-                Action<tuple<child, notify_token>> removeNtf = waitRemove.wrap();
                 int count = 0;
                 for (LinkedListNode<child> it = _children.First; null != it; it = it.Next)
                 {
@@ -10376,10 +10371,10 @@ namespace Go
                     if (ele.is_completed())
                     {
                         waitStop.post(ele);
-                        removeNtf(tuple.make(ele, default(notify_token)));
+                        waitRemove.post(tuple.make(ele, default(notify_token)));
                         break;
                     }
-                    ele.append_stop_callback(() => waitStop.post(ele), (notify_token cancelToken) => removeNtf(tuple.make(ele, cancelToken)));
+                    ele.append_stop_callback(() => waitStop.post(ele), (notify_token cancelToken) => waitRemove.post(tuple.make(ele, cancelToken)));
                 }
                 try
                 {
@@ -10490,7 +10485,6 @@ namespace Go
                 long endTick = system_tick.get_tick_ms() + ms;
                 unlimit_chan<tuple<child, notify_token>> waitRemove = new unlimit_chan<tuple<child, notify_token>>(_parent.strand);
                 unlimit_chan<child> waitStop = new unlimit_chan<child>(_parent.strand);
-                Action<tuple<child, notify_token>> removeNtf = waitRemove.wrap();
                 for (LinkedListNode<child> it = _children.First; null != it; it = it.Next)
                 {
                     child ele = it.Value;
@@ -10501,12 +10495,12 @@ namespace Go
                     count++;
                     if (!ele.is_completed())
                     {
-                        ele.append_stop_callback(() => waitStop.post(ele), (notify_token cancelToken) => removeNtf(tuple.make(ele, cancelToken)));
+                        ele.append_stop_callback(() => waitStop.post(ele), (notify_token cancelToken) => waitRemove.post(tuple.make(ele, cancelToken)));
                     }
                     else
                     {
                         waitStop.post(ele);
-                        removeNtf(tuple.make(ele, default(notify_token)));
+                        waitRemove.post(tuple.make(ele, default(notify_token)));
                     }
                 }
                 try
