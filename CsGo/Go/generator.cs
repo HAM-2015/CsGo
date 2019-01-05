@@ -696,7 +696,9 @@ namespace Go
 
         static public generator tgo(shared_strand strand, action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
         {
-            return make(strand, generatorAction, completedHandler, suspendHandler).trun();
+            generator newGen = make(strand, generatorAction, completedHandler, suspendHandler);
+            newGen.trun();
+            return newGen;
         }
 
         static public generator make(string name, shared_strand strand, action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
@@ -732,7 +734,9 @@ namespace Go
 
         static public generator tgo(string name, shared_strand strand, action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
         {
-            return make(name, strand, generatorAction, completedHandler, suspendHandler).trun();
+            generator newGen = make(name, strand, generatorAction, completedHandler, suspendHandler);
+            newGen.trun();
+            return newGen;
         }
 
         static public generator find(string name)
@@ -959,7 +963,7 @@ namespace Go
             }
         }
 
-        public generator trun()
+        public void trun()
         {
             strand.post(delegate ()
             {
@@ -969,7 +973,6 @@ namespace Go
                     no_check_next();
                 }
             });
-            return this;
         }
 
         private void _suspend_cb(bool isSuspend, Action cb = null, bool canSuspendCb = true)
@@ -1029,7 +1032,7 @@ namespace Go
             }
         }
 
-        public void tick_suspend(Action cb = null)
+        public void tsuspend(Action cb = null)
         {
             strand.post(() => _suspend(cb));
         }
@@ -1040,7 +1043,7 @@ namespace Go
             {
                 if (_mustTick)
                 {
-                    tick_suspend(cb);
+                    tsuspend(cb);
                 }
                 else
                 {
@@ -1049,7 +1052,7 @@ namespace Go
             }
             else
             {
-                tick_suspend(cb);
+                tsuspend(cb);
             }
         }
 
@@ -1087,7 +1090,7 @@ namespace Go
             }
         }
 
-        public void tick_resume(Action cb = null)
+        public void tresume(Action cb = null)
         {
             strand.post(() => _resume(cb));
         }
@@ -1098,7 +1101,7 @@ namespace Go
             {
                 if (_mustTick)
                 {
-                    tick_resume(cb);
+                    tresume(cb);
                 }
                 else
                 {
@@ -1107,7 +1110,7 @@ namespace Go
             }
             else
             {
-                tick_resume(cb);
+                tresume(cb);
             }
         }
 
@@ -1116,18 +1119,19 @@ namespace Go
             _isForce = true;
             if (0 == _lockCount)
             {
-                _isSuspend = false;
                 if (!_disableTopStop && _pullTask.activated)
                 {
+                    _suspendHandler = null;
                     _lockSuspendCount = 0;
                     _holdSuspend = false;
+                    _isSuspend = false;
                     _beginQuit = true;
-                    _suspendHandler = null;
                     _timer.cancel();
                     throw stop_exception.val;
                 }
                 else if (_pullTask.is_awaiting())
                 {
+                    _isSuspend = false;
                     no_quit_next();
                 }
                 else
@@ -9635,11 +9639,6 @@ namespace Go
             {
                 return _isFree;
             }
-
-            public new child trun()
-            {
-                return (child)base.trun();
-            }
         }
 
         public class children
@@ -9734,12 +9733,16 @@ namespace Go
 
             public child tgo(shared_strand strand, action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
             {
-                return make(strand, generatorAction, completedHandler, suspendHandler).trun();
+                child newGen = make(strand, generatorAction, completedHandler, suspendHandler);
+                newGen.trun();
+                return newGen;
             }
 
             public child free_tgo(shared_strand strand, action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
             {
-                return free_make(strand, generatorAction, completedHandler, suspendHandler).trun();
+                child newGen = free_make(strand, generatorAction, completedHandler, suspendHandler);
+                newGen.trun();
+                return newGen;
             }
 
             public child make(action generatorAction, Action completedHandler = null, Action<bool> suspendHandler = null)
