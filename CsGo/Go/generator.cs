@@ -528,6 +528,16 @@ namespace Go
                     }
                 }
             }
+
+            public void remove()
+            {
+                generator host = self;
+                if (null == host)
+                {
+                    throw local_value_exception.val;
+                }
+                host._genLocal?.Remove(_id);
+            }
         }
 
         class pull_task : ICriticalNotifyCompletion
@@ -7413,6 +7423,10 @@ namespace Go
                 {
                     self._mailboxMap = new Dictionary<long, mail_pck>();
                 }
+                if (null == self._genLocal)
+                {
+                    self._genLocal = new Dictionary<long, local_wrap>();
+                }
                 _mutex = forceStopAll ? null : new go_shared_mutex(self.strand);
             }
 
@@ -7431,6 +7445,7 @@ namespace Go
                         try
                         {
                             self._mailboxMap = _children.parent._mailboxMap;
+                            self._genLocal = _children.parent._genLocal;
                             while (_run)
                             {
                                 chan_recv_wrap<T> recvRes = await chan_receive(chan, lostMsg);
@@ -7456,6 +7471,7 @@ namespace Go
                         finally
                         {
                             self._mailboxMap = null;
+                            self._genLocal = null;
                         }
                     }
                     else
@@ -7465,6 +7481,7 @@ namespace Go
                         {
                             lock_suspend();
                             self._mailboxMap = _children.parent._mailboxMap;
+                            self._genLocal = _children.parent._genLocal;
                             nil_chan<chan_async_state> waitHasChan = new nil_chan<chan_async_state>();
                             Action<chan_async_state> waitHasNtf = waitHasChan.wrap();
                             async_result_wrap<chan_recv_wrap<T>> recvRes = new async_result_wrap<chan_recv_wrap<T>>();
@@ -7527,6 +7544,7 @@ namespace Go
                         {
                             lock_stop();
                             self._mailboxMap = null;
+                            self._genLocal = null;
                             chan.async_remove_recv_notify(self.unsafe_async_ignore<chan_async_state>(), ntfSign);
                             await self.async_wait();
                             await unlock_suspend_and_stop();
@@ -7562,6 +7580,7 @@ namespace Go
                         try
                         {
                             self._mailboxMap = _children.parent._mailboxMap;
+                            self._genLocal = _children.parent._genLocal;
                             if (chan_async_state.async_ok == recvRes.state)
                             {
                                 await handler(recvRes.msg);
@@ -7576,6 +7595,7 @@ namespace Go
                         finally
                         {
                             self._mailboxMap = null;
+                            self._genLocal = null;
                         }
                     }
                     else
@@ -7585,6 +7605,7 @@ namespace Go
                         {
                             lock_suspend();
                             self._mailboxMap = _children.parent._mailboxMap;
+                            self._genLocal = _children.parent._genLocal;
                             long endTick = system_tick.get_tick_ms() + ms;
                             while (_run)
                             {
@@ -7643,6 +7664,7 @@ namespace Go
                         {
                             lock_stop();
                             self._mailboxMap = null;
+                            self._genLocal = null;
                             chan.async_remove_recv_notify(self.unsafe_async_ignore<chan_async_state>(), ntfSign);
                             await self.async_wait();
                             await unlock_suspend_and_stop();
@@ -7679,6 +7701,7 @@ namespace Go
                     try
                     {
                         self._mailboxMap = _children.parent._mailboxMap;
+                        self._genLocal = _children.parent._genLocal;
                         chan_recv_wrap<T> recvRes = await chan_try_receive(chan, lostMsg);
                         if (chan_async_state.async_ok == recvRes.state)
                         {
@@ -7694,6 +7717,7 @@ namespace Go
                     finally
                     {
                         self._mailboxMap = null;
+                        self._genLocal = null;
                         if (null != _mutex)
                         {
                             await mutex_unlock_shared(_mutex);
@@ -7739,6 +7763,7 @@ namespace Go
                         try
                         {
                             self._mailboxMap = _children.parent._mailboxMap;
+                            self._genLocal = _children.parent._genLocal;
                             while (_run)
                             {
                                 chan_recv_wrap<T> recvRes = await chan_receive(chan, token, lostMsg);
@@ -7760,6 +7785,7 @@ namespace Go
                         finally
                         {
                             self._mailboxMap = null;
+                            self._genLocal = null;
                         }
                     }
                     else
@@ -7769,6 +7795,7 @@ namespace Go
                         {
                             lock_suspend();
                             self._mailboxMap = _children.parent._mailboxMap;
+                            self._genLocal = _children.parent._genLocal;
                             nil_chan<chan_async_state> waitHasChan = new nil_chan<chan_async_state>();
                             Action<chan_async_state> waitHasNtf = waitHasChan.wrap();
                             async_result_wrap<chan_recv_wrap<T>> recvRes = new async_result_wrap<chan_recv_wrap<T>>();
@@ -7831,6 +7858,7 @@ namespace Go
                         {
                             lock_stop();
                             self._mailboxMap = null;
+                            self._genLocal = null;
                             chan.async_remove_recv_notify(self.unsafe_async_ignore<chan_async_state>(), ntfSign);
                             await self.async_wait();
                             await unlock_suspend_and_stop();
@@ -7867,6 +7895,7 @@ namespace Go
                         try
                         {
                             self._mailboxMap = _children.parent._mailboxMap;
+                            self._genLocal = _children.parent._genLocal;
                             if (chan_async_state.async_ok == recvRes.state)
                             {
                                 await handler(recvRes.msg);
@@ -7881,6 +7910,7 @@ namespace Go
                         finally
                         {
                             self._mailboxMap = null;
+                            self._genLocal = null;
                         }
                     }
                     else
@@ -7890,6 +7920,7 @@ namespace Go
                         {
                             lock_suspend();
                             self._mailboxMap = _children.parent._mailboxMap;
+                            self._genLocal = _children.parent._genLocal;
                             long endTick = system_tick.get_tick_ms() + ms;
                             while (_run)
                             {
@@ -7948,6 +7979,7 @@ namespace Go
                         {
                             lock_stop();
                             self._mailboxMap = null;
+                            self._genLocal = null;
                             chan.async_remove_recv_notify(self.unsafe_async_ignore<chan_async_state>(), ntfSign);
                             await self.async_wait();
                             await unlock_suspend_and_stop();
@@ -7984,6 +8016,7 @@ namespace Go
                     try
                     {
                         self._mailboxMap = _children.parent._mailboxMap;
+                        self._genLocal = _children.parent._genLocal;
                         chan_recv_wrap<T> recvRes = await chan_try_receive(chan, null != token ? token : new broadcast_token(), lostMsg);
                         if (chan_async_state.async_ok == recvRes.state)
                         {
@@ -7999,6 +8032,7 @@ namespace Go
                     finally
                     {
                         self._mailboxMap = null;
+                        self._genLocal = null;
                         if (null != _mutex)
                         {
                             await mutex_unlock_shared(_mutex);
@@ -8078,6 +8112,7 @@ namespace Go
                         try
                         {
                             self._mailboxMap = _children.parent._mailboxMap;
+                            self._genLocal = _children.parent._genLocal;
                             while (_run)
                             {
                                 csp_wait_wrap<R, T> recvRes = await csp_wait(chan, lostMsg);
@@ -8115,6 +8150,7 @@ namespace Go
                         finally
                         {
                             self._mailboxMap = null;
+                            self._genLocal = null;
                         }
                     }
                     else
@@ -8124,6 +8160,7 @@ namespace Go
                         {
                             lock_suspend();
                             self._mailboxMap = _children.parent._mailboxMap;
+                            self._genLocal = _children.parent._genLocal;
                             nil_chan<chan_async_state> waitHasChan = new nil_chan<chan_async_state>();
                             Action<chan_async_state> waitHasNtf = waitHasChan.wrap();
                             async_result_wrap<csp_wait_wrap<R, T>> recvRes = new async_result_wrap<csp_wait_wrap<R, T>>();
@@ -8200,6 +8237,7 @@ namespace Go
                         {
                             lock_stop();
                             self._mailboxMap = null;
+                            self._genLocal = null;
                             chan.async_remove_recv_notify(self.unsafe_async_ignore<chan_async_state>(), ntfSign);
                             await self.async_wait();
                             await unlock_suspend_and_stop();
@@ -8280,6 +8318,7 @@ namespace Go
                         try
                         {
                             self._mailboxMap = _children.parent._mailboxMap;
+                            self._genLocal = _children.parent._genLocal;
                             if (chan_async_state.async_ok == recvRes.state)
                             {
                                 try
@@ -8306,6 +8345,7 @@ namespace Go
                         finally
                         {
                             self._mailboxMap = null;
+                            self._genLocal = null;
                         }
                     }
                     else
@@ -8315,6 +8355,7 @@ namespace Go
                         {
                             lock_suspend();
                             self._mailboxMap = _children.parent._mailboxMap;
+                            self._genLocal = _children.parent._genLocal;
                             long endTick = system_tick.get_tick_ms() + ms;
                             while (_run)
                             {
@@ -8385,6 +8426,7 @@ namespace Go
                         {
                             lock_stop();
                             self._mailboxMap = null;
+                            self._genLocal = null;
                             chan.async_remove_recv_notify(self.unsafe_async_ignore<chan_async_state>(), ntfSign);
                             await self.async_wait();
                             await unlock_suspend_and_stop();
@@ -8466,6 +8508,7 @@ namespace Go
                     try
                     {
                         self._mailboxMap = _children.parent._mailboxMap;
+                        self._genLocal = _children.parent._genLocal;
                         csp_wait_wrap<R, T> recvRes = await csp_try_wait(chan, lostMsg);
                         if (chan_async_state.async_ok == recvRes.state)
                         {
@@ -8493,6 +8536,7 @@ namespace Go
                     finally
                     {
                         self._mailboxMap = null;
+                        self._genLocal = null;
                         if (null != _mutex)
                         {
                             await mutex_unlock_shared(_mutex);
