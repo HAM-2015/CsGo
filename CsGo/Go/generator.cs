@@ -3886,6 +3886,20 @@ namespace Go
             return non_async();
         }
 
+        static public Task yield(shared_strand strand)
+        {
+            generator this_ = self;
+            strand.post(this_._async_result());
+            return this_.async_wait();
+        }
+
+        static public Task yield(work_service service)
+        {
+            generator this_ = self;
+            service.push_option(this_._async_result());
+            return this_.async_wait();
+        }
+
         static public generator self
         {
             get
