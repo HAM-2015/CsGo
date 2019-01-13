@@ -3120,7 +3120,28 @@ namespace Go
         public Action unsafe_async_result()
         {
             _pullTask.new_task();
-            return _beginQuit ? strand.wrap(quit_next) : strand.wrap(no_quit_next);
+            return _beginQuit ? (Action)delegate ()
+            {
+                if (strand.running_in_this_thread())
+                {
+                    quit_next();
+                }
+                else
+                {
+                    strand.post(quit_next);
+                }
+            }
+            : delegate ()
+            {
+                if (strand.running_in_this_thread())
+                {
+                    no_quit_next();
+                }
+                else
+                {
+                    strand.post(no_quit_next);
+                }
+            };
         }
 
         public Action<T1> unsafe_async_result<T1>(async_result_wrap<T1> res)
@@ -3889,14 +3910,14 @@ namespace Go
         static public Task yield(shared_strand strand)
         {
             generator this_ = self;
-            strand.post(this_._async_result());
+            strand.post(strand == this_.strand ? this_._async_result() : this_.unsafe_async_result());
             return this_.async_wait();
         }
 
         static public Task yield(work_service service)
         {
             generator this_ = self;
-            service.push_option(this_._async_result());
+            service.push_option(this_.unsafe_async_result());
             return this_.async_wait();
         }
 
@@ -4249,7 +4270,7 @@ namespace Go
             }
             catch (stop_exception)
             {
-                chan.self_strand().dispatch(_async_result());
+                chan.self_strand().dispatch(unsafe_async_result());
                 await async_wait();
                 if (chan_async_state.async_ok != res.value1)
                 {
