@@ -5471,8 +5471,7 @@ namespace Go
                     wg.done();
                 }, msg, null);
             }
-            wait_group.cancel_token cancelToken;
-            wg.async_wait(this_.unsafe_async_result(), out cancelToken);
+            wait_group.cancel_token cancelToken = wg.async_wait(this_.unsafe_async_result());
             try
             {
                 await this_.async_wait();
@@ -5500,8 +5499,7 @@ namespace Go
                     wg.done();
                 }, msg, null);
             }
-            wait_group.cancel_token cancelToken;
-            wg.async_wait(this_.unsafe_async_result(), out cancelToken);
+            wait_group.cancel_token cancelToken = wg.async_wait(this_.unsafe_async_result());
             try
             {
                 await this_.async_wait();
@@ -5529,8 +5527,7 @@ namespace Go
                     wg.done();
                 }, msg, null);
             }
-            wait_group.cancel_token cancelToken;
-            wg.async_wait(this_.unsafe_async_result(), out cancelToken);
+            wait_group.cancel_token cancelToken = wg.async_wait(this_.unsafe_async_result());
             try
             {
                 await this_.async_wait();
@@ -6941,8 +6938,7 @@ namespace Go
         static public Task wait_group(wait_group wg)
         {
             generator this_ = self;
-            wait_group.cancel_token cancelToken;
-            wg.async_wait(this_.unsafe_async_result(), out cancelToken);
+            wait_group.cancel_token cancelToken = wg.async_wait(this_.unsafe_async_result());
             if (!this_.new_task_completed())
             {
                 return this_.wait_group_(wg, cancelToken);
@@ -6973,8 +6969,7 @@ namespace Go
         static public ValueTask<bool> timed_wait_group(int ms, wait_group wg)
         {
             generator this_ = self;
-            wait_group.cancel_token cancelToken;
-            wg.async_wait(this_.timed_async_result(ms), out cancelToken);
+            wait_group.cancel_token cancelToken = wg.async_wait(this_.timed_async_result(ms));
             if (!this_.new_task_completed())
             {
                 return to_vtask(this_.timed_wait_group_(wg, cancelToken));
@@ -10857,11 +10852,12 @@ namespace Go
             }
         }
 
-        public void async_wait(Action continuation)
+        public cancel_token async_wait(Action continuation)
         {
             if (0 == _tasks)
             {
                 functional.catch_invoke(continuation);
+                return new cancel_token { token = null };
             }
             else
             {
@@ -10871,37 +10867,13 @@ namespace Go
                 {
                     _waitList.AddLast(newNode);
                     Monitor.Exit(this);
+                    return new cancel_token { token = newNode };
                 }
                 else
                 {
                     Monitor.Exit(this);
                     functional.catch_invoke(continuation);
-                }
-            }
-        }
-
-        public void async_wait(Action continuation, out cancel_token cancelToken)
-        {
-            if (0 == _tasks)
-            {
-                cancelToken = new cancel_token { token = null };
-                functional.catch_invoke(continuation);
-            }
-            else
-            {
-                LinkedListNode<Action> newNode = new LinkedListNode<Action>(continuation);
-                cancelToken = new cancel_token { token = newNode };
-                Monitor.Enter(this);
-                if (null != _waitList)
-                {
-                    _waitList.AddLast(newNode);
-                    Monitor.Exit(this);
-                }
-                else
-                {
-                    Monitor.Exit(this);
-                    cancelToken = new cancel_token { token = null };
-                    functional.catch_invoke(continuation);
+                    return new cancel_token { token = null };
                 }
             }
         }
@@ -10955,9 +10927,10 @@ namespace Go
                 if (null != _waitList)
                 {
                     _waitList.AddLast(newNode);
-                    if (!(ok = Monitor.Wait(this, ms) || null == _waitList))
+                    if (!Monitor.Wait(this, ms) && null != _waitList && newNode.List == _waitList)
                     {
                         _waitList.Remove(newNode);
+                        ok = false;
                     }
                 }
                 Monitor.Exit(this);
