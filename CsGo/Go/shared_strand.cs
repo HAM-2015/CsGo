@@ -125,34 +125,39 @@ namespace Go
             _service = new work_service();
         }
 
-        public void run(int threads = 1, ThreadPriority priority = ThreadPriority.Normal, bool IsBackground = false)
+        public void run(int threads = 1, ThreadPriority priority = ThreadPriority.Normal, bool background = false)
         {
-            _service.reset();
-            _service.hold_work();
-            _runThreads = new Thread[threads];
-            for (int i = 0; i < threads; ++i)
+            lock (this)
             {
-                _runThreads[i] = new Thread(run_thread);
-                _runThreads[i].Priority = priority;
-                _runThreads[i].IsBackground = IsBackground;
-                _runThreads[i].Name = "任务调度";
-                _runThreads[i].Start();
+                Trace.Assert(null == _runThreads, "work_engine 已经运行!");
+                _service.reset();
+                _service.hold_work();
+                _runThreads = new Thread[threads];
+                for (int i = 0; i < threads; ++i)
+                {
+                    _runThreads[i] = new Thread(() => _service.run());
+                    _runThreads[i].Priority = priority;
+                    _runThreads[i].IsBackground = background;
+                    _runThreads[i].Name = "任务调度";
+                    _runThreads[i].Start();
+                }
             }
-        }
-
-        void run_thread()
-        {
-            _service.run();
         }
 
         public void stop()
         {
-            _service.release_work();
-            for (int i = 0; i < _runThreads.Length; i++)
+            lock (this)
             {
-                _runThreads[i].Join();
+                if (null != _runThreads)
+                {
+                    _service.release_work();
+                    for (int i = 0; i < _runThreads.Length; i++)
+                    {
+                        _runThreads[i].Join();
+                    }
+                    _runThreads = null;
+                }
             }
-            _runThreads = null;
         }
 
         public void force_stop()
