@@ -486,6 +486,11 @@ namespace Go
             internal LinkedListNode<Action> token;
         }
 
+        public struct suspend_token
+        {
+            internal LinkedListNode<Action<bool>> token;
+        }
+
         public class local<T>
         {
             readonly long _id = Interlocked.Increment(ref generator._idCount);
@@ -658,9 +663,9 @@ namespace Go
         Dictionary<long, mail_pck> _mailboxMap;
         Dictionary<long, local_wrap> _genLocal;
         LinkedList<LinkedList<select_chan_base>> _topSelectChans;
+        LinkedList<Action<bool>> _suspendHandler;
         LinkedList<children> _children;
         LinkedList<Action> _callbacks;
-        Action<bool> _suspendHandler;
         chan_notify_sign _ioSign;
         System.Exception _excep;
         pull_task _pullTask;
@@ -818,10 +823,14 @@ namespace Go
             _lastTm = 0;
             _yieldCount = 0;
             _lastYieldCount = 0;
-            _suspendHandler = suspendHandler;
             _pullTask = new pull_task();
             _ioSign = new chan_notify_sign();
             _timer = new async_timer(strand);
+            if (null != suspendHandler)
+            {
+                _suspendHandler = new LinkedList<Action<bool>>();
+                _suspendHandler.AddLast(suspendHandler);
+            }
             strand.hold_work();
             strand.dispatch(async delegate ()
             {
@@ -994,20 +1003,49 @@ namespace Go
                 {
                     if (0 == --count)
                     {
-                        functional.catch_invoke(canSuspendCb ? _suspendHandler : null, isSuspend);
+                        if (canSuspendCb && null != _suspendHandler)
+                        {
+                            long lastYieldCount = _yieldCount;
+                            for (LinkedListNode<Action<bool>> it = _suspendHandler.First; null != it; it = it.Next)
+                            {
+                                functional.catch_invoke(it.Value, isSuspend);
+                                if (lastYieldCount != _yieldCount)
+                                {
+                                    break;
+                                }
+                            }
+                        }
                         functional.catch_invoke(cb);
                     }
                 };
-                _mustTick = true;
-                for (LinkedListNode<children> it = _children.First; null != it; it = it.Next)
                 {
-                    it.Value.suspend(isSuspend, handler);
+                    _mustTick = true;
+                    long lastYieldCount = _yieldCount;
+                    for (LinkedListNode<children> it = _children.First; null != it; it = it.Next)
+                    {
+                        it.Value.suspend(isSuspend, handler);
+                        if (lastYieldCount != _yieldCount)
+                        {
+                            break;
+                        }
+                    }
+                    _mustTick = false;
                 }
-                _mustTick = false;
             }
             else
             {
-                functional.catch_invoke(canSuspendCb ? _suspendHandler : null, isSuspend);
+                if (canSuspendCb && null != _suspendHandler)
+                {
+                    long lastYieldCount = _yieldCount;
+                    for (LinkedListNode<Action<bool>> it = _suspendHandler.First; null != it; it = it.Next)
+                    {
+                        functional.catch_invoke(it.Value, isSuspend);
+                        if (lastYieldCount != _yieldCount)
+                        {
+                            break;
+                        }
+                    }
+                }
                 functional.catch_invoke(cb);
             }
         }
@@ -1295,6 +1333,27 @@ namespace Go
                     functional.catch_invoke(cb);
                 });
             }
+        }
+
+        static public suspend_token append_suspend_handler(Action<bool> handler)
+        {
+            generator this_ = self;
+            if (null == this_._suspendHandler)
+            {
+                this_._suspendHandler = new LinkedList<Action<bool>>();
+            }
+            return new suspend_token { token = this_._suspendHandler.AddLast(handler) };
+        }
+
+        static public bool remove_suspend_handler(suspend_token token)
+        {
+            generator this_ = self;
+            if (null != this_._suspendHandler && null != token.token && null != token.token.List)
+            {
+                this_._suspendHandler.Remove(token.token);
+                return true;
+            }
+            return false;
         }
 
         public bool is_force()
@@ -3934,12 +3993,6 @@ namespace Go
         {
             generator this_ = self;
             return null != this_ ? this_.strand : null;
-        }
-
-        static public async_timer self_timer()
-        {
-            generator this_ = self;
-            return this_._timer;
         }
 
         static public long self_id()
