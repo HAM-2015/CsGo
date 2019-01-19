@@ -1005,46 +1005,31 @@ namespace Go
                     {
                         if (canSuspendCb && null != _suspendHandler)
                         {
-                            long lastYieldCount = _yieldCount;
                             for (LinkedListNode<Action<bool>> it = _suspendHandler.First; null != it; it = it.Next)
                             {
                                 functional.catch_invoke(it.Value, isSuspend);
-                                if (lastYieldCount != _yieldCount)
-                                {
-                                    break;
-                                }
                             }
                         }
                         functional.catch_invoke(cb);
                     }
                 };
+                _mustTick = true;
+                for (LinkedListNode<children> it = _children.First; null != it; it = it.Next)
                 {
-                    _mustTick = true;
-                    long lastYieldCount = _yieldCount;
-                    for (LinkedListNode<children> it = _children.First; null != it; it = it.Next)
-                    {
-                        it.Value.suspend(isSuspend, handler);
-                        if (lastYieldCount != _yieldCount)
-                        {
-                            break;
-                        }
-                    }
-                    _mustTick = false;
+                    it.Value.suspend(isSuspend, handler);
                 }
+                _mustTick = false;
             }
             else
             {
                 if (canSuspendCb && null != _suspendHandler)
                 {
-                    long lastYieldCount = _yieldCount;
+                    _mustTick = true;
                     for (LinkedListNode<Action<bool>> it = _suspendHandler.First; null != it; it = it.Next)
                     {
                         functional.catch_invoke(it.Value, isSuspend);
-                        if (lastYieldCount != _yieldCount)
-                        {
-                            break;
-                        }
                     }
+                    _mustTick = false;
                 }
                 functional.catch_invoke(cb);
             }
@@ -2199,7 +2184,7 @@ namespace Go
             _pullTask.new_task();
             return _beginQuit ? (SameAction)delegate (object[] args)
             {
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     quit_next();
                 }
@@ -2210,7 +2195,7 @@ namespace Go
             }
             : delegate (object[] args)
             {
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     no_quit_next();
                 }
@@ -2227,7 +2212,7 @@ namespace Go
             return _beginQuit ? (SameAction)delegate (object[] args)
             {
                 handler(args);
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     quit_next();
                 }
@@ -2239,7 +2224,7 @@ namespace Go
             : delegate (object[] args)
             {
                 handler(args);
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     no_quit_next();
                 }
@@ -2276,7 +2261,7 @@ namespace Go
                     lostHandler?.Invoke(args);
                     return;
                 }
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -2323,7 +2308,7 @@ namespace Go
                     lostHandler?.Invoke(args);
                     return;
                 }
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -2373,7 +2358,7 @@ namespace Go
                     lostHandler?.Invoke(args);
                     return;
                 }
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -2422,7 +2407,7 @@ namespace Go
                     lostHandler?.Invoke(args);
                     return;
                 }
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -2454,7 +2439,7 @@ namespace Go
             return _beginQuit ? (Action)delegate ()
             {
                 handler();
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     quit_next();
                 }
@@ -2466,7 +2451,7 @@ namespace Go
             : delegate ()
             {
                 handler();
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     no_quit_next();
                 }
@@ -2483,7 +2468,7 @@ namespace Go
             return _beginQuit ? (Action<T1>)delegate (T1 p1)
             {
                 handler(p1);
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     quit_next();
                 }
@@ -2495,7 +2480,7 @@ namespace Go
             : delegate (T1 p1)
             {
                 handler(p1);
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     no_quit_next();
                 }
@@ -2512,7 +2497,7 @@ namespace Go
             return _beginQuit ? (Action<T1, T2>)delegate (T1 p1, T2 p2)
             {
                 handler(p1, p2);
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     quit_next();
                 }
@@ -2524,7 +2509,7 @@ namespace Go
             : delegate (T1 p1, T2 p2)
             {
                 handler(p1, p2);
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     no_quit_next();
                 }
@@ -2541,7 +2526,7 @@ namespace Go
             return _beginQuit ? (Action<T1, T2, T3>)delegate (T1 p1, T2 p2, T3 p3)
             {
                 handler(p1, p2, p3);
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     quit_next();
                 }
@@ -2553,7 +2538,7 @@ namespace Go
             : delegate (T1 p1, T2 p2, T3 p3)
             {
                 handler(p1, p2, p3);
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     no_quit_next();
                 }
@@ -2590,7 +2575,7 @@ namespace Go
                     lostHandler?.Invoke();
                     return;
                 }
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -2639,7 +2624,7 @@ namespace Go
                     lostHandler?.Invoke();
                     return;
                 }
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -2691,7 +2676,7 @@ namespace Go
                     lostHandler?.Invoke(p1);
                     return;
                 }
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -2740,7 +2725,7 @@ namespace Go
                     lostHandler?.Invoke(p1);
                     return;
                 }
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -2792,7 +2777,7 @@ namespace Go
                     lostHandler?.Invoke(p1, p2);
                     return;
                 }
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -2841,7 +2826,7 @@ namespace Go
                     lostHandler?.Invoke(p1, p2);
                     return;
                 }
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -2893,7 +2878,7 @@ namespace Go
                     lostHandler?.Invoke(p1, p2, p3);
                     return;
                 }
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -2942,7 +2927,7 @@ namespace Go
                     lostHandler?.Invoke(p1, p2, p3);
                     return;
                 }
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -2978,7 +2963,7 @@ namespace Go
                     lostHandler?.Invoke(args);
                     return;
                 }
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     if (!multiCheck.check())
                     {
@@ -3010,7 +2995,7 @@ namespace Go
                     lostHandler?.Invoke(args);
                     return;
                 }
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -3044,7 +3029,7 @@ namespace Go
                     lostHandler?.Invoke();
                     return;
                 }
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -3078,7 +3063,7 @@ namespace Go
                     lostHandler?.Invoke(p1);
                     return;
                 }
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -3112,7 +3097,7 @@ namespace Go
                     lostHandler?.Invoke(p1, p2);
                     return;
                 }
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -3146,7 +3131,7 @@ namespace Go
                     lostHandler?.Invoke(p1, p2, p3);
                     return;
                 }
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -3181,7 +3166,7 @@ namespace Go
             _pullTask.new_task();
             return _beginQuit ? (Action)delegate ()
             {
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     quit_next();
                 }
@@ -3192,7 +3177,7 @@ namespace Go
             }
             : delegate ()
             {
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     no_quit_next();
                 }
@@ -3209,7 +3194,7 @@ namespace Go
             return _beginQuit ? (Action<T1>)delegate (T1 p1)
             {
                 res.value1 = p1;
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     quit_next();
                 }
@@ -3221,7 +3206,7 @@ namespace Go
             : delegate (T1 p1)
             {
                 res.value1 = p1;
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     no_quit_next();
                 }
@@ -3239,7 +3224,7 @@ namespace Go
             {
                 res.value1 = p1;
                 res.value2 = p2;
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     quit_next();
                 }
@@ -3252,7 +3237,7 @@ namespace Go
             {
                 res.value1 = p1;
                 res.value2 = p2;
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     no_quit_next();
                 }
@@ -3271,7 +3256,7 @@ namespace Go
                 res.value1 = p1;
                 res.value2 = p2;
                 res.value3 = p3;
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     quit_next();
                 }
@@ -3285,7 +3270,7 @@ namespace Go
                 res.value1 = p1;
                 res.value2 = p2;
                 res.value3 = p3;
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     no_quit_next();
                 }
@@ -3321,7 +3306,7 @@ namespace Go
                     lostHandler?.Invoke();
                     return;
                 }
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     if (!multiCheck.check())
                     {
@@ -3353,7 +3338,7 @@ namespace Go
                     lostHandler?.Invoke(p1);
                     return;
                 }
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -3387,7 +3372,7 @@ namespace Go
                     lostHandler?.Invoke(p1, p2);
                     return;
                 }
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -3423,7 +3408,7 @@ namespace Go
                     lostHandler?.Invoke(p1, p2, p3);
                     return;
                 }
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -3492,7 +3477,7 @@ namespace Go
                     lostHandler?.Invoke();
                     return;
                 }
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -3542,7 +3527,7 @@ namespace Go
                     lostHandler?.Invoke(p1);
                     return;
                 }
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -3594,7 +3579,7 @@ namespace Go
                     lostHandler?.Invoke(p1, p2);
                     return;
                 }
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -3648,7 +3633,7 @@ namespace Go
                     lostHandler?.Invoke(p1, p2, p3);
                     return;
                 }
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -3701,7 +3686,7 @@ namespace Go
                     lostHandler?.Invoke();
                     return;
                 }
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -3748,7 +3733,7 @@ namespace Go
                     lostHandler?.Invoke(p1);
                     return;
                 }
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -3797,7 +3782,7 @@ namespace Go
                     lostHandler?.Invoke(p1, p2);
                     return;
                 }
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -3848,7 +3833,7 @@ namespace Go
                     lostHandler?.Invoke(p1, p2, p3);
                     return;
                 }
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
                     {
@@ -4538,7 +4523,7 @@ namespace Go
             bool beginQuit = _beginQuit;
             return delegate (csp_invoke_wrap<R> cspRes)
             {
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     if (!_isStop && _beginQuit == beginQuit)
                     {
@@ -4616,7 +4601,7 @@ namespace Go
             bool beginQuit = _beginQuit;
             return delegate (csp_wait_wrap<R, T> cspRes)
             {
-                if (strand.running_in_this_thread())
+                if (strand.running_in_this_thread() && !_mustTick)
                 {
                     if (!_isStop && _beginQuit == beginQuit)
                     {
