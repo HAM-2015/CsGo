@@ -964,13 +964,9 @@ namespace Go
 
         public void run()
         {
-            if (strand.running_in_this_thread())
+            if (strand.running_in_this_thread() && !_mustTick)
             {
-                if (_mustTick)
-                {
-                    trun();
-                }
-                else if (!_isRun && !_isStop)
+                if (!_isRun && !_isStop)
                 {
                     _isRun = true;
                     no_check_next();
@@ -1072,16 +1068,9 @@ namespace Go
 
         public void suspend(Action cb = null)
         {
-            if (strand.running_in_this_thread())
+            if (strand.running_in_this_thread() && !_mustTick)
             {
-                if (_mustTick)
-                {
-                    tsuspend(cb);
-                }
-                else
-                {
-                    _suspend(cb);
-                }
+                _suspend(cb);
             }
             else
             {
@@ -1096,19 +1085,15 @@ namespace Go
                 if (_isSuspend)
                 {
                     _isSuspend = false;
-                    long lastYieldCount = _yieldCount;
                     _suspend_cb(false, cb);
-                    if (lastYieldCount == _yieldCount && !_isStop && !_beginQuit && !_isSuspend)
+                    if (_hasBlock)
                     {
-                        if (_hasBlock)
-                        {
-                            _hasBlock = false;
-                            no_quit_next();
-                        }
-                        else if (0 != _lastTm)
-                        {
-                            _timer.timeout_us(_lastTm, no_check_next);
-                        }
+                        _hasBlock = false;
+                        no_quit_next();
+                    }
+                    else if (0 != _lastTm)
+                    {
+                        _timer.timeout_us(_lastTm, no_check_next);
                     }
                 }
                 else
@@ -1130,16 +1115,9 @@ namespace Go
 
         public void resume(Action cb = null)
         {
-            if (strand.running_in_this_thread())
+            if (strand.running_in_this_thread() && !_mustTick)
             {
-                if (_mustTick)
-                {
-                    tresume(cb);
-                }
-                else
-                {
-                    _resume(cb);
-                }
+                _resume(cb);
             }
             else
             {
@@ -1193,13 +1171,9 @@ namespace Go
 
         public void stop()
         {
-            if (strand.running_in_this_thread())
+            if (strand.running_in_this_thread() && !_mustTick)
             {
-                if (_mustTick)
-                {
-                    tstop();
-                }
-                else if (!_isStop)
+                if (!_isStop)
                 {
                     _stop();
                 }
@@ -1232,13 +1206,9 @@ namespace Go
 
         public void stop(Action continuation)
         {
-            if (strand.running_in_this_thread())
+            if (strand.running_in_this_thread() && !_mustTick)
             {
-                if (_mustTick)
-                {
-                    tstop(continuation);
-                }
-                else if (!_isStop)
+                if (!_isStop)
                 {
                     if (null == _callbacks)
                     {
@@ -1539,12 +1509,9 @@ namespace Go
                 {
                     this_._isSuspend = true;
                     this_._suspend_cb(true);
-                    if (this_._isSuspend)
-                    {
-                        this_._hasBlock = true;
-                        this_._pullTask.new_task();
-                        return this_.async_wait();
-                    }
+                    this_._hasBlock = true;
+                    this_._pullTask.new_task();
+                    return this_.async_wait();
                 }
                 else
                 {
@@ -1692,12 +1659,9 @@ namespace Go
                 this_._holdSuspend = false;
                 this_._isSuspend = true;
                 this_._suspend_cb(true);
-                if (this_._isSuspend)
-                {
-                    this_._hasBlock = true;
-                    this_._pullTask.new_task();
-                    return this_.async_wait();
-                }
+                this_._hasBlock = true;
+                this_._pullTask.new_task();
+                return this_.async_wait();
             }
             return non_async();
         }
@@ -1849,12 +1813,9 @@ namespace Go
                 this_._holdSuspend = false;
                 this_._isSuspend = true;
                 this_._suspend_cb(true);
-                if (this_._isSuspend)
-                {
-                    this_._hasBlock = true;
-                    this_._pullTask.new_task();
-                    return this_.async_wait();
-                }
+                this_._hasBlock = true;
+                this_._pullTask.new_task();
+                return this_.async_wait();
             }
             return non_async();
         }
