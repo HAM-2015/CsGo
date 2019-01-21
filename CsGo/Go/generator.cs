@@ -10094,6 +10094,7 @@ namespace Go
             {
                 LinkedList<Action> snapList = _waitList;
                 _waitList = newList;
+                Monitor.PulseAll(this);
                 Monitor.Exit(this);
                 for (LinkedListNode<Action> it = snapList.First; null != it; it = it.Next)
                 {
