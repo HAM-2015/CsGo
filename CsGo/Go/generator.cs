@@ -1561,48 +1561,6 @@ namespace Go
             }
         }
 
-        static private async Task lock_stop_(Task task)
-        {
-            try
-            {
-                await task;
-            }
-            finally
-            {
-                unlock_stop();
-            }
-        }
-
-        static private Task lock_stop(Func<Task> handler)
-        {
-            lock_stop();
-            try
-            {
-                Task task = handler();
-                if (!task.IsCompleted)
-                {
-                    return lock_stop_(task);
-                }
-                return non_async();
-            }
-            finally
-            {
-                unlock_stop();
-            }
-        }
-
-        static private async Task<R> lock_stop_<R>(ValueTask<R> task)
-        {
-            try
-            {
-                return await task;
-            }
-            finally
-            {
-                unlock_stop();
-            }
-        }
-
         static private ValueTask<T> to_vtask<T>(T task)
         {
             return new ValueTask<T>(task);
@@ -1611,34 +1569,6 @@ namespace Go
         static private ValueTask<T> to_vtask<T>(Task<T> task)
         {
             return new ValueTask<T>(task);
-        }
-
-        static public ValueTask<R> lock_stop<R>(Func<Task<R>> handler)
-        {
-            return lock_stop_(handler, null);
-        }
-
-        static public ValueTask<R> lock_stop<R>(Func<ValueTask<R>> handler)
-        {
-            return lock_stop_(null, handler);
-        }
-
-        static private ValueTask<R> lock_stop_<R>(Func<Task<R>> handler, Func<ValueTask<R>> gohandler)
-        {
-            lock_stop();
-            try
-            {
-                ValueTask<R> task = null != handler ? to_vtask(handler()) : gohandler();
-                if (!task.IsCompleted)
-                {
-                    return to_vtask(lock_stop_(task));
-                }
-                return to_vtask(task.GetAwaiter().GetResult());
-            }
-            finally
-            {
-                unlock_stop();
-            }
         }
 
         static public void lock_suspend()
@@ -1664,124 +1594,6 @@ namespace Go
                 return this_.async_wait();
             }
             return non_async();
-        }
-
-        static private async Task lock_suspend_(Task task)
-        {
-            try
-            {
-                await task;
-            }
-            finally
-            {
-                await unlock_suspend();
-            }
-        }
-
-        static private Task unlock_suspend_(System.Exception ec)
-        {
-            Task task = unlock_suspend();
-            if (!task.IsCompleted)
-            {
-                return unlock_suspend_(ec, task);
-            }
-            throw ec;
-        }
-
-        static private async Task unlock_suspend_(System.Exception ec, Task task)
-        {
-            await task;
-            throw ec;
-        }
-
-        static public Task lock_suspend(Func<Task> handler)
-        {
-            lock_suspend();
-            try
-            {
-                Task task = handler();
-                if (!task.IsCompleted)
-                {
-                    return lock_suspend_(task);
-                }
-                return unlock_suspend();
-            }
-            catch (System.Exception ec)
-            {
-                return unlock_suspend_(ec);
-            }
-        }
-
-        static private async Task<R> lock_suspend_<R>(ValueTask<R> task)
-        {
-            try
-            {
-                return await task;
-            }
-            finally
-            {
-                await unlock_suspend();
-            }
-        }
-
-        static private async Task<R> unlock_suspend_<R>(R result, Task task)
-        {
-            await task;
-            return result;
-        }
-
-        static private ValueTask<R> unlock_suspend_<R>(R result)
-        {
-            Task task = unlock_suspend();
-            if (!task.IsCompleted)
-            {
-                return to_vtask(unlock_suspend_(result, task));
-            }
-            return to_vtask(result);
-        }
-
-        static private Task<R> unlock_suspend_<R>(System.Exception ec)
-        {
-            Task task = unlock_suspend();
-            if (!task.IsCompleted)
-            {
-                return unlock_suspend_<R>(ec, task);
-            }
-            throw ec;
-        }
-
-        static private async Task<R> unlock_suspend_<R>(System.Exception ec, Task task)
-        {
-            await task;
-            throw ec;
-        }
-
-        static public ValueTask<R> lock_suspend<R>(Func<Task<R>> handler)
-        {
-            return lock_suspend_(handler, null);
-        }
-
-        static public ValueTask<R> lock_suspend<R>(Func<ValueTask<R>> handler)
-        {
-            return lock_suspend_(null, handler);
-        }
-
-        static private ValueTask<R> lock_suspend_<R>(Func<Task<R>> handler, Func<ValueTask<R>> gohandler)
-        {
-            lock_suspend();
-            try
-            {
-                ValueTask<R> task = null != handler ? to_vtask(handler()) : gohandler();
-                if (!task.IsCompleted)
-                {
-                    return to_vtask(lock_suspend_(task));
-                }
-                return unlock_suspend_(task.GetAwaiter().GetResult());
-            }
-            catch (System.Exception ec)
-            {
-                return to_vtask(unlock_suspend_<R>(ec));
-            }
         }
 
         static public void lock_suspend_and_stop()
@@ -1820,142 +1632,9 @@ namespace Go
             return non_async();
         }
 
-        static private async Task lock_suspend_and_stop_(Task task)
-        {
-            try
-            {
-                await task;
-            }
-            finally
-            {
-                await unlock_suspend_and_stop();
-            }
-        }
-
-        static private Task unlock_suspend_and_stop_(System.Exception ec)
-        {
-            Task task = unlock_suspend_and_stop();
-            if (!task.IsCompleted)
-            {
-                return unlock_suspend_and_stop_(ec, task);
-            }
-            throw ec;
-        }
-
-        static private async Task unlock_suspend_and_stop_(System.Exception ec, Task task)
-        {
-            await task;
-            throw ec;
-        }
-
-        static public Task lock_suspend_and_stop(Func<Task> handler)
-        {
-            lock_suspend_and_stop();
-            try
-            {
-                Task task = handler();
-                if (!task.IsCompleted)
-                {
-                    return lock_suspend_and_stop_(task);
-                }
-                return unlock_suspend_and_stop();
-            }
-            catch (System.Exception ec)
-            {
-                return unlock_suspend_and_stop_(ec);
-            }
-        }
-
-        static private async Task<R> lock_suspend_and_stop_<R>(ValueTask<R> task)
-        {
-            try
-            {
-                return await task;
-            }
-            finally
-            {
-                await unlock_suspend_and_stop();
-            }
-        }
-
-        static private async Task<R> unlock_suspend_and_stop_<R>(R result, Task task)
-        {
-            await task;
-            return result;
-        }
-
-        static private ValueTask<R> unlock_suspend_and_stop_<R>(R result)
-        {
-            Task task = unlock_suspend_and_stop();
-            if (!task.IsCompleted)
-            {
-                return to_vtask(unlock_suspend_and_stop_(result, task));
-            }
-            return to_vtask(result);
-        }
-
-        static private Task<R> unlock_suspend_and_stop_<R>(System.Exception ec)
-        {
-            Task task = unlock_suspend_and_stop();
-            if (!task.IsCompleted)
-            {
-                return unlock_suspend_and_stop_<R>(ec, task);
-            }
-            throw ec;
-        }
-
-        static private async Task<R> unlock_suspend_and_stop_<R>(System.Exception ec, Task task)
-        {
-            await task;
-            throw ec;
-        }
-
-        static public ValueTask<R> lock_suspend_and_stop<R>(Func<Task<R>> handler)
-        {
-            return lock_suspend_and_stop_(handler, null);
-        }
-
-        static public ValueTask<R> lock_suspend_and_stop<R>(Func<ValueTask<R>> handler)
-        {
-            return lock_suspend_and_stop_(null, handler);
-        }
-
-        static private ValueTask<R> lock_suspend_and_stop_<R>(Func<Task<R>> handler, Func<ValueTask<R>> gohandler)
-        {
-            lock_suspend_and_stop();
-            try
-            {
-                ValueTask<R> task = null != handler ? to_vtask(handler()) : gohandler();
-                if (!task.IsCompleted)
-                {
-                    return to_vtask(lock_suspend_and_stop_(task));
-                }
-                return unlock_suspend_and_stop_(task.GetAwaiter().GetResult());
-            }
-            catch (System.Exception ec)
-            {
-                return to_vtask(unlock_suspend_and_stop_<R>(ec));
-            }
-        }
-
         static public void lock_shield()
         {
             lock_suspend_and_stop();
-        }
-
-        static public Task lock_shield(Func<Task> handler)
-        {
-            return lock_suspend_and_stop(handler);
-        }
-
-        static public ValueTask<R> lock_shield<R>(Func<Task<R>> handler)
-        {
-            return lock_suspend_and_stop(handler);
-        }
-
-        static public ValueTask<R> lock_shield<R>(Func<ValueTask<R>> handler)
-        {
-            return lock_suspend_and_stop(handler);
         }
 
         static public Task unlock_shield()
@@ -5562,32 +5241,6 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public async Task mutex_lock(go_mutex mtx, Func<Task> handler)
-        {
-            await mutex_lock(mtx);
-            try
-            {
-                await handler();
-            }
-            finally
-            {
-                await mutex_unlock(mtx);
-            }
-        }
-
-        static public async Task<R> mutex_lock<R>(go_mutex mtx, Func<Task<R>> handler)
-        {
-            await mutex_lock(mtx);
-            try
-            {
-                return await handler();
-            }
-            finally
-            {
-                await mutex_unlock(mtx);
-            }
-        }
-
         static public Task mutex_try_lock(async_result_wrap<bool> res, go_mutex mtx)
         {
             generator this_ = self;
@@ -5602,23 +5255,6 @@ namespace Go
             async_result_wrap<bool> res = new async_result_wrap<bool>();
             mtx.async_try_lock(this_._id, this_.unsafe_async_result(res));
             return this_.async_wait(res);
-        }
-
-        static public async Task<bool> mutex_try_lock(go_mutex mtx, Func<Task> handler)
-        {
-            if (await mutex_try_lock(mtx))
-            {
-                try
-                {
-                    await handler();
-                }
-                finally
-                {
-                    await mutex_unlock(mtx);
-                }
-                return true;
-            }
-            return false;
         }
 
         static public Task mutex_timed_lock(async_result_wrap<bool> res, go_mutex mtx, int ms)
@@ -5637,23 +5273,6 @@ namespace Go
             return this_.async_wait(res);
         }
 
-        static public async Task<bool> mutex_timed_lock(go_mutex mtx, int ms, Func<Task> handler)
-        {
-            if (await mutex_timed_lock(mtx, ms))
-            {
-                try
-                {
-                    await handler();
-                }
-                finally
-                {
-                    await mutex_unlock(mtx);
-                }
-                return true;
-            }
-            return false;
-        }
-
         static public Task mutex_unlock(go_mutex mtx)
         {
             generator this_ = self;
@@ -5668,32 +5287,6 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public async Task mutex_lock_shared(go_shared_mutex mtx, Func<Task> handler)
-        {
-            await mutex_lock_shared(mtx);
-            try
-            {
-                await handler();
-            }
-            finally
-            {
-                await mutex_unlock_shared(mtx);
-            }
-        }
-
-        static public async Task<R> mutex_lock_shared<R>(go_shared_mutex mtx, Func<Task<R>> handler)
-        {
-            await mutex_lock_shared(mtx);
-            try
-            {
-                return await handler();
-            }
-            finally
-            {
-                await mutex_unlock_shared(mtx);
-            }
-        }
-
         static public Task mutex_lock_pess_shared(go_shared_mutex mtx)
         {
             generator this_ = self;
@@ -5701,63 +5294,11 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public async Task mutex_lock_pess_shared(go_shared_mutex mtx, Func<Task> handler)
-        {
-            await mutex_lock_pess_shared(mtx);
-            try
-            {
-                await handler();
-            }
-            finally
-            {
-                await mutex_unlock_shared(mtx);
-            }
-        }
-
-        static public async Task<R> mutex_lock_pess_shared<R>(go_shared_mutex mtx, Func<Task<R>> handler)
-        {
-            await mutex_lock_pess_shared(mtx);
-            try
-            {
-                return await handler();
-            }
-            finally
-            {
-                await mutex_unlock_shared(mtx);
-            }
-        }
-
         static public Task mutex_lock_upgrade(go_shared_mutex mtx)
         {
             generator this_ = self;
             mtx.async_lock_upgrade(this_._id, this_.unsafe_async_result());
             return this_.async_wait();
-        }
-
-        static public async Task mutex_lock_upgrade(go_shared_mutex mtx, Func<Task> handler)
-        {
-            await mutex_lock_upgrade(mtx);
-            try
-            {
-                await handler();
-            }
-            finally
-            {
-                await mutex_unlock_upgrade(mtx);
-            }
-        }
-
-        static public async Task<R> mutex_lock_upgrade<R>(go_shared_mutex mtx, Func<Task<R>> handler)
-        {
-            await mutex_lock_upgrade(mtx);
-            try
-            {
-                return await handler();
-            }
-            finally
-            {
-                await mutex_unlock_upgrade(mtx);
-            }
         }
 
         static public Task mutex_try_lock_shared(async_result_wrap<bool> res, go_shared_mutex mtx)
@@ -5776,23 +5317,6 @@ namespace Go
             return this_.async_wait(res);
         }
 
-        static public async Task<bool> mutex_try_lock_shared(go_shared_mutex mtx, Func<Task> handler)
-        {
-            if (await mutex_try_lock_shared(mtx))
-            {
-                try
-                {
-                    await handler();
-                }
-                finally
-                {
-                    await mutex_unlock_shared(mtx);
-                }
-                return true;
-            }
-            return false;
-        }
-
         static public Task mutex_try_lock_upgrade(async_result_wrap<bool> res, go_shared_mutex mtx)
         {
             generator this_ = self;
@@ -5809,23 +5333,6 @@ namespace Go
             return this_.async_wait(res);
         }
 
-        static public async Task<bool> mutex_try_lock_upgrade(go_shared_mutex mtx, Func<Task> handler)
-        {
-            if (await mutex_try_lock_upgrade(mtx))
-            {
-                try
-                {
-                    await handler();
-                }
-                finally
-                {
-                    await mutex_unlock_upgrade(mtx);
-                }
-                return true;
-            }
-            return false;
-        }
-
         static public Task mutex_timed_lock_shared(async_result_wrap<bool> res, go_shared_mutex mtx, int ms)
         {
             generator this_ = self;
@@ -5840,23 +5347,6 @@ namespace Go
             async_result_wrap<bool> res = new async_result_wrap<bool>();
             mtx.async_timed_lock_shared(this_._id, ms, this_.unsafe_async_result(res));
             return this_.async_wait(res);
-        }
-
-        static public async Task<bool> mutex_timed_lock_shared(go_shared_mutex mtx, int ms, Func<Task> handler)
-        {
-            if (await mutex_timed_lock_shared(mtx, ms))
-            {
-                try
-                {
-                    await handler();
-                }
-                finally
-                {
-                    await mutex_unlock_shared(mtx);
-                }
-                return true;
-            }
-            return false;
         }
 
         static public Task mutex_unlock_shared(go_shared_mutex mtx)
@@ -6398,112 +5888,6 @@ namespace Go
             {
                 R res = default(R);
                 await send_task(() => res = handler(p));
-                return res;
-            };
-        }
-
-        static public async Task send_async_queue(async_queue queue, shared_strand strand, generator.action action)
-        {
-            generator this_ = self;
-            System.Exception hasExcep = null;
-            queue.post(strand, async delegate ()
-            {
-                try
-                {
-                    await action();
-                }
-                catch (System.Exception ec)
-                {
-                    ec.Source = string.Format("{0}\n{1}", ec.Source, ec.StackTrace);
-                    hasExcep = ec;
-                }
-            }, this_.unsafe_async_result());
-            await self.async_wait();
-            if (null != hasExcep)
-            {
-                throw hasExcep;
-            }
-        }
-
-        static public Func<Task> wrap_send_async_queue(async_queue queue, shared_strand strand, generator.action action)
-        {
-            return () => send_async_queue(queue, strand, action);
-        }
-
-        static public Func<T, Task> wrap_send_async_queue<T>(async_queue queue, shared_strand strand, Func<T, Task> action)
-        {
-            return (T p) => send_async_queue(queue, strand, () => action(p));
-        }
-
-        static public Func<Task<R>> wrap_send_async_queue<R>(async_queue queue, shared_strand strand, Func<Task<R>> action)
-        {
-            return async delegate ()
-            {
-                R res = default(R);
-                await send_async_queue(queue, strand, async () => res = await action());
-                return res;
-            };
-        }
-
-        static public Func<T, Task<R>> wrap_send_async_queue<R, T>(async_queue queue, shared_strand strand, Func<T, Task<R>> action)
-        {
-            return async delegate (T p)
-            {
-                R res = default(R);
-                await send_async_queue(queue, strand, async () => res = await action(p));
-                return res;
-            };
-        }
-
-        static public async Task send_async_strand(async_strand queue, generator.action action)
-        {
-            generator this_ = self;
-            System.Exception hasExcep = null;
-            queue.post(async delegate ()
-            {
-                try
-                {
-                    await action();
-                }
-                catch (System.Exception ec)
-                {
-                    ec.Source = string.Format("{0}\n{1}", ec.Source, ec.StackTrace);
-                    hasExcep = ec;
-                }
-            }, this_.unsafe_async_result());
-            await self.async_wait();
-            if (null != hasExcep)
-            {
-                throw hasExcep;
-            }
-        }
-
-        static public Func<Task> wrap_send_async_strand(async_strand queue, generator.action action)
-        {
-            return () => send_async_strand(queue, action);
-        }
-
-        static public Func<T, Task> wrap_send_async_strand<T>(async_strand queue, Func<T, Task> action)
-        {
-            return (T p) => send_async_strand(queue, () => action(p));
-        }
-
-        static public Func<Task<R>> wrap_send_async_strand<R>(async_strand queue, Func<Task<R>> action)
-        {
-            return async delegate ()
-            {
-                R res = default(R);
-                await send_async_strand(queue, async () => res = await action());
-                return res;
-            };
-        }
-
-        static public Func<T, Task<R>> wrap_send_async_strand<R, T>(async_strand queue, Func<T, Task<R>> action)
-        {
-            return async delegate (T p)
-            {
-                R res = default(R);
-                await send_async_strand(queue, async () => res = await action(p));
                 return res;
             };
         }
@@ -10657,111 +10041,6 @@ namespace Go
         }
     }
 
-    public class async_queue
-    {
-        struct gen_pck
-        {
-            public shared_strand strand;
-            public generator.action action;
-
-            public gen_pck(shared_strand st, generator.action act)
-            {
-                strand = st;
-                action = act;
-            }
-        }
-
-        unlimit_chan<gen_pck> _queue;
-        generator _runGen;
-
-        public async_queue()
-        {
-            shared_strand strand = new shared_strand();
-            _queue = new unlimit_chan<gen_pck>(strand);
-            _runGen = generator.make(strand, async delegate ()
-            {
-                while (true)
-                {
-                    chan_recv_wrap<gen_pck> pck = await generator.chan_receive(_queue);
-                    await generator.depth_call(pck.msg.strand, pck.msg.action);
-                }
-            });
-            _runGen.run();
-        }
-
-        ~async_queue()
-        {
-            _runGen.stop();
-        }
-
-        public void post(shared_strand strand, generator.action action)
-        {
-            _queue.post(new gen_pck(strand, action));
-        }
-
-        public void post(shared_strand strand, generator.action action, Action cb)
-        {
-            post(strand, async delegate ()
-            {
-                await action();
-                functional.catch_invoke(cb);
-            });
-        }
-    }
-
-    public class async_strand
-    {
-        unlimit_chan<generator.action> _queue;
-        generator _runGen;
-
-        public async_strand(shared_strand strand)
-        {
-            _queue = new unlimit_chan<generator.action>(strand);
-            _runGen = generator.make(strand, async delegate ()
-            {
-                while (true)
-                {
-                    chan_recv_wrap<generator.action> pck = await generator.chan_receive(_queue);
-                    generator.lock_stop();
-                    try
-                    {
-                        await pck.msg();
-                    }
-                    catch (Exception ec)
-                    {
-                        Debug.WriteLine(ec.StackTrace);
-                    }
-                    generator.unlock_stop();
-                }
-            });
-            _runGen.run();
-        }
-
-        ~async_strand()
-        {
-            _runGen.stop();
-        }
-
-        public void post(generator.action action)
-        {
-            _queue.post(action);
-        }
-
-        public void post(generator.action action, Action cb)
-        {
-            post(async delegate ()
-            {
-                await action();
-                functional.catch_invoke(cb);
-            });
-        }
-
-        public void stop()
-        {
-            _runGen.stop();
-        }
-    }
-
     public class wait_group
     {
         public struct cancel_token
@@ -10770,19 +10049,12 @@ namespace Go
         }
 
         int _tasks;
-        Action _pulse;
         LinkedList<Action> _waitList;
 
         public wait_group(int initTasks = 0)
         {
             _tasks = initTasks;
             _waitList = new LinkedList<Action>();
-            _pulse = delegate ()
-            {
-                Monitor.Enter(this);
-                Monitor.Pulse(this);
-                Monitor.Exit(this);
-            };
         }
 
         public void reset(int tasks)
@@ -10800,6 +10072,7 @@ namespace Go
                 Monitor.Enter(this);
                 LinkedList<Action> snapList = _waitList;
                 _waitList = null;
+                Monitor.PulseAll(this);
                 Monitor.Exit(this);
                 for (LinkedListNode<Action> it = snapList.First; null != it; it = it.Next)
                 {
@@ -10893,23 +10166,13 @@ namespace Go
             return completed;
         }
 
-        public bool is_completed
-        {
-            get
-            {
-                return 0 == _tasks;
-            }
-        }
-
         public void sync_wait()
         {
-            if (0 != _tasks)
+            if (!is_done)
             {
-                LinkedListNode<Action> newNode = new LinkedListNode<Action>(_pulse);
                 Monitor.Enter(this);
-                if (null != _waitList)
+                if (!is_done)
                 {
-                    _waitList.AddLast(newNode);
                     Monitor.Wait(this);
                 }
                 Monitor.Exit(this);
@@ -10919,18 +10182,12 @@ namespace Go
         public bool sync_timed_wait(int ms)
         {
             bool ok = true;
-            if (0 != _tasks)
+            if (!is_done)
             {
-                LinkedListNode<Action> newNode = new LinkedListNode<Action>(_pulse);
                 Monitor.Enter(this);
-                if (null != _waitList)
+                if (!is_done)
                 {
-                    _waitList.AddLast(newNode);
-                    if (!Monitor.Wait(this, ms) && null != _waitList && newNode.List == _waitList)
-                    {
-                        _waitList.Remove(newNode);
-                        ok = false;
-                    }
+                    ok = Monitor.Wait(this, ms);
                 }
                 Monitor.Exit(this);
             }

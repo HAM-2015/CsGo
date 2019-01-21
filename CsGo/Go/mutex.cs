@@ -177,16 +177,6 @@ namespace Go
             return generator.mutex_lock(this);
         }
 
-        public Task Lock(Func<Task> handler)
-        {
-            return generator.mutex_lock(this, handler);
-        }
-
-        public Task<R> Lock<R>(Func<Task<R>> handler)
-        {
-            return generator.mutex_lock(this, handler);
-        }
-
         public Task try_lock(async_result_wrap<bool> res)
         {
             return generator.mutex_try_lock(res, this);
@@ -197,11 +187,6 @@ namespace Go
             return generator.mutex_try_lock(this);
         }
 
-        public Task<bool> try_lock(Func<Task> handler)
-        {
-            return generator.mutex_try_lock(this, handler);
-        }
-
         public Task timed_lock(async_result_wrap<bool> res, int ms)
         {
             return generator.mutex_timed_lock(res, this, ms);
@@ -210,11 +195,6 @@ namespace Go
         public ValueTask<bool> timed_lock(int ms)
         {
             return generator.mutex_timed_lock(this, ms);
-        }
-
-        public Task<bool> timed_lock(int ms, Func<Task> handler)
-        {
-            return generator.mutex_timed_lock(this, ms, handler);
         }
 
         public Task unlock()
@@ -651,44 +631,14 @@ namespace Go
             return generator.mutex_lock_shared(this);
         }
 
-        public Task lock_shared(Func<Task> handler)
-        {
-            return generator.mutex_lock_shared(this, handler);
-        }
-
-        public Task<R> lock_shared<R>(Func<Task<R>> handler)
-        {
-            return generator.mutex_lock_shared(this, handler);
-        }
-
         public Task lock_pess_shared()
         {
             return generator.mutex_lock_pess_shared(this);
         }
 
-        public Task lock_pess_shared(Func<Task> handler)
-        {
-            return generator.mutex_lock_pess_shared(this, handler);
-        }
-
-        public Task<R> lock_pess_shared<R>(Func<Task<R>> handler)
-        {
-            return generator.mutex_lock_pess_shared(this, handler);
-        }
-
         public Task lock_upgrade()
         {
             return generator.mutex_lock_upgrade(this);
-        }
-
-        public Task lock_upgrade(go_shared_mutex mtx, Func<Task> handler)
-        {
-            return generator.mutex_lock_upgrade(this, handler);
-        }
-
-        public Task<R> lock_upgrade<R>(go_shared_mutex mtx, Func<Task<R>> handler)
-        {
-            return generator.mutex_lock_upgrade(this, handler);
         }
 
         public Task try_lock_shared(async_result_wrap<bool> res)
@@ -701,11 +651,6 @@ namespace Go
             return generator.mutex_try_lock_shared(this);
         }
 
-        public Task<bool> try_lock_shared(Func<Task> handler)
-        {
-            return generator.mutex_try_lock_shared(this, handler);
-        }
-
         public Task try_lock_upgrade(async_result_wrap<bool> res)
         {
             return generator.mutex_try_lock_upgrade(res, this);
@@ -716,11 +661,6 @@ namespace Go
             return generator.mutex_try_lock_upgrade(this);
         }
 
-        public Task<bool> try_lock_upgrade(Func<Task> handler)
-        {
-            return generator.mutex_try_lock_upgrade(this, handler);
-        }
-
         public Task timed_lock_shared(async_result_wrap<bool> res, int ms)
         {
             return generator.mutex_timed_lock_shared(res, this, ms);
@@ -729,11 +669,6 @@ namespace Go
         public ValueTask<bool> timed_lock_shared(int ms)
         {
             return generator.mutex_timed_lock_shared(this, ms);
-        }
-
-        public Task<bool> timed_lock_shared(int ms, Func<Task> handler)
-        {
-            return generator.mutex_timed_lock_shared(this, ms, handler);
         }
 
         public Task unlock_shared()
