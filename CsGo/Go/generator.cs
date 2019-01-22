@@ -8580,7 +8580,7 @@ namespace Go
                 return shuffChans;
             }
 
-            public async Task<bool> loop(action eachAfterDo = null)
+            public async Task<bool> loop(Func<Task> eachAfterDo = null)
             {
                 generator this_ = self;
                 LinkedList<select_chan_base> chans = _chans;
@@ -8674,6 +8674,138 @@ namespace Go
                 finally
                 {
                     lock_stop();
+                    this_._topSelectChans.RemoveFirst();
+                    for (LinkedListNode<select_chan_base> it = chans.First; null != it; it = it.Next)
+                    {
+                        await it.Value.end();
+                    }
+                    selectChans.clear();
+                    await unlock_suspend_and_stop();
+                }
+            }
+
+            public async Task<bool> timed_loop(int ms, Func<bool, Task> eachAfterDo = null)
+            {
+                generator this_ = self;
+                LinkedList<select_chan_base> chans = _chans;
+                unlimit_chan<tuple<chan_async_state, select_chan_base>> selectChans = _selectChans;
+                async_timer timer = ms >= 0 ? new async_timer(this_.strand) : null;
+                try
+                {
+                    lock_suspend_and_stop();
+                    if (null == this_._topSelectChans)
+                    {
+                        this_._topSelectChans = new LinkedList<LinkedList<select_chan_base>>();
+                    }
+                    this_._topSelectChans.AddFirst(chans);
+                    if (_random)
+                    {
+                        select_chan_base[] shuffChans = await send_task(() => shuffle(chans));
+                        int len = shuffChans.Length;
+                        for (int i = 0; i < len; i++)
+                        {
+                            select_chan_base chan = shuffChans[i];
+                            chan.ntfSign._selectOnce = false;
+                            chan.nextSelect = (chan_async_state state) => selectChans.post(tuple.make(state, chan));
+                            chan.begin(this_);
+                        }
+                    }
+                    else
+                    {
+                        for (LinkedListNode<select_chan_base> it = chans.First; null != it; it = it.Next)
+                        {
+                            select_chan_base chan = it.Value;
+                            chan.ntfSign._selectOnce = false;
+                            chan.nextSelect = (chan_async_state state) => selectChans.post(tuple.make(state, chan));
+                            chan.begin(this_);
+                        }
+                    }
+                    unlock_stop();
+                    int timerCount = 0;
+                    int count = chans.Count;
+                    bool selected = false;
+                    Func<Task> stepOne = delegate ()
+                    {
+                        timer?.cancel();
+                        selected = true;
+                        return non_async();
+                    };
+                    if (null != timer)
+                    {
+                        int timerId = ++timerCount;
+                        timer.timeout(ms, () => selectChans.post(tuple.make((chan_async_state)timerId, default(select_chan_base))));
+                    }
+                    while (0 != count)
+                    {
+                        tuple<chan_async_state, select_chan_base> selectedChan = (await chan_receive(selectChans)).msg;
+                        if (null != selectedChan.value2)
+                        {
+                            if (chan_async_state.async_ok != selectedChan.value1)
+                            {
+                                if (await selectedChan.value2.errInvoke(selectedChan.value1))
+                                {
+                                    count--;
+                                }
+                                continue;
+                            }
+                            else if (selectedChan.value2.disabled())
+                            {
+                                continue;
+                            }
+                            try
+                            {
+                                select_chan_state selState = await selectedChan.value2.invoke(stepOne);
+                                if (!selState.nextRound)
+                                {
+                                    count--;
+                                }
+                            }
+                            catch (select_stop_current_exception)
+                            {
+                                count--;
+                                await selectedChan.value2.end();
+                            }
+                        }
+                        else if (timerCount == (int)selectedChan.value1)
+                        {
+                            selected = true;
+                        }
+                        else
+                        {
+                            continue;
+                        }
+                        if (selected)
+                        {
+                            try
+                            {
+                                selected = false;
+                                await unlock_suspend();
+                                if (null != eachAfterDo)
+                                {
+                                    await eachAfterDo(null != selectedChan.value2);
+                                }
+                                if (null != timer)
+                                {
+                                    int timerId = ++timerCount;
+                                    timer.timeout(ms, () => selectChans.post(tuple.make((chan_async_state)timerId, default(select_chan_base))));
+                                }
+                            }
+                            finally
+                            {
+                                lock_suspend();
+                            }
+                        }
+                    }
+                    return true;
+                }
+                catch (select_stop_all_exception)
+                {
+                    return false;
+                }
+                finally
+                {
+                    lock_stop();
+                    timer?.cancel();
                     this_._topSelectChans.RemoveFirst();
                     for (LinkedListNode<select_chan_base> it = chans.First; null != it; it = it.Next)
                     {
@@ -8796,6 +8928,7 @@ namespace Go
                 generator this_ = self;
                 LinkedList<select_chan_base> chans = _chans;
                 unlimit_chan<tuple<chan_async_state, select_chan_base>> selectChans = _selectChans;
+                async_timer timer = ms >= 0 ? new async_timer(this_.strand) : null;
                 bool selected = false;
                 try
                 {
@@ -8805,10 +8938,6 @@ namespace Go
                         this_._topSelectChans = new LinkedList<LinkedList<select_chan_base>>();
                     }
                     this_._topSelectChans.AddFirst(chans);
-                    if (ms >= 0)
-                    {
-                        this_._timer.timeout(ms, selectChans.wrap_default());
-                    }
                     if (_random)
                     {
                         select_chan_base[] shuffChans = await send_task(() => shuffle(chans));
@@ -8833,6 +8962,7 @@ namespace Go
                     }
                     unlock_stop();
                     int count = chans.Count;
+                    timer?.timeout(ms, selectChans.wrap_default());
                     while (0 != count)
                     {
                         tuple<chan_async_state, select_chan_base> selectedChan = (await chan_receive(selectChans)).msg;
@@ -8854,7 +8984,7 @@ namespace Go
                             {
                                 select_chan_state selState = await selectedChan.value2.invoke(async delegate ()
                                 {
-                                    this_._timer.cancel();
+                                    timer?.cancel();
                                     for (LinkedListNode<select_chan_base> it = chans.First; null != it; it = it.Next)
                                     {
                                         if (selectedChan.value2 != it.Value)
@@ -8896,10 +9026,10 @@ namespace Go
                 finally
                 {
                     lock_stop();
+                    timer?.cancel();
                     this_._topSelectChans.RemoveFirst();
                     if (!selected)
                     {
-                        this_._timer.cancel();
                         for (LinkedListNode<select_chan_base> it = chans.First; null != it; it = it.Next)
                         {
                             await it.Value.end();
@@ -8921,7 +9051,7 @@ namespace Go
                 return timed(ms);
             }
 
-            public Func<action, Task<bool>> wrap_loop()
+            public Func<Func<Task>, Task<bool>> wrap_loop()
             {
                 return loop;
             }
@@ -8936,7 +9066,7 @@ namespace Go
                 return timed;
             }
 
-            public Func<Task<bool>> wrap_loop(action eachAferDo)
+            public Func<Task<bool>> wrap_loop(Func<Task> eachAferDo)
             {
                 return functional.bind(loop, eachAferDo);
             }
