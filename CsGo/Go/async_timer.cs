@@ -620,7 +620,7 @@ namespace Go
                 functional.catch_invoke(_handler);
                 if (lastTc == _timerCount)
                 {
-                    begin_timer(_timerHandle.absus += _timerHandle.period, _timerHandle.period);
+                    begin_timer(_beginTick, _timerHandle.absus += _timerHandle.period, _timerHandle.period);
                 }
             }
             else
@@ -633,47 +633,75 @@ namespace Go
             _onTopCall = false;
         }
 
-        private void begin_timer(long absus, long period)
+        private void begin_timer(long nowus, long absus, long period)
         {
-            _timerCount++;
-            _timerHandle.absus = absus;
-            _timerHandle.period = period;
-            if (_utcMode)
+            _beginTick = nowus;
+            if (nowus < absus)
             {
-                _strand._utcTimer.timeout(this);
-            }
-            else
-            {
-                _strand._sysTimer.timeout(this);
-            }
-        }
-
-        private void tick_timer(long absus)
-        {
-            int tmId = ++_timerCount;
-            _timerHandle.absus = absus;
-            _timerHandle.period = 0;
-            _strand.post(delegate ()
-            {
-                if (tmId == _timerCount)
+                _timerCount++;
+                _timerHandle.absus = absus;
+                _timerHandle.period = period;
+                if (_utcMode)
                 {
-                    timer_handler();
+                    _strand._utcTimer.timeout(this);
                 }
-            });
-        }
-
-        private void re_begin_timer(long absus, long period)
-        {
-            _timerCount++;
-            _timerHandle.absus = absus;
-            _timerHandle.period = period;
-            if (_utcMode)
-            {
-                _strand._utcTimer.re_timeout(this);
+                else
+                {
+                    _strand._sysTimer.timeout(this);
+                }
             }
             else
             {
-                _strand._sysTimer.re_timeout(this);
+                int tmId = ++_timerCount;
+                _timerHandle.absus = absus;
+                _timerHandle.period = period;
+                _strand.post(delegate ()
+                {
+                    if (tmId == _timerCount)
+                    {
+                        timer_handler();
+                    }
+                });
+            }
+        }
+
+        private void re_begin_timer(long nowus, long absus, long period)
+        {
+            _beginTick = nowus;
+            if (nowus < absus)
+            {
+                _timerCount++;
+                _timerHandle.absus = absus;
+                _timerHandle.period = period;
+                if (_utcMode)
+                {
+                    _strand._utcTimer.re_timeout(this);
+                }
+                else
+                {
+                    _strand._sysTimer.re_timeout(this);
+                }
+            }
+            else
+            {
+                if (_utcMode)
+                {
+                    _strand._utcTimer.cancel(this);
+                }
+                else
+                {
+                    _strand._sysTimer.cancel(this);
+                }
+                int tmId = ++_timerCount;
+                _timerHandle.absus = absus;
+                _timerHandle.period = period;
+                _strand.post(delegate ()
+                {
+                    if (tmId == _timerCount)
+                    {
+                        timer_handler();
+                    }
+                });
             }
         }
 
@@ -683,16 +711,9 @@ namespace Go
             _isInterval = false;
             _handler = handler;
             _strand.hold_work();
-            _beginTick = _utcMode ? utc_tick.get_tick_us() : system_tick.get_tick_us();
-            if (0 < us)
-            {
-                begin_timer(_beginTick + us, us);
-            }
-            else
-            {
-                tick_timer(_beginTick);
-            }
-            return _beginTick;
+            long nowus = _utcMode ? utc_tick.get_tick_us() : system_tick.get_tick_us();
+            begin_timer(nowus, us > 0 ? nowus + us : nowus, us > 0 ? us : 0);
+            return nowus;
         }
 
         public long deadline_us(long us, Action handler)
@@ -701,16 +722,9 @@ namespace Go
             _isInterval = false;
             _handler = handler;
             _strand.hold_work();
-            _beginTick = _utcMode ? utc_tick.get_tick_us() : system_tick.get_tick_us();
-            if (_beginTick < us)
-            {
-                begin_timer(us, us - _beginTick);
-            }
-            else
-            {
-                tick_timer(_beginTick);
-            }
-            return _beginTick;
+            long nowus = _utcMode ? utc_tick.get_tick_us() : system_tick.get_tick_us();
+            begin_timer(nowus, us, us > nowus ? us - nowus : 0);
+            return nowus;
         }
 
         public long deadline(DateTime date, Action handler)
@@ -764,18 +778,18 @@ namespace Go
             _isInterval = true;
             _handler = handler;
             _strand.hold_work();
-            _beginTick = _utcMode ? utc_tick.get_tick_us() : system_tick.get_tick_us();
-            begin_timer(_beginTick + us1, us2);
+            long nowus = _utcMode ? utc_tick.get_tick_us() : system_tick.get_tick_us();
+            begin_timer(nowus, us1 > 0 ? nowus + us1 : nowus, us2 > 0 ? us2 : 0);
             if (immed)
             {
                 functional.catch_invoke(_handler);
             }
-            return _beginTick;
+            return nowus;
         }
 
         public bool restart(int ms = -1)
         {
-            return restart_us(0 > ms ? -1 : (long)ms * 1000);
+            return restart_us((long)ms * 1000);
         }
 
         public bool restart_us(long us = -1)
@@ -783,27 +797,8 @@ namespace Go
             Debug.Assert(_strand.running_in_this_thread(), "不正确的 restart_us 调用!");
             if (null != _handler)
             {
-                _beginTick = _utcMode ? utc_tick.get_tick_us() : system_tick.get_tick_us();
-                if (0 > us)
-                {
-                    re_begin_timer(_beginTick + _timerHandle.period, _timerHandle.period);
-                }
-                else if (0 < us)
-                {
-                    re_begin_timer(_beginTick + us, us);
-                }
-                else
-                {
-                    if (_utcMode)
-                    {
-                        _strand._utcTimer.cancel(this);
-                    }
-                    else
-                    {
-                        _strand._sysTimer.cancel(this);
-                    }
-                    tick_timer(_beginTick);
-                }
+                long nowus = _utcMode ? utc_tick.get_tick_us() : system_tick.get_tick_us();
+                re_begin_timer(nowus, us < 0 ? nowus + _timerHandle.period : nowus + us, _timerHandle.period);
                 return true;
             }
             return false;
