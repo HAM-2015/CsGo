@@ -8708,6 +8708,15 @@ namespace Go
                             chan.ntfSign._selectOnce = false;
                             chan.nextSelect = (chan_async_state state) => selectChans.post(tuple.make(state, chan));
                             chan.begin(this_);
+                            if (0 == ms)
+                            {
+                                shared_strand chanStrand = chan.channel().self_strand();
+                                if (chanStrand != this_.strand)
+                                {
+                                    chanStrand.post(this_.unsafe_async_result());
+                                    await this_.async_wait();
+                                }
+                            }
                         }
                     }
                     else
@@ -8718,6 +8727,15 @@ namespace Go
                             chan.ntfSign._selectOnce = false;
                             chan.nextSelect = (chan_async_state state) => selectChans.post(tuple.make(state, chan));
                             chan.begin(this_);
+                            if (0 == ms)
+                            {
+                                shared_strand chanStrand = chan.channel().self_strand();
+                                if (chanStrand != this_.strand)
+                                {
+                                    chanStrand.post(this_.unsafe_async_result());
+                                    await this_.async_wait();
+                                }
+                            }
                         }
                     }
                     unlock_stop();
@@ -8758,6 +8776,15 @@ namespace Go
                                 if (!selState.nextRound)
                                 {
                                     count--;
+                                }
+                                else if (0 == ms)
+                                {
+                                    shared_strand chanStrand = selectedChan.value2.channel().self_strand();
+                                    if (chanStrand != this_.strand)
+                                    {
+                                        chanStrand.post(this_.unsafe_async_result());
+                                        await this_.async_wait();
+                                    }
                                 }
                             }
                             catch (select_stop_current_exception)
@@ -8948,6 +8975,15 @@ namespace Go
                             chan.ntfSign._selectOnce = false;
                             chan.nextSelect = (chan_async_state state) => selectChans.post(tuple.make(state, chan));
                             chan.begin(this_);
+                            if (0 == ms)
+                            {
+                                shared_strand chanStrand = chan.channel().self_strand();
+                                if (chanStrand != this_.strand)
+                                {
+                                    chanStrand.post(this_.unsafe_async_result());
+                                    await this_.async_wait();
+                                }
+                            }
                         }
                     }
                     else
@@ -8958,6 +8994,15 @@ namespace Go
                             chan.ntfSign._selectOnce = true;
                             chan.nextSelect = (chan_async_state state) => selectChans.post(tuple.make(state, chan));
                             chan.begin(this_);
+                            if (0 == ms)
+                            {
+                                shared_strand chanStrand = chan.channel().self_strand();
+                                if (chanStrand != this_.strand)
+                                {
+                                    chanStrand.post(this_.unsafe_async_result());
+                                    await this_.async_wait();
+                                }
+                            }
                         }
                     }
                     unlock_stop();
