@@ -1528,26 +1528,24 @@ namespace Go
             return non_async();
         }
 
-        static public void lock_stop()
+        internal void lock_stop_()
         {
-            generator this_ = self;
-            if (!this_._beginQuit)
+            if (!_beginQuit)
             {
-                this_._lockCount++;
+                _lockCount++;
             }
         }
 
-        static public void unlock_stop()
+        internal void unlock_stop_()
         {
-            generator this_ = self;
-            Debug.Assert(this_._beginQuit || this_._lockCount > 0, "unlock_stop 不匹配!");
-            if (!this_._beginQuit && 0 == --this_._lockCount && this_._isForce)
+            Debug.Assert(_beginQuit || _lockCount > 0, "unlock_stop 不匹配!");
+            if (!_beginQuit && 0 == --_lockCount && _isForce)
             {
-                this_._lockSuspendCount = 0;
-                this_._holdSuspend = false;
-                this_._beginQuit = true;
-                this_._suspendHandler = null;
-                this_._timer.cancel();
+                _lockSuspendCount = 0;
+                _holdSuspend = false;
+                _beginQuit = true;
+                _suspendHandler = null;
+                _timer.cancel();
                 throw stop_exception.val;
             }
         }
@@ -1571,65 +1569,97 @@ namespace Go
             return new ValueTask<T>(task);
         }
 
+        internal void lock_suspend_()
+        {
+            if (!_beginQuit)
+            {
+                _lockSuspendCount++;
+            }
+        }
+
+        internal Task unlock_suspend_()
+        {
+            Debug.Assert(_beginQuit || _lockSuspendCount > 0, "unlock_suspend 不匹配!");
+            if (!_beginQuit && 0 == --_lockSuspendCount && _holdSuspend)
+            {
+                _holdSuspend = false;
+                _isSuspend = true;
+                _suspend_cb(true);
+                _hasBlock = true;
+                _pullTask.new_task();
+                return async_wait();
+            }
+            return non_async();
+        }
+
+        internal void lock_suspend_and_stop_()
+        {
+            if (!_beginQuit)
+            {
+                _lockSuspendCount++;
+                _lockCount++;
+            }
+        }
+
+        internal Task unlock_suspend_and_stop_()
+        {
+            Debug.Assert(_beginQuit || _lockCount > 0, "unlock_stop 不匹配!");
+            Debug.Assert(_beginQuit || _lockSuspendCount > 0, "unlock_suspend 不匹配!");
+            if (!_beginQuit && 0 == --_lockCount && _isForce)
+            {
+                _lockSuspendCount = 0;
+                _holdSuspend = false;
+                _beginQuit = true;
+                _suspendHandler = null;
+                _timer.cancel();
+                throw stop_exception.val;
+            }
+            if (!_beginQuit && 0 == --_lockSuspendCount && _holdSuspend)
+            {
+                _holdSuspend = false;
+                _isSuspend = true;
+                _suspend_cb(true);
+                _hasBlock = true;
+                _pullTask.new_task();
+                return async_wait();
+            }
+            return non_async();
+        }
+
+        static public void lock_stop()
+        {
+            generator this_ = self;
+            this_.lock_stop_();
+        }
+
+        static public void unlock_stop()
+        {
+            generator this_ = self;
+            this_.unlock_stop_();
+        }
+
         static public void lock_suspend()
         {
             generator this_ = self;
-            if (!this_._beginQuit)
-            {
-                this_._lockSuspendCount++;
-            }
+            this_.lock_suspend_();
         }
 
         static public Task unlock_suspend()
         {
             generator this_ = self;
-            Debug.Assert(this_._beginQuit || this_._lockSuspendCount > 0, "unlock_suspend 不匹配!");
-            if (!this_._beginQuit && 0 == --this_._lockSuspendCount && this_._holdSuspend)
-            {
-                this_._holdSuspend = false;
-                this_._isSuspend = true;
-                this_._suspend_cb(true);
-                this_._hasBlock = true;
-                this_._pullTask.new_task();
-                return this_.async_wait();
-            }
-            return non_async();
+            return this_.unlock_suspend_();
         }
 
         static public void lock_suspend_and_stop()
         {
             generator this_ = self;
-            if (!this_._beginQuit)
-            {
-                this_._lockSuspendCount++;
-                this_._lockCount++;
-            }
+            this_.lock_suspend_and_stop_();
         }
 
         static public Task unlock_suspend_and_stop()
         {
             generator this_ = self;
-            Debug.Assert(this_._beginQuit || this_._lockCount > 0, "unlock_stop 不匹配!");
-            Debug.Assert(this_._beginQuit || this_._lockSuspendCount > 0, "unlock_suspend 不匹配!");
-            if (!this_._beginQuit && 0 == --this_._lockCount && this_._isForce)
-            {
-                this_._lockSuspendCount = 0;
-                this_._holdSuspend = false;
-                this_._beginQuit = true;
-                this_._suspendHandler = null;
-                this_._timer.cancel();
-                throw stop_exception.val;
-            }
-            if (!this_._beginQuit && 0 == --this_._lockSuspendCount && this_._holdSuspend)
-            {
-                this_._holdSuspend = false;
-                this_._isSuspend = true;
-                this_._suspend_cb(true);
-                this_._hasBlock = true;
-                this_._pullTask.new_task();
-                return this_.async_wait();
-            }
-            return non_async();
+            return this_.unlock_suspend_and_stop_();
         }
 
         static public void lock_shield()
@@ -3751,7 +3781,7 @@ namespace Go
             try
             {
                 await push_task();
-                await unlock_suspend();
+                await unlock_suspend_();
                 return res.value1;
             }
             catch (stop_exception)
@@ -3774,13 +3804,13 @@ namespace Go
             generator this_ = self;
             Debug.Assert(!this_._ioSign._ntfNode.effect && !this_._ioSign._success, "重叠的 chan_timed_wait_free 操作!");
             async_result_wrap<chan_async_state> result = new async_result_wrap<chan_async_state> { value1 = chan_async_state.async_undefined };
-            lock_suspend();
+            this_.lock_suspend_();
             chan.async_append_send_notify(this_.unsafe_async_result(result), this_._ioSign, ms);
             if (!this_.new_task_completed())
             {
                 return to_vtask(this_.chan_wait_free_(result, chan));
             }
-            Task task = unlock_suspend();
+            Task task = this_.unlock_suspend_();
             if (!task.IsCompleted)
             {
                 return to_vtask(this_.wait_task_state_(task, result));
@@ -3798,7 +3828,7 @@ namespace Go
             try
             {
                 await push_task();
-                await unlock_suspend();
+                await unlock_suspend_();
                 return res.value1;
             }
             catch (stop_exception)
@@ -3815,13 +3845,13 @@ namespace Go
             generator this_ = self;
             Debug.Assert(!this_._ioSign._ntfNode.effect && !this_._ioSign._success, "重叠的 chan_timed_wait_has 操作!");
             async_result_wrap<chan_async_state> result = new async_result_wrap<chan_async_state> { value1 = chan_async_state.async_undefined };
-            lock_suspend();
+            this_.lock_suspend_();
             chan.async_append_recv_notify(this_.unsafe_async_result(result), token, this_._ioSign, ms);
             if (!this_.new_task_completed())
             {
                 return to_vtask(this_.chan_wait_free_(result, chan));
             }
-            Task task = unlock_suspend();
+            Task task = this_.unlock_suspend_();
             if (!task.IsCompleted)
             {
                 return to_vtask(this_.wait_task_state_(task, result));
@@ -3847,31 +3877,31 @@ namespace Go
         private async Task chan_cancel_wait_()
         {
             await push_task();
-            await unlock_suspend_and_stop();
+            await unlock_suspend_and_stop_();
         }
 
         static public Task chan_cancel_wait_free(chan_base chan)
         {
             generator this_ = self;
-            lock_suspend_and_stop();
+            this_.lock_suspend_and_stop_();
             chan.async_remove_send_notify(this_.unsafe_async_callback(nil_action<chan_async_state>.action), this_._ioSign);
             if (!this_.new_task_completed())
             {
                 return this_.chan_cancel_wait_();
             }
-            return unlock_suspend_and_stop();
+            return this_.unlock_suspend_and_stop_();
         }
 
         static public Task chan_cancel_wait_has(chan_base chan)
         {
             generator this_ = self;
-            lock_suspend_and_stop();
+            this_.lock_suspend_and_stop_();
             chan.async_remove_recv_notify(this_.unsafe_async_callback(nil_action<chan_async_state>.action), this_._ioSign);
             if (!this_.new_task_completed())
             {
                 return this_.chan_cancel_wait_();
             }
-            return unlock_suspend_and_stop();
+            return this_.unlock_suspend_and_stop_();
         }
 
         static public Task unsafe_chan_send<T>(async_result_wrap<chan_send_wrap> res, chan<T> chan, T msg)
@@ -6125,7 +6155,7 @@ namespace Go
             }
             finally
             {
-                lock_suspend_and_stop();
+                lock_suspend_and_stop_();
                 if (_overtime)
                 {
                     notify_token cancelToken = await chan_receive(waitRemove);
@@ -6134,7 +6164,7 @@ namespace Go
                         otherGen.remove_stop_callback(cancelToken);
                     }
                 }
-                await unlock_suspend_and_stop();
+                await unlock_suspend_and_stop_();
             }
             return !_overtime;
         }
@@ -6207,7 +6237,7 @@ namespace Go
             }
             finally
             {
-                lock_suspend_and_stop();
+                this_.lock_suspend_and_stop_();
                 for (int i = 0; i < count; i++)
                 {
                     tuple<generator, notify_token> node = (await chan_receive(waitRemove)).msg;
@@ -6216,7 +6246,7 @@ namespace Go
                         node.value1.remove_stop_callback(node.value2);
                     }
                 }
-                await unlock_suspend_and_stop();
+                await this_.unlock_suspend_and_stop_();
             }
         }
 
@@ -6288,7 +6318,7 @@ namespace Go
             }
             finally
             {
-                lock_suspend_and_stop();
+                this_.lock_suspend_and_stop_();
                 for (int i = 0; i < count; i++)
                 {
                     tuple<generator, notify_token> node = (await chan_receive(waitRemove)).msg;
@@ -6297,7 +6327,7 @@ namespace Go
                         node.value1.remove_stop_callback(node.value2);
                     }
                 }
-                await unlock_suspend_and_stop();
+                await this_.unlock_suspend_and_stop_();
             }
         }
 
@@ -6358,6 +6388,47 @@ namespace Go
                 return to_vtask(this_.timed_wait_group_(wg, cancelToken));
             }
             return to_vtask(!this_._overtime);
+        }
+
+        static public async Task enter_gate<R>(wait_gate<R> wg)
+        {
+            generator this_ = self;
+            wait_gate.cancel_token token = wg.async_enter(this_.unsafe_async_result());
+            try
+            {
+                await this_.async_wait();
+            }
+            finally
+            {
+                if (wg.cancel_enter(token) && !wg.is_exit)
+                {
+                    this_.lock_suspend_and_stop_();
+                    wg.safe_exit(this_.unsafe_async_result());
+                    await this_.async_wait();
+                    await this_.unlock_suspend_and_stop_();
+                }
+            }
+        }
+
+        static public async Task<bool> timed_enter_gate<R>(int ms, wait_gate<R> wg)
+        {
+            generator this_ = self;
+            wait_gate.cancel_token token = wg.async_enter(this_.timed_async_result(ms));
+            try
+            {
+                await this_.async_wait();
+                return !this_._overtime;
+            }
+            finally
+            {
+                if (wg.cancel_enter(token) && !wg.is_exit)
+                {
+                    this_.lock_suspend_and_stop_();
+                    wg.safe_exit(this_.unsafe_async_result());
+                    await this_.async_wait();
+                    await this_.unlock_suspend_and_stop_();
+                }
+            }
         }
 
         static public Task unsafe_async_call(Action<Action> handler)
@@ -6716,7 +6787,7 @@ namespace Go
                         await chan_receive(waitHasChan);
                         try
                         {
-                            lock_suspend_and_stop();
+                            self.lock_suspend_and_stop_();
                             recvRes.value1 = chan_recv_wrap<T>.def;
                             selfMb.async_try_recv_and_append_notify(self.unsafe_async_result(recvRes), waitHasNtf, ntfSign);
                             await self.async_wait();
@@ -6731,16 +6802,16 @@ namespace Go
                         }
                         finally
                         {
-                            await unlock_suspend_and_stop();
+                            await self.unlock_suspend_and_stop_();
                         }
                     }
                 }
-                catch (stop_exception)
+                finally
                 {
-                    lock_suspend_and_stop();
+                    self.lock_suspend_and_stop_();
                     selfMb.async_remove_recv_notify(self.unsafe_async_ignore<chan_async_state>(), ntfSign);
                     await self.async_wait();
-                    await unlock_suspend_and_stop();
+                    await self.unlock_suspend_and_stop_();
                 }
             });
             mb.agentAction.run();
@@ -6892,7 +6963,7 @@ namespace Go
                         chan_notify_sign ntfSign = new chan_notify_sign();
                         try
                         {
-                            lock_suspend();
+                            self.lock_suspend_();
                             self._mailboxMap = _children.parent._mailboxMap;
                             self._genLocal = _children.parent._genLocal;
                             nil_chan<chan_async_state> waitHasChan = new nil_chan<chan_async_state>();
@@ -6923,7 +6994,7 @@ namespace Go
                                     }
                                     try
                                     {
-                                        await unlock_suspend();
+                                        await self.unlock_suspend_();
                                         if (chan_async_state.async_ok == recvRes.value1.state)
                                         {
                                             await handler(recvRes.value1.msg);
@@ -6939,7 +7010,7 @@ namespace Go
                                     }
                                     finally
                                     {
-                                        lock_suspend();
+                                        self.lock_suspend_();
                                     }
                                 }
                                 finally
@@ -6955,12 +7026,12 @@ namespace Go
                         }
                         finally
                         {
-                            lock_stop();
+                            self.lock_stop_();
                             self._mailboxMap = null;
                             self._genLocal = null;
                             chan.async_remove_recv_notify(self.unsafe_async_ignore<chan_async_state>(), ntfSign);
                             await self.async_wait();
-                            await unlock_suspend_and_stop();
+                            await self.unlock_suspend_and_stop_();
                         }
                     }
                 });
@@ -7016,7 +7087,7 @@ namespace Go
                         chan_notify_sign ntfSign = new chan_notify_sign();
                         try
                         {
-                            lock_suspend();
+                            self.lock_suspend_();
                             self._mailboxMap = _children.parent._mailboxMap;
                             self._genLocal = _children.parent._genLocal;
                             long endTick = system_tick.get_tick_ms() + ms;
@@ -7033,7 +7104,7 @@ namespace Go
                                         chan_recv_wrap<T> recvRes = await chan_try_receive(chan, lostMsg);
                                         try
                                         {
-                                            await unlock_suspend();
+                                            await self.unlock_suspend_();
                                             if (chan_async_state.async_ok == recvRes.state)
                                             {
                                                 await handler(recvRes.msg); break;
@@ -7050,7 +7121,7 @@ namespace Go
                                         }
                                         finally
                                         {
-                                            lock_suspend();
+                                            self.lock_suspend_();
                                         }
                                     }
                                     else
@@ -7075,12 +7146,12 @@ namespace Go
                         }
                         finally
                         {
-                            lock_stop();
+                            self.lock_stop_();
                             self._mailboxMap = null;
                             self._genLocal = null;
                             chan.async_remove_recv_notify(self.unsafe_async_ignore<chan_async_state>(), ntfSign);
                             await self.async_wait();
-                            await unlock_suspend_and_stop();
+                            await self.unlock_suspend_and_stop_();
                         }
                     }
                 });
@@ -7206,7 +7277,7 @@ namespace Go
                         chan_notify_sign ntfSign = new chan_notify_sign();
                         try
                         {
-                            lock_suspend();
+                            self.lock_suspend_();
                             self._mailboxMap = _children.parent._mailboxMap;
                             self._genLocal = _children.parent._genLocal;
                             nil_chan<chan_async_state> waitHasChan = new nil_chan<chan_async_state>();
@@ -7237,7 +7308,7 @@ namespace Go
                                     }
                                     try
                                     {
-                                        await unlock_suspend();
+                                        await self.unlock_suspend_();
                                         if (chan_async_state.async_ok == recvRes.value1.state)
                                         {
                                             await handler(recvRes.value1.msg);
@@ -7253,7 +7324,7 @@ namespace Go
                                     }
                                     finally
                                     {
-                                        lock_suspend();
+                                        self.lock_suspend_();
                                     }
                                 }
                                 finally
@@ -7269,12 +7340,12 @@ namespace Go
                         }
                         finally
                         {
-                            lock_stop();
+                            self.lock_stop_();
                             self._mailboxMap = null;
                             self._genLocal = null;
                             chan.async_remove_recv_notify(self.unsafe_async_ignore<chan_async_state>(), ntfSign);
                             await self.async_wait();
-                            await unlock_suspend_and_stop();
+                            await self.unlock_suspend_and_stop_();
                         }
                     }
                 });
@@ -7331,7 +7402,7 @@ namespace Go
                         chan_notify_sign ntfSign = new chan_notify_sign();
                         try
                         {
-                            lock_suspend();
+                            self.lock_suspend_();
                             self._mailboxMap = _children.parent._mailboxMap;
                             self._genLocal = _children.parent._genLocal;
                             long endTick = system_tick.get_tick_ms() + ms;
@@ -7348,7 +7419,7 @@ namespace Go
                                         chan_recv_wrap<T> recvRes = await chan_try_receive(chan, lostMsg);
                                         try
                                         {
-                                            await unlock_suspend();
+                                            await self.unlock_suspend_();
                                             if (chan_async_state.async_ok == recvRes.state)
                                             {
                                                 await handler(recvRes.msg); break;
@@ -7365,7 +7436,7 @@ namespace Go
                                         }
                                         finally
                                         {
-                                            lock_suspend();
+                                            self.lock_suspend_();
                                         }
                                     }
                                     else
@@ -7390,12 +7461,12 @@ namespace Go
                         }
                         finally
                         {
-                            lock_stop();
+                            self.lock_stop_();
                             self._mailboxMap = null;
                             self._genLocal = null;
                             chan.async_remove_recv_notify(self.unsafe_async_ignore<chan_async_state>(), ntfSign);
                             await self.async_wait();
-                            await unlock_suspend_and_stop();
+                            await self.unlock_suspend_and_stop_();
                         }
                     }
                 });
@@ -7571,7 +7642,7 @@ namespace Go
                         chan_notify_sign ntfSign = new chan_notify_sign();
                         try
                         {
-                            lock_suspend();
+                            self.lock_suspend_();
                             self._mailboxMap = _children.parent._mailboxMap;
                             self._genLocal = _children.parent._genLocal;
                             nil_chan<chan_async_state> waitHasChan = new nil_chan<chan_async_state>();
@@ -7604,7 +7675,7 @@ namespace Go
                                     try
                                     {
                                         recvRes.value1.result?.start_invoke_timer(self);
-                                        await unlock_suspend();
+                                        await self.unlock_suspend_();
                                         if (chan_async_state.async_ok == recvRes.value1.state)
                                         {
                                             try
@@ -7632,7 +7703,7 @@ namespace Go
                                     }
                                     finally
                                     {
-                                        lock_suspend();
+                                        self.lock_suspend_();
                                     }
                                 }
                                 finally
@@ -7648,12 +7719,12 @@ namespace Go
                         }
                         finally
                         {
-                            lock_stop();
+                            self.lock_stop_();
                             self._mailboxMap = null;
                             self._genLocal = null;
                             chan.async_remove_recv_notify(self.unsafe_async_ignore<chan_async_state>(), ntfSign);
                             await self.async_wait();
-                            await unlock_suspend_and_stop();
+                            await self.unlock_suspend_and_stop_();
                         }
                     }
                 });
@@ -7766,7 +7837,7 @@ namespace Go
                         chan_notify_sign ntfSign = new chan_notify_sign();
                         try
                         {
-                            lock_suspend();
+                            self.lock_suspend_();
                             self._mailboxMap = _children.parent._mailboxMap;
                             self._genLocal = _children.parent._genLocal;
                             long endTick = system_tick.get_tick_ms() + ms;
@@ -7783,7 +7854,7 @@ namespace Go
                                         csp_wait_wrap<R, T> recvRes = await csp_try_wait(chan, lostMsg);
                                         try
                                         {
-                                            await unlock_suspend();
+                                            await self.unlock_suspend_();
                                             if (chan_async_state.async_ok == recvRes.state)
                                             {
                                                 try
@@ -7812,7 +7883,7 @@ namespace Go
                                         }
                                         finally
                                         {
-                                            lock_suspend();
+                                            self.lock_suspend_();
                                         }
                                     }
                                     else
@@ -7837,12 +7908,12 @@ namespace Go
                         }
                         finally
                         {
-                            lock_stop();
+                            self.lock_stop_();
                             self._mailboxMap = null;
                             self._genLocal = null;
                             chan.async_remove_recv_notify(self.unsafe_async_ignore<chan_async_state>(), ntfSign);
                             await self.async_wait();
-                            await unlock_suspend_and_stop();
+                            await self.unlock_suspend_and_stop_();
                         }
                     }
                 });
@@ -8587,7 +8658,7 @@ namespace Go
                 unlimit_chan<tuple<chan_async_state, select_chan_base>> selectChans = _selectChans;
                 try
                 {
-                    lock_suspend_and_stop();
+                    this_.lock_suspend_and_stop_();
                     if (null == this_._topSelectChans)
                     {
                         this_._topSelectChans = new LinkedList<LinkedList<select_chan_base>>();
@@ -8615,7 +8686,7 @@ namespace Go
                             chan.begin(this_);
                         }
                     }
-                    unlock_stop();
+                    this_.unlock_stop_();
                     int count = chans.Count;
                     bool selected = false;
                     Func<Task> stepOne = null == eachAfterDo ? (Func<Task>)null : delegate ()
@@ -8656,12 +8727,12 @@ namespace Go
                             try
                             {
                                 selected = false;
-                                await unlock_suspend();
+                                await this_.unlock_suspend_();
                                 await eachAfterDo();
                             }
                             finally
                             {
-                                lock_suspend();
+                                this_.lock_suspend_();
                             }
                         }
                     }
@@ -8673,14 +8744,14 @@ namespace Go
                 }
                 finally
                 {
-                    lock_stop();
+                    this_.lock_stop_();
                     this_._topSelectChans.RemoveFirst();
                     for (LinkedListNode<select_chan_base> it = chans.First; null != it; it = it.Next)
                     {
                         await it.Value.end();
                     }
                     selectChans.clear();
-                    await unlock_suspend_and_stop();
+                    await this_.unlock_suspend_and_stop_();
                 }
             }
 
@@ -8692,7 +8763,7 @@ namespace Go
                 async_timer timer = ms >= 0 ? new async_timer(this_.strand) : null;
                 try
                 {
-                    lock_suspend_and_stop();
+                    this_.lock_suspend_and_stop_();
                     if (null == this_._topSelectChans)
                     {
                         this_._topSelectChans = new LinkedList<LinkedList<select_chan_base>>();
@@ -8738,7 +8809,7 @@ namespace Go
                             }
                         }
                     }
-                    unlock_stop();
+                    this_.unlock_stop_();
                     int timerCount = 0;
                     int count = chans.Count;
                     bool selected = false;
@@ -8806,7 +8877,7 @@ namespace Go
                             try
                             {
                                 selected = false;
-                                await unlock_suspend();
+                                await this_.unlock_suspend_();
                                 if (null != eachAfterDo)
                                 {
                                     await eachAfterDo(null != selectedChan.value2);
@@ -8819,7 +8890,7 @@ namespace Go
                             }
                             finally
                             {
-                                lock_suspend();
+                                this_.lock_suspend_();
                             }
                         }
                     }
@@ -8831,7 +8902,7 @@ namespace Go
                 }
                 finally
                 {
-                    lock_stop();
+                    this_.lock_stop_();
                     timer?.cancel();
                     this_._topSelectChans.RemoveFirst();
                     for (LinkedListNode<select_chan_base> it = chans.First; null != it; it = it.Next)
@@ -8839,7 +8910,7 @@ namespace Go
                         await it.Value.end();
                     }
                     selectChans.clear();
-                    await unlock_suspend_and_stop();
+                    await this_.unlock_suspend_and_stop_();
                 }
             }
 
@@ -8851,7 +8922,7 @@ namespace Go
                 bool selected = false;
                 try
                 {
-                    lock_suspend_and_stop();
+                    this_.lock_suspend_and_stop_();
                     if (null == this_._topSelectChans)
                     {
                         this_._topSelectChans = new LinkedList<LinkedList<select_chan_base>>();
@@ -8879,7 +8950,7 @@ namespace Go
                             chan.begin(this_);
                         }
                     }
-                    unlock_stop();
+                    this_.unlock_stop_();
                     int count = chans.Count;
                     while (0 != count)
                     {
@@ -8935,7 +9006,7 @@ namespace Go
                 catch (select_stop_all_exception) { }
                 finally
                 {
-                    lock_stop();
+                    this_.lock_stop_();
                     this_._topSelectChans.RemoveFirst();
                     if (!selected)
                     {
@@ -8945,7 +9016,7 @@ namespace Go
                         }
                     }
                     selectChans.clear();
-                    await unlock_suspend_and_stop();
+                    await this_.unlock_suspend_and_stop_();
                 }
                 return selected;
             }
@@ -8959,7 +9030,7 @@ namespace Go
                 bool selected = false;
                 try
                 {
-                    lock_suspend_and_stop();
+                    this_.lock_suspend_and_stop_();
                     if (null == this_._topSelectChans)
                     {
                         this_._topSelectChans = new LinkedList<LinkedList<select_chan_base>>();
@@ -9005,7 +9076,7 @@ namespace Go
                             }
                         }
                     }
-                    unlock_stop();
+                    this_.unlock_stop_();
                     int count = chans.Count;
                     timer?.timeout(ms, selectChans.wrap_default());
                     while (0 != count)
@@ -9070,7 +9141,7 @@ namespace Go
                 catch (select_stop_all_exception) { }
                 finally
                 {
-                    lock_stop();
+                    this_.lock_stop_();
                     timer?.cancel();
                     this_._topSelectChans.RemoveFirst();
                     if (!selected)
@@ -9081,7 +9152,7 @@ namespace Go
                         }
                     }
                     selectChans.clear();
-                    await unlock_suspend_and_stop();
+                    await this_.unlock_suspend_and_stop_();
                 }
                 return true;
             }
@@ -10228,15 +10299,15 @@ namespace Go
 
         public wait_group(int initTasks = 0)
         {
-            _tasks = initTasks;
-            _waitList = new LinkedList<Action>();
+            _tasks = initTasks > 0 ? initTasks : 0;
+            _waitList = initTasks > 0 ? new LinkedList<Action>() : null;
         }
 
         public void reset(int tasks)
         {
             Debug.Assert(is_done, "不正确的 reset 调用!");
-            _tasks = tasks;
-            _waitList = new LinkedList<Action>();
+            _tasks = tasks > 0 ? tasks : 0;
+            _waitList = tasks > 0 ? new LinkedList<Action>() : null;
         }
 
         public int add(int delta = 1)
@@ -10302,7 +10373,7 @@ namespace Go
 
         public cancel_token async_wait(Action continuation)
         {
-            if (0 == _tasks)
+            if (is_done)
             {
                 functional.catch_invoke(continuation);
                 return new cancel_token { token = null };
@@ -10342,6 +10413,16 @@ namespace Go
             return completed;
         }
 
+        public Task wait()
+        {
+            return generator.wait_group(this);
+        }
+
+        public ValueTask<bool> timed_wait(int ms)
+        {
+            return generator.timed_wait_group(ms, this);
+        }
+
         public void sync_wait()
         {
             if (!is_done)
@@ -10368,6 +10449,108 @@ namespace Go
                 Monitor.Exit(this);
             }
             return ok;
+        }
+    }
+
+    public class wait_gate<R>
+    {
+        int _tasks;
+        int _enterCnt;
+        int _cancelCnt;
+        wait_group _wg;
+        chan_notify_sign _cspSign;
+        csp_invoke_wrap<R> _result;
+        csp_chan<R, void_type> _action;
+
+        public wait_gate(int initTasks, csp_chan<R, void_type> action)
+        {
+            _enterCnt = 0;
+            _cancelCnt = 0;
+            _action = action;
+            _tasks = initTasks > 0 ? initTasks : 0;
+            _wg = new wait_group(initTasks > 0 ? 1 : 0);
+            _cspSign = new chan_notify_sign();
+        }
+
+        public void reset(int tasks = -1)
+        {
+            _enterCnt = 0;
+            _cancelCnt = 0;
+            _tasks = tasks > 0 ? tasks : _tasks;
+            _wg.reset(tasks > 0 ? 1 : 0);
+        }
+
+        public csp_invoke_wrap<R> result
+        {
+            get
+            {
+                return _result;
+            }
+        }
+
+        public bool is_exit
+        {
+            get
+            {
+                return _wg.is_done;
+            }
+        }
+
+        public wait_gate.cancel_token async_enter(Action continuation)
+        {
+            wait_gate.cancel_token token = new wait_gate.cancel_token { token = _wg.async_wait(continuation) };
+            if (_tasks == Interlocked.Increment(ref _enterCnt))
+            {
+                _action.async_send(delegate (csp_invoke_wrap<R> res)
+                {
+                    _result = res;
+                    _wg.done();
+                }, default(void_type), _cspSign);
+            }
+            return token;
+        }
+
+        public bool cancel_enter(wait_gate.cancel_token token)
+        {
+            if (_wg.cancel_wait(token.token) && _tasks == Interlocked.Increment(ref _cancelCnt))
+            {
+                _action.async_remove_send_notify(delegate (chan_async_state state)
+                {
+                    if (chan_async_state.async_ok == state)
+                    {
+                        _wg.done();
+                    }
+                }, _cspSign);
+                return true;
+            }
+            return false;
+        }
+
+        public void safe_exit(Action continuation)
+        {
+            _wg.async_wait(continuation);
+        }
+
+        public Task enter()
+        {
+            return generator.enter_gate(this);
+        }
+
+        public Task<bool> timed_enter(int ms)
+        {
+            return generator.timed_enter_gate(ms, this);
+        }
+    }
+
+    public class wait_gate : wait_gate<void_type>
+    {
+        public struct cancel_token
+        {
+            internal wait_group.cancel_token token;
+        }
+
+        public wait_gate(int initTasks, csp_chan<void_type, void_type> action) : base(initTasks, action)
+        {
         }
     }
 }

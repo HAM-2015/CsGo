@@ -49,9 +49,6 @@ namespace Go
 
     public class chan_notify_sign
     {
-#if DEBUG
-        private generator _runGen;
-#endif
         internal priority_queue_node<notify_pck> _ntfNode;
         internal bool _selectOnce = false;
         internal bool _disable = false;
@@ -64,9 +61,6 @@ namespace Go
 
         internal void reset_node()
         {
-#if DEBUG
-            _runGen = null;
-#endif
             _ntfNode = default(priority_queue_node<notify_pck>);
         }
 
@@ -75,21 +69,6 @@ namespace Go
             bool success = _success;
             _success = false;
             return success;
-        }
-
-        internal void run_generator()
-        {
-#if DEBUG
-            Trace.Assert(null == _ntfNode._node, "未对称的 generator 调用!");
-            _runGen = generator.self;
-#endif
-        }
-
-        internal void check_generator()
-        {
-#if DEBUG
-            Trace.Assert(null == _runGen || generator.self == _runGen, "未匹配的 generator 调用!");
-#endif
         }
 
         static internal void set_node(chan_notify_sign sign, priority_queue_node<notify_pck> node)
@@ -356,7 +335,6 @@ namespace Go
 
         public void async_append_recv_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign, int ms = -1)
         {
-            ntfSign?.run_generator();
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_append_recv_notify_(ntf, ntfSign, ms);
                 else self_strand().add_next(() => async_append_recv_notify_(ntf, ntfSign, ms));
@@ -365,7 +343,6 @@ namespace Go
 
         public void async_remove_recv_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
         {
-            ntfSign?.check_generator();
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_remove_recv_notify_(ntf, ntfSign);
                 else self_strand().add_next(() => async_remove_recv_notify_(ntf, ntfSign));
@@ -374,7 +351,6 @@ namespace Go
 
         public void async_append_send_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign, int ms = -1)
         {
-            ntfSign?.run_generator();
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_append_send_notify_(ntf, ntfSign, ms);
                 else self_strand().add_next(() => async_append_send_notify_(ntf, ntfSign, ms));
@@ -383,7 +359,6 @@ namespace Go
 
         public void async_remove_send_notify(Action<chan_async_state> ntf, chan_notify_sign ntfSign)
         {
-            ntfSign?.check_generator();
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_remove_send_notify_(ntf, ntfSign);
                 else self_strand().add_next(() => async_remove_send_notify_(ntf, ntfSign));
@@ -392,7 +367,6 @@ namespace Go
 
         public void async_append_recv_notify(Action<chan_async_state> ntf, broadcast_token token, chan_notify_sign ntfSign, int ms = -1)
         {
-            ntfSign?.run_generator();
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_append_recv_notify_(ntf, token, ntfSign, ms);
                 else self_strand().add_next(() => async_append_recv_notify_(ntf, token, ntfSign, ms));
@@ -491,13 +465,13 @@ namespace Go
                     }
                     try
                     {
-                        await generator.unlock_suspend();
+                        await _host.unlock_suspend_();
                         _lostMsg?.clear();
                         await _handler(_tryRecvRes.value1.msg);
                     }
                     finally
                     {
-                        generator.lock_suspend();
+                        _host.lock_suspend_();
                     }
                 }
                 else if (chan_async_state.async_closed == _tryRecvRes.value1.state)
@@ -517,7 +491,7 @@ namespace Go
             {
                 try
                 {
-                    await generator.unlock_suspend();
+                    await _host.unlock_suspend_();
                     if (!await _errHandler(state) && chan_async_state.async_closed != state)
                     {
                         _chan.async_append_recv_notify(nextSelect, ntfSign, _chanTimeout);
@@ -526,7 +500,7 @@ namespace Go
                 }
                 finally
                 {
-                    generator.lock_suspend();
+                    _host.lock_suspend_();
                 }
                 return true;
             }
@@ -607,12 +581,12 @@ namespace Go
                     }
                     try
                     {
-                        await generator.unlock_suspend();
+                        await _host.unlock_suspend_();
                         await _handler();
                     }
                     finally
                     {
-                        generator.lock_suspend();
+                        _host.lock_suspend_();
                     }
                 }
                 else if (chan_async_state.async_closed == _trySendRes.value1.state)
@@ -632,7 +606,7 @@ namespace Go
             {
                 try
                 {
-                    await generator.unlock_suspend();
+                    await _host.unlock_suspend_();
                     if (!await _errHandler(state) && chan_async_state.async_closed != state)
                     {
                         _chan.async_append_send_notify(nextSelect, ntfSign, _chanTimeout);
@@ -641,7 +615,7 @@ namespace Go
                 }
                 finally
                 {
-                    generator.lock_suspend();
+                    _host.lock_suspend_();
                 }
                 return true;
             }
@@ -685,7 +659,6 @@ namespace Go
 
         public void async_send(Action<chan_send_wrap> ntf, T msg, chan_notify_sign ntfSign = null)
         {
-            ntfSign?.run_generator();
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_send_(ntf, msg, ntfSign);
                 else self_strand().add_next(() => async_send_(ntf, msg, ntfSign));
@@ -694,7 +667,6 @@ namespace Go
 
         public void async_recv(Action<chan_recv_wrap<T>> ntf, chan_notify_sign ntfSign = null)
         {
-            ntfSign?.run_generator();
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_recv_(ntf, ntfSign);
                 else self_strand().add_next(() => async_recv_(ntf, ntfSign));
@@ -703,7 +675,6 @@ namespace Go
 
         public void async_try_send(Action<chan_send_wrap> ntf, T msg, chan_notify_sign ntfSign = null)
         {
-            ntfSign?.run_generator();
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_try_send_(ntf, msg, ntfSign);
                 else self_strand().add_next(() => async_try_send_(ntf, msg, ntfSign));
@@ -712,7 +683,6 @@ namespace Go
 
         public void async_try_recv(Action<chan_recv_wrap<T>> ntf, chan_notify_sign ntfSign = null)
         {
-            ntfSign?.run_generator();
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_try_recv_(ntf, ntfSign);
                 else self_strand().add_next(() => async_try_recv_(ntf, ntfSign));
@@ -721,7 +691,6 @@ namespace Go
 
         public void async_timed_send(int ms, Action<chan_send_wrap> ntf, T msg, chan_notify_sign ntfSign = null)
         {
-            ntfSign?.run_generator();
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_timed_send_(ms, ntf, msg, ntfSign);
                 else self_strand().add_next(() => async_timed_send_(ms, ntf, msg, ntfSign));
@@ -730,7 +699,6 @@ namespace Go
 
         public void async_timed_recv(int ms, Action<chan_recv_wrap<T>> ntf, chan_notify_sign ntfSign = null)
         {
-            ntfSign?.run_generator();
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_timed_recv_(ms, ntf, ntfSign);
                 else self_strand().add_next(() => async_timed_recv_(ms, ntf, ntfSign));
@@ -739,7 +707,6 @@ namespace Go
 
         public void async_try_recv_and_append_notify(Action<chan_recv_wrap<T>> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, int ms = -1)
         {
-            ntfSign?.run_generator();
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_try_recv_and_append_notify_(cb, msgNtf, ntfSign, ms);
                 else self_strand().add_next(() => async_try_recv_and_append_notify_(cb, msgNtf, ntfSign, ms));
@@ -748,7 +715,6 @@ namespace Go
 
         public void async_try_send_and_append_notify(Action<chan_send_wrap> cb, Action<chan_async_state> msgNtf, chan_notify_sign ntfSign, T msg, int ms = -1)
         {
-            ntfSign?.run_generator();
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_try_send_and_append_notify_(cb, msgNtf, ntfSign, msg, ms);
                 else self_strand().add_next(() => async_try_send_and_append_notify_(cb, msgNtf, ntfSign, msg, ms));
@@ -985,7 +951,6 @@ namespace Go
 
         public void async_recv(Action<chan_recv_wrap<T>> ntf, broadcast_token token, chan_notify_sign ntfSign = null)
         {
-            ntfSign?.run_generator();
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_recv_(ntf, token, ntfSign);
                 else self_strand().add_next(() => async_recv_(ntf, token, ntfSign));
@@ -994,7 +959,6 @@ namespace Go
 
         public void async_try_recv(Action<chan_recv_wrap<T>> ntf, broadcast_token token, chan_notify_sign ntfSign = null)
         {
-            ntfSign?.run_generator();
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_try_recv_(ntf, token, ntfSign);
                 else self_strand().add_next(() => async_try_recv_(ntf, token, ntfSign));
@@ -1003,7 +967,6 @@ namespace Go
 
         public void async_timed_recv(int ms, Action<chan_recv_wrap<T>> ntf, broadcast_token token, chan_notify_sign ntfSign = null)
         {
-            ntfSign?.run_generator();
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_timed_recv_(ms, ntf, token, ntfSign);
                 else self_strand().add_next(() => async_timed_recv_(ms, ntf, token, ntfSign));
@@ -1012,7 +975,6 @@ namespace Go
 
         public void async_try_recv_and_append_notify(Action<chan_recv_wrap<T>> cb, Action<chan_async_state> msgNtf, broadcast_token token, chan_notify_sign ntfSign, int ms = -1)
         {
-            ntfSign?.run_generator();
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_try_recv_and_append_notify_(cb, msgNtf, token, ntfSign, ms);
                 else self_strand().add_next(() => async_try_recv_and_append_notify_(cb, msgNtf, token, ntfSign, ms));
@@ -3027,7 +2989,7 @@ namespace Go
                     try
                     {
                         _tryRecvRes.value1.result.start_invoke_timer(_host);
-                        await generator.unlock_suspend();
+                        await _host.unlock_suspend_();
                         _lostMsg?.clear();
                         _tryRecvRes.value1.complete(null != _handler ? await _handler(_tryRecvRes.value1.msg) : await _gohandler(_tryRecvRes.value1.msg));
                     }
@@ -3052,7 +3014,7 @@ namespace Go
                     }
                     finally
                     {
-                        generator.lock_suspend();
+                        _host.lock_suspend_();
                     }
                 }
                 else if (chan_async_state.async_closed == _tryRecvRes.value1.state)
@@ -3072,7 +3034,7 @@ namespace Go
             {
                 try
                 {
-                    await generator.unlock_suspend();
+                    await _host.unlock_suspend_();
                     if (!await _errHandler(state) && chan_async_state.async_closed != state)
                     {
                         _chan.async_append_recv_notify(nextSelect, ntfSign, _chanTimeout);
@@ -3081,7 +3043,7 @@ namespace Go
                 }
                 finally
                 {
-                    generator.lock_suspend();
+                    _host.lock_suspend_();
                 }
                 return true;
             }
@@ -3164,13 +3126,13 @@ namespace Go
                     }
                     try
                     {
-                        await generator.unlock_suspend();
+                        await _host.unlock_suspend_();
                         _lostMsg?.clear();
                         await _handler(_trySendRes.value1.result);
                     }
                     finally
                     {
-                        generator.lock_suspend();
+                        _host.lock_suspend_();
                     }
                 }
                 else if (chan_async_state.async_closed == _trySendRes.value1.state)
@@ -3190,7 +3152,7 @@ namespace Go
             {
                 try
                 {
-                    await generator.unlock_suspend();
+                    await _host.unlock_suspend_();
                     if (!await _errHandler(state) && chan_async_state.async_closed != state)
                     {
                         _chan.async_append_send_notify(nextSelect, ntfSign, _chanTimeout);
@@ -3199,7 +3161,7 @@ namespace Go
                 }
                 finally
                 {
-                    generator.lock_suspend();
+                    _host.lock_suspend_();
                 }
                 return true;
             }
