@@ -10457,9 +10457,9 @@ namespace Go
         int _tasks;
         int _enterCnt;
         int _cancelCnt;
-        wait_group _wg;
         chan_notify_sign _cspSign;
         csp_invoke_wrap<R> _result;
+        LinkedList<Action> _waitList;
         csp_chan<R, void_type> _action;
 
         public wait_gate(int initTasks, csp_chan<R, void_type> action)
@@ -10467,17 +10467,18 @@ namespace Go
             _enterCnt = 0;
             _cancelCnt = 0;
             _action = action;
-            _tasks = initTasks > 0 ? initTasks : 0;
-            _wg = new wait_group(initTasks > 0 ? 1 : 0);
             _cspSign = new chan_notify_sign();
+            _tasks = initTasks > 0 ? initTasks : 0;
+            _waitList = initTasks > 0 ? new LinkedList<Action>() : null;
         }
 
         public void reset(int tasks = -1)
         {
+            Debug.Assert(is_exit, "不正确的 reset 调用!");
             _enterCnt = 0;
             _cancelCnt = 0;
             _tasks = tasks > 0 ? tasks : _tasks;
-            _wg.reset(tasks > 0 ? 1 : 0);
+            _waitList = tasks > 0 ? new LinkedList<Action>() : null;
         }
 
         public csp_invoke_wrap<R> result
@@ -10492,43 +10493,102 @@ namespace Go
         {
             get
             {
-                return _wg.is_done;
+                return null == _waitList;
+            }
+        }
+
+        private wait_gate.cancel_token wait(Action continuation)
+        {
+            if (null == _waitList)
+            {
+                functional.catch_invoke(continuation);
+                return new wait_gate.cancel_token { token = null };
+            }
+            LinkedListNode<Action> newNode = new LinkedListNode<Action>(continuation);
+            Monitor.Enter(this);
+            if (null != _waitList)
+            {
+                _waitList.AddLast(newNode);
+                Monitor.Exit(this);
+                return new wait_gate.cancel_token { token = newNode };
+            }
+            else
+            {
+                Monitor.Exit(this);
+                functional.catch_invoke(continuation);
+                return new wait_gate.cancel_token { token = null };
+            }
+        }
+
+        private void notify()
+        {
+            Monitor.Enter(this);
+            LinkedList<Action> snapList = _waitList;
+            _waitList = null;
+            Monitor.Exit(this);
+            for (LinkedListNode<Action> it = snapList.First; null != it; it = it.Next)
+            {
+                functional.catch_invoke(it.Value);
             }
         }
 
         public wait_gate.cancel_token async_enter(Action continuation)
         {
-            wait_gate.cancel_token token = new wait_gate.cancel_token { token = _wg.async_wait(continuation) };
             if (_tasks == Interlocked.Increment(ref _enterCnt))
             {
                 _action.async_send(delegate (csp_invoke_wrap<R> res)
                 {
                     _result = res;
-                    _wg.done();
+                    notify();
                 }, default(void_type), _cspSign);
             }
-            return token;
+            if (null == continuation)
+            {
+                if (_tasks == Interlocked.Increment(ref _cancelCnt) && null != _waitList)
+                {
+                    _action.async_remove_send_notify(delegate (chan_async_state state)
+                    {
+                        if (chan_async_state.async_ok == state)
+                        {
+                            notify();
+                        }
+                    }, _cspSign);
+                }
+                return default(wait_gate.cancel_token);
+            }
+            return wait(continuation);
         }
 
-        public bool cancel_enter(wait_gate.cancel_token token)
+        public bool cancel_enter(wait_gate.cancel_token cancelToken)
         {
-            if (_wg.cancel_wait(token.token) && _tasks == Interlocked.Increment(ref _cancelCnt))
+            if (null != cancelToken.token && null != cancelToken.token.List)
             {
-                _action.async_remove_send_notify(delegate (chan_async_state state)
+                bool completed = false;
+                Monitor.Enter(this);
+                if (null != _waitList && cancelToken.token.List == _waitList)
                 {
-                    if (chan_async_state.async_ok == state)
+                    _waitList.Remove(cancelToken.token);
+                    completed = true;
+                }
+                Monitor.Exit(this);
+                if (completed && _tasks == Interlocked.Increment(ref _cancelCnt) && null != _waitList)
+                {
+                    _action.async_remove_send_notify(delegate (chan_async_state state)
                     {
-                        _wg.done();
-                    }
-                }, _cspSign);
-                return true;
+                        if (chan_async_state.async_ok == state)
+                        {
+                            notify();
+                        }
+                    }, _cspSign);
+                    return true;
+                }
             }
             return false;
         }
 
         public void safe_exit(Action continuation)
         {
-            _wg.async_wait(continuation);
+            wait(continuation);
         }
 
         public Task enter()
@@ -10546,7 +10606,7 @@ namespace Go
     {
         public struct cancel_token
         {
-            internal wait_group.cancel_token token;
+            internal LinkedListNode<Action> token;
         }
 
         public wait_gate(int initTasks, csp_chan<void_type, void_type> action) : base(initTasks, action)
