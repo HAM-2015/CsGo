@@ -227,7 +227,7 @@ namespace Go
                     _eventsQueue = new Map<long, waitable_event_handle>(true);
                     _timerHandle = CreateWaitableTimer(0, 0, 0);
                     _workEngine = new work_engine();
-                    _timerThread = new Thread(timerThread);
+                    _timerThread = new Thread(timer_thread);
                     _timerThread.Priority = ThreadPriority.Highest;
                     _timerThread.IsBackground = true;
                     _timerThread.Name = _utcMode? "UTC定时器调度" : "系统定时器调度";
@@ -235,23 +235,24 @@ namespace Go
                     _timerThread.Start();
                 }
 
-                ~waitable_timer()
+                public void close()
                 {
-                    /*_workEngine.service.push_option(delegate ()
+                    _workEngine.service.post(delegate ()
                     {
                         _exited = true;
                         long sleepTime = 0;
                         SetWaitableTimer(_timerHandle, ref sleepTime, 0, 0, 0, 0);
                     });
                     _timerThread.Join();
-                    _workEngine.stop();*/
+                    _workEngine.stop();
                     CloseHandle(_timerHandle);
                 }
 
-                public void appendEvent(long absus, waitable_event_handle eventHandle)
+                public void append_event(long absus, waitable_event_handle eventHandle)
                 {
                     _workEngine.service.post(delegate ()
                     {
+                        if (_exited) return;
                         eventHandle.steadyTimer._waitableNode = _eventsQueue.Insert(absus, eventHandle);
                         if (absus < _expireTime)
                         {
@@ -272,10 +273,11 @@ namespace Go
                     });
                 }
 
-                public void removeEvent(steady_timer steadyTime)
+                public void remove_event(steady_timer steadyTime)
                 {
                     _workEngine.service.post(delegate ()
                     {
+                        if (_exited) return;
                         if (null != steadyTime._waitableNode)
                         {
                             long lastAbsus = steadyTime._waitableNode.Key;
@@ -306,10 +308,11 @@ namespace Go
                     });
                 }
 
-                public void updateEvent(long absus, waitable_event_handle eventHandle)
+                public void update_event(long absus, waitable_event_handle eventHandle)
                 {
                     _workEngine.service.post(delegate ()
                     {
+                        if (_exited) return;
                         if (null != eventHandle.steadyTimer._waitableNode)
                         {
                             _eventsQueue.Insert(_eventsQueue.ReNewNode(eventHandle.steadyTimer._waitableNode, absus, eventHandle));
@@ -338,16 +341,16 @@ namespace Go
                     });
                 }
 
-                private void timerThread()
+                private void timer_thread()
                 {
-                    Action timerComplete = this.timerComplete;
+                    Action timerHandler = timer_handler;
                     while (0 == WaitForSingleObject(_timerHandle, -1) && !_exited)
                     {
-                        _workEngine.service.post(timerComplete);
+                        _workEngine.service.post(timerHandler);
                     }
                 }
 
-                private void timerComplete()
+                private void timer_handler()
                 {
                     _expireTime = long.MaxValue;
                     while (0 != _eventsQueue.Count)
@@ -425,11 +428,11 @@ namespace Go
                         _looping = false;
                         if (_utcMode)
                         {
-                            waitable_timer.utcTimer.removeEvent(this);
+                            waitable_timer.utcTimer.remove_event(this);
                         }
                         else
                         {
-                            waitable_timer.sysTimer.removeEvent(this);
+                            waitable_timer.sysTimer.remove_event(this);
                         }
                     }
                     else if (asyncTimer._timerHandle.absus == _expireTime)
@@ -501,11 +504,11 @@ namespace Go
             {
                 if (_utcMode)
                 {
-                    waitable_timer.utcTimer.appendEvent(absus, new waitable_event_handle { id = ++_timerCount, steadyTimer = this });
+                    waitable_timer.utcTimer.append_event(absus, new waitable_event_handle { id = ++_timerCount, steadyTimer = this });
                 }
                 else
                 {
-                    waitable_timer.sysTimer.appendEvent(absus, new waitable_event_handle { id = ++_timerCount, steadyTimer = this });
+                    waitable_timer.sysTimer.append_event(absus, new waitable_event_handle { id = ++_timerCount, steadyTimer = this });
                 }
             }
 
@@ -513,11 +516,11 @@ namespace Go
             {
                 if (_utcMode)
                 {
-                    waitable_timer.utcTimer.updateEvent(absus, new waitable_event_handle { id = ++_timerCount, steadyTimer = this });
+                    waitable_timer.utcTimer.update_event(absus, new waitable_event_handle { id = ++_timerCount, steadyTimer = this });
                 }
                 else
                 {
-                    waitable_timer.sysTimer.updateEvent(absus, new waitable_event_handle { id = ++_timerCount, steadyTimer = this });
+                    waitable_timer.sysTimer.update_event(absus, new waitable_event_handle { id = ++_timerCount, steadyTimer = this });
                 }
             }
         }
