@@ -7,6 +7,22 @@ namespace Go
 {
     public class work_service
     {
+        public class work_guard : IDisposable
+        {
+            work_service _service;
+
+            internal work_guard(work_service service)
+            {
+                _service = service;
+                _service.hold_work();
+            }
+
+            public void Dispose()
+            {
+                _service.release_work();
+            }
+        }
+
         int _work;
         int _waiting;
         volatile bool _runSign;
@@ -20,7 +36,7 @@ namespace Go
             _opQueue = new MsgQueue<Action>();
         }
 
-        public void push_option(Action handler)
+        public void post(Action handler)
         {
             MsgQueueNode<Action> newNode = new MsgQueueNode<Action>(handler);
             Monitor.Enter(_opQueue);
@@ -112,6 +128,11 @@ namespace Go
             {
                 return _opQueue.Count;
             }
+        }
+
+        public work_guard work()
+        {
+            return new work_guard(this);
         }
     }
 
@@ -579,7 +600,7 @@ namespace Go
         protected override void next_a_round()
         {
             _service.hold_work();
-            _service.push_option(_runTask);
+            _service.post(_runTask);
         }
 
         public override void hold_work()

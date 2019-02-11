@@ -864,10 +864,20 @@ namespace Go
                 catch (stop_exception) { }
                 catch (System.Exception ec)
                 {
+                    string source = ec.Source;
+                    string message = ec.Message;
+                    string stacktrace = ec.StackTrace;
+                    System.Exception inner = ec;
+                    while (null != (inner = inner.InnerException))
+                    {
+                        source = string.Format("{0}\n{1}", inner.Source, source);
+                        message = string.Format("{0}\n{1}", inner.Message, message);
+                        stacktrace = string.Format("{0}\n{1}", inner.StackTrace, stacktrace);
+                    }
 #if NETCORE
-                    Debug.WriteLine(string.Format("{0}\n{1}\n{2}\n{3}", "generator 内部未捕获的异常!", ec.Message, ec.Source, ec.StackTrace));
+                    Debug.WriteLine(string.Format("{0}\n{1}\n{2}\n{3}", "generator 内部未捕获的异常!", message, source, stacktrace));
 #else
-                    Task.Run(() => System.Windows.Forms.MessageBox.Show(string.Format("{0}\n{1}\n{2}", ec.Message, ec.Source, ec.StackTrace), "generator 内部未捕获的异常!", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Error)).Wait();
+                    Task.Run(() => System.Windows.Forms.MessageBox.Show(string.Format("{0}\n{1}\n{2}", message, source, stacktrace), "generator 内部未捕获的异常!", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Error)).Wait();
 #endif
                     _excep = ec;
                     _lockCount++;
@@ -1368,7 +1378,7 @@ namespace Go
         {
             Debug.Assert(strand.wait_safe(), "不正确的 sync_stop 调用!");
             wait_group wg = new wait_group(1);
-            stop(wg.wrap_done());
+            stop(wg.done);
             wg.sync_wait();
         }
 
@@ -1376,7 +1386,7 @@ namespace Go
         {
             Debug.Assert(strand.wait_safe(), "不正确的 sync_wait_stop 调用!");
             wait_group wg = new wait_group(1);
-            append_stop_callback(wg.wrap_done());
+            append_stop_callback(wg.done);
             wg.sync_wait();
         }
 
@@ -1386,7 +1396,7 @@ namespace Go
             wait_group wg = new wait_group(1);
             wait_group wgCancelId = new wait_group(1);
             notify_token cancelToken = default(notify_token);
-            append_stop_callback(wg.wrap_done(), delegate (notify_token ct)
+            append_stop_callback(wg.done, delegate (notify_token ct)
             {
                 cancelToken = ct;
                 wgCancelId.done();
@@ -1396,8 +1406,8 @@ namespace Go
                 wgCancelId.sync_wait();
                 if (null != cancelToken.token)
                 {
-                    wgCancelId.reset(1);
-                    remove_stop_callback(cancelToken, wgCancelId.wrap_done());
+                    wgCancelId.add(1);
+                    remove_stop_callback(cancelToken, wgCancelId.done);
                     wgCancelId.sync_wait();
                     return false;
                 }
@@ -1426,7 +1436,7 @@ namespace Go
                     ec.Source = string.Format("{0}\n{1}", ec.Source, ec.StackTrace);
                     hasExcep = ec;
                 }
-            }, wg.wrap_done());
+            }, wg.done);
             wg.sync_wait();
             if (null != hasExcep)
             {
@@ -1456,7 +1466,7 @@ namespace Go
                     ec.Source = string.Format("{0}\n{1}", ec.Source, ec.StackTrace);
                     hasExcep = ec;
                 }
-            }, wg.wrap_done());
+            }, wg.done);
             wg.sync_wait();
             if (null != hasExcep)
             {
@@ -1485,7 +1495,7 @@ namespace Go
                     ec.Source = string.Format("{0}\n{1}", ec.Source, ec.StackTrace);
                     hasExcep = ec;
                 }
-            }, wg.wrap_done());
+            }, wg.done);
             wg.sync_wait();
             if (null != hasExcep)
             {
@@ -1847,260 +1857,6 @@ namespace Go
                 return to_vtask(timed_push_task(res));
             }
             return to_vtask(tuple.make(!_overtime, tuple.make(res.value1, res.value2, res.value3)));
-        }
-
-        public SameAction unsafe_async_same_callback()
-        {
-            _pullTask.new_task();
-            return _beginQuit ? (SameAction)delegate (object[] args)
-            {
-                if (strand.running_in_this_thread() && !_mustTick)
-                {
-                    quit_next();
-                }
-                else
-                {
-                    strand.post(quit_next);
-                }
-            }
-            : delegate (object[] args)
-            {
-                if (strand.running_in_this_thread() && !_mustTick)
-                {
-                    no_quit_next();
-                }
-                else
-                {
-                    strand.post(no_quit_next);
-                }
-            };
-        }
-
-        public SameAction unsafe_async_same_callback(SameAction handler)
-        {
-            _pullTask.new_task();
-            return _beginQuit ? (SameAction)delegate (object[] args)
-            {
-                handler(args);
-                if (strand.running_in_this_thread() && !_mustTick)
-                {
-                    quit_next();
-                }
-                else
-                {
-                    strand.post(quit_next);
-                }
-            }
-            : delegate (object[] args)
-            {
-                handler(args);
-                if (strand.running_in_this_thread() && !_mustTick)
-                {
-                    no_quit_next();
-                }
-                else
-                {
-                    strand.post(no_quit_next);
-                }
-            };
-        }
-
-        public SameAction timed_async_same_callback(int ms, Action timedHandler = null, SameAction lostHandler = null)
-        {
-            multi_check multiCheck = new_multi_check();
-            _overtime = false;
-            if (ms >= 0)
-            {
-                _timer.timeout(ms, delegate ()
-                {
-                    _overtime = true;
-                    if (null != timedHandler)
-                    {
-                        timedHandler();
-                    }
-                    else if (!multiCheck.check())
-                    {
-                        next(multiCheck.beginQuit);
-                    }
-                });
-            }
-            return delegate (object[] args)
-            {
-                if (multiCheck.callbacked)
-                {
-                    lostHandler?.Invoke(args);
-                    return;
-                }
-                if (strand.running_in_this_thread() && !_mustTick)
-                {
-                    if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
-                    {
-                        _timer.cancel();
-                        no_check_next();
-                    }
-                    else lostHandler?.Invoke(args);
-                }
-                else
-                {
-                    strand.post(delegate ()
-                    {
-                        if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
-                        {
-                            _timer.cancel();
-                            no_check_next();
-                        }
-                        else lostHandler?.Invoke(args);
-                    });
-                }
-            };
-        }
-
-        public SameAction timed_async_same_callback2(int ms, Action timedHandler = null, SameAction lostHandler = null)
-        {
-            multi_check multiCheck = new_multi_check();
-            _overtime = false;
-            if (ms >= 0)
-            {
-                _timer.timeout(ms, delegate ()
-                {
-                    _overtime = true;
-                    functional.catch_invoke(timedHandler);
-                    if (!multiCheck.check())
-                    {
-                        next(multiCheck.beginQuit);
-                    }
-                });
-            }
-            return delegate (object[] args)
-            {
-                if (multiCheck.callbacked)
-                {
-                    lostHandler?.Invoke(args);
-                    return;
-                }
-                if (strand.running_in_this_thread() && !_mustTick)
-                {
-                    if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
-                    {
-                        _timer.cancel();
-                        no_check_next();
-                    }
-                    else lostHandler?.Invoke(args);
-                }
-                else
-                {
-                    strand.post(delegate ()
-                    {
-                        if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
-                        {
-                            _timer.cancel();
-                            no_check_next();
-                        }
-                        else lostHandler?.Invoke(args);
-                    });
-                }
-            };
-        }
-
-        public SameAction timed_async_same_callback(int ms, SameAction handler, Action timedHandler = null, SameAction lostHandler = null)
-        {
-            multi_check multiCheck = new_multi_check();
-            _overtime = false;
-            if (ms >= 0)
-            {
-                _timer.timeout(ms, delegate ()
-                {
-                    _overtime = true;
-                    if (null != timedHandler)
-                    {
-                        timedHandler();
-                    }
-                    else if (!multiCheck.check())
-                    {
-                        next(multiCheck.beginQuit);
-                    }
-                });
-            }
-            return delegate (object[] args)
-            {
-                if (multiCheck.callbacked)
-                {
-                    lostHandler?.Invoke(args);
-                    return;
-                }
-                if (strand.running_in_this_thread() && !_mustTick)
-                {
-                    if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
-                    {
-                        _timer.cancel();
-                        handler(args);
-                        no_check_next();
-                    }
-                    else lostHandler?.Invoke(args);
-                }
-                else
-                {
-                    strand.post(delegate ()
-                    {
-                        if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
-                        {
-                            _timer.cancel();
-                            handler(args);
-                            no_check_next();
-                        }
-                        else lostHandler?.Invoke(args);
-                    });
-                }
-            };
-        }
-
-        public SameAction timed_async_same_callback2(int ms, SameAction handler, Action timedHandler = null, SameAction lostHandler = null)
-        {
-            multi_check multiCheck = new_multi_check();
-            _overtime = false;
-            if (ms >= 0)
-            {
-                _timer.timeout(ms, delegate ()
-                {
-                    _overtime = true;
-                    functional.catch_invoke(timedHandler);
-                    if (!multiCheck.check())
-                    {
-                        next(multiCheck.beginQuit);
-                    }
-                });
-            }
-            return delegate (object[] args)
-            {
-                if (multiCheck.callbacked)
-                {
-                    lostHandler?.Invoke(args);
-                    return;
-                }
-                if (strand.running_in_this_thread() && !_mustTick)
-                {
-                    if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
-                    {
-                        _timer.cancel();
-                        handler(args);
-                        no_check_next();
-                    }
-                    else lostHandler?.Invoke(args);
-                }
-                else
-                {
-                    strand.post(delegate ()
-                    {
-                        if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
-                        {
-                            _timer.cancel();
-                            handler(args);
-                            no_check_next();
-                        }
-                        else lostHandler?.Invoke(args);
-                    });
-                }
-            };
         }
 
         public Action unsafe_async_callback(Action handler)
@@ -2618,72 +2374,6 @@ namespace Go
                             no_check_next();
                         }
                         else lostHandler?.Invoke(p1, p2, p3);
-                    });
-                }
-            };
-        }
-
-        public SameAction async_same_callback(SameAction lostHandler = null)
-        {
-            multi_check multiCheck = new_multi_check();
-            return delegate (object[] args)
-            {
-                if (multiCheck.callbacked)
-                {
-                    lostHandler?.Invoke(args);
-                    return;
-                }
-                if (strand.running_in_this_thread() && !_mustTick)
-                {
-                    if (!multiCheck.check())
-                    {
-                        next(multiCheck.beginQuit);
-                    }
-                    else lostHandler?.Invoke(args);
-                }
-                else
-                {
-                    strand.post(delegate ()
-                    {
-                        if (!multiCheck.check())
-                        {
-                            next(multiCheck.beginQuit);
-                        }
-                        else lostHandler?.Invoke(args);
-                    });
-                }
-            };
-        }
-
-        public SameAction async_same_callback(SameAction handler, SameAction lostHandler = null)
-        {
-            multi_check multiCheck = new_multi_check();
-            return delegate (object[] args)
-            {
-                if (multiCheck.callbacked)
-                {
-                    lostHandler?.Invoke(args);
-                    return;
-                }
-                if (strand.running_in_this_thread() && !_mustTick)
-                {
-                    if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
-                    {
-                        handler(args);
-                        no_check_next();
-                    }
-                    else lostHandler?.Invoke(args);
-                }
-                else
-                {
-                    strand.post(delegate ()
-                    {
-                        if (!multiCheck.check() && !_isStop && _beginQuit == multiCheck.beginQuit)
-                        {
-                            handler(args);
-                            no_check_next();
-                        }
-                        else lostHandler?.Invoke(args);
                     });
                 }
             };
@@ -3631,7 +3321,7 @@ namespace Go
         static public Task yield(work_service service)
         {
             generator this_ = self;
-            service.push_option(this_.unsafe_async_result());
+            service.post(this_.unsafe_async_result());
             return this_.async_wait();
         }
 
@@ -5603,14 +5293,14 @@ namespace Go
         static public Task unsafe_send_service(work_service service, Action handler)
         {
             generator this_ = self;
-            service.push_option(this_.unsafe_async_callback(handler));
+            service.post(this_.unsafe_async_callback(handler));
             return this_.async_wait();
         }
 
         private async Task send_service_(work_service service, Action handler)
         {
             System.Exception hasExcep = null;
-            service.push_option(unsafe_async_callback(delegate ()
+            service.post(unsafe_async_callback(delegate ()
             {
                 try
                 {
@@ -5639,7 +5329,7 @@ namespace Go
         {
             generator this_ = self;
             res.clear();
-            service.push_option(this_.unsafe_async_callback(delegate ()
+            service.post(this_.unsafe_async_callback(delegate ()
             {
                 res.value1 = handler();
             }));
@@ -5650,7 +5340,7 @@ namespace Go
         {
             R res = default(R);
             System.Exception hasExcep = null;
-            service.push_option(unsafe_async_callback(delegate ()
+            service.post(unsafe_async_callback(delegate ()
             {
                 try
                 {
@@ -10294,63 +9984,40 @@ namespace Go
             internal LinkedListNode<Action> token;
         }
 
+        bool _hasWait;
         int _tasks;
         LinkedList<Action> _waitList;
 
         public wait_group(int initTasks = 0)
         {
-            _tasks = initTasks > 0 ? initTasks : 0;
-            _waitList = initTasks > 0 ? new LinkedList<Action>() : null;
+            _hasWait = false;
+            _tasks = initTasks;
+            _waitList = new LinkedList<Action>();
         }
 
-        public void reset(int tasks)
+        public void add(int delta = 1)
         {
-            Debug.Assert(is_done, "不正确的 reset 调用!");
-            _tasks = tasks > 0 ? tasks : 0;
-            _waitList = tasks > 0 ? new LinkedList<Action>() : null;
-        }
-
-        public int add(int delta = 1)
-        {
-            Trace.Assert(_tasks + delta >= 0, "异常的 add 调用!");
-            int tasks = 0;
-            if (0 != delta && 0 == (tasks = Interlocked.Add(ref _tasks, delta)))
+            if (0 == Interlocked.Add(ref _tasks, delta))
             {
-                Monitor.Enter(this);
-                LinkedList<Action> snapList = _waitList;
-                _waitList = null;
-                Monitor.PulseAll(this);
-                Monitor.Exit(this);
-                for (LinkedListNode<Action> it = snapList.First; null != it; it = it.Next)
-                {
-                    functional.catch_invoke(it.Value);
-                }
+                notify();
             }
-            return tasks;
         }
 
-        public void cancel()
+        public void notify()
         {
-            if (is_done)
-            {
-                return;
-            }
             LinkedList<Action> newList = new LinkedList<Action>();
             Monitor.Enter(this);
-            if (null != _waitList)
+            LinkedList<Action> snapList = _waitList;
+            _waitList = newList;
+            if (_hasWait)
             {
-                LinkedList<Action> snapList = _waitList;
-                _waitList = newList;
+                _hasWait = false;
                 Monitor.PulseAll(this);
-                Monitor.Exit(this);
-                for (LinkedListNode<Action> it = snapList.First; null != it; it = it.Next)
-                {
-                    functional.catch_invoke(it.Value);
-                }
             }
-            else
+            Monitor.Exit(this);
+            for (LinkedListNode<Action> it = snapList.First; null != it; it = it.Next)
             {
-                Monitor.Exit(this);
+                functional.catch_invoke(it.Value);
             }
         }
 
@@ -10359,16 +10026,11 @@ namespace Go
             add(-1);
         }
 
-        public Action wrap_done()
-        {
-            return done;
-        }
-
         public bool is_done
         {
             get
             {
-                return 0 == _tasks && null == _waitList;
+                return 0 == _tasks;
             }
         }
 
@@ -10379,39 +10041,36 @@ namespace Go
                 functional.catch_invoke(continuation);
                 return new cancel_token { token = null };
             }
+            LinkedListNode<Action> newNode = new LinkedListNode<Action>(continuation);
+            Monitor.Enter(this);
+            if (is_done)
+            {
+                Monitor.Exit(this);
+                functional.catch_invoke(continuation);
+                return new cancel_token { token = null };
+            }
             else
             {
-                LinkedListNode<Action> newNode = new LinkedListNode<Action>(continuation);
-                Monitor.Enter(this);
-                if (null != _waitList)
-                {
-                    _waitList.AddLast(newNode);
-                    Monitor.Exit(this);
-                    return new cancel_token { token = newNode };
-                }
-                else
-                {
-                    Monitor.Exit(this);
-                    functional.catch_invoke(continuation);
-                    return new cancel_token { token = null };
-                }
+                _waitList.AddLast(newNode);
+                Monitor.Exit(this);
+                return new cancel_token { token = newNode };
             }
         }
 
         public bool cancel_wait(cancel_token cancelToken)
         {
-            bool completed = false;
+            bool success = false;
             if (null != cancelToken.token && null != cancelToken.token.List)
             {
                 Monitor.Enter(this);
-                if (null != _waitList && cancelToken.token.List == _waitList)
+                if (cancelToken.token.List == _waitList)
                 {
                     _waitList.Remove(cancelToken.token);
-                    completed = true;
+                    success = true;
                 }
                 Monitor.Exit(this);
             }
-            return completed;
+            return success;
         }
 
         public Task wait()
@@ -10426,30 +10085,34 @@ namespace Go
 
         public void sync_wait()
         {
+            if (is_done)
+            {
+                return;
+            }
+            Monitor.Enter(this);
             if (!is_done)
             {
-                Monitor.Enter(this);
-                if (!is_done)
-                {
-                    Monitor.Wait(this);
-                }
-                Monitor.Exit(this);
+                _hasWait = true;
+                Monitor.Wait(this);
             }
+            Monitor.Exit(this);
         }
 
         public bool sync_timed_wait(int ms)
         {
-            bool ok = true;
+            if (is_done)
+            {
+                return true;
+            }
+            bool success = true;
+            Monitor.Enter(this);
             if (!is_done)
             {
-                Monitor.Enter(this);
-                if (!is_done)
-                {
-                    ok = Monitor.Wait(this, ms);
-                }
-                Monitor.Exit(this);
+                _hasWait = true;
+                success = Monitor.Wait(this, ms);
             }
-            return ok;
+            Monitor.Exit(this);
+            return success;
         }
     }
 
@@ -10463,7 +10126,7 @@ namespace Go
         LinkedList<Action> _waitList;
         csp_chan<R, void_type> _action;
 
-        public wait_gate(int initTasks, csp_chan<R, void_type> action)
+        public wait_gate(csp_chan<R, void_type> action, int initTasks = 0)
         {
             _enterCnt = 0;
             _cancelCnt = 0;
@@ -10570,15 +10233,15 @@ namespace Go
         {
             if (null != cancelToken.token && null != cancelToken.token.List)
             {
-                bool completed = false;
+                bool success = false;
                 Monitor.Enter(this);
                 if (null != _waitList && cancelToken.token.List == _waitList)
                 {
                     _waitList.Remove(cancelToken.token);
-                    completed = true;
+                    success = true;
                 }
                 Monitor.Exit(this);
-                if (completed && _tasks == Interlocked.Increment(ref _cancelCnt) && null != _waitList)
+                if (success && _tasks == Interlocked.Increment(ref _cancelCnt) && null != _waitList)
                 {
                     _action.async_remove_send_notify(delegate (chan_async_state state)
                     {
@@ -10616,7 +10279,7 @@ namespace Go
             internal LinkedListNode<Action> token;
         }
 
-        public wait_gate(int initTasks, csp_chan<void_type, void_type> action) : base(initTasks, action)
+        public wait_gate(csp_chan<void_type, void_type> action, int initTasks = 0) : base(action, initTasks)
         {
         }
     }

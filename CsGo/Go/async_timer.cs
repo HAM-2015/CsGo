@@ -7,6 +7,10 @@ namespace Go
 {
     public class system_tick
     {
+        [DllImport("NtDll.dll")]
+        private static extern int NtQueryTimerResolution(out uint MaximumTime, out uint MinimumTime, out uint CurrentTime);
+        [DllImport("NtDll.dll")]
+        private static extern int NtSetTimerResolution(uint DesiredTime, uint SetResolution, out uint ActualTime);
         [DllImport("kernel32.dll")]
         private static extern bool QueryPerformanceCounter(out long lpPerformanceCount);
         [DllImport("kernel32.dll")]
@@ -23,13 +27,15 @@ namespace Go
 
         private system_tick()
         {
-            long freq = 0;
+            uint MaximumTime = 0, MinimumTime = 0, CurrentTime = 0, ActualTime = 0;
+            if (0 == NtQueryTimerResolution(out MaximumTime, out MinimumTime, out CurrentTime))
+            {
+                NtSetTimerResolution(MinimumTime, 1, out ActualTime);
+            }
+            long freq;
             if (!QueryPerformanceFrequency(out freq))
             {
-                _sCycle = 0;
-                _msCycle = 0;
-                _usCycle = 0;
-                return;
+                throw new Exception("QueryPerformanceFrequency 初始化失败!");
             }
             _sCycle = 1.0 / (double)freq;
             _msCycle = 1000.0 / (double)freq;
@@ -51,65 +57,32 @@ namespace Go
             checkStepDebug.Name = "单步调试检测";
             checkStepDebug.Start();
 #endif
-#if CHECK_LICENSE
-            if (!license.check())
-            {
-                System.Threading.Tasks.Task.Run(delegate ()
-                {
-                    for (int i = Environment.ProcessorCount; i > 0; i--)
-                    {
-                        generator.go(new shared_strand(), async delegate ()
-                        {
-                            while (true)
-                            {
-                                await generator.yield();
-                            }
-                        });
-                    }
-                });
-            }
-#elif TRIAL_LICENSE
-            System.Threading.Tasks.Task.Run(delegate ()
-            {
-                for (int i = Environment.ProcessorCount; i > 0; i--)
-                {
-                    generator.go(new shared_strand(), async delegate ()
-                    {
-                        await generator.sleep(1812345);
-                        while (true)
-                        {
-                            await generator.yield();
-                        }
-                    });
-                }
-            });
-#endif
         }
 
         public static long get_tick()
         {
-            long quadPart = 0;
+            long quadPart;
             QueryPerformanceCounter(out quadPart);
             return quadPart;
         }
 
         public static long get_tick_us()
         {
-            long quadPart = 0;
+            long quadPart;
             QueryPerformanceCounter(out quadPart);
             return (long)((double)quadPart * _pcCycle._usCycle);
         }
 
         public static long get_tick_ms()
         {
-            long quadPart = 0;
+            long quadPart;
             QueryPerformanceCounter(out quadPart);
             return (long)((double)quadPart * _pcCycle._msCycle);
         }
 
         public static long get_tick_s()
         {
-            long quadPart = 0;
+            long quadPart;
             QueryPerformanceCounter(out quadPart);
             return (long)((double)quadPart * _pcCycle._sCycle);
         }
@@ -234,10 +207,6 @@ namespace Go
                 private static extern int CloseHandle(int hObject);
                 [DllImport("kernel32.dll")]
                 private static extern int WaitForSingleObject(int hHandle, int dwMilliseconds);
-                [DllImport("NtDll.dll")]
-                private static extern int NtQueryTimerResolution(out uint MaximumTime, out uint MinimumTime, out uint CurrentTime);
-                [DllImport("NtDll.dll")]
-                private static extern int NtSetTimerResolution(uint DesiredTime, uint SetResolution, out uint ActualTime);
 
                 static public readonly waitable_timer sysTimer = new waitable_timer(false);
                 static public readonly waitable_timer utcTimer = new waitable_timer(true);
@@ -264,11 +233,6 @@ namespace Go
                     _timerThread.Name = _utcMode? "UTC定时器调度" : "系统定时器调度";
                     _workEngine.run(1, ThreadPriority.Highest, true);
                     _timerThread.Start();
-                    uint MaximumTime = 0, MinimumTime = 0, CurrentTime = 0, ActualTime = 0;
-                    if (0 == NtQueryTimerResolution(out MaximumTime, out MinimumTime, out CurrentTime))
-                    {
-                        NtSetTimerResolution(MinimumTime, 1, out ActualTime);
-                    }
                 }
 
                 ~waitable_timer()
@@ -286,7 +250,7 @@ namespace Go
 
                 public void appendEvent(long absus, waitable_event_handle eventHandle)
                 {
-                    _workEngine.service.push_option(delegate ()
+                    _workEngine.service.post(delegate ()
                     {
                         eventHandle.steadyTimer._waitableNode = _eventsQueue.Insert(absus, eventHandle);
                         if (absus < _expireTime)
@@ -310,7 +274,7 @@ namespace Go
 
                 public void removeEvent(steady_timer steadyTime)
                 {
-                    _workEngine.service.push_option(delegate ()
+                    _workEngine.service.post(delegate ()
                     {
                         if (null != steadyTime._waitableNode)
                         {
@@ -344,7 +308,7 @@ namespace Go
 
                 public void updateEvent(long absus, waitable_event_handle eventHandle)
                 {
-                    _workEngine.service.push_option(delegate ()
+                    _workEngine.service.post(delegate ()
                     {
                         if (null != eventHandle.steadyTimer._waitableNode)
                         {
@@ -377,36 +341,9 @@ namespace Go
                 private void timerThread()
                 {
                     Action timerComplete = this.timerComplete;
-#if CHECK_LICENSE
-                    if (!license.check())
+                    while (0 == WaitForSingleObject(_timerHandle, -1) && !_exited)
                     {
-                        while (0 == WaitForSingleObject(_timerHandle, -1) && !_exited)
-                        {
-                            long sleepEnd = system_tick.get_tick_ms() + mt19937.global.Next(0, 3000);
-                            while (system_tick.get_tick_ms() < sleepEnd) { }
-                            _workEngine.service.push_option(timerComplete);
-                        }
-                    }
-                    else
-#endif
-                    {
-#if TRIAL_LICENSE
-                        long trialBegin = system_tick.get_tick_ms();
-                        while (0 == WaitForSingleObject(_timerHandle, -1) && !_exited)
-                        {
-                            if (system_tick.get_tick_ms() - trialBegin > 1854321)
-                            {
-                                long sleepEnd = system_tick.get_tick_ms() + mt19937.global.Next(0, 3000);
-                                while (system_tick.get_tick_ms() < sleepEnd) { }
-                            }
-                            _workEngine.service.push_option(timerComplete);
-                        }
-#else
-                        while (0 == WaitForSingleObject(_timerHandle, -1) && !_exited)
-                        {
-                            _workEngine.service.push_option(timerComplete);
-                        }
-#endif
+                        _workEngine.service.post(timerComplete);
                     }
                 }
 
