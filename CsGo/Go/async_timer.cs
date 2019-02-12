@@ -230,8 +230,8 @@ namespace Go
                     _timerThread = new Thread(timer_thread);
                     _timerThread.Priority = ThreadPriority.Highest;
                     _timerThread.IsBackground = true;
-                    _timerThread.Name = _utcMode? "UTC定时器调度" : "系统定时器调度";
-                    _workEngine.run(1, ThreadPriority.Highest, true);
+                    _timerThread.Name = _utcMode? "UTC定时器" : "系统定时器";
+                    _workEngine.run(1, ThreadPriority.Highest, true, _utcMode ? "UTC定时器调度" : "系统定时器调度");
                     _timerThread.Start();
                 }
 

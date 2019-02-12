@@ -146,7 +146,7 @@ namespace Go
             _service = new work_service();
         }
 
-        public void run(int threads = 1, ThreadPriority priority = ThreadPriority.Normal, bool background = false)
+        public void run(int threads = 1, ThreadPriority priority = ThreadPriority.Normal, bool background = false, string name = null)
         {
             lock (this)
             {
@@ -159,7 +159,7 @@ namespace Go
                     _runThreads[i] = new Thread(() => _service.run());
                     _runThreads[i].Priority = priority;
                     _runThreads[i].IsBackground = background;
-                    _runThreads[i].Name = "任务调度";
+                    _runThreads[i].Name = null == name ? "任务调度" : string.Format("{0}<{1}>", name, i);
                     _runThreads[i].Start();
                 }
             }
