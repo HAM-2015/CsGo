@@ -1362,16 +1362,14 @@ namespace Go
             return this_._beginQuit;
         }
 
-        static public bool check_quit()
+        public bool check_quit()
         {
-            generator this_ = self;
-            return this_._isForce;
+            return _isForce;
         }
 
-        static public bool check_suspend()
+        public bool check_suspend()
         {
-            generator this_ = self;
-            return this_._holdSuspend;
+            return _holdSuspend;
         }
 
         public void sync_stop()
