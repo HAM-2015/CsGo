@@ -64,13 +64,21 @@ namespace Go
     {
         public bool ok;
         public int s;
-        public string message;
+        public System.Exception ec;
 
-        public socket_result(bool resOk = false, int resSize = 0, string resMsg = null)
+        public socket_result(bool resOk = false, int resSize = 0, System.Exception resEc = null)
         {
             ok = resOk;
             s = resSize;
-            message = resMsg;
+            ec = resEc;
+        }
+
+        public string message
+        {
+            get
+            {
+                return null != ec ? ec.Message : null;
+            }
         }
 
         static public implicit operator bool(socket_result src)
@@ -115,6 +123,12 @@ namespace Go
         public socket_tcp sck;
         public AsyncCallback handler;
         public Action<socket_result> cb;
+    }
+
+    struct accept_lost_handler
+    {
+        public socket_tcp sck;
+        public Action<socket_result> handler;
     }
 
     public abstract class socket
@@ -209,7 +223,7 @@ namespace Go
                     Action<socket_result> cb = _readHandler.cb;
                     _readHandler.buff = default(ArraySegment<byte>);
                     _readHandler.cb = null;
-                    functional.catch_invoke(cb, new socket_result(false, _readHandler.currTotal, tempRes.message));
+                    functional.catch_invoke(cb, new socket_result(false, _readHandler.currTotal, tempRes.ec));
                 }
             };
             _writeHandler.cb = null;
@@ -236,7 +250,7 @@ namespace Go
                     Action<socket_result> cb = _writeHandler.cb;
                     _writeHandler.buff = default(ArraySegment<byte>);
                     _writeHandler.cb = null;
-                    functional.catch_invoke(cb, new socket_result(false, _writeHandler.currTotal, tempRes.message));
+                    functional.catch_invoke(cb, new socket_result(false, _writeHandler.currTotal, tempRes.ec));
                 }
             };
         }
@@ -271,7 +285,7 @@ namespace Go
                     }
                     else
                     {
-                        functional.catch_invoke(cb, new socket_result(false, currTotal, tempRes.message));
+                        functional.catch_invoke(cb, new socket_result(false, currTotal, tempRes.ec));
                     }
                 });
             }
@@ -293,7 +307,7 @@ namespace Go
                     }
                     else
                     {
-                        functional.catch_invoke(cb, new socket_result(false, currTotal, tempRes.message));
+                        functional.catch_invoke(cb, new socket_result(false, currTotal, tempRes.ec));
                     }
                 });
             }
@@ -328,7 +342,7 @@ namespace Go
                     }
                     else
                     {
-                        functional.catch_invoke(cb, new socket_result(false, currTotal, tempRes.message));
+                        functional.catch_invoke(cb, new socket_result(false, currTotal, tempRes.ec));
                     }
                 });
             }
@@ -350,7 +364,7 @@ namespace Go
                     }
                     else
                     {
-                        functional.catch_invoke(cb, new socket_result(false, currTotal, tempRes.message));
+                        functional.catch_invoke(cb, new socket_result(false, currTotal, tempRes.ec));
                     }
                 });
             }
@@ -771,7 +785,7 @@ namespace Go
                 }
                 catch (System.Exception ec)
                 {
-                    functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
+                    functional.catch_invoke(cb, new socket_result(false, 0, ec));
                 }
             };
             _writeSameHandler.pinnedObj = null;
@@ -789,7 +803,7 @@ namespace Go
                 }
                 catch (System.Exception ec)
                 {
-                    functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
+                    functional.catch_invoke(cb, new socket_result(false, 0, ec));
                 }
             };
             _readPtrHandler.pinnedObj = null;
@@ -820,7 +834,7 @@ namespace Go
                     Action<socket_result> cb = _readPtrHandler.cb;
                     _readPtrHandler.pinnedObj = null;
                     _readPtrHandler.cb = null;
-                    functional.catch_invoke(cb, new socket_result(false, _readPtrHandler.currTotal, tempRes.message));
+                    functional.catch_invoke(cb, new socket_result(false, _readPtrHandler.currTotal, tempRes.ec));
                 }
             };
             _writePtrHandler.pinnedObj = null;
@@ -851,7 +865,7 @@ namespace Go
                     Action<socket_result> cb = _writePtrHandler.cb;
                     _writePtrHandler.pinnedObj = null;
                     _writePtrHandler.cb = null;
-                    functional.catch_invoke(cb, new socket_result(false, _writePtrHandler.currTotal, tempRes.message));
+                    functional.catch_invoke(cb, new socket_result(false, _writePtrHandler.currTotal, tempRes.ec));
                 }
             };
         }
@@ -868,7 +882,8 @@ namespace Go
         {
             try
             {
-                _socket.Close();
+                _socket?.Close();
+                _socket = null;
             }
             catch (System.Exception) { }
         }
@@ -888,14 +903,14 @@ namespace Go
                     }
                     catch (System.Exception ec)
                     {
-                        functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
+                        functional.catch_invoke(cb, new socket_result(false, 0, ec));
                     }
                 }, null);
             }
             catch (System.Exception ec)
             {
                 close();
-                functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
+                functional.catch_invoke(cb, new socket_result(false, 0, ec));
             }
         }
 
@@ -912,14 +927,14 @@ namespace Go
                     }
                     catch (System.Exception ec)
                     {
-                        functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
+                        functional.catch_invoke(cb, new socket_result(false, 0, ec));
                     }
                 }, null);
             }
             catch (System.Exception ec)
             {
                 close();
-                functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
+                functional.catch_invoke(cb, new socket_result(false, 0, ec));
             }
         }
 
@@ -935,7 +950,7 @@ namespace Go
             {
                 close();
                 _readSameHandler.cb = null;
-                functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
+                functional.catch_invoke(cb, new socket_result(false, 0, ec));
             }
         }
 
@@ -951,7 +966,7 @@ namespace Go
             {
                 close();
                 _writeSameHandler.cb = null;
-                functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
+                functional.catch_invoke(cb, new socket_result(false, 0, ec));
             }
         }
 
@@ -976,7 +991,7 @@ namespace Go
                 close();
                 _writeSameHandler.pinnedObj = null;
                 _writeSameHandler.cb = null;
-                functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
+                functional.catch_invoke(cb, new socket_result(false, 0, ec));
             }
         }
 
@@ -1001,7 +1016,7 @@ namespace Go
                 close();
                 _readSameHandler.pinnedObj = null;
                 _readSameHandler.cb = null;
-                functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
+                functional.catch_invoke(cb, new socket_result(false, 0, ec));
             }
         }
 
@@ -1026,7 +1041,7 @@ namespace Go
                 close();
                 _writeSameHandler.pinnedObj = null;
                 _writeSameHandler.cb = null;
-                functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
+                functional.catch_invoke(cb, new socket_result(false, 0, ec));
             }
         }
 
@@ -1134,6 +1149,7 @@ namespace Go
         {
             Socket _socket;
             accept_handler _acceptHandler;
+            accept_lost_handler _lostHandler;
 
             public acceptor()
             {
@@ -1154,8 +1170,13 @@ namespace Go
                     }
                     catch (System.Exception ec)
                     {
-                        functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
+                        functional.catch_invoke(cb, new socket_result(false, 0, ec));
                     }
+                };
+                _lostHandler.handler = delegate (socket_result res)
+                {
+                    _lostHandler.sck?.close();
+                    _lostHandler.sck = null;
                 };
             }
 
@@ -1213,13 +1234,14 @@ namespace Go
                 catch (System.Exception ec)
                 {
                     close();
-                    functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
+                    functional.catch_invoke(cb, new socket_result(false, 0, ec));
                 }
             }
 
             public ValueTask<socket_result> accept(socket_tcp sck)
             {
-                return generator.async_call((Action<socket_result> cb) => async_accept(sck, cb));
+                _lostHandler.sck = sck;
+                return generator.async_call((Action<socket_result> cb) => async_accept(sck, cb), _lostHandler.handler);
             }
 
             public Task unsafe_accept(async_result_wrap<socket_result> res, socket_tcp sck)
@@ -1260,7 +1282,7 @@ namespace Go
                 }
                 catch (System.Exception ec)
                 {
-                    functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
+                    functional.catch_invoke(cb, new socket_result(false, 0, ec));
                 }
             };
             _writeSameHandler.pinnedObj = null;
@@ -1278,7 +1300,7 @@ namespace Go
                 }
                 catch (System.Exception ec)
                 {
-                    functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
+                    functional.catch_invoke(cb, new socket_result(false, 0, ec));
                 }
             };
         }
@@ -1323,7 +1345,7 @@ namespace Go
             {
                 close();
                 _readSameHandler.cb = null;
-                functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
+                functional.catch_invoke(cb, new socket_result(false, 0, ec));
             }
         }
 
@@ -1341,7 +1363,7 @@ namespace Go
                 close();
                 _writeSameHandler.buff = default(ArraySegment<byte>);
                 _writeSameHandler.cb = null;
-                functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
+                functional.catch_invoke(cb, new socket_result(false, 0, ec));
             }
         }
 
@@ -1388,7 +1410,7 @@ namespace Go
                 }
                 catch (System.Exception ec)
                 {
-                    functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
+                    functional.catch_invoke(cb, new socket_result(false, 0, ec));
                 }
             };
             _writeSameHandler.pinnedObj = null;
@@ -1406,7 +1428,7 @@ namespace Go
                 }
                 catch (System.Exception ec)
                 {
-                    functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
+                    functional.catch_invoke(cb, new socket_result(false, 0, ec));
                 }
             };
             _readPtrHandler.pinnedObj = null;
@@ -1437,7 +1459,7 @@ namespace Go
                     Action<socket_result> cb = _readPtrHandler.cb;
                     _readPtrHandler.pinnedObj = null;
                     _readPtrHandler.cb = null;
-                    functional.catch_invoke(cb, new socket_result(false, _readPtrHandler.currTotal, tempRes.message));
+                    functional.catch_invoke(cb, new socket_result(false, _readPtrHandler.currTotal, tempRes.ec));
                 }
             };
             _writePtrHandler.pinnedObj = null;
@@ -1468,7 +1490,7 @@ namespace Go
                     Action<socket_result> cb = _writePtrHandler.cb;
                     _writePtrHandler.pinnedObj = null;
                     _writePtrHandler.cb = null;
-                    functional.catch_invoke(cb, new socket_result(false, _writePtrHandler.currTotal, tempRes.message));
+                    functional.catch_invoke(cb, new socket_result(false, _writePtrHandler.currTotal, tempRes.ec));
                 }
             };
         }
@@ -1485,7 +1507,7 @@ namespace Go
             {
                 close();
                 _readSameHandler.cb = null;
-                functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
+                functional.catch_invoke(cb, new socket_result(false, 0, ec));
             }
         }
 
@@ -1503,7 +1525,7 @@ namespace Go
                 close();
                 _writeSameHandler.buff = default(ArraySegment<byte>);
                 _writeSameHandler.cb = null;
-                functional.catch_invoke(cb, new socket_result(false, 0, ec.Message));
+                functional.catch_invoke(cb, new socket_result(false, 0, ec));
             }
         }
 

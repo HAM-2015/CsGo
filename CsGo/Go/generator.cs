@@ -6158,34 +6158,34 @@ namespace Go
             return this_.async_wait();
         }
 
-        static public Task async_call(Action<Action> handler)
+        static public Task async_call(Action<Action> handler, Action lostHandler = null)
         {
             generator this_ = self;
-            handler(this_.async_result());
+            handler(this_.async_result(lostHandler));
             return this_.async_wait();
         }
 
-        static public ValueTask<R> async_call<R>(Action<Action<R>> handler)
+        static public ValueTask<R> async_call<R>(Action<Action<R>> handler, Action<R> lostHandler = null)
         {
             generator this_ = self;
             async_result_wrap<R> res = new async_result_wrap<R>();
-            handler(this_.async_result(res));
+            handler(this_.async_result(res, lostHandler));
             return this_.async_wait(res);
         }
 
-        static public ValueTask<tuple<R1, R2>> async_call<R1, R2>(Action<Action<R1, R2>> handler)
+        static public ValueTask<tuple<R1, R2>> async_call<R1, R2>(Action<Action<R1, R2>> handler, Action<R1, R2> lostHandler = null)
         {
             generator this_ = self;
             async_result_wrap<R1, R2> res = new async_result_wrap<R1, R2>();
-            handler(this_.async_result(res));
+            handler(this_.async_result(res, lostHandler));
             return this_.async_wait(res);
         }
 
-        static public ValueTask<tuple<R1, R2, R3>> async_call<R1, R2, R3>(Action<Action<R1, R2, R3>> handler)
+        static public ValueTask<tuple<R1, R2, R3>> async_call<R1, R2, R3>(Action<Action<R1, R2, R3>> handler, Action<R1, R2, R3> lostHandler = null)
         {
             generator this_ = self;
             async_result_wrap<R1, R2, R3> res = new async_result_wrap<R1, R2, R3>();
-            handler(this_.async_result(res));
+            handler(this_.async_result(res, lostHandler));
             return this_.async_wait(res);
         }
 
