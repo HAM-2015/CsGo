@@ -1444,6 +1444,21 @@ namespace Go
             return chan_type.limit;
         }
 
+        public void force_post(T msg)
+        {
+            async_force_send(nil_action<chan_state, bool, T>.action, msg);
+        }
+
+        public Action<T> wrap_force()
+        {
+            return force_post;
+        }
+
+        public Action wrap_force_default()
+        {
+            return () => force_post(default(T));
+        }
+
         protected override void async_send_(Action<chan_send_wrap> ntf, T msg, chan_notify_sign ntfSign)
         {
             ntfSign?.reset_success();
