@@ -155,7 +155,7 @@ namespace Go
     {
         public readonly chan_state state;
 
-        public chan_exception(chan_state st)
+        internal chan_exception(chan_state st)
         {
             state = st;
         }
@@ -163,7 +163,7 @@ namespace Go
 
     public class csp_fail_exception : System.Exception
     {
-        public static readonly csp_fail_exception val = new csp_fail_exception();
+        internal csp_fail_exception() { }
     }
 
     public struct chan_recv_wrap<T>
@@ -423,40 +423,34 @@ namespace Go
     {
         public class local_value_exception : System.Exception
         {
-            internal static readonly local_value_exception val = new local_value_exception();
-            private local_value_exception() { }
+            internal local_value_exception() { }
         }
 
         public abstract class inner_exception : System.Exception { }
 
         public class stop_exception : inner_exception
         {
-            internal static readonly stop_exception val = new stop_exception();
-            private stop_exception() { }
+            internal stop_exception() { }
         }
 
         public class select_stop_current_exception : inner_exception
         {
-            internal static readonly select_stop_current_exception val = new select_stop_current_exception();
-            private select_stop_current_exception() { }
+            internal select_stop_current_exception() { }
         }
 
         public class select_stop_all_exception : inner_exception
         {
-            internal static readonly select_stop_all_exception val = new select_stop_all_exception();
-            private select_stop_all_exception() { }
+            internal select_stop_all_exception() { }
         }
 
         public class message_stop_current_exception : inner_exception
         {
-            internal static readonly message_stop_current_exception val = new message_stop_current_exception();
-            private message_stop_current_exception() { }
+            internal message_stop_current_exception() { }
         }
 
         public class message_stop_all_exception : inner_exception
         {
-            internal static readonly message_stop_all_exception val = new message_stop_all_exception();
-            private message_stop_all_exception() { }
+            internal message_stop_all_exception() { }
         }
 
         class type_hash<T>
@@ -502,12 +496,12 @@ namespace Go
                     generator host = self;
                     if (null == host || null == host._genLocal)
                     {
-                        throw local_value_exception.val;
+                        throw new local_value_exception();
                     }
                     local_wrap localWrap;
                     if (!host._genLocal.TryGetValue(_id, out localWrap))
                     {
-                        throw local_value_exception.val;
+                        throw new local_value_exception();
                     }
                     return ((local_wrap<T>)localWrap).value;
                 }
@@ -516,7 +510,7 @@ namespace Go
                     generator host = self;
                     if (null == host)
                     {
-                        throw local_value_exception.val;
+                        throw new local_value_exception();
                     }
                     if (null == host._genLocal)
                     {
@@ -539,7 +533,7 @@ namespace Go
                 generator host = self;
                 if (null == host)
                 {
-                    throw local_value_exception.val;
+                    throw new local_value_exception();
                 }
                 host._genLocal?.Remove(_id);
             }
@@ -1156,7 +1150,7 @@ namespace Go
                     _isSuspend = false;
                     _beginQuit = true;
                     _timer.cancel();
-                    throw stop_exception.val;
+                    throw new stop_exception();
                 }
                 else if (_pullTask.is_awaiting())
                 {
@@ -1562,7 +1556,7 @@ namespace Go
                 _beginQuit = true;
                 _suspendHandler = null;
                 _timer.cancel();
-                throw stop_exception.val;
+                throw new stop_exception();
             }
         }
 
@@ -1628,7 +1622,7 @@ namespace Go
                 _beginQuit = true;
                 _suspendHandler = null;
                 _timer.cancel();
-                throw stop_exception.val;
+                throw new stop_exception();
             }
             if (!_beginQuit && 0 == --_lockSuspendCount && _holdSuspend)
             {
@@ -1715,7 +1709,7 @@ namespace Go
                 _beginQuit = true;
                 _suspendHandler = null;
                 _timer.cancel();
-                throw stop_exception.val;
+                throw new stop_exception();
             }
         }
 
@@ -4031,7 +4025,7 @@ namespace Go
 
         static public void csp_fail()
         {
-            throw csp_fail_exception.val;
+            throw new csp_fail_exception();
         }
 
         static public ValueTask<chan_state> csp_wait<R, T>(csp_chan<R, T> chan, Func<T, Task<R>> handler, chan_lost_msg<T> lostMsg = null)
@@ -7875,13 +7869,13 @@ namespace Go
             static public void stop_current()
             {
                 Debug.Assert(null != self && null != self.parent && self.parent._mailboxMap == self._mailboxMap, "不正确的 stop_current 调用!");
-                throw message_stop_current_exception.val;
+                throw new message_stop_current_exception();
             }
 
             static public void stop_all()
             {
                 Debug.Assert(null != self && null != self.parent && self.parent._mailboxMap == self._mailboxMap, "不正确的 stop_all 调用!");
-                throw message_stop_all_exception.val;
+                throw new message_stop_all_exception();
             }
         }
 
@@ -8891,13 +8885,13 @@ namespace Go
             static public void stop_all()
             {
                 Debug.Assert(null != self && null != self._topSelectChans && 0 != self._topSelectChans.Count, "不正确的 stop_all 调用!");
-                throw select_stop_all_exception.val;
+                throw new select_stop_all_exception();
             }
 
             static public void stop_current()
             {
                 Debug.Assert(null != self && null != self._topSelectChans && 0 != self._topSelectChans.Count, "不正确的 stop_current 调用!");
-                throw select_stop_current_exception.val;
+                throw new select_stop_current_exception();
             }
 
             static public Task disable_other(chan_base otherChan, bool disable = true)
