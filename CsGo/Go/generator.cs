@@ -10141,7 +10141,7 @@ namespace Go
             _action = action;
             _cspSign = new chan_notify_sign();
             _tasks = initTasks > 0 ? initTasks : 0;
-            _waitList = initTasks > 0 ? new LinkedList<Action>() : null;
+            _waitList = _tasks > 0 ? new LinkedList<Action>() : null;
         }
 
         public void reset(int tasks = -1)
@@ -10150,7 +10150,7 @@ namespace Go
             _enterCnt = 0;
             _cancelCnt = 0;
             _tasks = tasks > 0 ? tasks : _tasks;
-            _waitList = tasks > 0 ? new LinkedList<Action>() : null;
+            _waitList = _tasks > 0 ? new LinkedList<Action>() : null;
         }
 
         public csp_invoke_wrap<R> result
