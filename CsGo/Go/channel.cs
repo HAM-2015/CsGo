@@ -3173,6 +3173,7 @@ namespace Go
                         {
                             _lostRes?.Invoke(_trySendRes.value1);
                         }
+                        throw;
                     }
                     finally
                     {
