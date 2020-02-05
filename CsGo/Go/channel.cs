@@ -430,7 +430,7 @@ namespace Go
             {
                 ntfSign._disable = false;
                 _host = host;
-                _tryRecvRes = new async_result_wrap<chan_recv_wrap<T>>();
+                _tryRecvRes = new async_result_wrap<chan_recv_wrap<T>> { value1 = chan_recv_wrap<T>.def };
                 if (enable)
                 {
                     _chan.async_append_recv_notify(nextSelect, ntfSign, _chanTimeout);
@@ -458,16 +458,24 @@ namespace Go
                 select_chan_state chanState = new select_chan_state() { failed = false, nextRound = true };
                 if (chan_state.ok == _tryRecvRes.value1.state)
                 {
-                    _lostMsg?.set(_tryRecvRes.value1.msg);
-                    if (null != stepOne)
-                    {
-                        await stepOne();
-                    }
+                    bool invoked = false;
                     try
                     {
+                        if (null != stepOne)
+                        {
+                            await stepOne();
+                        }
                         await _host.unlock_suspend_();
-                        _lostMsg?.clear();
+                        invoked = true;
                         await _handler(_tryRecvRes.value1.msg);
+                    }
+                    catch (generator.stop_exception)
+                    {
+                        if (!invoked)
+                        {
+                            _lostMsg?.set(_tryRecvRes.value1.msg);
+                        }
+                        throw;
                     }
                     finally
                     {
@@ -547,7 +555,7 @@ namespace Go
             {
                 ntfSign._disable = false;
                 _host = host;
-                _trySendRes = new async_result_wrap<chan_send_wrap>();
+                _trySendRes = new async_result_wrap<chan_send_wrap> { value1 = chan_send_wrap.def };
                 if (enable)
                 {
                     _chan.async_append_send_notify(nextSelect, ntfSign, _chanTimeout);
@@ -564,7 +572,7 @@ namespace Go
                 }
                 catch (generator.stop_exception)
                 {
-                    _chan.async_remove_send_notify(_host.unsafe_async_callback(nil_action<chan_state>.action), ntfSign);
+                    _chan.async_remove_send_notify(_host.unsafe_async_ignore<chan_state>(), ntfSign);
                     await _host.async_wait();
                     if (chan_state.ok != _trySendRes.value1.state)
                     {
@@ -575,12 +583,12 @@ namespace Go
                 select_chan_state chanState = new select_chan_state() { failed = false, nextRound = true };
                 if (chan_state.ok == _trySendRes.value1.state)
                 {
-                    if (null != stepOne)
-                    {
-                        await stepOne();
-                    }
                     try
                     {
+                        if (null != stepOne)
+                        {
+                            await stepOne();
+                        }
                         await _host.unlock_suspend_();
                         await _handler();
                     }
@@ -2958,7 +2966,7 @@ namespace Go
             public Func<T, Task<R>> _handler;
             public Func<T, ValueTask<R>> _gohandler;
             public Func<chan_state, Task<bool>> _errHandler;
-            public chan_lost_msg<T> _lostMsg;
+            public chan_lost_msg<csp_wait_wrap<R, T>> _lostMsg;
             public int _chanTimeout = -1;
             async_result_wrap<csp_wait_wrap<R, T>> _tryRecvRes;
             generator _host;
@@ -2967,7 +2975,7 @@ namespace Go
             {
                 ntfSign._disable = false;
                 _host = host;
-                _tryRecvRes = new async_result_wrap<csp_wait_wrap<R, T>>();
+                _tryRecvRes = new async_result_wrap<csp_wait_wrap<R, T>> { value1 = csp_wait_wrap<R, T>.def };
                 if (enable)
                 {
                     _chan.async_append_recv_notify(nextSelect, ntfSign, _chanTimeout);
@@ -2988,24 +2996,30 @@ namespace Go
                     await _host.async_wait();
                     if (chan_state.ok == _tryRecvRes.value1.state)
                     {
-                        _lostMsg?.set(_tryRecvRes.value1.msg);
-                        _tryRecvRes.value1.fail();
+                        if (null != _lostMsg)
+                        {
+                            _lostMsg.set(_tryRecvRes.value1);
+                        }
+                        else
+                        {
+                            _tryRecvRes.value1.fail();
+                        }
                     }
                     throw;
                 }
                 select_chan_state chanState = new select_chan_state() { failed = false, nextRound = true };
                 if (chan_state.ok == _tryRecvRes.value1.state)
                 {
-                    _lostMsg?.set(_tryRecvRes.value1.msg);
-                    if (null != stepOne)
-                    {
-                        await stepOne();
-                    }
+                    bool invoked = false;
                     try
                     {
+                        if (null != stepOne)
+                        {
+                            await stepOne();
+                        }
                         _tryRecvRes.value1.result.start_invoke_timer(_host);
                         await _host.unlock_suspend_();
-                        _lostMsg?.clear();
+                        invoked = true;
                         _tryRecvRes.value1.complete(null != _handler ? await _handler(_tryRecvRes.value1.msg) : await _gohandler(_tryRecvRes.value1.msg));
                     }
                     catch (csp_fail_exception)
@@ -3024,7 +3038,14 @@ namespace Go
                     }
                     catch (generator.stop_exception)
                     {
-                        _tryRecvRes.value1.fail();
+                        if (!invoked && null != _lostMsg)
+                        {
+                            _lostMsg.set(_tryRecvRes.value1);
+                        }
+                        else
+                        {
+                            _tryRecvRes.value1.fail();
+                        }
                         throw;
                     }
                     finally
@@ -3096,7 +3117,7 @@ namespace Go
             public async_result_wrap<T> _msg;
             public Func<R, Task> _handler;
             public Func<chan_state, Task<bool>> _errHandler;
-            public Action<csp_invoke_wrap<R>> _lostHandler;
+            public Action<csp_invoke_wrap<R>> _lostRes;
             public chan_lost_msg<T> _lostMsg;
             public int _chanTimeout = -1;
             async_result_wrap<csp_invoke_wrap<R>> _trySendRes;
@@ -3106,7 +3127,7 @@ namespace Go
             {
                 ntfSign._disable = false;
                 _host = host;
-                _trySendRes = new async_result_wrap<csp_invoke_wrap<R>>();
+                _trySendRes = new async_result_wrap<csp_invoke_wrap<R>> { value1 = csp_invoke_wrap<R>.def };
                 if (enable)
                 {
                     _chan.async_append_send_notify(nextSelect, ntfSign, _chanTimeout);
@@ -3118,13 +3139,13 @@ namespace Go
                 try
                 {
                     _trySendRes.value1 = csp_invoke_wrap<R>.def;
-                    _chan.async_try_send_and_append_notify(null == _lostHandler ? _host.unsafe_async_result(_trySendRes) : _host.async_result(_trySendRes, _lostHandler), nextSelect, ntfSign, _msg.value1, _chanTimeout);
+                    _chan.async_try_send_and_append_notify(null == _lostRes ? _host.unsafe_async_result(_trySendRes) : _host.async_result(_trySendRes, _lostRes), nextSelect, ntfSign, _msg.value1, _chanTimeout);
                     await _host.async_wait();
                 }
                 catch (generator.stop_exception)
                 {
                     chan_state rmState = chan_state.undefined;
-                    _chan.async_remove_send_notify(_host.unsafe_async_callback(null == _lostMsg ? nil_action<chan_state>.action : (chan_state state) => rmState = state), ntfSign);
+                    _chan.async_remove_send_notify(null == _lostMsg ? _host.unsafe_async_ignore<chan_state>() : _host.unsafe_async_callback((chan_state state) => rmState = state), ntfSign);
                     await _host.async_wait();
                     if (chan_state.ok == rmState)
                     {
@@ -3135,15 +3156,23 @@ namespace Go
                 select_chan_state chanState = new select_chan_state() { failed = false, nextRound = true };
                 if (chan_state.ok == _trySendRes.value1.state)
                 {
-                    if (null != stepOne)
-                    {
-                        await stepOne();
-                    }
+                    bool invoked = false;
                     try
                     {
+                        if (null != stepOne)
+                        {
+                            await stepOne();
+                        }
                         await _host.unlock_suspend_();
-                        _lostMsg?.clear();
+                        invoked = true;
                         await _handler(_trySendRes.value1.result);
+                    }
+                    catch (generator.stop_exception)
+                    {
+                        if (!invoked)
+                        {
+                            _lostRes?.Invoke(_trySendRes.value1);
+                        }
                     }
                     finally
                     {
@@ -3223,47 +3252,47 @@ namespace Go
 
         public csp_chan() : this(shared_strand.default_strand()) { }
 
-        internal select_chan_base make_select_reader(Func<T, Task<R>> handler, chan_lost_msg<T> lostMsg)
+        internal select_chan_base make_select_reader(Func<T, Task<R>> handler, chan_lost_msg<csp_wait_wrap<R, T>> lostMsg)
         {
             return new select_csp_reader() { _chan = this, _handler = handler, _lostMsg = lostMsg };
         }
 
-        internal select_chan_base make_select_reader(Func<T, Task<R>> handler, Func<chan_state, Task<bool>> errHandler, chan_lost_msg<T> lostMsg)
+        internal select_chan_base make_select_reader(Func<T, Task<R>> handler, Func<chan_state, Task<bool>> errHandler, chan_lost_msg<csp_wait_wrap<R, T>> lostMsg)
         {
             return new select_csp_reader() { _chan = this, _handler = handler, _errHandler = errHandler, _lostMsg = lostMsg };
         }
 
-        internal select_chan_base make_select_reader(int ms, Func<T, Task<R>> handler, chan_lost_msg<T> lostMsg)
+        internal select_chan_base make_select_reader(int ms, Func<T, Task<R>> handler, chan_lost_msg<csp_wait_wrap<R, T>> lostMsg)
         {
             return new select_csp_reader() { _chanTimeout = ms, _chan = this, _handler = handler, _lostMsg = lostMsg };
         }
 
-        internal select_chan_base make_select_reader(int ms, Func<T, Task<R>> handler, Func<chan_state, Task<bool>> errHandler, chan_lost_msg<T> lostMsg)
+        internal select_chan_base make_select_reader(int ms, Func<T, Task<R>> handler, Func<chan_state, Task<bool>> errHandler, chan_lost_msg<csp_wait_wrap<R, T>> lostMsg)
         {
             return new select_csp_reader() { _chanTimeout = ms, _chan = this, _handler = handler, _errHandler = errHandler, _lostMsg = lostMsg };
         }
 
-        internal select_chan_base make_select_reader(Func<T, ValueTask<R>> handler, chan_lost_msg<T> lostMsg)
+        internal select_chan_base make_select_reader(Func<T, ValueTask<R>> handler, chan_lost_msg<csp_wait_wrap<R, T>> lostMsg)
         {
             return new select_csp_reader() { _chan = this, _gohandler = handler, _lostMsg = lostMsg };
         }
 
-        internal select_chan_base make_select_reader(Func<T, ValueTask<R>> handler, Func<chan_state, Task<bool>> errHandler, chan_lost_msg<T> lostMsg)
+        internal select_chan_base make_select_reader(Func<T, ValueTask<R>> handler, Func<chan_state, Task<bool>> errHandler, chan_lost_msg<csp_wait_wrap<R, T>> lostMsg)
         {
             return new select_csp_reader() { _chan = this, _gohandler = handler, _errHandler = errHandler, _lostMsg = lostMsg };
         }
 
-        internal select_chan_base make_select_reader(int ms, Func<T, ValueTask<R>> handler, chan_lost_msg<T> lostMsg)
+        internal select_chan_base make_select_reader(int ms, Func<T, ValueTask<R>> handler, chan_lost_msg<csp_wait_wrap<R, T>> lostMsg)
         {
             return new select_csp_reader() { _chanTimeout = ms, _chan = this, _gohandler = handler, _lostMsg = lostMsg };
         }
 
-        internal select_chan_base make_select_reader(int ms, Func<T, ValueTask<R>> handler, Func<chan_state, Task<bool>> errHandler, chan_lost_msg<T> lostMsg)
+        internal select_chan_base make_select_reader(int ms, Func<T, ValueTask<R>> handler, Func<chan_state, Task<bool>> errHandler, chan_lost_msg<csp_wait_wrap<R, T>> lostMsg)
         {
             return new select_csp_reader() { _chanTimeout = ms, _chan = this, _gohandler = handler, _errHandler = errHandler, _lostMsg = lostMsg };
         }
 
-        internal select_chan_base make_select_writer(int ms, async_result_wrap<T> msg, Func<R, Task> handler, Func<chan_state, Task<bool>> errHandler, Action<R> lostHandler, chan_lost_msg<T> lostMsg)
+        internal select_chan_base make_select_writer(int ms, async_result_wrap<T> msg, Func<R, Task> handler, Func<chan_state, Task<bool>> errHandler, Action<R> lostRes, chan_lost_msg<T> lostMsg)
         {
             return new select_csp_writer()
             {
@@ -3273,29 +3302,29 @@ namespace Go
                 _handler = handler,
                 _errHandler = errHandler,
                 _lostMsg = lostMsg,
-                _lostHandler = null == lostHandler ? null : (Action<csp_invoke_wrap<R>>)delegate (csp_invoke_wrap<R> cspRes)
+                _lostRes = null == lostRes ? (Action<csp_invoke_wrap<R>>)null : delegate (csp_invoke_wrap<R> cspRes)
                 {
                     if (chan_state.ok == cspRes.state)
                     {
-                        lostHandler(cspRes.result);
+                        lostRes(cspRes.result);
                     }
                 }
             };
         }
 
-        internal select_chan_base make_select_writer(async_result_wrap<T> msg, Func<R, Task> handler, Func<chan_state, Task<bool>> errHandler, Action<R> lostHandler, chan_lost_msg<T> lostMsg)
+        internal select_chan_base make_select_writer(async_result_wrap<T> msg, Func<R, Task> handler, Func<chan_state, Task<bool>> errHandler, Action<R> lostRes, chan_lost_msg<T> lostMsg)
         {
-            return make_select_writer(-1, msg, handler, errHandler, lostHandler, lostMsg);
+            return make_select_writer(-1, msg, handler, errHandler, lostRes, lostMsg);
         }
 
-        internal select_chan_base make_select_writer(T msg, Func<R, Task> handler, Func<chan_state, Task<bool>> errHandler, Action<R> lostHandler, chan_lost_msg<T> lostMsg)
+        internal select_chan_base make_select_writer(T msg, Func<R, Task> handler, Func<chan_state, Task<bool>> errHandler, Action<R> lostRes, chan_lost_msg<T> lostMsg)
         {
-            return make_select_writer(-1, new async_result_wrap<T> { value1 = msg }, handler, errHandler, lostHandler, lostMsg);
+            return make_select_writer(-1, new async_result_wrap<T> { value1 = msg }, handler, errHandler, lostRes, lostMsg);
         }
 
-        internal select_chan_base make_select_writer(int ms, T msg, Func<R, Task> handler, Func<chan_state, Task<bool>> errHandler, Action<R> lostHandler, chan_lost_msg<T> lostMsg)
+        internal select_chan_base make_select_writer(int ms, T msg, Func<R, Task> handler, Func<chan_state, Task<bool>> errHandler, Action<R> lostRes, chan_lost_msg<T> lostMsg)
         {
-            return make_select_writer(ms, new async_result_wrap<T> { value1 = msg }, handler, errHandler, lostHandler, lostMsg);
+            return make_select_writer(ms, new async_result_wrap<T> { value1 = msg }, handler, errHandler, lostRes, lostMsg);
         }
 
         public override chan_type type()
@@ -3396,9 +3425,9 @@ namespace Go
             return generator.unsafe_csp_invoke(res, this, msg, invokeMs);
         }
 
-        public ValueTask<csp_invoke_wrap<R>> invoke(T msg, int invokeMs = -1, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
+        public ValueTask<csp_invoke_wrap<R>> invoke(T msg, int invokeMs = -1, Action<R> lostRes = null, chan_lost_msg<T> lostMsg = null)
         {
-            return generator.csp_invoke(this, msg, invokeMs, lostHandler, lostMsg);
+            return generator.csp_invoke(this, msg, invokeMs, lostRes, lostMsg);
         }
 
         public Task unsafe_wait(async_result_wrap<csp_wait_wrap<R, T>> res)
@@ -3406,17 +3435,17 @@ namespace Go
             return generator.unsafe_csp_wait(res, this);
         }
 
-        public ValueTask<csp_wait_wrap<R, T>> wait(chan_lost_msg<T> lostMsg = null)
+        public ValueTask<csp_wait_wrap<R, T>> wait(chan_lost_msg<csp_wait_wrap<R, T>> lostMsg = null)
         {
             return generator.csp_wait(this, lostMsg);
         }
 
-        public ValueTask<chan_state> wait(Func<T, Task<R>> handler, chan_lost_msg<T> lostMsg = null)
+        public ValueTask<chan_state> wait(Func<T, Task<R>> handler, chan_lost_msg<csp_wait_wrap<R, T>> lostMsg = null)
         {
             return generator.csp_wait(this, handler, lostMsg);
         }
 
-        public ValueTask<chan_state> wait(Func<T, ValueTask<R>> handler, chan_lost_msg<T> lostMsg = null)
+        public ValueTask<chan_state> wait(Func<T, ValueTask<R>> handler, chan_lost_msg<csp_wait_wrap<R, T>> lostMsg = null)
         {
             return generator.csp_wait(this, handler, lostMsg);
         }
@@ -3426,9 +3455,9 @@ namespace Go
             return generator.unsafe_csp_try_invoke(res, this, msg, invokeMs);
         }
 
-        public ValueTask<csp_invoke_wrap<R>> try_invoke(T msg, int invokeMs = -1, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
+        public ValueTask<csp_invoke_wrap<R>> try_invoke(T msg, int invokeMs = -1, Action<R> lostRes = null, chan_lost_msg<T> lostMsg = null)
         {
-            return generator.csp_try_invoke(this, msg, invokeMs, lostHandler, lostMsg);
+            return generator.csp_try_invoke(this, msg, invokeMs, lostRes, lostMsg);
         }
 
         public Task unsafe_try_wait(async_result_wrap<csp_wait_wrap<R, T>> res)
@@ -3436,17 +3465,17 @@ namespace Go
             return generator.unsafe_csp_try_wait(res, this);
         }
 
-        public ValueTask<csp_wait_wrap<R, T>> try_wait(chan_lost_msg<T> lostMsg = null)
+        public ValueTask<csp_wait_wrap<R, T>> try_wait(chan_lost_msg<csp_wait_wrap<R, T>> lostMsg = null)
         {
             return generator.csp_try_wait(this, lostMsg);
         }
 
-        public ValueTask<chan_state> try_wait(Func<T, Task<R>> handler, chan_lost_msg<T> lostMsg = null)
+        public ValueTask<chan_state> try_wait(Func<T, Task<R>> handler, chan_lost_msg<csp_wait_wrap<R, T>> lostMsg = null)
         {
             return generator.csp_try_wait(this, handler, lostMsg);
         }
 
-        public ValueTask<chan_state> try_wait(Func<T, ValueTask<R>> handler, chan_lost_msg<T> lostMsg = null)
+        public ValueTask<chan_state> try_wait(Func<T, ValueTask<R>> handler, chan_lost_msg<csp_wait_wrap<R, T>> lostMsg = null)
         {
             return generator.csp_try_wait(this, handler, lostMsg);
         }
@@ -3456,9 +3485,9 @@ namespace Go
             return generator.unsafe_csp_timed_invoke(res, this, ms, msg);
         }
 
-        public ValueTask<csp_invoke_wrap<R>> timed_invoke(tuple<int, int> ms, T msg, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
+        public ValueTask<csp_invoke_wrap<R>> timed_invoke(tuple<int, int> ms, T msg, Action<R> lostRes = null, chan_lost_msg<T> lostMsg = null)
         {
-            return generator.csp_timed_invoke(this, ms, msg, lostHandler, lostMsg);
+            return generator.csp_timed_invoke(this, ms, msg, lostRes, lostMsg);
         }
 
         public Task unsafe_timed_invoke(async_result_wrap<csp_invoke_wrap<R>> res, int ms, T msg)
@@ -3466,9 +3495,9 @@ namespace Go
             return generator.unsafe_csp_timed_invoke(res, this, ms, msg);
         }
 
-        public ValueTask<csp_invoke_wrap<R>> timed_invoke(int ms, T msg, Action<R> lostHandler = null, chan_lost_msg<T> lostMsg = null)
+        public ValueTask<csp_invoke_wrap<R>> timed_invoke(int ms, T msg, Action<R> lostRes = null, chan_lost_msg<T> lostMsg = null)
         {
-            return generator.csp_timed_invoke(this, ms, msg, lostHandler, lostMsg);
+            return generator.csp_timed_invoke(this, ms, msg, lostRes, lostMsg);
         }
 
         public Task unsafe_timed_wait(async_result_wrap<csp_wait_wrap<R, T>> res, int ms)
@@ -3476,17 +3505,17 @@ namespace Go
             return generator.unsafe_csp_timed_wait(res, this, ms);
         }
 
-        public ValueTask<csp_wait_wrap<R, T>> timed_wait(int ms, chan_lost_msg<T> lostMsg = null)
+        public ValueTask<csp_wait_wrap<R, T>> timed_wait(int ms, chan_lost_msg<csp_wait_wrap<R, T>> lostMsg = null)
         {
             return generator.csp_timed_wait(this, ms, lostMsg);
         }
 
-        public ValueTask<chan_state> timed_wait(int ms, Func<T, Task<R>> handler, chan_lost_msg<T> lostMsg = null)
+        public ValueTask<chan_state> timed_wait(int ms, Func<T, Task<R>> handler, chan_lost_msg<csp_wait_wrap<R, T>> lostMsg = null)
         {
             return generator.csp_timed_wait(this, ms, handler, lostMsg);
         }
 
-        public ValueTask<chan_state> timed_wait(int ms, Func<T, ValueTask<R>> handler, chan_lost_msg<T> lostMsg = null)
+        public ValueTask<chan_state> timed_wait(int ms, Func<T, ValueTask<R>> handler, chan_lost_msg<csp_wait_wrap<R, T>> lostMsg = null)
         {
             return generator.csp_timed_wait(this, ms, handler, lostMsg);
         }
