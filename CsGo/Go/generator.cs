@@ -485,6 +485,22 @@ namespace Go
             internal LinkedListNode<Action<bool>> token;
         }
 
+        public struct stop_count
+        {
+            internal int _count;
+        }
+
+        public struct suspend_count
+        {
+            internal int _count;
+        }
+
+        public struct shield_count
+        {
+            internal int _lockCount;
+            internal int _suspendCount;
+        }
+
         public class local<T>
         {
             readonly long _id = Interlocked.Increment(ref generator._idCount);
@@ -1538,16 +1554,21 @@ namespace Go
             return non_async();
         }
 
-        internal void lock_stop_()
+        internal stop_count lock_stop_()
         {
             if (!_beginQuit)
             {
                 _lockCount++;
             }
+            return new stop_count { _count = _lockCount };
         }
 
-        internal void unlock_stop_()
+        internal void unlock_stop_(stop_count stopCount = default(stop_count))
         {
+            if (stopCount._count > 0)
+            {
+                _lockCount = stopCount._count;
+            }
             Debug.Assert(_beginQuit || _lockCount > 0, "unlock_stop 不匹配!");
             if (!_beginQuit && 0 == --_lockCount && _isForce)
             {
@@ -1579,16 +1600,21 @@ namespace Go
             return new ValueTask<T>(task);
         }
 
-        internal void lock_suspend_()
+        internal suspend_count lock_suspend_()
         {
             if (!_beginQuit)
             {
                 _lockSuspendCount++;
             }
+            return new suspend_count { _count = _lockSuspendCount };
         }
 
-        internal Task unlock_suspend_()
+        internal Task unlock_suspend_(suspend_count suspendCount = default(suspend_count))
         {
+            if (suspendCount._count > 0)
+            {
+                _lockSuspendCount = suspendCount._count;
+            }
             Debug.Assert(_beginQuit || _lockSuspendCount > 0, "unlock_suspend 不匹配!");
             if (!_beginQuit && 0 == --_lockSuspendCount && _holdSuspend)
             {
@@ -1602,17 +1628,23 @@ namespace Go
             return non_async();
         }
 
-        internal void lock_suspend_and_stop_()
+        internal shield_count lock_suspend_and_stop_()
         {
             if (!_beginQuit)
             {
                 _lockSuspendCount++;
                 _lockCount++;
             }
+            return new shield_count { _lockCount = _lockCount, _suspendCount = _lockSuspendCount };
         }
 
-        internal Task unlock_suspend_and_stop_()
+        internal Task unlock_suspend_and_stop_(shield_count shieldCount = default(shield_count))
         {
+            if (shieldCount._lockCount > 0 && shieldCount._suspendCount > 0)
+            {
+                _lockCount = shieldCount._lockCount;
+                _lockSuspendCount = shieldCount._suspendCount;
+            }
             Debug.Assert(_beginQuit || _lockCount > 0, "unlock_stop 不匹配!");
             Debug.Assert(_beginQuit || _lockSuspendCount > 0, "unlock_suspend 不匹配!");
             if (!_beginQuit && 0 == --_lockCount && _isForce)
@@ -1636,50 +1668,50 @@ namespace Go
             return non_async();
         }
 
-        static public void lock_stop()
+        static public stop_count lock_stop()
         {
             generator this_ = self;
-            this_.lock_stop_();
+            return this_.lock_stop_();
         }
 
-        static public void unlock_stop()
+        static public void unlock_stop(stop_count stopCount = default(stop_count))
         {
             generator this_ = self;
-            this_.unlock_stop_();
+            this_.unlock_stop_(stopCount);
         }
 
-        static public void lock_suspend()
+        static public suspend_count lock_suspend()
         {
             generator this_ = self;
-            this_.lock_suspend_();
+            return this_.lock_suspend_();
         }
 
-        static public Task unlock_suspend()
+        static public Task unlock_suspend(suspend_count suspendCount = default(suspend_count))
         {
             generator this_ = self;
-            return this_.unlock_suspend_();
+            return this_.unlock_suspend_(suspendCount);
         }
 
-        static public void lock_suspend_and_stop()
+        static public shield_count lock_suspend_and_stop()
         {
             generator this_ = self;
-            this_.lock_suspend_and_stop_();
+            return this_.lock_suspend_and_stop_();
         }
 
-        static public Task unlock_suspend_and_stop()
+        static public Task unlock_suspend_and_stop(shield_count shieldCount = default(shield_count))
         {
             generator this_ = self;
-            return this_.unlock_suspend_and_stop_();
+            return this_.unlock_suspend_and_stop_(shieldCount);
         }
 
-        static public void lock_shield()
+        static public shield_count lock_shield()
         {
-            lock_suspend_and_stop();
+            return lock_suspend_and_stop();
         }
 
-        static public Task unlock_shield()
+        static public Task unlock_shield(shield_count shieldCount = default(shield_count))
         {
-            return unlock_suspend_and_stop();
+            return unlock_suspend_and_stop(shieldCount);
         }
 
         private void enter_push()
