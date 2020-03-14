@@ -1231,7 +1231,7 @@ namespace Go
             if (!_msgQueue.Empty)
             {
                 T msg = _msgQueue.RemoveFirst();
-                ntf(new chan_recv_wrap<T> { state = chan_state.ok });
+                ntf(new chan_recv_wrap<T> { state = chan_state.ok, msg = msg });
             }
             else if (_closed)
             {
