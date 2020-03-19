@@ -3406,6 +3406,14 @@ namespace Go
             }
         }
 
+        public virtual children brothers
+        {
+            get
+            {
+                return null;
+            }
+        }
+
         public long id
         {
             get
@@ -9086,6 +9094,14 @@ namespace Go
                 }
             }
 
+            public override children brothers
+            {
+                get
+                {
+                    return _childrenMgr;
+                }
+            }
+
             public bool is_free()
             {
                 return _isFree;
@@ -9289,6 +9305,14 @@ namespace Go
                 get
                 {
                     return _parent;
+                }
+            }
+
+            public bool ignored_suspend
+            {
+                get
+                {
+                    return _ignoreSuspend;
                 }
             }
 
