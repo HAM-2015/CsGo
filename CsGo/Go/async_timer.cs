@@ -27,11 +27,6 @@ namespace Go
 
         private system_tick()
         {
-            uint MaximumTime = 0, MinimumTime = 0, CurrentTime = 0, ActualTime = 0;
-            if (0 == NtQueryTimerResolution(out MaximumTime, out MinimumTime, out CurrentTime))
-            {
-                NtSetTimerResolution(MinimumTime, 1, out ActualTime);
-            }
             long freq;
             if (!QueryPerformanceFrequency(out freq))
             {
@@ -57,6 +52,15 @@ namespace Go
             checkStepDebug.Name = "单步调试检测";
             checkStepDebug.Start();
 #endif
+        }
+
+        public static void high_resolution()
+        {
+            uint MaximumTime = 0, MinimumTime = 0, CurrentTime = 0, ActualTime = 0;
+            if (0 == NtQueryTimerResolution(out MaximumTime, out MinimumTime, out CurrentTime))
+            {
+                NtSetTimerResolution(MinimumTime, 1, out ActualTime);
+            }
         }
 
         public static long get_tick()
@@ -230,7 +234,7 @@ namespace Go
                     _timerThread = new Thread(timer_thread);
                     _timerThread.Priority = ThreadPriority.Highest;
                     _timerThread.IsBackground = true;
-                    _timerThread.Name = _utcMode? "UTC定时器" : "系统定时器";
+                    _timerThread.Name = _utcMode ? "UTC定时器" : "系统定时器";
                     _workEngine.run(1, ThreadPriority.Highest, true, _utcMode ? "UTC定时器调度" : "系统定时器调度");
                     _timerThread.Start();
                 }
