@@ -17,7 +17,7 @@ namespace Go
         private static extern bool QueryPerformanceFrequency(out long frequency);
 
         private static system_tick _pcCycle = new system_tick();
-#if DEBUG
+#if CHECK_STEP_TIMEOUT
         private static volatile bool _checkStepDebugSign = false;
 #endif
 
@@ -35,7 +35,7 @@ namespace Go
             _sCycle = 1.0 / (double)freq;
             _msCycle = 1000.0 / (double)freq;
             _usCycle = 1000000.0 / (double)freq;
-#if DEBUG
+#if CHECK_STEP_TIMEOUT
             Thread checkStepDebug = new Thread(delegate ()
             {
                 long checkTick = get_tick_ms();
@@ -114,7 +114,7 @@ namespace Go
                 return get_tick_s();
             }
         }
-#if DEBUG
+#if CHECK_STEP_TIMEOUT
         public static bool check_step_debugging()
         {
             return _checkStepDebugSign;
@@ -239,6 +239,22 @@ namespace Go
                     _timerThread.Start();
                 }
 
+                private void set_timer()
+                {
+                    if (_utcMode)
+                    {
+                        long sleepTime = _expireTime * 10;
+                        sleepTime = sleepTime > 0 ? sleepTime : 0;
+                        SetWaitableTimer(_timerHandle, ref sleepTime, 0, 0, 0, 0);
+                    }
+                    else
+                    {
+                        long sleepTime = -(_expireTime - system_tick.get_tick_us()) * 10;
+                        sleepTime = sleepTime < 0 ? sleepTime : 0;
+                        SetWaitableTimer(_timerHandle, ref sleepTime, 0, 0, 0, 0);
+                    }
+                }
+
                 public void close()
                 {
                     _workEngine.service.post(delegate ()
@@ -261,18 +277,7 @@ namespace Go
                         if (absus < _expireTime)
                         {
                             _expireTime = absus;
-                            if (_utcMode)
-                            {
-                                long sleepTime = absus * 10;
-                                sleepTime = sleepTime > 0 ? sleepTime : 0;
-                                SetWaitableTimer(_timerHandle, ref sleepTime, 0, 0, 0, 0);
-                            }
-                            else
-                            {
-                                long sleepTime = -(absus - system_tick.get_tick_us()) * 10;
-                                sleepTime = sleepTime < 0 ? sleepTime : 0;
-                                SetWaitableTimer(_timerHandle, ref sleepTime, 0, 0, 0, 0);
-                            }
+                            set_timer();
                         }
                     });
                 }
@@ -295,18 +300,7 @@ namespace Go
                             else if (lastAbsus == _expireTime)
                             {
                                 _expireTime = _eventsQueue.First.Key;
-                                if (_utcMode)
-                                {
-                                    long sleepTime = _expireTime * 10;
-                                    sleepTime = sleepTime > 0 ? sleepTime : 0;
-                                    SetWaitableTimer(_timerHandle, ref sleepTime, 0, 0, 0, 0);
-                                }
-                                else
-                                {
-                                    long sleepTime = -(_expireTime - system_tick.get_tick_us()) * 10;
-                                    sleepTime = sleepTime < 0 ? sleepTime : 0;
-                                    SetWaitableTimer(_timerHandle, ref sleepTime, 0, 0, 0, 0);
-                                }
+                                set_timer();
                             }
                         }
                     });
@@ -329,18 +323,7 @@ namespace Go
                         if (newAbsus < _expireTime)
                         {
                             _expireTime = newAbsus;
-                            if (_utcMode)
-                            {
-                                long sleepTime = newAbsus * 10;
-                                sleepTime = sleepTime > 0 ? sleepTime : 0;
-                                SetWaitableTimer(_timerHandle, ref sleepTime, 0, 0, 0, 0);
-                            }
-                            else
-                            {
-                                long sleepTime = -(newAbsus - system_tick.get_tick_us()) * 10;
-                                sleepTime = sleepTime < 0 ? sleepTime : 0;
-                                SetWaitableTimer(_timerHandle, ref sleepTime, 0, 0, 0, 0);
-                            }
+                            set_timer();
                         }
                     });
                 }
@@ -365,16 +348,7 @@ namespace Go
                         if (absus > ct)
                         {
                             _expireTime = absus;
-                            if (_utcMode)
-                            {
-                                long sleepTime = absus * 10;
-                                SetWaitableTimer(_timerHandle, ref sleepTime, 0, 0, 0, 0);
-                            }
-                            else
-                            {
-                                long sleepTime = -(absus - ct) * 10;
-                                SetWaitableTimer(_timerHandle, ref sleepTime, 0, 0, 0, 0);
-                            }
+                            set_timer();
                             break;
                         }
                         first.Value.steadyTimer._waitableNode = null;
