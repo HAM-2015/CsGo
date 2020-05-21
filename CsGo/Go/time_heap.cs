@@ -718,6 +718,18 @@ namespace Go
             return !is_nil(node) && !comp_lt(key, node.key);
         }
 
+        public MapNode<TKey, TValue> FindFirstGE(TKey key)
+        {
+            MapNode<TKey, TValue> node = lbound(key);
+            return !is_nil(node) ? node : null;
+        }
+
+        public MapNode<TKey, TValue> FindFirstLE(TKey key)
+        {
+            MapNode<TKey, TValue> node = rbound(key);
+            return !is_nil(node) ? node : null;
+        }
+
         public MapNode<TKey, TValue> FindFirst(TKey key)
         {
             MapNode<TKey, TValue> node = lbound(key);
