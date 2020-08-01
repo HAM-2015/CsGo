@@ -6078,6 +6078,49 @@ namespace Go
             return timed_wait_others(ms, (IEnumerable<generator>)otherGens);
         }
 
+        static public generator completed_others_any(IEnumerable<generator> otherGens)
+        {
+            foreach (generator ele in otherGens)
+            {
+                if (ele.is_completed())
+                {
+                    return ele;
+                }
+            }
+            return null;
+        }
+
+        static public generator completed_others_any(params generator[] otherGens)
+        {
+            return completed_others_any((IEnumerable<generator>)otherGens);
+        }
+
+        static public List<generator> completed_others(IEnumerable<generator> otherGens)
+        {
+            List<generator> completedGens = new List<generator>(32);
+            foreach (generator ele in otherGens)
+            {
+                if (ele.is_completed())
+                {
+                    completedGens.Add(ele);
+                }
+            }
+            return completedGens;
+        }
+
+        static public List<generator> completed_others(params generator[] otherGens)
+        {
+            List<generator> completedGens = new List<generator>(otherGens.Length);
+            foreach (generator ele in otherGens)
+            {
+                if (ele.is_completed())
+                {
+                    completedGens.Add(ele);
+                }
+            }
+            return completedGens;
+        }
+
         private async Task wait_group_(wait_group wg, wait_group.cancel_token cancelToken)
         {
             try
@@ -10055,6 +10098,41 @@ namespace Go
                     }
                     await unlock_suspend_and_stop();
                 }
+            }
+
+            public child completed_any(bool containFree = false)
+            {
+                for (LinkedListNode<child> it = _children.First; null != it; it = it.Next)
+                {
+                    child ele = it.Value;
+                    if (!containFree && ele.is_free())
+                    {
+                        continue;
+                    }
+                    if (ele.is_completed())
+                    {
+                        return ele;
+                    }
+                }
+                return null;
+            }
+
+            public List<child> completed_all(bool containFree = true)
+            {
+                List<child> completedGens = new List<child>(_children.Count);
+                for (LinkedListNode<child> it = _children.First; null != it; it = it.Next)
+                {
+                    child ele = it.Value;
+                    if (!containFree && ele.is_free())
+                    {
+                        continue;
+                    }
+                    if (ele.is_completed())
+                    {
+                        completedGens.Add(ele);
+                    }
+                }
+                return completedGens;
             }
         }
     }
