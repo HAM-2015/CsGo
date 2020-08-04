@@ -3048,6 +3048,11 @@ namespace Go
                         }
                         throw;
                     }
+                    catch (System.Exception)
+                    {
+                        _tryRecvRes.value1.fail();
+                        throw;
+                    }
                     finally
                     {
                         _host.lock_suspend_();

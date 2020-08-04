@@ -4108,6 +4108,11 @@ namespace Go
                     result.fail();
                     throw;
                 }
+                catch (System.Exception)
+                {
+                    result.fail();
+                    throw;
+                }
             }
             return result.state;
         }
@@ -4123,6 +4128,11 @@ namespace Go
                 result.fail();
             }
             catch (stop_exception)
+            {
+                result.fail();
+                throw;
+            }
+            catch (System.Exception)
             {
                 result.fail();
                 throw;
@@ -4153,6 +4163,11 @@ namespace Go
                     result.fail();
                 }
                 catch (stop_exception)
+                {
+                    result.fail();
+                    throw;
+                }
+                catch (System.Exception)
                 {
                     result.fail();
                     throw;
@@ -4194,6 +4209,11 @@ namespace Go
                     result.fail();
                     throw;
                 }
+                catch (System.Exception)
+                {
+                    result.fail();
+                    throw;
+                }
             }
             return result.state;
         }
@@ -4221,6 +4241,11 @@ namespace Go
                     result.fail();
                 }
                 catch (stop_exception)
+                {
+                    result.fail();
+                    throw;
+                }
+                catch (System.Exception)
                 {
                     result.fail();
                     throw;
@@ -4262,6 +4287,11 @@ namespace Go
                     result.fail();
                     throw;
                 }
+                catch (System.Exception)
+                {
+                    result.fail();
+                    throw;
+                }
             }
             return result.state;
         }
@@ -4289,6 +4319,11 @@ namespace Go
                     result.fail();
                 }
                 catch (stop_exception)
+                {
+                    result.fail();
+                    throw;
+                }
+                catch (System.Exception)
                 {
                     result.fail();
                     throw;
@@ -4330,6 +4365,11 @@ namespace Go
                     result.fail();
                     throw;
                 }
+                catch (System.Exception)
+                {
+                    result.fail();
+                    throw;
+                }
             }
             return result.state;
         }
@@ -4357,6 +4397,11 @@ namespace Go
                     result.fail();
                 }
                 catch (stop_exception)
+                {
+                    result.fail();
+                    throw;
+                }
+                catch (System.Exception)
                 {
                     result.fail();
                     throw;
@@ -4389,6 +4434,11 @@ namespace Go
                     result.fail();
                     throw;
                 }
+                catch (System.Exception)
+                {
+                    result.fail();
+                    throw;
+                }
             }
             return result.state;
         }
@@ -4405,6 +4455,11 @@ namespace Go
                 result.fail();
             }
             catch (stop_exception)
+            {
+                result.fail();
+                throw;
+            }
+            catch (System.Exception)
             {
                 result.fail();
                 throw;
@@ -4439,6 +4494,11 @@ namespace Go
                     result.fail();
                     throw;
                 }
+                catch (System.Exception)
+                {
+                    result.fail();
+                    throw;
+                }
             }
             return to_vtask(result.state);
         }
@@ -4463,6 +4523,11 @@ namespace Go
                     result.fail();
                 }
                 catch (stop_exception)
+                {
+                    result.fail();
+                    throw;
+                }
+                catch (System.Exception)
                 {
                     result.fail();
                     throw;
@@ -4498,6 +4563,11 @@ namespace Go
                     result.fail();
                     throw;
                 }
+                catch (System.Exception)
+                {
+                    result.fail();
+                    throw;
+                }
             }
             return to_vtask(result.state);
         }
@@ -4522,6 +4592,11 @@ namespace Go
                     result.fail();
                 }
                 catch (stop_exception)
+                {
+                    result.fail();
+                    throw;
+                }
+                catch (System.Exception)
                 {
                     result.fail();
                     throw;
@@ -4557,6 +4632,11 @@ namespace Go
                     result.fail();
                     throw;
                 }
+                catch (System.Exception)
+                {
+                    result.fail();
+                    throw;
+                }
             }
             return to_vtask(result.state);
         }
@@ -4581,6 +4661,11 @@ namespace Go
                     result.fail();
                 }
                 catch (stop_exception)
+                {
+                    result.fail();
+                    throw;
+                }
+                catch (System.Exception)
                 {
                     result.fail();
                     throw;
@@ -4612,6 +4697,11 @@ namespace Go
                     result.fail();
                 }
                 catch (stop_exception)
+                {
+                    result.fail();
+                    throw;
+                }
+                catch (System.Exception)
                 {
                     result.fail();
                     throw;
@@ -7400,6 +7490,11 @@ namespace Go
                                         recvRes.fail();
                                         throw;
                                     }
+                                    catch (System.Exception)
+                                    {
+                                        recvRes.fail();
+                                        throw;
+                                    }
                                 }
                                 else if (null != errHandler && await errHandler(recvRes.state))
                                 {
@@ -7478,6 +7573,11 @@ namespace Go
                                                 recvRes.value1.fail();
                                             }
                                             catch (stop_exception)
+                                            {
+                                                recvRes.value1.fail();
+                                                throw;
+                                            }
+                                            catch (System.Exception)
                                             {
                                                 recvRes.value1.fail();
                                                 throw;
@@ -7609,6 +7709,11 @@ namespace Go
                                     recvRes.fail();
                                     throw;
                                 }
+                                catch (System.Exception)
+                                {
+                                    recvRes.fail();
+                                    throw;
+                                }
                             }
                             else if (null != errHandler && await errHandler(recvRes.state)) { }
                         }
@@ -7657,6 +7762,11 @@ namespace Go
                                                     recvRes.fail();
                                                 }
                                                 catch (stop_exception)
+                                                {
+                                                    recvRes.fail();
+                                                    throw;
+                                                }
+                                                catch (System.Exception)
                                                 {
                                                     recvRes.fail();
                                                     throw;
@@ -7796,6 +7906,11 @@ namespace Go
                                 recvRes.fail();
                             }
                             catch (stop_exception)
+                            {
+                                recvRes.fail();
+                                throw;
+                            }
+                            catch (System.Exception)
                             {
                                 recvRes.fail();
                                 throw;
