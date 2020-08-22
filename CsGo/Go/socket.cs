@@ -884,7 +884,6 @@ namespace Go
             try
             {
                 _socket?.Close();
-                _socket = null;
             }
             catch (System.Exception) { }
         }
@@ -898,6 +897,11 @@ namespace Go
         {
             try
             {
+                if (null != _socket)
+                {
+                    functional.catch_invoke(cb, new socket_result(false));
+                    return;
+                }
                 _socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                 if (null != _localPoint)
                 {
