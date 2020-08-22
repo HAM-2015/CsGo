@@ -763,6 +763,7 @@ namespace Go
         }
 
         Socket _socket;
+        EndPoint _localPoint;
         socket_same_handler _readSameHandler;
         socket_same_handler _writeSameHandler;
         socket_ptr_handler _readPtrHandler;
@@ -888,11 +889,20 @@ namespace Go
             catch (System.Exception) { }
         }
 
+        public void bind(string ip)
+        {
+            _localPoint = null == ip ? null : new IPEndPoint(IPAddress.Parse(ip), 0);
+        }
+
         public void async_connect(string ip, int port, Action<socket_result> cb)
         {
             try
             {
                 _socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                if (null != _localPoint)
+                {
+                    _socket.Bind(_localPoint);
+                }
                 _socket.BeginConnect(IPAddress.Parse(ip), port, delegate (IAsyncResult ar)
                 {
                     try
@@ -1200,14 +1210,13 @@ namespace Go
                 }
             }
 
-            public bool bind(string ip, int port)
+            public bool bind(string ip, int port, int backlog = 1)
             {
                 try
                 {
                     _socket.Bind(new IPEndPoint(IPAddress.Parse(ip), port));
-                    _socket.Listen(1);
+                    _socket.Listen(backlog);
                     return true;
-
                 }
                 catch (System.Exception) { }
                 return false;
