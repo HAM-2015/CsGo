@@ -150,7 +150,7 @@ namespace Go
         {
             lock (this)
             {
-                Trace.Assert(null == _runThreads, "work_engine 已经运行!");
+                Debug.Assert(null == _runThreads, "work_engine 已经运行!");
                 _service.reset();
                 _service.hold_work();
                 _runThreads = new Thread[threads];

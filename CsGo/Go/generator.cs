@@ -10478,7 +10478,6 @@ namespace Go
 
         public wait_gate.cancel_token async_enter(Action continuation)
         {
-            Trace.Assert(_enterCnt < _tasks, "异常的 async_enter 调用!");
             if (_tasks == Interlocked.Increment(ref _enterCnt))
             {
                 _action.async_send(delegate (csp_invoke_wrap<R> res)
@@ -10487,6 +10486,7 @@ namespace Go
                     notify();
                 }, default(void_type), _cspSign);
             }
+            Debug.Assert(_enterCnt < _tasks, "异常的 async_enter 调用!");
             if (null == continuation)
             {
                 if (_tasks == Interlocked.Increment(ref _cancelCnt) && null != _waitList)
