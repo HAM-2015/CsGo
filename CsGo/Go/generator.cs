@@ -9933,6 +9933,7 @@ namespace Go
                 if (0 != _children.Count)
                 {
                     unlimit_chan<child> waitStop = new unlimit_chan<child>(_parent.strand);
+                    Action<generator> stopHandler = (generator host) => waitStop.post((child)host);
                     int count = 0;
                     for (LinkedListNode<child> it = _children.First; null != it; it = it.Next)
                     {
@@ -9944,7 +9945,7 @@ namespace Go
                         count++;
                         if (!ele.is_completed())
                         {
-                            ele.stop(() => waitStop.post(ele));
+                            ele.stop(stopHandler);
                         }
                         else
                         {
