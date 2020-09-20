@@ -477,7 +477,8 @@ namespace Go
 
         public struct notify_token
         {
-            internal LinkedListNode<Action> token;
+            internal generator host;
+            internal LinkedListNode<Action<generator>> token;
         }
 
         public struct suspend_token
@@ -676,7 +677,7 @@ namespace Go
         LinkedList<LinkedList<select_chan_base>> _topSelectChans;
         LinkedList<Action<bool>> _suspendHandler;
         LinkedList<children> _children;
-        LinkedList<Action> _callbacks;
+        LinkedList<Action<generator>> _callbacks;
         chan_notify_sign _ioSign;
         System.Exception _excep;
         pull_task _pullTask;
@@ -925,9 +926,9 @@ namespace Go
                 {
                     while (0 != _callbacks.Count)
                     {
-                        Action ntf = _callbacks.First.Value;
+                        Action<generator> ntf = _callbacks.First.Value;
                         _callbacks.RemoveFirst();
-                        functional.catch_invoke(ntf);
+                        functional.catch_invoke(ntf, this);
                     }
                 }
                 strand.release_work();
@@ -1212,7 +1213,7 @@ namespace Go
             }
         }
 
-        public void tstop(Action continuation)
+        public void tstop(Action<generator> continuation)
         {
             strand.post(delegate ()
             {
@@ -1220,19 +1221,24 @@ namespace Go
                 {
                     if (null == _callbacks)
                     {
-                        _callbacks = new LinkedList<Action>();
+                        _callbacks = new LinkedList<Action<generator>>();
                     }
                     _callbacks.AddLast(continuation);
                     _stop();
                 }
                 else
                 {
-                    functional.catch_invoke(continuation);
+                    functional.catch_invoke(continuation, this);
                 }
             });
         }
 
-        public void stop(Action continuation)
+        public void tstop(Action continuation)
+        {
+            tstop((generator _) => functional.catch_invoke(continuation));
+        }
+
+        public void stop(Action<generator> continuation)
         {
             if (strand.running_in_this_thread() && !_mustTick)
             {
@@ -1240,14 +1246,14 @@ namespace Go
                 {
                     if (null == _callbacks)
                     {
-                        _callbacks = new LinkedList<Action>();
+                        _callbacks = new LinkedList<Action<generator>>();
                     }
                     _callbacks.AddLast(continuation);
                     _stop();
                 }
                 else
                 {
-                    functional.catch_invoke(continuation);
+                    functional.catch_invoke(continuation, this);
                 }
             }
             else
@@ -1256,7 +1262,12 @@ namespace Go
             }
         }
 
-        public void append_stop_callback(Action continuation, Action<notify_token> removeCb = null)
+        public void stop(Action continuation)
+        {
+            stop((generator _) => functional.catch_invoke(continuation));
+        }
+
+        public void append_stop_callback(Action<generator> continuation, Action<notify_token> removeCb = null)
         {
             if (strand.running_in_this_thread())
             {
@@ -1264,39 +1275,45 @@ namespace Go
                 {
                     if (null == _callbacks)
                     {
-                        _callbacks = new LinkedList<Action>();
+                        _callbacks = new LinkedList<Action<generator>>();
                     }
-                    functional.catch_invoke(removeCb, new notify_token { token = _callbacks.AddLast(continuation) });
+                    functional.catch_invoke(removeCb, new notify_token { host = this, token = _callbacks.AddLast(continuation) });
                 }
                 else
                 {
-                    functional.catch_invoke(continuation);
-                    functional.catch_invoke(removeCb, default(notify_token));
+                    functional.catch_invoke(continuation, this);
+                    functional.catch_invoke(removeCb, new notify_token { host = this });
                 }
             }
             else
             {
-                strand.post(delegate ()
+                strand.post((Action)delegate ()
                 {
                     if (!_isStop)
                     {
                         if (null == _callbacks)
                         {
-                            _callbacks = new LinkedList<Action>();
+                            _callbacks = new LinkedList<Action<generator>>();
                         }
-                        functional.catch_invoke(removeCb, new notify_token { token = _callbacks.AddLast(continuation) });
+                        functional.catch_invoke(removeCb, new notify_token { host = this, token = _callbacks.AddLast(continuation) });
                     }
                     else
                     {
-                        functional.catch_invoke(continuation);
-                        functional.catch_invoke(removeCb, default(notify_token));
+                        functional.catch_invoke(continuation, this);
+                        functional.catch_invoke(removeCb, new notify_token { host = this });
                     }
                 });
             }
         }
 
+        public void append_stop_callback(Action continuation, Action<notify_token> removeCb = null)
+        {
+            append_stop_callback((generator _) => functional.catch_invoke(continuation), removeCb);
+        }
+
         public void remove_stop_callback(notify_token cancelToken, Action cb = null)
         {
+            Debug.Assert(this == cancelToken.host, "异常的 remove_stop_callback 调用!");
             if (strand.running_in_this_thread())
             {
                 if (null != cancelToken.token && null != cancelToken.token.List)
@@ -6026,8 +6043,10 @@ namespace Go
         static public async Task<generator> timed_wait_others_any(int ms, IEnumerable<generator> otherGens)
         {
             generator this_ = self;
-            unlimit_chan<tuple<generator, notify_token>> waitRemove = new unlimit_chan<tuple<generator, notify_token>>(this_.strand);
+            unlimit_chan<notify_token> waitRemove = new unlimit_chan<notify_token>(this_.strand);
             unlimit_chan<generator> waitStop = new unlimit_chan<generator>(this_.strand);
+            Action<generator> stopHandler = (generator host) => waitStop.post(host);
+            Action<notify_token> removeHandler = (notify_token cancelToken) => waitRemove.post(cancelToken);
             int count = 0;
             foreach (generator ele in otherGens)
             {
@@ -6035,10 +6054,10 @@ namespace Go
                 if (ele.is_completed())
                 {
                     waitStop.post(ele);
-                    waitRemove.post(tuple.make(ele, default(notify_token)));
+                    waitRemove.post(new notify_token { host = ele });
                     break;
                 }
-                ele.append_stop_callback(() => waitStop.post(ele), (notify_token cancelToken) => waitRemove.post(tuple.make(ele, cancelToken)));
+                ele.append_stop_callback(stopHandler, removeHandler);
             }
             try
             {
@@ -6072,10 +6091,10 @@ namespace Go
                 this_.lock_suspend_and_stop_();
                 for (int i = 0; i < count; i++)
                 {
-                    tuple<generator, notify_token> node = (await chan_receive(waitRemove)).msg;
-                    if (null != node.value2.token)
+                    notify_token node = (await chan_receive(waitRemove)).msg;
+                    if (null != node.token)
                     {
-                        node.value1.remove_stop_callback(node.value2);
+                        node.host.remove_stop_callback(node);
                     }
                 }
                 await this_.unlock_suspend_and_stop_();
@@ -6091,20 +6110,22 @@ namespace Go
         {
             generator this_ = self;
             long endTick = system_tick.get_tick_ms() + ms;
-            unlimit_chan<tuple<generator, notify_token>> waitRemove = new unlimit_chan<tuple<generator, notify_token>>(this_.strand);
+            unlimit_chan<notify_token> waitRemove = new unlimit_chan<notify_token>(this_.strand);
             unlimit_chan<generator> waitStop = new unlimit_chan<generator>(this_.strand);
+            Action<generator> stopHandler = (generator host) => waitStop.post(host);
+            Action<notify_token> removeHandler = (notify_token cancelToken) => waitRemove.post(cancelToken);
             int count = 0;
             foreach (generator ele in otherGens)
             {
                 count++;
                 if (!ele.is_completed())
                 {
-                    ele.append_stop_callback(() => waitStop.post(ele), (notify_token cancelToken) => waitRemove.post(tuple.make(ele, cancelToken)));
+                    ele.append_stop_callback(stopHandler, removeHandler);
                 }
                 else
                 {
                     waitStop.post(ele);
-                    waitRemove.post(tuple.make(ele, default(notify_token)));
+                    waitRemove.post(new notify_token { host = ele });
                 }
             }
             try
@@ -6153,10 +6174,10 @@ namespace Go
                 this_.lock_suspend_and_stop_();
                 for (int i = 0; i < count; i++)
                 {
-                    tuple<generator, notify_token> node = (await chan_receive(waitRemove)).msg;
-                    if (null != node.value2.token)
+                    notify_token node = (await chan_receive(waitRemove)).msg;
+                    if (null != node.token)
                     {
-                        node.value1.remove_stop_callback(node.value2);
+                        node.host.remove_stop_callback(node);
                     }
                 }
                 await this_.unlock_suspend_and_stop_();
@@ -9560,13 +9581,14 @@ namespace Go
                 Debug.Assert(self == _parent, "此 children 不属于当前 generator!");
                 int count = 0;
                 unlimit_chan<child> waitStop = new unlimit_chan<child>(_parent.strand);
+                Action<generator> stopHandler = (generator host) => waitStop.post((child)host);
                 foreach (child ele in gens)
                 {
                     count++;
                     Debug.Assert(null == ele._childNode || ele._childNode.List == _children, "此 child 不属于当前 children!");
                     if (null != ele._childNode && !ele.is_completed())
                     {
-                        ele.stop(() => waitStop.post(ele));
+                        ele.stop(stopHandler);
                     }
                     else
                     {
@@ -9630,13 +9652,14 @@ namespace Go
                 Debug.Assert(self == _parent, "此 children 不属于当前 generator!");
                 int count = 0;
                 unlimit_chan<child> waitStop = new unlimit_chan<child>(_parent.strand);
+                Action<generator> stopHandler = (generator host) => waitStop.post((child)host);
                 foreach (child ele in gens)
                 {
                     count++;
                     Debug.Assert(null == ele._childNode || ele._childNode.List == _children, "此 child 不属于当前 children!");
                     if (null != ele._childNode && !ele.is_completed())
                     {
-                        ele.append_stop_callback(() => waitStop.post(ele));
+                        ele.append_stop_callback(stopHandler);
                     }
                     else
                     {
@@ -9711,8 +9734,10 @@ namespace Go
             public async Task<child> timed_wait_any(int ms, IEnumerable<child> gens)
             {
                 Debug.Assert(self == _parent, "此 children 不属于当前 generator!");
-                unlimit_chan<tuple<child, notify_token>> waitRemove = new unlimit_chan<tuple<child, notify_token>>(_parent.strand);
+                unlimit_chan<notify_token> waitRemove = new unlimit_chan<notify_token>(_parent.strand);
                 unlimit_chan<child> waitStop = new unlimit_chan<child>(_parent.strand);
+                Action<generator> stopHandler = (generator host) => waitStop.post((child)host);
+                Action<notify_token> removeHandler = (notify_token cancelToken) => waitRemove.post(cancelToken);
                 int count = 0;
                 foreach (child ele in gens)
                 {
@@ -9720,12 +9745,12 @@ namespace Go
                     Debug.Assert(null == ele._childNode || ele._childNode.List == _children, "此 child 不属于当前 children!");
                     if (null != ele._childNode && !ele.is_completed())
                     {
-                        ele.append_stop_callback(() => waitStop.post(ele), (notify_token cancelToken) => waitRemove.post(tuple.make(ele, cancelToken)));
+                        ele.append_stop_callback(stopHandler, removeHandler);
                     }
                     else
                     {
                         waitStop.post(ele);
-                        waitRemove.post(tuple.make(ele, default(notify_token)));
+                        waitRemove.post(new notify_token { host = ele });
                         break;
                     }
                 }
@@ -9783,10 +9808,10 @@ namespace Go
                     lock_suspend_and_stop();
                     for (int i = 0; i < count; i++)
                     {
-                        tuple<child, notify_token> node = (await chan_receive(waitRemove)).msg;
-                        if (null != node.value2.token)
+                        notify_token node = (await chan_receive(waitRemove)).msg;
+                        if (null != node.token)
                         {
-                            node.value1.remove_stop_callback(node.value2);
+                            node.host.remove_stop_callback(node);
                         }
                     }
                     await unlock_suspend_and_stop();
@@ -9803,20 +9828,22 @@ namespace Go
                 Debug.Assert(self == _parent, "此 children 不属于当前 generator!");
                 int count = 0;
                 long endTick = system_tick.get_tick_ms() + ms;
-                unlimit_chan<tuple<child, notify_token>> waitRemove = new unlimit_chan<tuple<child, notify_token>>(_parent.strand);
+                unlimit_chan<notify_token> waitRemove = new unlimit_chan<notify_token>(_parent.strand);
                 unlimit_chan<child> waitStop = new unlimit_chan<child>(_parent.strand);
+                Action<generator> stopHandler = (generator host) => waitStop.post((child)host);
+                Action<notify_token> removeHandler = (notify_token cancelToken) => waitRemove.post(cancelToken);
                 foreach (child ele in gens)
                 {
                     count++;
                     Debug.Assert(null == ele._childNode || ele._childNode.List == _children, "此 child 不属于当前 children!");
                     if (null != ele._childNode && !ele.is_completed())
                     {
-                        ele.append_stop_callback(() => waitStop.post(ele), (notify_token cancelToken) => waitRemove.post(tuple.make(ele, cancelToken)));
+                        ele.append_stop_callback(stopHandler, removeHandler);
                     }
                     else
                     {
                         waitStop.post(ele);
-                        waitRemove.post(tuple.make(ele, default(notify_token)));
+                        waitRemove.post(new notify_token { host = ele });
                     }
                 }
                 try
@@ -9885,10 +9912,10 @@ namespace Go
                     lock_suspend_and_stop();
                     for (int i = 0; i < count; i++)
                     {
-                        tuple<child, notify_token> node = (await chan_receive(waitRemove)).msg;
-                        if (null != node.value2.token)
+                        notify_token node = (await chan_receive(waitRemove)).msg;
+                        if (null != node.token)
                         {
-                            node.value1.remove_stop_callback(node.value2);
+                            node.host.remove_stop_callback(node);
                         }
                     }
                     await unlock_suspend_and_stop();
@@ -9948,6 +9975,7 @@ namespace Go
                     Debug.Assert(self == childs._parent, "此 children 不属于当前 generator!");
                     if (0 != childs._children.Count)
                     {
+                        Action<generator> stopHandler = (generator host) => waitStop.post(tuple.make(childs, (child)host));
                         for (LinkedListNode<child> it = childs._children.First; null != it; it = it.Next)
                         {
                             child ele = it.Value;
@@ -9958,7 +9986,7 @@ namespace Go
                             count++;
                             if (!ele.is_completed())
                             {
-                                ele.stop(() => waitStop.post(tuple.make(childs, ele)));
+                                ele.stop(stopHandler);
                             }
                             else
                             {
@@ -9993,8 +10021,10 @@ namespace Go
             public async Task<child> timed_wait_any(int ms, bool containFree = false)
             {
                 Debug.Assert(self == _parent, "此 children 不属于当前 generator!");
-                unlimit_chan<tuple<child, notify_token>> waitRemove = new unlimit_chan<tuple<child, notify_token>>(_parent.strand);
+                unlimit_chan<notify_token> waitRemove = new unlimit_chan<notify_token>(_parent.strand);
                 unlimit_chan<child> waitStop = new unlimit_chan<child>(_parent.strand);
+                Action<generator> stopHandler = (generator host) => waitStop.post((child)host);
+                Action<notify_token> removeHandler = (notify_token cancelToken) => waitRemove.post(cancelToken);
                 int count = 0;
                 for (LinkedListNode<child> it = _children.First; null != it; it = it.Next)
                 {
@@ -10007,10 +10037,10 @@ namespace Go
                     if (ele.is_completed())
                     {
                         waitStop.post(ele);
-                        waitRemove.post(tuple.make(ele, default(notify_token)));
+                        waitRemove.post(new notify_token { host = ele });
                         break;
                     }
-                    ele.append_stop_callback(() => waitStop.post(ele), (notify_token cancelToken) => waitRemove.post(tuple.make(ele, cancelToken)));
+                    ele.append_stop_callback(stopHandler, removeHandler);
                 }
                 try
                 {
@@ -10066,10 +10096,10 @@ namespace Go
                     lock_suspend_and_stop();
                     for (int i = 0; i < count; i++)
                     {
-                        tuple<child, notify_token> node = (await chan_receive(waitRemove)).msg;
-                        if (null != node.value2.token)
+                        notify_token node = (await chan_receive(waitRemove)).msg;
+                        if (null != node.token)
                         {
-                            node.value1.remove_stop_callback(node.value2);
+                            node.host.remove_stop_callback(node);
                         }
                     }
                     await unlock_suspend_and_stop();
@@ -10082,6 +10112,7 @@ namespace Go
                 if (0 != _children.Count)
                 {
                     unlimit_chan<child> waitStop = new unlimit_chan<child>(_parent.strand);
+                    Action<generator> stopHandler = (generator host) => waitStop.post((child)host);
                     int count = 0;
                     for (LinkedListNode<child> it = _children.First; null != it; it = it.Next)
                     {
@@ -10093,7 +10124,7 @@ namespace Go
                         count++;
                         if (!ele.is_completed())
                         {
-                            ele.append_stop_callback(() => waitStop.post(ele));
+                            ele.append_stop_callback(stopHandler);
                         }
                         else
                         {
@@ -10119,8 +10150,10 @@ namespace Go
                 Debug.Assert(self == _parent, "此 children 不属于当前 generator!");
                 int count = 0;
                 long endTick = system_tick.get_tick_ms() + ms;
-                unlimit_chan<tuple<child, notify_token>> waitRemove = new unlimit_chan<tuple<child, notify_token>>(_parent.strand);
+                unlimit_chan<notify_token> waitRemove = new unlimit_chan<notify_token>(_parent.strand);
                 unlimit_chan<child> waitStop = new unlimit_chan<child>(_parent.strand);
+                Action<generator> stopHandler = (generator host) => waitStop.post((child)host);
+                Action<notify_token> removeHandler = (notify_token cancelToken) => waitRemove.post(cancelToken);
                 for (LinkedListNode<child> it = _children.First; null != it; it = it.Next)
                 {
                     child ele = it.Value;
@@ -10131,12 +10164,12 @@ namespace Go
                     count++;
                     if (!ele.is_completed())
                     {
-                        ele.append_stop_callback(() => waitStop.post(ele), (notify_token cancelToken) => waitRemove.post(tuple.make(ele, cancelToken)));
+                        ele.append_stop_callback(stopHandler, removeHandler);
                     }
                     else
                     {
                         waitStop.post(ele);
-                        waitRemove.post(tuple.make(ele, default(notify_token)));
+                        waitRemove.post(new notify_token { host = ele });
                     }
                 }
                 try
@@ -10205,10 +10238,10 @@ namespace Go
                     lock_suspend_and_stop();
                     for (int i = 0; i < count; i++)
                     {
-                        tuple<child, notify_token> node = (await chan_receive(waitRemove)).msg;
-                        if (null != node.value2.token)
+                        notify_token node = (await chan_receive(waitRemove)).msg;
+                        if (null != node.token)
                         {
-                            node.value1.remove_stop_callback(node.value2);
+                            node.host.remove_stop_callback(node);
                         }
                     }
                     await unlock_suspend_and_stop();
