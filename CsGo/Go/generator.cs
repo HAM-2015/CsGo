@@ -419,6 +419,63 @@ namespace Go
     }
 #endif
 
+    public class delay_csp<R>
+    {
+        R _result;
+        bool _completed = false;
+        Action _continuation;
+
+        internal delay_csp()
+        {
+        }
+
+        internal R GetResult()
+        {
+            return _result;
+        }
+
+        internal void SetResult(R result)
+        {
+            Action continuation;
+            lock (this)
+            {
+                _result = result;
+                _completed = true;
+                continuation = _continuation;
+            }
+            functional.catch_invoke(continuation);
+        }
+
+        internal void OnCompleted(Action continuation)
+        {
+            if (_completed)
+            {
+                functional.catch_invoke(continuation);
+            }
+            else
+            {
+                bool completed;
+                lock (this)
+                {
+                    completed = _completed;
+                    _continuation = continuation;
+                }
+                if (completed)
+                {
+                    functional.catch_invoke(_continuation);
+                }
+            }
+        }
+
+        internal bool IsCompleted
+        {
+            get
+            {
+                return _completed;
+            }
+        }
+    }
+
     public class generator
     {
         public class local_value_exception : System.Exception
@@ -3949,7 +4006,7 @@ namespace Go
                     }
                     else if (chan_state.ok == cspRes.state)
                     {
-                        lostRes(cspRes.result);
+                        functional.catch_invoke(lostRes, cspRes.result);
                     }
                 }
                 else
@@ -3963,7 +4020,43 @@ namespace Go
                         }
                         else if (chan_state.ok == cspRes.state)
                         {
-                            lostRes(cspRes.result);
+                            functional.catch_invoke(lostRes, cspRes.result);
+                        }
+                    });
+                }
+            };
+        }
+
+        private Action<csp_invoke_wrap<R>> async_csp_invoke<R>(delay_csp<csp_invoke_wrap<R>> res, Action<R> lostRes)
+        {
+            _pullTask.new_task();
+            bool beginQuit = _beginQuit;
+            return delegate (csp_invoke_wrap<R> cspRes)
+            {
+                if (strand.running_in_this_thread() && !_mustTick)
+                {
+                    if (!_isStop && _beginQuit == beginQuit)
+                    {
+                        res.SetResult(cspRes);
+                        no_check_next();
+                    }
+                    else if (chan_state.ok == cspRes.state)
+                    {
+                        functional.catch_invoke(lostRes, cspRes.result);
+                    }
+                }
+                else
+                {
+                    strand.post(delegate ()
+                    {
+                        if (!_isStop && _beginQuit == beginQuit)
+                        {
+                            res.SetResult(cspRes);
+                            no_check_next();
+                        }
+                        else if (chan_state.ok == cspRes.state)
+                        {
+                            functional.catch_invoke(lostRes, cspRes.result);
                         }
                     });
                 }
@@ -4003,6 +4096,13 @@ namespace Go
             return to_vtask(result.value1);
         }
 
+        static public delay_csp<csp_invoke_wrap<R>> wrap_csp_invoke<R, T>(csp_chan<R, T> chan, T msg, int invokeMs = -1)
+        {
+            delay_csp<csp_invoke_wrap<R>> result = new delay_csp<csp_invoke_wrap<R>>();
+            chan.async_send(invokeMs, (csp_invoke_wrap<R> res) => result.SetResult(res), msg);
+            return result;
+        }
+
         static public Task unsafe_csp_invoke<R>(async_result_wrap<csp_invoke_wrap<R>> res, csp_chan<R, void_type> chan, int invokeMs = -1)
         {
             return unsafe_csp_invoke(res, chan, default(void_type), invokeMs);
@@ -4011,6 +4111,11 @@ namespace Go
         static public ValueTask<csp_invoke_wrap<R>> csp_invoke<R>(csp_chan<R, void_type> chan, int invokeMs = -1, Action<R> lostRes = null, chan_lost_msg<void_type> lostMsg = null)
         {
             return csp_invoke(chan, default(void_type), invokeMs, lostRes, lostMsg);
+        }
+
+        static public delay_csp<csp_invoke_wrap<R>> wrap_csp_invoke<R>(csp_chan<R, void_type> chan, int invokeMs = -1)
+        {
+            return wrap_csp_invoke(chan, default(void_type), invokeMs);
         }
 
         private Action<csp_wait_wrap<R, T>> async_csp_wait<R, T>(async_result_wrap<csp_wait_wrap<R, T>> res)
@@ -4752,6 +4857,13 @@ namespace Go
             return to_vtask(result.value1);
         }
 
+        static public delay_csp<csp_invoke_wrap<R>> wrap_csp_try_invoke<R, T>(csp_chan<R, T> chan, T msg, int invokeMs = -1)
+        {
+            delay_csp<csp_invoke_wrap<R>> result = new delay_csp<csp_invoke_wrap<R>>();
+            chan.async_try_send(invokeMs, (csp_invoke_wrap<R> res) => result.SetResult(res), msg);
+            return result;
+        }
+
         static public Task unsafe_csp_try_invoke<R>(async_result_wrap<csp_invoke_wrap<R>> res, csp_chan<R, void_type> chan, int invokeMs = -1)
         {
             return unsafe_csp_try_invoke(res, chan, default(void_type), invokeMs);
@@ -4760,6 +4872,11 @@ namespace Go
         static public ValueTask<csp_invoke_wrap<R>> csp_try_invoke<R>(csp_chan<R, void_type> chan, int invokeMs = -1, Action<R> lostRes = null, chan_lost_msg<void_type> lostMsg = null)
         {
             return csp_try_invoke(chan, default(void_type), invokeMs, lostRes, lostMsg);
+        }
+
+        static public delay_csp<csp_invoke_wrap<R>> wrap_csp_try_invoke<R>(csp_chan<R, void_type> chan, int invokeMs = -1)
+        {
+            return wrap_csp_try_invoke(chan, default(void_type), invokeMs);
         }
 
         static public Task unsafe_csp_try_wait<R, T>(async_result_wrap<csp_wait_wrap<R, T>> res, csp_chan<R, T> chan)
@@ -4882,6 +4999,13 @@ namespace Go
             return to_vtask(result.value1);
         }
 
+        static public delay_csp<csp_invoke_wrap<R>> wrap_csp_timed_invoke<R, T>(csp_chan<R, T> chan, tuple<int, int> ms, T msg)
+        {
+            delay_csp<csp_invoke_wrap<R>> result = new delay_csp<csp_invoke_wrap<R>>();
+            chan.async_timed_send(ms.value1, ms.value2, (csp_invoke_wrap<R> res) => result.SetResult(res), msg);
+            return result;
+        }
+
         static public Task unsafe_csp_timed_invoke<R, T>(async_result_wrap<csp_invoke_wrap<R>> res, csp_chan<R, T> chan, int ms, T msg)
         {
             return unsafe_csp_timed_invoke(res, chan, tuple.make(ms, -1), msg);
@@ -4890,6 +5014,11 @@ namespace Go
         static public ValueTask<csp_invoke_wrap<R>> csp_timed_invoke<R, T>(csp_chan<R, T> chan, int ms, T msg, Action<R> lostRes = null, chan_lost_msg<T> lostMsg = null)
         {
             return csp_timed_invoke(chan, tuple.make(ms, -1), msg, lostRes, lostMsg);
+        }
+
+        static public delay_csp<csp_invoke_wrap<R>> wrap_csp_timed_invoke<R, T>(csp_chan<R, T> chan, int ms, T msg)
+        {
+            return wrap_csp_timed_invoke(chan, tuple.make(ms, -1), msg);
         }
 
         static public Task unsafe_csp_timed_invoke<R>(async_result_wrap<csp_invoke_wrap<R>> res, csp_chan<R, void_type> chan, tuple<int, int> ms)
@@ -4902,6 +5031,11 @@ namespace Go
             return csp_timed_invoke(chan, ms, default(void_type), lostRes, lostMsg);
         }
 
+        static public delay_csp<csp_invoke_wrap<R>> wrap_csp_timed_invoke<R>(csp_chan<R, void_type> chan, tuple<int, int> ms)
+        {
+            return wrap_csp_timed_invoke(chan, ms, default(void_type));
+        }
+
         static public Task unsafe_csp_timed_invoke<R>(async_result_wrap<csp_invoke_wrap<R>> res, csp_chan<R, void_type> chan, int ms)
         {
             return unsafe_csp_timed_invoke(res, chan, ms, default(void_type));
@@ -4910,6 +5044,11 @@ namespace Go
         static public ValueTask<csp_invoke_wrap<R>> csp_timed_invoke<R>(csp_chan<R, void_type> chan, int ms, Action<R> lostRes = null, chan_lost_msg<void_type> lostMsg = null)
         {
             return csp_timed_invoke(chan, ms, default(void_type), lostRes, lostMsg);
+        }
+
+        static public delay_csp<csp_invoke_wrap<R>> wrap_csp_timed_invoke<R>(csp_chan<R, void_type> chan, int ms)
+        {
+            return wrap_csp_timed_invoke(chan, ms, default(void_type));
         }
 
         static public Task unsafe_csp_timed_wait<R, T>(async_result_wrap<csp_wait_wrap<R, T>> res, csp_chan<R, T> chan, int ms)
@@ -5782,9 +5921,9 @@ namespace Go
             return task.GetAwaiter().GetResult();
         }
 
-        static private R check_task<R>(ValueTask<R> task)
+        static private R check_task<R>(delay_csp<R> task)
         {
-            return task.GetAwaiter().GetResult();
+            return task.GetResult();
         }
 
         static private void check_task(async_result_wrap<bool, Exception> res, Task task)
@@ -5812,32 +5951,7 @@ namespace Go
             }
         }
 
-        static private void check_task<R>(async_result_wrap<R, Exception> res, ValueTask<R> task)
-        {
-            try
-            {
-                res.value1 = check_task(task);
-            }
-            catch (Exception innerEc)
-            {
-                res.value2 = innerEc;
-            }
-        }
-
         static private void check_task<R>(async_result_wrap<bool, R, Exception> res, Task<R> task)
-        {
-            try
-            {
-                res.value1 = true;
-                res.value2 = check_task(task);
-            }
-            catch (Exception innerEc)
-            {
-                res.value3 = innerEc;
-            }
-        }
-
-        static private void check_task<R>(async_result_wrap<bool, R, Exception> res, ValueTask<R> task)
         {
             try
             {
@@ -5873,6 +5987,12 @@ namespace Go
             return check_task(task);
         }
 
+        private async Task<R> wait_task_<R>(delay_csp<R> task)
+        {
+            await async_wait();
+            return check_task(task);
+        }
+
         static public ValueTask<R> wait_task<R>(Task<R> task)
         {
             if (!task.IsCompleted)
@@ -5884,13 +6004,13 @@ namespace Go
             return to_vtask(check_task(task));
         }
 
-        static public ValueTask<R> wait_task<R>(ValueTask<R> task)
+        static public ValueTask<R> wait_task<R>(delay_csp<R> task)
         {
             if (!task.IsCompleted)
             {
                 generator this_ = self;
-                task.GetAwaiter().UnsafeOnCompleted(this_.unsafe_async_result());
-                return to_vtask(this_.wait_task_(task.AsTask()));
+                task.OnCompleted(this_.unsafe_async_result());
+                return to_vtask(this_.wait_task_(task));
             }
             return to_vtask(check_task(task));
         }
@@ -5923,6 +6043,12 @@ namespace Go
             return tuple.make(!_overtime, _overtime ? default(R) : check_task(task));
         }
 
+        private async Task<tuple<bool, R>> timed_wait_task_<R>(delay_csp<R> task)
+        {
+            await async_wait();
+            return tuple.make(!_overtime, _overtime ? default(R) : check_task(task));
+        }
+
         static public ValueTask<tuple<bool, R>> timed_wait_task<R>(int ms, Task<R> task)
         {
             if (!task.IsCompleted)
@@ -5934,31 +6060,18 @@ namespace Go
             return to_vtask(tuple.make(true, check_task(task)));
         }
 
-        static public ValueTask<tuple<bool, R>> timed_wait_task<R>(int ms, ValueTask<R> task)
+        static public ValueTask<tuple<bool, R>> timed_wait_task<R>(int ms, delay_csp<R> task)
         {
             if (!task.IsCompleted)
             {
                 generator this_ = self;
-                task.GetAwaiter().UnsafeOnCompleted(this_.timed_async_result(ms));
-                return to_vtask(this_.timed_wait_task_(task.AsTask()));
+                task.OnCompleted(this_.timed_async_result(ms));
+                return to_vtask(this_.timed_wait_task_(task));
             }
             return to_vtask(tuple.make(true, check_task(task)));
         }
 
         static public Task unsafe_wait_task<R>(async_result_wrap<R, Exception> res, Task<R> task)
-        {
-            if (!task.IsCompleted)
-            {
-                generator this_ = self;
-                res.clear();
-                task.GetAwaiter().UnsafeOnCompleted(this_.async_callback(() => check_task(res, task)));
-                return this_.async_wait();
-            }
-            check_task(res, task);
-            return non_async();
-        }
-
-        static public Task unsafe_wait_task<R>(async_result_wrap<R, Exception> res, ValueTask<R> task)
         {
             if (!task.IsCompleted)
             {
@@ -5985,19 +6098,6 @@ namespace Go
         }
 
         static public Task unsafe_timed_wait_task<R>(async_result_wrap<bool, R, Exception> res, int ms, Task<R> task)
-        {
-            if (!task.IsCompleted)
-            {
-                generator this_ = self;
-                res.value1 = false;
-                task.GetAwaiter().UnsafeOnCompleted(this_.timed_async_callback2(ms, () => check_task(res, task)));
-                return this_.async_wait();
-            }
-            check_task(res, task);
-            return non_async();
-        }
-
-        static public Task unsafe_timed_wait_task<R>(async_result_wrap<bool, R, Exception> res, int ms, ValueTask<R> task)
         {
             if (!task.IsCompleted)
             {
