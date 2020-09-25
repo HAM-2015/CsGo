@@ -5782,6 +5782,11 @@ namespace Go
             return task.GetAwaiter().GetResult();
         }
 
+        static private R check_task<R>(ValueTask<R> task)
+        {
+            return task.GetAwaiter().GetResult();
+        }
+
         static private void check_task(async_result_wrap<bool, Exception> res, Task task)
         {
             try
@@ -5807,7 +5812,32 @@ namespace Go
             }
         }
 
+        static private void check_task<R>(async_result_wrap<R, Exception> res, ValueTask<R> task)
+        {
+            try
+            {
+                res.value1 = check_task(task);
+            }
+            catch (Exception innerEc)
+            {
+                res.value2 = innerEc;
+            }
+        }
+
         static private void check_task<R>(async_result_wrap<bool, R, Exception> res, Task<R> task)
+        {
+            try
+            {
+                res.value1 = true;
+                res.value2 = check_task(task);
+            }
+            catch (Exception innerEc)
+            {
+                res.value3 = innerEc;
+            }
+        }
+
+        static private void check_task<R>(async_result_wrap<bool, R, Exception> res, ValueTask<R> task)
         {
             try
             {
@@ -5854,6 +5884,17 @@ namespace Go
             return to_vtask(check_task(task));
         }
 
+        static public ValueTask<R> wait_task<R>(ValueTask<R> task)
+        {
+            if (!task.IsCompleted)
+            {
+                generator this_ = self;
+                task.GetAwaiter().UnsafeOnCompleted(this_.unsafe_async_result());
+                return to_vtask(this_.wait_task_(task.AsTask()));
+            }
+            return to_vtask(check_task(task));
+        }
+
         private async Task<bool> timed_wait_task_(Task task)
         {
             await async_wait();
@@ -5893,7 +5934,31 @@ namespace Go
             return to_vtask(tuple.make(true, check_task(task)));
         }
 
+        static public ValueTask<tuple<bool, R>> timed_wait_task<R>(int ms, ValueTask<R> task)
+        {
+            if (!task.IsCompleted)
+            {
+                generator this_ = self;
+                task.GetAwaiter().UnsafeOnCompleted(this_.timed_async_result(ms));
+                return to_vtask(this_.timed_wait_task_(task.AsTask()));
+            }
+            return to_vtask(tuple.make(true, check_task(task)));
+        }
+
         static public Task unsafe_wait_task<R>(async_result_wrap<R, Exception> res, Task<R> task)
+        {
+            if (!task.IsCompleted)
+            {
+                generator this_ = self;
+                res.clear();
+                task.GetAwaiter().UnsafeOnCompleted(this_.async_callback(() => check_task(res, task)));
+                return this_.async_wait();
+            }
+            check_task(res, task);
+            return non_async();
+        }
+
+        static public Task unsafe_wait_task<R>(async_result_wrap<R, Exception> res, ValueTask<R> task)
         {
             if (!task.IsCompleted)
             {
@@ -5920,6 +5985,19 @@ namespace Go
         }
 
         static public Task unsafe_timed_wait_task<R>(async_result_wrap<bool, R, Exception> res, int ms, Task<R> task)
+        {
+            if (!task.IsCompleted)
+            {
+                generator this_ = self;
+                res.value1 = false;
+                task.GetAwaiter().UnsafeOnCompleted(this_.timed_async_callback2(ms, () => check_task(res, task)));
+                return this_.async_wait();
+            }
+            check_task(res, task);
+            return non_async();
+        }
+
+        static public Task unsafe_timed_wait_task<R>(async_result_wrap<bool, R, Exception> res, int ms, ValueTask<R> task)
         {
             if (!task.IsCompleted)
             {
