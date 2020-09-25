@@ -5885,7 +5885,7 @@ namespace Go
             return task.GetAwaiter().GetResult();
         }
 
-        static private R check_task<R>(delay_csp<R> task)
+        static private R check_csp<R>(delay_csp<R> task)
         {
             return task.GetResult();
         }
@@ -5951,10 +5951,10 @@ namespace Go
             return check_task(task);
         }
 
-        private async Task<R> wait_task_<R>(delay_csp<R> task)
+        private async Task<R> wait_csp_<R>(delay_csp<R> task)
         {
             await async_wait();
-            return check_task(task);
+            return check_csp(task);
         }
 
         static public ValueTask<R> wait_task<R>(Task<R> task)
@@ -5968,15 +5968,15 @@ namespace Go
             return to_vtask(check_task(task));
         }
 
-        static public ValueTask<R> wait_task<R>(delay_csp<R> task)
+        static public ValueTask<R> wait_csp<R>(delay_csp<R> task)
         {
             if (!task.IsCompleted)
             {
                 generator this_ = self;
                 task.OnCompleted(this_.unsafe_async_result());
-                return to_vtask(this_.wait_task_(task));
+                return to_vtask(this_.wait_csp_(task));
             }
-            return to_vtask(check_task(task));
+            return to_vtask(check_csp(task));
         }
 
         private async Task<bool> timed_wait_task_(Task task)
@@ -6007,10 +6007,10 @@ namespace Go
             return tuple.make(!_overtime, _overtime ? default(R) : check_task(task));
         }
 
-        private async Task<tuple<bool, R>> timed_wait_task_<R>(delay_csp<R> task)
+        private async Task<tuple<bool, R>> timed_wait_csp_<R>(delay_csp<R> task)
         {
             await async_wait();
-            return tuple.make(!_overtime, _overtime ? default(R) : check_task(task));
+            return tuple.make(!_overtime, _overtime ? default(R) : check_csp(task));
         }
 
         static public ValueTask<tuple<bool, R>> timed_wait_task<R>(int ms, Task<R> task)
@@ -6024,15 +6024,15 @@ namespace Go
             return to_vtask(tuple.make(true, check_task(task)));
         }
 
-        static public ValueTask<tuple<bool, R>> timed_wait_task<R>(int ms, delay_csp<R> task)
+        static public ValueTask<tuple<bool, R>> timed_wait_csp<R>(int ms, delay_csp<R> task)
         {
             if (!task.IsCompleted)
             {
                 generator this_ = self;
                 task.OnCompleted(this_.timed_async_result(ms));
-                return to_vtask(this_.timed_wait_task_(task));
+                return to_vtask(this_.timed_wait_csp_(task));
             }
-            return to_vtask(tuple.make(true, check_task(task)));
+            return to_vtask(tuple.make(true, check_csp(task)));
         }
 
         static public Task unsafe_wait_task<R>(async_result_wrap<R, Exception> res, Task<R> task)
