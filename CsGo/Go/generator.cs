@@ -4027,42 +4027,6 @@ namespace Go
             };
         }
 
-        private Action<csp_invoke_wrap<R>> async_csp_invoke<R>(delay_csp<csp_invoke_wrap<R>> res, Action<R> lostRes)
-        {
-            _pullTask.new_task();
-            bool beginQuit = _beginQuit;
-            return delegate (csp_invoke_wrap<R> cspRes)
-            {
-                if (strand.running_in_this_thread() && !_mustTick)
-                {
-                    if (!_isStop && _beginQuit == beginQuit)
-                    {
-                        res.SetResult(cspRes);
-                        no_check_next();
-                    }
-                    else if (chan_state.ok == cspRes.state)
-                    {
-                        functional.catch_invoke(lostRes, cspRes.result);
-                    }
-                }
-                else
-                {
-                    strand.post(delegate ()
-                    {
-                        if (!_isStop && _beginQuit == beginQuit)
-                        {
-                            res.SetResult(cspRes);
-                            no_check_next();
-                        }
-                        else if (chan_state.ok == cspRes.state)
-                        {
-                            functional.catch_invoke(lostRes, cspRes.result);
-                        }
-                    });
-                }
-            };
-        }
-
         private async Task<csp_invoke_wrap<R>> csp_invoke_<R, T>(async_result_wrap<csp_invoke_wrap<R>> res, csp_chan<R, T> chan, T msg, chan_lost_msg<T> lostMsg)
         {
             try
