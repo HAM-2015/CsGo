@@ -3436,9 +3436,9 @@ namespace Go
             return generator.csp_invoke(this, msg, invokeMs, lostRes, lostMsg);
         }
 
-        public delay_csp<csp_invoke_wrap<R>> wrap_invoke(T msg, int invokeMs = -1)
+        public delay_csp<csp_invoke_wrap<R>> wrap_invoke(T msg, int invokeMs = -1, Action<R> lostRes = null)
         {
-            return generator.wrap_csp_invoke(this, msg, invokeMs);
+            return generator.wrap_csp_invoke(this, msg, invokeMs, lostRes);
         }
 
         public Task unsafe_wait(async_result_wrap<csp_wait_wrap<R, T>> res)
@@ -3471,9 +3471,9 @@ namespace Go
             return generator.csp_try_invoke(this, msg, invokeMs, lostRes, lostMsg);
         }
 
-        public delay_csp<csp_invoke_wrap<R>> wrap_try_invoke(T msg, int invokeMs = -1)
+        public delay_csp<csp_invoke_wrap<R>> wrap_try_invoke(T msg, int invokeMs = -1, Action<R> lostRes = null)
         {
-            return generator.wrap_csp_try_invoke(this, msg, invokeMs);
+            return generator.wrap_csp_try_invoke(this, msg, invokeMs, lostRes);
         }
 
         public Task unsafe_try_wait(async_result_wrap<csp_wait_wrap<R, T>> res)
@@ -3506,9 +3506,9 @@ namespace Go
             return generator.csp_timed_invoke(this, ms, msg, lostRes, lostMsg);
         }
 
-        public delay_csp<csp_invoke_wrap<R>> wrap_timed_invoke(tuple<int, int> ms, T msg)
+        public delay_csp<csp_invoke_wrap<R>> wrap_timed_invoke(tuple<int, int> ms, T msg, Action<R> lostRes = null)
         {
-            return generator.wrap_csp_timed_invoke(this, ms, msg);
+            return generator.wrap_csp_timed_invoke(this, ms, msg, lostRes);
         }
 
         public Task unsafe_timed_invoke(async_result_wrap<csp_invoke_wrap<R>> res, int ms, T msg)
@@ -3521,9 +3521,9 @@ namespace Go
             return generator.csp_timed_invoke(this, ms, msg, lostRes, lostMsg);
         }
 
-        public delay_csp<csp_invoke_wrap<R>> wrap_csp_timed_invoke(int ms, T msg)
+        public delay_csp<csp_invoke_wrap<R>> wrap_csp_timed_invoke(int ms, T msg, Action<R> lostRes = null)
         {
-            return generator.wrap_csp_timed_invoke(this, ms, msg);
+            return generator.wrap_csp_timed_invoke(this, ms, msg, lostRes);
         }
 
         public Task unsafe_timed_wait(async_result_wrap<csp_wait_wrap<R, T>> res, int ms)
