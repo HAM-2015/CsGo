@@ -452,6 +452,7 @@ namespace Go
                 {
                     _completed = true;
                     continuation = _continuation;
+                    _continuation = null;
                 }
                 functional.catch_invoke(continuation);
             }
@@ -465,26 +466,38 @@ namespace Go
         internal void on_completed(Action continuation)
         {
             bool completed;
+            Action oldContinuation = null;
             lock (this)
             {
-                completed = _completed;
-                if (null == _continuation)
+                if (completed = _completed)
                 {
-                    _continuation = continuation;
+                    if (null != _continuation)
+                    {
+                        oldContinuation = _continuation;
+                        _continuation = null;
+                    }
                 }
                 else
                 {
-                    Action oldContinuation = _continuation;
-                    _continuation = delegate ()
+                    if (null == _continuation)
                     {
-                        functional.catch_invoke(oldContinuation);
-                        functional.catch_invoke(continuation);
-                    };
+                        _continuation = continuation;
+                    }
+                    else
+                    {
+                        oldContinuation = _continuation;
+                        _continuation = delegate ()
+                        {
+                            functional.catch_invoke(oldContinuation);
+                            functional.catch_invoke(continuation);
+                        };
+                    }
                 }
             }
             if (completed)
             {
-                functional.catch_invoke(_continuation);
+                functional.catch_invoke(oldContinuation);
+                functional.catch_invoke(continuation);
             }
         }
 
