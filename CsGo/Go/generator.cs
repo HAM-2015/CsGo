@@ -468,7 +468,19 @@ namespace Go
             lock (this)
             {
                 completed = _completed;
-                _continuation = continuation;
+                if (null == _continuation)
+                {
+                    _continuation = continuation;
+                }
+                else
+                {
+                    Action oldContinuation = _continuation;
+                    _continuation = delegate ()
+                    {
+                        functional.catch_invoke(oldContinuation);
+                        functional.catch_invoke(continuation);
+                    };
+                }
             }
             if (completed)
             {
