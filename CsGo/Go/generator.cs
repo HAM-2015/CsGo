@@ -421,13 +421,13 @@ namespace Go
 
     public class delay_csp<R>
     {
-        R _result;
+        csp_invoke_wrap<R> _result;
         bool _taken;
         bool _completed;
-        Action<R> _lostRes;
+        Action<csp_invoke_wrap<R>> _lostRes;
         Action _continuation;
 
-        internal delay_csp(Action<R> lostRes)
+        internal delay_csp(Action<csp_invoke_wrap<R>> lostRes)
         {
             _taken = false;
             _completed = false;
@@ -442,7 +442,7 @@ namespace Go
             }
         }
 
-        internal R result
+        internal csp_invoke_wrap<R> result
         {
             set
             {
@@ -4093,9 +4093,9 @@ namespace Go
             return lostHandler;
         }
 
-        static public delay_csp<csp_invoke_wrap<R>> wrap_csp_invoke<R, T>(csp_chan<R, T> chan, T msg, int invokeMs = -1, Action<R> lostRes = null)
+        static public delay_csp<R> wrap_csp_invoke<R, T>(csp_chan<R, T> chan, T msg, int invokeMs = -1, Action<R> lostRes = null)
         {
-            delay_csp<csp_invoke_wrap<R>> result = new delay_csp<csp_invoke_wrap<R>>(wrap_lost_handler(lostRes));
+            delay_csp<R> result = new delay_csp<R>(wrap_lost_handler(lostRes));
             chan.async_send(invokeMs, (csp_invoke_wrap<R> res) => result.result = res, msg);
             return result;
         }
@@ -4110,7 +4110,7 @@ namespace Go
             return csp_invoke(chan, default(void_type), invokeMs, lostRes, lostMsg);
         }
 
-        static public delay_csp<csp_invoke_wrap<R>> wrap_csp_invoke<R>(csp_chan<R, void_type> chan, int invokeMs = -1, Action<R> lostRes = null)
+        static public delay_csp<R> wrap_csp_invoke<R>(csp_chan<R, void_type> chan, int invokeMs = -1, Action<R> lostRes = null)
         {
             return wrap_csp_invoke(chan, default(void_type), invokeMs, lostRes);
         }
@@ -4854,9 +4854,9 @@ namespace Go
             return to_vtask(result.value1);
         }
 
-        static public delay_csp<csp_invoke_wrap<R>> wrap_csp_try_invoke<R, T>(csp_chan<R, T> chan, T msg, int invokeMs = -1, Action<R> lostRes = null)
+        static public delay_csp<R> wrap_csp_try_invoke<R, T>(csp_chan<R, T> chan, T msg, int invokeMs = -1, Action<R> lostRes = null)
         {
-            delay_csp<csp_invoke_wrap<R>> result = new delay_csp<csp_invoke_wrap<R>>(wrap_lost_handler(lostRes));
+            delay_csp<R> result = new delay_csp<R>(wrap_lost_handler(lostRes));
             chan.async_try_send(invokeMs, (csp_invoke_wrap<R> res) => result.result = res, msg);
             return result;
         }
@@ -4871,7 +4871,7 @@ namespace Go
             return csp_try_invoke(chan, default(void_type), invokeMs, lostRes, lostMsg);
         }
 
-        static public delay_csp<csp_invoke_wrap<R>> wrap_csp_try_invoke<R>(csp_chan<R, void_type> chan, int invokeMs = -1, Action<R> lostRes = null)
+        static public delay_csp<R> wrap_csp_try_invoke<R>(csp_chan<R, void_type> chan, int invokeMs = -1, Action<R> lostRes = null)
         {
             return wrap_csp_try_invoke(chan, default(void_type), invokeMs, lostRes);
         }
@@ -4996,9 +4996,9 @@ namespace Go
             return to_vtask(result.value1);
         }
 
-        static public delay_csp<csp_invoke_wrap<R>> wrap_csp_timed_invoke<R, T>(csp_chan<R, T> chan, tuple<int, int> ms, T msg, Action<R> lostRes = null)
+        static public delay_csp<R> wrap_csp_timed_invoke<R, T>(csp_chan<R, T> chan, tuple<int, int> ms, T msg, Action<R> lostRes = null)
         {
-            delay_csp<csp_invoke_wrap<R>> result = new delay_csp<csp_invoke_wrap<R>>(wrap_lost_handler(lostRes));
+            delay_csp<R> result = new delay_csp<R>(wrap_lost_handler(lostRes));
             chan.async_timed_send(ms.value1, ms.value2, (csp_invoke_wrap<R> res) => result.result = res, msg);
             return result;
         }
@@ -5013,7 +5013,7 @@ namespace Go
             return csp_timed_invoke(chan, tuple.make(ms, -1), msg, lostRes, lostMsg);
         }
 
-        static public delay_csp<csp_invoke_wrap<R>> wrap_csp_timed_invoke<R, T>(csp_chan<R, T> chan, int ms, T msg, Action<R> lostRes = null)
+        static public delay_csp<R> wrap_csp_timed_invoke<R, T>(csp_chan<R, T> chan, int ms, T msg, Action<R> lostRes = null)
         {
             return wrap_csp_timed_invoke(chan, tuple.make(ms, -1), msg, lostRes);
         }
@@ -5028,7 +5028,7 @@ namespace Go
             return csp_timed_invoke(chan, ms, default(void_type), lostRes, lostMsg);
         }
 
-        static public delay_csp<csp_invoke_wrap<R>> wrap_csp_timed_invoke<R>(csp_chan<R, void_type> chan, tuple<int, int> ms, Action<R> lostRes = null)
+        static public delay_csp<R> wrap_csp_timed_invoke<R>(csp_chan<R, void_type> chan, tuple<int, int> ms, Action<R> lostRes = null)
         {
             return wrap_csp_timed_invoke(chan, ms, default(void_type), lostRes);
         }
@@ -5043,7 +5043,7 @@ namespace Go
             return csp_timed_invoke(chan, ms, default(void_type), lostRes, lostMsg);
         }
 
-        static public delay_csp<csp_invoke_wrap<R>> wrap_csp_timed_invoke<R>(csp_chan<R, void_type> chan, int ms, Action<R> lostRes = null)
+        static public delay_csp<R> wrap_csp_timed_invoke<R>(csp_chan<R, void_type> chan, int ms, Action<R> lostRes = null)
         {
             return wrap_csp_timed_invoke(chan, ms, default(void_type), lostRes);
         }
@@ -5918,7 +5918,7 @@ namespace Go
             return task.GetAwaiter().GetResult();
         }
 
-        static private R check_csp<R>(delay_csp<R> task)
+        static private csp_invoke_wrap<R> check_csp<R>(delay_csp<R> task)
         {
             return task.result;
         }
@@ -5984,7 +5984,7 @@ namespace Go
             return check_task(task);
         }
 
-        private async Task<R> wait_csp_<R>(delay_csp<R> task)
+        private async Task<csp_invoke_wrap<R>> wait_csp_<R>(delay_csp<R> task)
         {
             await async_wait();
             return check_csp(task);
@@ -6001,7 +6001,7 @@ namespace Go
             return to_vtask(check_task(task));
         }
 
-        static public ValueTask<R> wait_csp<R>(delay_csp<R> task)
+        static public ValueTask<csp_invoke_wrap<R>> wait_csp<R>(delay_csp<R> task)
         {
             if (!task.is_completed)
             {
@@ -6040,10 +6040,10 @@ namespace Go
             return tuple.make(!_overtime, _overtime ? default(R) : check_task(task));
         }
 
-        private async Task<tuple<bool, R>> timed_wait_csp_<R>(delay_csp<R> task)
+        private async Task<tuple<bool, csp_invoke_wrap<R>>> timed_wait_csp_<R>(delay_csp<R> task)
         {
             await async_wait();
-            return tuple.make(!_overtime, _overtime ? default(R) : check_csp(task));
+            return tuple.make(!_overtime, _overtime ? default(csp_invoke_wrap<R>) : check_csp(task));
         }
 
         static public ValueTask<tuple<bool, R>> timed_wait_task<R>(int ms, Task<R> task)
@@ -6057,7 +6057,7 @@ namespace Go
             return to_vtask(tuple.make(true, check_task(task)));
         }
 
-        static public ValueTask<tuple<bool, R>> timed_wait_csp<R>(int ms, delay_csp<R> task)
+        static public ValueTask<tuple<bool, csp_invoke_wrap<R>>> timed_wait_csp<R>(int ms, delay_csp<R> task)
         {
             if (!task.is_completed)
             {

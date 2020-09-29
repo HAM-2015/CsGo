@@ -3436,7 +3436,7 @@ namespace Go
             return generator.csp_invoke(this, msg, invokeMs, lostRes, lostMsg);
         }
 
-        public delay_csp<csp_invoke_wrap<R>> wrap_invoke(T msg, int invokeMs = -1, Action<R> lostRes = null)
+        public delay_csp<R> wrap_invoke(T msg, int invokeMs = -1, Action<R> lostRes = null)
         {
             return generator.wrap_csp_invoke(this, msg, invokeMs, lostRes);
         }
@@ -3471,7 +3471,7 @@ namespace Go
             return generator.csp_try_invoke(this, msg, invokeMs, lostRes, lostMsg);
         }
 
-        public delay_csp<csp_invoke_wrap<R>> wrap_try_invoke(T msg, int invokeMs = -1, Action<R> lostRes = null)
+        public delay_csp<R> wrap_try_invoke(T msg, int invokeMs = -1, Action<R> lostRes = null)
         {
             return generator.wrap_csp_try_invoke(this, msg, invokeMs, lostRes);
         }
@@ -3506,7 +3506,7 @@ namespace Go
             return generator.csp_timed_invoke(this, ms, msg, lostRes, lostMsg);
         }
 
-        public delay_csp<csp_invoke_wrap<R>> wrap_timed_invoke(tuple<int, int> ms, T msg, Action<R> lostRes = null)
+        public delay_csp<R> wrap_timed_invoke(tuple<int, int> ms, T msg, Action<R> lostRes = null)
         {
             return generator.wrap_csp_timed_invoke(this, ms, msg, lostRes);
         }
@@ -3521,7 +3521,7 @@ namespace Go
             return generator.csp_timed_invoke(this, ms, msg, lostRes, lostMsg);
         }
 
-        public delay_csp<csp_invoke_wrap<R>> wrap_timed_invoke(int ms, T msg, Action<R> lostRes = null)
+        public delay_csp<R> wrap_timed_invoke(int ms, T msg, Action<R> lostRes = null)
         {
             return generator.wrap_csp_timed_invoke(this, ms, msg, lostRes);
         }
