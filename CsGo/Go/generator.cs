@@ -6068,6 +6068,15 @@ namespace Go
             return to_vtask(tuple.make(true, check_csp(task)));
         }
 
+        static public ValueTask<tuple<bool, csp_invoke_wrap<R>>> try_wait_csp<R>(delay_csp<R> task)
+        {
+            if (!task.is_completed)
+            {
+                return to_vtask(tuple.make(false, default(csp_invoke_wrap<R>)));
+            }
+            return to_vtask(tuple.make(true, check_csp(task)));
+        }
+
         static public Task unsafe_wait_task<R>(async_result_wrap<R, Exception> res, Task<R> task)
         {
             if (!task.IsCompleted)
