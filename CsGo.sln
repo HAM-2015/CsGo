@@ -15,6 +15,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FormTest", "FormTest\FormTe
 		{22CB7E19-FD55-4A6E-976F-723082CC8206} = {22CB7E19-FD55-4A6E-976F-723082CC8206}
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WorkerFlow", "WorkerFlow\WorkerFlow.csproj", "{9CDE92F2-774C-4705-A3E6-4B586450AA5B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,8 +35,15 @@ Global
 		{2AC9E74B-77FF-4987-AA1E-6F75E7320941}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2AC9E74B-77FF-4987-AA1E-6F75E7320941}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2AC9E74B-77FF-4987-AA1E-6F75E7320941}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9CDE92F2-774C-4705-A3E6-4B586450AA5B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9CDE92F2-774C-4705-A3E6-4B586450AA5B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9CDE92F2-774C-4705-A3E6-4B586450AA5B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9CDE92F2-774C-4705-A3E6-4B586450AA5B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {1216098E-56D6-4C06-820E-4C7307AE7098}
 	EndGlobalSection
 EndGlobal
