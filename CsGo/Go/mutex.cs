@@ -136,7 +136,7 @@ namespace Go
         {
             if (_strand.running_in_this_thread())
                 if (!_mustTick) async_lock_(id, ntf);
-                else _strand.add_next(() => async_lock_(id, ntf));
+                else _strand.add_last(() => async_lock_(id, ntf));
             else _strand.post(() => async_lock_(id, ntf));
         }
 
@@ -144,7 +144,7 @@ namespace Go
         {
             if (_strand.running_in_this_thread())
                 if (!_mustTick) async_try_lock_(id, ntf);
-                else _strand.add_next(() => async_try_lock_(id, ntf));
+                else _strand.add_last(() => async_try_lock_(id, ntf));
             else _strand.post(() => async_try_lock_(id, ntf));
         }
 
@@ -152,7 +152,7 @@ namespace Go
         {
             if (_strand.running_in_this_thread())
                 if (!_mustTick) async_timed_lock_(id, ms, ntf);
-                else _strand.add_next(() => async_timed_lock_(id, ms, ntf));
+                else _strand.add_last(() => async_timed_lock_(id, ms, ntf));
             else _strand.post(() => async_timed_lock_(id, ms, ntf));
         }
 
@@ -160,7 +160,7 @@ namespace Go
         {
             if (_strand.running_in_this_thread())
                 if (!_mustTick) async_unlock_(id, ntf);
-                else _strand.add_next(() => async_unlock_(id, ntf));
+                else _strand.add_last(() => async_unlock_(id, ntf));
             else _strand.post(() => async_unlock_(id, ntf));
         }
 
@@ -168,7 +168,7 @@ namespace Go
         {
             if (_strand.running_in_this_thread())
                 if (!_mustTick) async_cancel_(id, ntf);
-                else _strand.add_next(() => async_cancel_(id, ntf));
+                else _strand.add_last(() => async_cancel_(id, ntf));
             else _strand.post(() => async_cancel_(id, ntf));
         }
 
@@ -534,7 +534,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_lock_shared_(id, ntf);
-                else self_strand().add_next(() => async_lock_shared_(id, ntf));
+                else self_strand().add_last(() => async_lock_shared_(id, ntf));
             else self_strand().post(() => async_lock_shared_(id, ntf));
         }
 
@@ -542,7 +542,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_lock_pess_shared_(id, ntf);
-                else self_strand().add_next(() => async_lock_pess_shared_(id, ntf));
+                else self_strand().add_last(() => async_lock_pess_shared_(id, ntf));
             else self_strand().post(() => async_lock_pess_shared_(id, ntf));
         }
 
@@ -550,7 +550,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_try_lock_shared_(id, ntf);
-                else self_strand().add_next(() => async_try_lock_shared_(id, ntf));
+                else self_strand().add_last(() => async_try_lock_shared_(id, ntf));
             else self_strand().post(() => async_try_lock_shared_(id, ntf));
         }
 
@@ -558,7 +558,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_timed_lock_shared_(id, ms, ntf);
-                else self_strand().add_next(() => async_timed_lock_shared_(id, ms, ntf));
+                else self_strand().add_last(() => async_timed_lock_shared_(id, ms, ntf));
             else self_strand().post(() => async_timed_lock_shared_(id, ms, ntf));
         }
 
@@ -566,7 +566,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_lock_upgrade_(id, ntf);
-                else self_strand().add_next(() => async_lock_upgrade_(id, ntf));
+                else self_strand().add_last(() => async_lock_upgrade_(id, ntf));
             else self_strand().post(() => async_lock_upgrade_(id, ntf));
         }
 
@@ -574,7 +574,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_try_lock_upgrade_(id, ntf);
-                else self_strand().add_next(() => async_try_lock_upgrade_(id, ntf));
+                else self_strand().add_last(() => async_try_lock_upgrade_(id, ntf));
             else self_strand().post(() => async_try_lock_upgrade_(id, ntf));
         }
 
@@ -582,7 +582,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_unlock_shared_(id, ntf);
-                else self_strand().add_next(() => async_unlock_shared_(id, ntf));
+                else self_strand().add_last(() => async_unlock_shared_(id, ntf));
             else self_strand().post(() => async_unlock_shared_(id, ntf));
         }
 
@@ -590,7 +590,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_unlock_upgrade_(id, ntf);
-                else self_strand().add_next(() => async_unlock_upgrade_(id, ntf));
+                else self_strand().add_last(() => async_unlock_upgrade_(id, ntf));
             else self_strand().post(() => async_unlock_upgrade_(id, ntf));
         }
 
@@ -598,7 +598,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_unlock_and_lock_shared_(id, ntf);
-                else self_strand().add_next(() => async_unlock_and_lock_shared_(id, ntf));
+                else self_strand().add_last(() => async_unlock_and_lock_shared_(id, ntf));
             else self_strand().post(() => async_unlock_and_lock_shared_(id, ntf));
         }
 
@@ -606,7 +606,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_unlock_and_lock_upgrade_(id, ntf);
-                else self_strand().add_next(() => async_unlock_and_lock_upgrade_(id, ntf));
+                else self_strand().add_last(() => async_unlock_and_lock_upgrade_(id, ntf));
             else self_strand().post(() => async_unlock_and_lock_upgrade_(id, ntf));
         }
 
@@ -614,7 +614,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_unlock_upgrade_and_lock_(id, ntf);
-                else self_strand().add_next(() => async_unlock_upgrade_and_lock_(id, ntf));
+                else self_strand().add_last(() => async_unlock_upgrade_and_lock_(id, ntf));
             else self_strand().post(() => async_unlock_upgrade_and_lock_(id, ntf));
         }
 
@@ -622,7 +622,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_unlock_shared_and_lock_(id, ntf);
-                else self_strand().add_next(() => async_unlock_shared_and_lock_(id, ntf));
+                else self_strand().add_last(() => async_unlock_shared_and_lock_(id, ntf));
             else self_strand().post(() => async_unlock_shared_and_lock_(id, ntf));
         }
 
@@ -703,7 +703,7 @@ namespace Go
             {
                 if (_strand.running_in_this_thread())
                     if (!_mustTick) _waitQueue.AddLast(new tuple<long, go_mutex, Action>(id, mutex, () => mutex.async_lock(id, ntf)));
-                    else _strand.add_next(() => _waitQueue.AddLast(new tuple<long, go_mutex, Action>(id, mutex, () => mutex.async_lock(id, ntf))));
+                    else _strand.add_last(() => _waitQueue.AddLast(new tuple<long, go_mutex, Action>(id, mutex, () => mutex.async_lock(id, ntf))));
                 else _strand.post(() => _waitQueue.AddLast(new tuple<long, go_mutex, Action>(id, mutex, () => mutex.async_lock(id, ntf))));
             });
         }
@@ -736,7 +736,7 @@ namespace Go
             {
                 if (_strand.running_in_this_thread())
                     if (!_mustTick) async_timed_wait_(id, ms, mutex, ntf);
-                    else _strand.add_next(() => async_timed_wait_(id, ms, mutex, ntf));
+                    else _strand.add_last(() => async_timed_wait_(id, ms, mutex, ntf));
                 else _strand.post(() => async_timed_wait_(id, ms, mutex, ntf));
             });
         }
@@ -755,7 +755,7 @@ namespace Go
         {
             if (_strand.running_in_this_thread())
                 if (!_mustTick) notify_one_();
-                else _strand.add_next(() => notify_one_());
+                else _strand.add_last(() => notify_one_());
             else _strand.post(() => notify_one_());
         }
 
@@ -775,7 +775,7 @@ namespace Go
         {
             if (_strand.running_in_this_thread())
                 if (!_mustTick) notify_all_();
-                else _strand.add_next(() => notify_all_());
+                else _strand.add_last(() => notify_all_());
             else _strand.post(() => notify_all_());
         }
 
@@ -797,7 +797,7 @@ namespace Go
         {
             if (_strand.running_in_this_thread())
                 if (!_mustTick) async_cancel_(id, ntf);
-                else _strand.add_next(() => async_cancel_(id, ntf));
+                else _strand.add_last(() => async_cancel_(id, ntf));
             else _strand.post(() => async_cancel_(id, ntf));
         }
 

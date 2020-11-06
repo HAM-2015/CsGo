@@ -313,7 +313,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_clear_(ntf);
-                else self_strand().add_next(() => async_clear_(ntf));
+                else self_strand().add_last(() => async_clear_(ntf));
             else self_strand().post(() => async_clear_(ntf));
         }
 
@@ -321,7 +321,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_close_(ntf);
-                else self_strand().add_next(() => async_close_(ntf));
+                else self_strand().add_last(() => async_close_(ntf));
             else self_strand().post(() => async_close_(ntf));
         }
 
@@ -329,7 +329,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_cancel_(ntf, isClear);
-                else self_strand().add_next(() => async_cancel_(ntf, isClear));
+                else self_strand().add_last(() => async_cancel_(ntf, isClear));
             else self_strand().post(() => async_cancel_(ntf, isClear));
         }
 
@@ -337,7 +337,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_append_recv_notify_(ntf, ntfSign, ms);
-                else self_strand().add_next(() => async_append_recv_notify_(ntf, ntfSign, ms));
+                else self_strand().add_last(() => async_append_recv_notify_(ntf, ntfSign, ms));
             else self_strand().post(() => async_append_recv_notify_(ntf, ntfSign, ms));
         }
 
@@ -345,7 +345,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_remove_recv_notify_(ntf, ntfSign);
-                else self_strand().add_next(() => async_remove_recv_notify_(ntf, ntfSign));
+                else self_strand().add_last(() => async_remove_recv_notify_(ntf, ntfSign));
             else self_strand().post(() => async_remove_recv_notify_(ntf, ntfSign));
         }
 
@@ -353,7 +353,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_append_send_notify_(ntf, ntfSign, ms);
-                else self_strand().add_next(() => async_append_send_notify_(ntf, ntfSign, ms));
+                else self_strand().add_last(() => async_append_send_notify_(ntf, ntfSign, ms));
             else self_strand().post(() => async_append_send_notify_(ntf, ntfSign, ms));
         }
 
@@ -361,7 +361,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_remove_send_notify_(ntf, ntfSign);
-                else self_strand().add_next(() => async_remove_send_notify_(ntf, ntfSign));
+                else self_strand().add_last(() => async_remove_send_notify_(ntf, ntfSign));
             else self_strand().post(() => async_remove_send_notify_(ntf, ntfSign));
         }
 
@@ -369,7 +369,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_append_recv_notify_(ntf, token, ntfSign, ms);
-                else self_strand().add_next(() => async_append_recv_notify_(ntf, token, ntfSign, ms));
+                else self_strand().add_last(() => async_append_recv_notify_(ntf, token, ntfSign, ms));
             else self_strand().post(() => async_append_recv_notify_(ntf, token, ntfSign, ms));
         }
 
@@ -669,7 +669,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_send_(ntf, msg, ntfSign);
-                else self_strand().add_next(() => async_send_(ntf, msg, ntfSign));
+                else self_strand().add_last(() => async_send_(ntf, msg, ntfSign));
             else self_strand().post(() => async_send_(ntf, msg, ntfSign));
         }
 
@@ -677,7 +677,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_recv_(ntf, ntfSign);
-                else self_strand().add_next(() => async_recv_(ntf, ntfSign));
+                else self_strand().add_last(() => async_recv_(ntf, ntfSign));
             else self_strand().post(() => async_recv_(ntf, ntfSign));
         }
 
@@ -685,7 +685,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_try_send_(ntf, msg, ntfSign);
-                else self_strand().add_next(() => async_try_send_(ntf, msg, ntfSign));
+                else self_strand().add_last(() => async_try_send_(ntf, msg, ntfSign));
             else self_strand().post(() => async_try_send_(ntf, msg, ntfSign));
         }
 
@@ -693,7 +693,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_try_recv_(ntf, ntfSign);
-                else self_strand().add_next(() => async_try_recv_(ntf, ntfSign));
+                else self_strand().add_last(() => async_try_recv_(ntf, ntfSign));
             else self_strand().post(() => async_try_recv_(ntf, ntfSign));
         }
 
@@ -701,7 +701,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_timed_send_(ms, ntf, msg, ntfSign);
-                else self_strand().add_next(() => async_timed_send_(ms, ntf, msg, ntfSign));
+                else self_strand().add_last(() => async_timed_send_(ms, ntf, msg, ntfSign));
             else self_strand().post(() => async_timed_send_(ms, ntf, msg, ntfSign));
         }
 
@@ -709,7 +709,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_timed_recv_(ms, ntf, ntfSign);
-                else self_strand().add_next(() => async_timed_recv_(ms, ntf, ntfSign));
+                else self_strand().add_last(() => async_timed_recv_(ms, ntf, ntfSign));
             else self_strand().post(() => async_timed_recv_(ms, ntf, ntfSign));
         }
 
@@ -717,7 +717,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_try_recv_and_append_notify_(cb, msgNtf, ntfSign, ms);
-                else self_strand().add_next(() => async_try_recv_and_append_notify_(cb, msgNtf, ntfSign, ms));
+                else self_strand().add_last(() => async_try_recv_and_append_notify_(cb, msgNtf, ntfSign, ms));
             else self_strand().post(() => async_try_recv_and_append_notify_(cb, msgNtf, ntfSign, ms));
         }
 
@@ -725,7 +725,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_try_send_and_append_notify_(cb, msgNtf, ntfSign, msg, ms);
-                else self_strand().add_next(() => async_try_send_and_append_notify_(cb, msgNtf, ntfSign, msg, ms));
+                else self_strand().add_last(() => async_try_send_and_append_notify_(cb, msgNtf, ntfSign, msg, ms));
             else self_strand().post(() => async_try_send_and_append_notify_(cb, msgNtf, ntfSign, msg, ms));
         }
 
@@ -961,7 +961,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_recv_(ntf, token, ntfSign);
-                else self_strand().add_next(() => async_recv_(ntf, token, ntfSign));
+                else self_strand().add_last(() => async_recv_(ntf, token, ntfSign));
             else self_strand().post(() => async_recv_(ntf, token, ntfSign));
         }
 
@@ -969,7 +969,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_try_recv_(ntf, token, ntfSign);
-                else self_strand().add_next(() => async_try_recv_(ntf, token, ntfSign));
+                else self_strand().add_last(() => async_try_recv_(ntf, token, ntfSign));
             else self_strand().post(() => async_try_recv_(ntf, token, ntfSign));
         }
 
@@ -977,7 +977,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_timed_recv_(ms, ntf, token, ntfSign);
-                else self_strand().add_next(() => async_timed_recv_(ms, ntf, token, ntfSign));
+                else self_strand().add_last(() => async_timed_recv_(ms, ntf, token, ntfSign));
             else self_strand().post(() => async_timed_recv_(ms, ntf, token, ntfSign));
         }
 
@@ -985,7 +985,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_try_recv_and_append_notify_(cb, msgNtf, token, ntfSign, ms);
-                else self_strand().add_next(() => async_try_recv_and_append_notify_(cb, msgNtf, token, ntfSign, ms));
+                else self_strand().add_last(() => async_try_recv_and_append_notify_(cb, msgNtf, token, ntfSign, ms));
             else self_strand().post(() => async_try_recv_and_append_notify_(cb, msgNtf, token, ntfSign, ms));
         }
 
@@ -1531,7 +1531,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_force_send_(ntf, msg);
-                else self_strand().add_next(() => async_force_send_(ntf, msg));
+                else self_strand().add_last(() => async_force_send_(ntf, msg));
             else self_strand().post(() => async_force_send_(ntf, msg));
         }
 
@@ -3342,7 +3342,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_send_(ntf, msg, ntfSign);
-                else self_strand().add_next(() => async_send_(ntf, msg, ntfSign));
+                else self_strand().add_last(() => async_send_(ntf, msg, ntfSign));
             else self_strand().post(() => async_send_(ntf, msg, ntfSign));
         }
 
@@ -3350,7 +3350,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_send_(invokeMs, ntf, msg, ntfSign);
-                else self_strand().add_next(() => async_send_(invokeMs, ntf, msg, ntfSign));
+                else self_strand().add_last(() => async_send_(invokeMs, ntf, msg, ntfSign));
             else self_strand().post(() => async_send_(invokeMs, ntf, msg, ntfSign));
         }
 
@@ -3358,7 +3358,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_recv_(ntf, ntfSign);
-                else self_strand().add_next(() => async_recv_(ntf, ntfSign));
+                else self_strand().add_last(() => async_recv_(ntf, ntfSign));
             else self_strand().post(() => async_recv_(ntf, ntfSign));
         }
 
@@ -3366,7 +3366,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_try_send_(ntf, msg, ntfSign);
-                else self_strand().add_next(() => async_try_send_(ntf, msg, ntfSign));
+                else self_strand().add_last(() => async_try_send_(ntf, msg, ntfSign));
             else self_strand().post(() => async_try_send_(ntf, msg, ntfSign));
         }
 
@@ -3374,7 +3374,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_try_send_(invokeMs, ntf, msg, ntfSign);
-                else self_strand().add_next(() => async_try_send_(invokeMs, ntf, msg, ntfSign));
+                else self_strand().add_last(() => async_try_send_(invokeMs, ntf, msg, ntfSign));
             else self_strand().post(() => async_try_send_(invokeMs, ntf, msg, ntfSign));
         }
 
@@ -3382,7 +3382,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_try_recv_(ntf, ntfSign);
-                else self_strand().add_next(() => async_try_recv_(ntf, ntfSign));
+                else self_strand().add_last(() => async_try_recv_(ntf, ntfSign));
             else self_strand().post(() => async_try_recv_(ntf, ntfSign));
         }
 
@@ -3390,7 +3390,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_timed_send_(ms, ntf, msg, ntfSign);
-                else self_strand().add_next(() => async_timed_send_(ms, ntf, msg, ntfSign));
+                else self_strand().add_last(() => async_timed_send_(ms, ntf, msg, ntfSign));
             else self_strand().post(() => async_timed_send_(ms, ntf, msg, ntfSign));
         }
 
@@ -3398,7 +3398,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_timed_send_(ms, invokeMs, ntf, msg, ntfSign);
-                else self_strand().add_next(() => async_timed_send_(ms, invokeMs, ntf, msg, ntfSign));
+                else self_strand().add_last(() => async_timed_send_(ms, invokeMs, ntf, msg, ntfSign));
             else self_strand().post(() => async_timed_send_(ms, invokeMs, ntf, msg, ntfSign));
         }
 
@@ -3406,7 +3406,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_timed_recv_(ms, ntf, ntfSign);
-                else self_strand().add_next(() => async_timed_recv_(ms, ntf, ntfSign));
+                else self_strand().add_last(() => async_timed_recv_(ms, ntf, ntfSign));
             else self_strand().post(() => async_timed_recv_(ms, ntf, ntfSign));
         }
 
@@ -3414,7 +3414,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_try_recv_and_append_notify_(cb, msgNtf, ntfSign, ms);
-                else self_strand().add_next(() => async_try_recv_and_append_notify_(cb, msgNtf, ntfSign, ms));
+                else self_strand().add_last(() => async_try_recv_and_append_notify_(cb, msgNtf, ntfSign, ms));
             else self_strand().post(() => async_try_recv_and_append_notify_(cb, msgNtf, ntfSign, ms));
         }
 
@@ -3422,7 +3422,7 @@ namespace Go
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_try_send_and_append_notify_(cb, msgNtf, ntfSign, msg, ms);
-                else self_strand().add_next(() => async_try_send_and_append_notify_(cb, msgNtf, ntfSign, msg, ms));
+                else self_strand().add_last(() => async_try_send_and_append_notify_(cb, msgNtf, ntfSign, msg, ms));
             else self_strand().post(() => async_try_send_and_append_notify_(cb, msgNtf, ntfSign, msg, ms));
         }
 
