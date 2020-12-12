@@ -1044,6 +1044,8 @@ namespace Go
     {
         public abstract void AddLast(T msg);
         public abstract T RemoveFirst();
+        public abstract T First();
+        public abstract T Last();
         public abstract int Count { get; }
         public abstract bool Empty { get; }
         public abstract void Clear();
@@ -1068,6 +1070,16 @@ namespace Go
             T first = _msgBuff.First.Value;
             _msgBuff.RemoveFirst();
             return first;
+        }
+
+        public override T First()
+        {
+            return _msgBuff.First.Value;
+        }
+
+        public override T Last()
+        {
+            return _msgBuff.Last.Value;
         }
 
         public override int Count
@@ -1112,6 +1124,16 @@ namespace Go
             return default(T);
         }
 
+        public override T First()
+        {
+            return default(T);
+        }
+
+        public override T Last()
+        {
+            return default(T);
+        }
+
         public override int Count
         {
             get
@@ -1150,6 +1172,78 @@ namespace Go
         public override chan_type type()
         {
             return chan_type.unlimit;
+        }
+
+        private void async_first_(Action<chan_recv_wrap<T>> ntf, chan_notify_sign ntfSign)
+        {
+            ntfSign?.reset_success();
+            if (!_msgQueue.Empty)
+            {
+                T msg = _msgQueue.First();
+                ntf(new chan_recv_wrap<T> { state = chan_state.ok, msg = msg });
+            }
+            else if (_closed)
+            {
+                ntf(new chan_recv_wrap<T> { state = chan_state.closed });
+            }
+            else
+            {
+                ntf(new chan_recv_wrap<T> { state = chan_state.fail });
+            }
+        }
+
+        private void async_last_(Action<chan_recv_wrap<T>> ntf, chan_notify_sign ntfSign)
+        {
+            ntfSign?.reset_success();
+            if (!_msgQueue.Empty)
+            {
+                T msg = _msgQueue.Last();
+                ntf(new chan_recv_wrap<T> { state = chan_state.ok, msg = msg });
+            }
+            else if (_closed)
+            {
+                ntf(new chan_recv_wrap<T> { state = chan_state.closed });
+            }
+            else
+            {
+                ntf(new chan_recv_wrap<T> { state = chan_state.fail });
+            }
+        }
+
+        public void async_first(Action<chan_recv_wrap<T>> ntf, chan_notify_sign ntfSign = null)
+        {
+            if (self_strand().running_in_this_thread())
+                if (!_mustTick) async_first_(ntf, ntfSign);
+                else self_strand().add_last(() => async_first_(ntf, ntfSign));
+            else self_strand().post(() => async_first_(ntf, ntfSign));
+        }
+
+        public void async_last(Action<chan_recv_wrap<T>> ntf, chan_notify_sign ntfSign = null)
+        {
+            if (self_strand().running_in_this_thread())
+                if (!_mustTick) async_last_(ntf, ntfSign);
+                else self_strand().add_last(() => async_last_(ntf, ntfSign));
+            else self_strand().post(() => async_last_(ntf, ntfSign));
+        }
+
+        public Task unsafe_first(async_result_wrap<chan_recv_wrap<T>> res)
+        {
+            return generator.unsafe_chan_first(res, this);
+        }
+
+        public ValueTask<chan_recv_wrap<T>> first()
+        {
+            return generator.chan_first(this);
+        }
+
+        public Task unsafe_last(async_result_wrap<chan_recv_wrap<T>> res)
+        {
+            return generator.unsafe_chan_last(res, this);
+        }
+
+        public ValueTask<chan_recv_wrap<T>> last()
+        {
+            return generator.chan_last(this);
         }
 
         protected override void async_send_(Action<chan_send_wrap> ntf, T msg, chan_notify_sign ntfSign)
@@ -1543,6 +1637,78 @@ namespace Go
         public ValueTask<chan_send_wrap> force_send(T msg, chan_lost_msg<T> outMsg = null, chan_lost_msg<T> lostMsg = null)
         {
             return generator.chan_force_send(this, msg, outMsg, lostMsg);
+        }
+
+        private void async_first_(Action<chan_recv_wrap<T>> ntf, chan_notify_sign ntfSign)
+        {
+            ntfSign?.reset_success();
+            if (!_msgQueue.Empty)
+            {
+                T msg = _msgQueue.First();
+                ntf(new chan_recv_wrap<T> { state = chan_state.ok, msg = msg });
+            }
+            else if (_closed)
+            {
+                ntf(new chan_recv_wrap<T> { state = chan_state.closed });
+            }
+            else
+            {
+                ntf(new chan_recv_wrap<T> { state = chan_state.fail });
+            }
+        }
+
+        private void async_last_(Action<chan_recv_wrap<T>> ntf, chan_notify_sign ntfSign)
+        {
+            ntfSign?.reset_success();
+            if (!_msgQueue.Empty)
+            {
+                T msg = _msgQueue.Last();
+                ntf(new chan_recv_wrap<T> { state = chan_state.ok, msg = msg });
+            }
+            else if (_closed)
+            {
+                ntf(new chan_recv_wrap<T> { state = chan_state.closed });
+            }
+            else
+            {
+                ntf(new chan_recv_wrap<T> { state = chan_state.fail });
+            }
+        }
+
+        public void async_first(Action<chan_recv_wrap<T>> ntf, chan_notify_sign ntfSign = null)
+        {
+            if (self_strand().running_in_this_thread())
+                if (!_mustTick) async_first_(ntf, ntfSign);
+                else self_strand().add_last(() => async_first_(ntf, ntfSign));
+            else self_strand().post(() => async_first_(ntf, ntfSign));
+        }
+
+        public void async_last(Action<chan_recv_wrap<T>> ntf, chan_notify_sign ntfSign = null)
+        {
+            if (self_strand().running_in_this_thread())
+                if (!_mustTick) async_last_(ntf, ntfSign);
+                else self_strand().add_last(() => async_last_(ntf, ntfSign));
+            else self_strand().post(() => async_last_(ntf, ntfSign));
+        }
+
+        public Task unsafe_first(async_result_wrap<chan_recv_wrap<T>> res)
+        {
+            return generator.unsafe_chan_first(res, this);
+        }
+
+        public ValueTask<chan_recv_wrap<T>> first()
+        {
+            return generator.chan_first(this);
+        }
+
+        public Task unsafe_last(async_result_wrap<chan_recv_wrap<T>> res)
+        {
+            return generator.unsafe_chan_last(res, this);
+        }
+
+        public ValueTask<chan_recv_wrap<T>> last()
+        {
+            return generator.chan_last(this);
         }
 
         protected override void async_recv_(Action<chan_recv_wrap<T>> ntf, chan_notify_sign ntfSign)

@@ -3830,6 +3830,86 @@ namespace Go
             return to_vtask(new chan_send_wrap { state = result.value1 });
         }
 
+        static public ValueTask<chan_recv_wrap<T>> chan_first<T>(limit_chan<T> chan)
+        {
+            generator this_ = self;
+            async_result_wrap<chan_recv_wrap<T>> result = new async_result_wrap<chan_recv_wrap<T>> { value1 = chan_recv_wrap<T>.def };
+            chan.async_first(this_.unsafe_async_result(result), this_._ioSign);
+            if (!this_.new_task_completed())
+            {
+                return to_vtask(this_.chan_receive_(result, chan, null));
+            }
+            return to_vtask(result.value1);
+        }
+
+        static public ValueTask<chan_recv_wrap<T>> chan_first<T>(unlimit_chan<T> chan)
+        {
+            generator this_ = self;
+            async_result_wrap<chan_recv_wrap<T>> result = new async_result_wrap<chan_recv_wrap<T>> { value1 = chan_recv_wrap<T>.def };
+            chan.async_first(this_.unsafe_async_result(result), this_._ioSign);
+            if (!this_.new_task_completed())
+            {
+                return to_vtask(this_.chan_receive_(result, chan, null));
+            }
+            return to_vtask(result.value1);
+        }
+
+        static public ValueTask<chan_recv_wrap<T>> chan_last<T>(limit_chan<T> chan)
+        {
+            generator this_ = self;
+            async_result_wrap<chan_recv_wrap<T>> result = new async_result_wrap<chan_recv_wrap<T>> { value1 = chan_recv_wrap<T>.def };
+            chan.async_last(this_.unsafe_async_result(result), this_._ioSign);
+            if (!this_.new_task_completed())
+            {
+                return to_vtask(this_.chan_receive_(result, chan, null));
+            }
+            return to_vtask(result.value1);
+        }
+
+        static public ValueTask<chan_recv_wrap<T>> chan_last<T>(unlimit_chan<T> chan)
+        {
+            generator this_ = self;
+            async_result_wrap<chan_recv_wrap<T>> result = new async_result_wrap<chan_recv_wrap<T>> { value1 = chan_recv_wrap<T>.def };
+            chan.async_last(this_.unsafe_async_result(result), this_._ioSign);
+            if (!this_.new_task_completed())
+            {
+                return to_vtask(this_.chan_receive_(result, chan, null));
+            }
+            return to_vtask(result.value1);
+        }
+
+        static public Task unsafe_chan_first<T>(async_result_wrap<chan_recv_wrap<T>> res, limit_chan<T> chan)
+        {
+            generator this_ = self;
+            res.value1 = default(chan_recv_wrap<T>);
+            chan.async_first(this_.unsafe_async_result(res));
+            return this_.async_wait();
+        }
+
+        static public Task unsafe_chan_first<T>(async_result_wrap<chan_recv_wrap<T>> res, unlimit_chan<T> chan)
+        {
+            generator this_ = self;
+            res.value1 = default(chan_recv_wrap<T>);
+            chan.async_first(this_.unsafe_async_result(res));
+            return this_.async_wait();
+        }
+
+        static public Task unsafe_chan_last<T>(async_result_wrap<chan_recv_wrap<T>> res, limit_chan<T> chan)
+        {
+            generator this_ = self;
+            res.value1 = default(chan_recv_wrap<T>);
+            chan.async_last(this_.unsafe_async_result(res));
+            return this_.async_wait();
+        }
+
+        static public Task unsafe_chan_last<T>(async_result_wrap<chan_recv_wrap<T>> res, unlimit_chan<T> chan)
+        {
+            generator this_ = self;
+            res.value1 = default(chan_recv_wrap<T>);
+            chan.async_last(this_.unsafe_async_result(res));
+            return this_.async_wait();
+        }
+
         static public Task unsafe_chan_receive<T>(async_result_wrap<chan_recv_wrap<T>> res, chan<T> chan)
         {
             return unsafe_chan_receive(res, chan, broadcast_token._defToken);
