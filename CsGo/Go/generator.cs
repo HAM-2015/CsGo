@@ -3830,6 +3830,41 @@ namespace Go
             return to_vtask(new chan_send_wrap { state = result.value1 });
         }
 
+        static public Task unsafe_chan_timed_force_send<T>(int ms, async_result_wrap<chan_send_wrap> res, limit_chan<T> chan, T msg, chan_lost_msg<T> outMsg = null)
+        {
+            generator this_ = self;
+            res.value1 = chan_send_wrap.def;
+            chan.async_timed_force_send(ms, this_.unsafe_async_callback(delegate (chan_state state, bool hasOut, T freeMsg)
+            {
+                res.value1 = new chan_send_wrap { state = state };
+                if (hasOut)
+                {
+                    outMsg?.set(freeMsg);
+                }
+            }), msg, this_._ioSign);
+            return this_.async_wait();
+        }
+
+        static public ValueTask<chan_send_wrap> chan_timed_force_send<T>(int ms, limit_chan<T> chan, T msg, chan_lost_msg<T> outMsg = null, chan_lost_msg<T> lostMsg = null)
+        {
+            generator this_ = self;
+            async_result_wrap<chan_state> result = new async_result_wrap<chan_state> { value1 = chan_state.undefined };
+            outMsg?.clear();
+            chan.async_timed_force_send(ms, this_.unsafe_async_callback(delegate (chan_state state, bool hasOut, T freeMsg)
+            {
+                result.value1 = state;
+                if (hasOut)
+                {
+                    outMsg?.set(freeMsg);
+                }
+            }), msg, this_._ioSign);
+            if (!this_.new_task_completed())
+            {
+                return to_vtask(this_.chan_force_send_(result, chan, msg, lostMsg));
+            }
+            return to_vtask(new chan_send_wrap { state = result.value1 });
+        }
+
         static public ValueTask<chan_recv_wrap<T>> chan_first<T>(limit_chan<T> chan)
         {
             generator this_ = self;

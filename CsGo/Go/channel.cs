@@ -1621,12 +1621,83 @@ namespace Go
             }
         }
 
+        private void async_timed_force_send_(int ms, Action<chan_state, bool, T> ntf, T msg, chan_notify_sign ntfSign)
+        {
+            ntfSign?.reset_success();
+            if (_closed)
+            {
+                ntf(chan_state.closed, false, default(T));
+                return;
+            }
+            if (_msgQueue.Count == _maxCount)
+            {
+                if (ms >= 0)
+                {
+                    async_timer timer = new async_timer(self_strand());
+                    priority_queue_node<notify_pck> node = _sendQueue.AddLast(0, new notify_pck()
+                    {
+                        timer = timer,
+                        ntf = delegate (chan_state state)
+                        {
+                            ntfSign?.reset_node();
+                            timer.cancel();
+                            if (chan_state.ok == state)
+                            {
+                                async_force_send_(ntf, msg);
+                            }
+                            else
+                            {
+                                ntf(state, false, default(T));
+                            }
+                        }
+                    });
+                    ntfSign?.set_node(node);
+                    timer.timeout(ms, delegate ()
+                    {
+                        _sendQueue.Remove(node).Invoke(chan_state.ok);
+                    });
+                }
+                else
+                {
+                    chan_notify_sign.set_node(ntfSign, _sendQueue.AddLast(0, new notify_pck()
+                    {
+                        ntf = delegate (chan_state state)
+                        {
+                            ntfSign?.reset_node();
+                            if (chan_state.ok == state)
+                            {
+                                async_force_send_(ntf, msg);
+                            }
+                            else
+                            {
+                                ntf(state, false, default(T));
+                            }
+                        }
+                    }));
+                }
+            }
+            else
+            {
+                _msgQueue.AddLast(msg);
+                _recvQueue.RemoveFirst().Invoke(chan_state.ok);
+                ntf(chan_state.ok, false, default(T));
+            }
+        }
+
         public void async_force_send(Action<chan_state, bool, T> ntf, T msg)
         {
             if (self_strand().running_in_this_thread())
                 if (!_mustTick) async_force_send_(ntf, msg);
                 else self_strand().add_last(() => async_force_send_(ntf, msg));
             else self_strand().post(() => async_force_send_(ntf, msg));
+        }
+
+        public void async_timed_force_send(int ms, Action<chan_state, bool, T> ntf, T msg, chan_notify_sign ntfSign = null)
+        {
+            if (self_strand().running_in_this_thread())
+                if (!_mustTick) async_timed_force_send_(ms, ntf, msg, ntfSign);
+                else self_strand().add_last(() => async_timed_force_send_(ms, ntf, msg, ntfSign));
+            else self_strand().post(() => async_timed_force_send_(ms, ntf, msg, ntfSign));
         }
 
         public Task unsafe_force_send(async_result_wrap<chan_send_wrap> res, T msg, chan_lost_msg<T> outMsg = null)
@@ -1637,6 +1708,16 @@ namespace Go
         public ValueTask<chan_send_wrap> force_send(T msg, chan_lost_msg<T> outMsg = null, chan_lost_msg<T> lostMsg = null)
         {
             return generator.chan_force_send(this, msg, outMsg, lostMsg);
+        }
+
+        public Task unsafe_timed_force_send(int ms, async_result_wrap<chan_send_wrap> res, T msg, chan_lost_msg<T> outMsg = null)
+        {
+            return generator.unsafe_chan_timed_force_send(ms, res, this, msg, outMsg);
+        }
+
+        public ValueTask<chan_send_wrap> timed_force_send(int ms, T msg, chan_lost_msg<T> outMsg = null, chan_lost_msg<T> lostMsg = null)
+        {
+            return generator.chan_timed_force_send(ms, this, msg, outMsg, lostMsg);
         }
 
         private void async_first_(Action<chan_recv_wrap<T>> ntf, chan_notify_sign ntfSign)
@@ -1786,6 +1867,11 @@ namespace Go
         protected override void async_timed_send_(int ms, Action<chan_send_wrap> ntf, T msg, chan_notify_sign ntfSign)
         {
             ntfSign?.reset_success();
+            if (_closed)
+            {
+                ntf(new chan_send_wrap { state = chan_state.closed });
+                return;
+            }
             if (_msgQueue.Count == _maxCount)
             {
                 if (ms >= 0)
